@@ -72,7 +72,6 @@ func (r *ResultCollection) Raw() []*Result {
 	return *r
 }
 
-// TODO: this assumes every result appears just once. There is an ongoing discussion about this: https://github.com/jetstack/preflight/merge_requests/16#note_64081
 // ByID returns a map of results by ID.
 func (r *ResultCollection) ByID() map[string]*Result {
 	resultMap := make(map[string]*Result)
