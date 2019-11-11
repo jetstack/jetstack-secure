@@ -123,7 +123,7 @@ func check() {
 	// we don't error if no data-gatherers to keep backwards compatibility
 	if ok {
 		for name, config := range gatherersConfig {
-			// TODO: create gatherer from config in a more clever way. We need to read gatherer config from here and its schema depends on the gatherer itself. That will be tackled in a separate MR.
+			// TODO: create gatherer from config in a more clever way. We need to read gatherer config from here and its schema depends on the gatherer itself.
 			var dg datagatherer.DataGatherer
 			if name == "eks" {
 				eksConfig, ok := config.(map[string]interface{})

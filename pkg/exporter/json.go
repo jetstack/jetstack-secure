@@ -22,7 +22,7 @@ func NewJSONExporter() *JSONExporter {
 // Export writes a report with the evaluated results enriched with the metadata from the policy manifest in a JSON format.
 func (e *JSONExporter) Export(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, rc *results.ResultCollection) (*bytes.Buffer, error) {
 	report := api.Report{
-		// TODO: we are omitting ID, Timestamp and Cluster for now, but it will get fixed with #82
+		// TODO: we are omitting ID, Timestamp and Cluster for now, but it will get fixed with #1
 		Package:     policyManifest.ID,
 		Name:        policyManifest.Name,
 		Description: policyManifest.Description,
