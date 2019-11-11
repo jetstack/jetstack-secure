@@ -22,14 +22,13 @@ type Package interface {
 
 // PolicyManifest contains all the information about the policy manifest of the package.
 type PolicyManifest struct {
-	Namespace     string   `yaml:"namespace"`
-	ID            string   `yaml:"id"`
-	DataGatherers []string `yaml:"data-gatherers,omitempty"`
-	// TODO: this is omitempty for now, until we migrate all the existing packages
-	RootQuery   string    `yaml:"root-query,omitempty"`
-	Name        string    `yaml:"name"`
-	Description string    `yaml:"description,omitempty"`
-	Sections    []Section `yaml:"sections,omitempty"`
+	Namespace     string    `yaml:"namespace"`
+	ID            string    `yaml:"id"`
+	DataGatherers []string  `yaml:"data-gatherers,omitempty"`
+	RootQuery     string    `yaml:"root-query"`
+	Name          string    `yaml:"name"`
+	Description   string    `yaml:"description,omitempty"`
+	Sections      []Section `yaml:"sections,omitempty"`
 }
 
 // GlobalID returns a global unique ID that contains the namespace and the ID.
