@@ -15,6 +15,8 @@ endef
 
 GO_BUILD:=go build -ldflags '$(LDFLAGS)'
 
+export GO111MODULE=on
+
 .PHONY: build
 
 build:
