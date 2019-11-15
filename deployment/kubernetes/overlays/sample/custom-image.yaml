@@ -1,0 +1,14 @@
+# Change the CronJob to use a custom image
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: preflight
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: preflight
+            # You can change this to use an image of your choice.
+            image: eu.gcr.io/jetstack-preflight/preflight-cli:latest
