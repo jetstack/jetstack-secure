@@ -79,6 +79,8 @@ You will see a CLI formatted report if everything goes well. Also, you will get 
 
 If you want to visualice the report in your browser, you can access [preflight.jetstack.io](https://preflight.jetstack.io/) and load the JSON report. **This is a static website. Your report is not being uploaded to any server. Everything happens in your browser.**
 
+You can give it a try without even running the tool, since we provide some report examples ([gke.json](./examples/reports/gke.json), [pods.json](./examples/reports/pods.json)) ready to be loaded in [preflight.jetstack.io](https://preflight.jetstack.io/).
+
 ## Get periodic reports by running Preflight as a CronJob
 
 See [Run Preflight In-Cluster](./docs/preflight-in-cluster.md).

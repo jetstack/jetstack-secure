@@ -1,0 +1,68 @@
+{
+  "id": "",
+  "timestamp": "0001-01-01T00:00:00Z",
+  "cluster": "",
+  "package": "gke_basic",
+  "name": "Google Kubernetes Engine basic checks",
+  "description": "This package contains some basic recommendations for GKE clusters.",
+  "sections": [
+    {
+      "id": "authentication",
+      "name": "Authentication",
+      "rules": [
+        {
+          "id": "basic_auth_disabled",
+          "name": "Basic authentication disabled",
+          "description": "Basic authentication allows a static plain-text username and password to authenticate to the Kubernetes API server. This is a legacy, insecure method of authentication that should not be used.",
+          "remediation": "Ensure that the basic authentication option is never used. If basic authentication has been used, disable it and switch to another authentication method immediately.",
+          "links": [
+            "https://cloud.google.com/kubernetes-engine/docs/how-to/hardening-your-cluster#disable_basic_auth"
+          ],
+          "success": false,
+          "missing": false
+        },
+        {
+          "id": "abac_disabled",
+          "name": "Legacy ABAC disabled",
+          "description": "Attribute Based Access Control (ABAC) should be disabled as it has been superseded by Role Based Access Control (RBAC). RBAC offers more precise definition of roles and permissions and has significant security advantages.",
+          "remediation": "ABAC is disabled by default on GKE, but can be enabled using the legacy ABAC option.",
+          "links": [
+            "https://kubernetes.io/docs/reference/access-authn-authz/abac/",
+            "https://kubernetes.io/docs/reference/access-authn-authz/authorization/",
+            "https://cloud.google.com/kubernetes-engine/docs/how-to/hardening-your-cluster#disable_abac"
+          ],
+          "success": true,
+          "missing": false
+        }
+      ]
+    },
+    {
+      "id": "maintenance",
+      "name": "Maintenance",
+      "rules": [
+        {
+          "id": "k8s_master_up_to_date",
+          "name": "Kubernetes master version up to date",
+          "description": "Kubernetes versions older than 1.12 no longer receive any patch updates and therefore are at risk as common vulnerabilities and exploits will not be fixed. Upgrade to at least Kubernetes 1.12.",
+          "remediation": "On GKE the master components are periodically upgraded automatically, but it’s possible to manually prompt an upgrade when a new stable version is available. If the master is not high availability, as is the case for zonal clusters, then upgrades will cause master downtime.",
+          "links": [
+            "https://cloud.google.com/kubernetes-engine/versioning-and-upgrades"
+          ],
+          "success": true,
+          "missing": false
+        },
+        {
+          "id": "k8s_nodes_up_to_date",
+          "name": "Kubernetes node version up to date",
+          "description": "Kubernetes versions older than 1.12 no longer receive any patch updates and therefore are at risk as common vulnerabilities and exploits will not be fixed. Upgrade to at least Kubernetes 1.12.",
+          "remediation": "Nodes are also periodically upgraded by default. They cannot be newer than the master version and should not be more than 2 minor versions behind.",
+          "links": [
+            "https://cloud.google.com/kubernetes-engine/versioning-and-upgrades#automatic_node_upgrades"
+          ],
+          "success": true,
+          "missing": false
+        }
+      ]
+    }
+  ]
+}
