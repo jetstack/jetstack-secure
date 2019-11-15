@@ -5,6 +5,9 @@ COMMIT:=$(shell git rev-list -1 HEAD)
 DATE:=$(shell date -uR)
 GOVERSION:=$(shell go version | awk '{print $$3 " " $$4}')
 
+IMAGE_NAME?=preflight:latest
+OVERLAY?=sample
+
 define LDFLAGS
 -X "github.com/jetstack/preflight/cmd.PreflightVersion=$(VERSION)" \
 -X "github.com/jetstack/preflight/cmd.Platform=$(GOOS)/$(GOARCH)" \
@@ -33,3 +36,9 @@ lint: vet
 
 clean:
 	cd $(ROOT_DIR) && rm -rf ./builds
+
+build-docker-image:
+	docker build -t $(IMAGE_NAME) .
+
+push-docker-image:
+	docker push $(IMAGE_NAME)

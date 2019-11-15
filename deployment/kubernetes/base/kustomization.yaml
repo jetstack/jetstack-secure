@@ -1,0 +1,4 @@
+resources:
+- 00-namespace.yaml
+- 01-rbac.yaml
+- 02-cronjob.yaml

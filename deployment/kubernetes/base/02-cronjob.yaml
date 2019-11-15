@@ -1,0 +1,47 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: preflight
+  namespace: preflight
+  labels:
+    app.kubernetes.io/name: preflight
+    app.kubernetes.io/version: master
+    app.kubernetes.io/part-of: jetstack-subscription
+spec:
+  schedule: "0 */1 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: preflight
+        app.kubernetes.io/version: master
+    spec:
+      template:
+        spec:
+          serviceAccountName: preflight
+          restartPolicy: Never
+          containers:
+          - name: preflight
+            image: jetstack/preflight:latest
+            imagePullPolicy: Always
+            resources:
+              requests:
+                cpu: 100m
+                memory: 50Mi
+              limits:
+                cpu: 100m
+                memory: 50Mi
+            volumeMounts:
+            - name: config
+              mountPath: /etc/preflight
+              readOnly: true
+            - name: gcs-credentials
+              mountPath: /var/run/secrets/preflight
+              readOnly: true
+          volumes:
+          - name: config
+            configMap:
+              name: preflight-config
+          - name: gcs-credentials
+            secret:
+              secretName: gcs-credentials
