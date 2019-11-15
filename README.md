@@ -25,16 +25,13 @@ The product of this assessment is a report
 which describes any problems and offers remediation advice.
 
 While these assessments have provided a lot of value to many customers,
-with a complex system like Kubernetes its hard to thoroughly check everything.
+with a complex system like Kubernetes it's hard to thoroughly check everything.
 Automating the checks allows them to be more comprehensive and much faster.
 
 The automation also allows the checks to be run repeatedly,
 meaning they can be deployed in-cluster to provide continuous configuration checking.
 
 This enables new interesting use cases as policy compliance audits.
-
-Jetstack plans to offer Preflight as a subscription service for customers,
-and to assist Customer Reliability Engineers (CREs) in keeping clusters running smoothly.
 
 ## Preflight Packages
 
@@ -69,7 +66,7 @@ Run Preflight (by default it looks for `./preflight.yaml`)
 preflight check
 ```
 
-You can try `./examples/pods.preflight.yaml` without having to change a line, if you have your kubeconfig* (~/.kube/config) pointing to a working cluster.
+You can try `./examples/pods.preflight.yaml` without having to change a line, if you have your *kubeconfig* (~/.kube/config) pointing to a working cluster.
 
 ```
 preflight check --config-file=./examples/pods.preflight.yaml
