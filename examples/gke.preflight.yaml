@@ -8,7 +8,7 @@ cluster-name: my-cluster
 data-gatherers:
   gke:
     project: my-gcp-project
-    zone: us-central1-a
+    location: us-central1-a
     cluster: my-gke-cluster
     # Path to a file containing the credentials. If empty, it will try to use Workload Identity (run `gcloud auth application-default login`).
     # credentials: /tmp/credentials.json

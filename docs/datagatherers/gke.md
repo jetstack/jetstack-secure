@@ -9,7 +9,7 @@ It pulls information about one cluster from the GKE API.
 You have to set these parameters in the configuration:
 
 - **project:** the ID of your Google Cloud Platform project.
-- **zone:** the compute zone where your cluster is running.
+- **location:** the compute zone or region where your cluster is running.
 - **cluster:** the name of your GKE cluster.
 - **credentials** *optional* **:** path to a file containing valid credentials for your cluster. Useful if you want to configure a separate service account. If not specified, it will attept to use Workload Identity. If you run Preflight locally on your machine, you can just run `gcloud auth application-default login`
 
