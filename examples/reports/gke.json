@@ -1,6 +1,6 @@
 {
   "id": "",
-  "timestamp": "0001-01-01T00:00:00Z",
+  "timestamp": "0002-01-01T00:00:00Z",
   "cluster": "",
   "package": "gke_basic",
   "name": "Google Kubernetes Engine basic checks",

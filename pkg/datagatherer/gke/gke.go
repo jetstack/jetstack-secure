@@ -25,8 +25,10 @@ type GKEInfo struct {
 // Cluster holds details about the cluster required to query it using the API.
 type Cluster struct {
 	Project string
-	Zone    string
-	Name    string
+	// Zone is deprecated, since now Location works for both Zones and regions
+	Zone     string
+	Name     string
+	Location string
 }
 
 // NewGKEDataGatherer creates a new GKEDataGatherer for a cluster.
@@ -59,9 +61,17 @@ func (g *GKEDataGatherer) Fetch() (interface{}, error) {
 		return nil, fmt.Errorf("failed to connect to Google Cloud Platform container API: %v", err)
 	}
 
-	cluster, err := containerService.Projects.Zones.Clusters.Get(g.cluster.Project, g.cluster.Zone, g.cluster.Name).Do()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get GKE cluster information (project: %s, zone: %s, cluster: %s): %v", g.cluster.Project, g.cluster.Zone, g.cluster.Name, err)
+	var cluster *container.Cluster
+	if len(g.cluster.Location) > 0 {
+		cluster, err = containerService.Projects.Locations.Clusters.Get(fmt.Sprintf("projects/%s/locations/%s/clusters/%s", g.cluster.Project, g.cluster.Location, g.cluster.Name)).Do()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get GKE cluster information (project: %s, location: %s, cluster: %s): %v", g.cluster.Project, g.cluster.Location, g.cluster.Name, err)
+		}
+	} else {
+		cluster, err = containerService.Projects.Zones.Clusters.Get(g.cluster.Project, g.cluster.Zone, g.cluster.Name).Do()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get GKE cluster information (project: %s, zone: %s, cluster: %s): %v", g.cluster.Project, g.cluster.Zone, g.cluster.Name, err)
+		}
 	}
 
 	return &GKEInfo{

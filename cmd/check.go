@@ -140,13 +140,21 @@ func check() {
 				if !ok {
 					log.Fatal("Cannot parse 'data-gatherers.gke' in config.")
 				}
-				var project, zone, cluster, credentialsPath string
+				var project, zone, cluster, location, credentialsPath string
 				msg := "'data-gatherers.gke.%s' should be a non empty string."
 				if project, ok = gkeConfig["project"].(string); !ok {
 					log.Fatalf(msg, "project")
 				}
-				if zone, ok = gkeConfig["zone"].(string); !ok {
-					log.Fatalf(msg, "zone")
+				if zone, ok = gkeConfig["zone"].(string); ok {
+					log.Println("'data-gatherers.gke.zone' is deprecated and will be deleted soon. Please use 'data-gatherers.gke.location' instead.")
+				}
+				if location, ok = gkeConfig["location"].(string); !ok {
+					if len(zone) == 0 {
+						log.Fatalf(msg, "location")
+					}
+				}
+				if len(location) > 0 && len(zone) > 0 {
+					log.Fatal("'data-gatherers.gke.zone' and 'data-gatherers.gke.location' cannot be used at the same time.")
 				}
 				if cluster, ok = gkeConfig["cluster"].(string); !ok {
 					log.Fatalf(msg, "cluster")
@@ -154,9 +162,10 @@ func check() {
 				// credentialsPath empty or not-present is also valid
 				credentialsPath, _ = gkeConfig["credentials"].(string)
 				dg = gke.NewGKEDataGatherer(ctx, &gke.Cluster{
-					Project: project,
-					Zone:    zone,
-					Name:    cluster,
+					Project:  project,
+					Zone:     zone,
+					Location: location,
+					Name:     cluster,
 				}, credentialsPath)
 			} else if name == "k8s/pods" {
 				podsConfig, ok := config.(map[string]interface{})
