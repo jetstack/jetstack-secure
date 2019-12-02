@@ -1,6 +1,6 @@
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-VERSION:=$(shell $(ROOT_DIR)/scripts/getversion.sh)
+VERSION:=$(shell $(ROOT_DIR)/hack/getversion)
 COMMIT:=$(shell git rev-list -1 HEAD)
 DATE:=$(shell date -uR)
 GOVERSION:=$(shell go version | awk '{print $$3 " " $$4}')
@@ -42,3 +42,9 @@ build-docker-image:
 
 push-docker-image:
 	docker push $(IMAGE_NAME)
+
+ci-test: test lint
+
+ci-build: ci-test build build-docker-image
+
+ci-publish: ci-build push-docker-image
