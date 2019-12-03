@@ -5,8 +5,8 @@ COMMIT:=$(shell git rev-list -1 HEAD)
 DATE:=$(shell date -uR)
 GOVERSION:=$(shell go version | awk '{print $$3 " " $$4}')
 
-IMAGE_NAME?=preflight:latest
-OVERLAY?=sample
+DOCKER_IMAGE?=quay.io/jetstack/preflight
+DOCKER_IMAGE_TAG?=$(DOCKER_IMAGE):$(VERSION)
 
 define LDFLAGS
 -X "github.com/jetstack/preflight/cmd.PreflightVersion=$(VERSION)" \
@@ -38,10 +38,12 @@ clean:
 	cd $(ROOT_DIR) && rm -rf ./builds
 
 build-docker-image:
-	docker build -t $(IMAGE_NAME) .
+	docker build --tag $(DOCKER_IMAGE_TAG) .
 
 push-docker-image:
-	docker push $(IMAGE_NAME)
+	docker tag $(DOCKER_IMAGE_TAG) $(DOCKER_IMAGE):latest
+	docker push $(DOCKER_IMAGE_TAG)
+	docker push $(DOCKER_IMAGE):latest
 
 ci-test: test lint
 
