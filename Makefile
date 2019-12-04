@@ -1,12 +1,12 @@
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-VERSION:=$(shell $(ROOT_DIR)/scripts/getversion.sh)
+VERSION:=$(shell $(ROOT_DIR)/hack/getversion)
 COMMIT:=$(shell git rev-list -1 HEAD)
 DATE:=$(shell date -uR)
 GOVERSION:=$(shell go version | awk '{print $$3 " " $$4}')
 
-IMAGE_NAME?=preflight:latest
-OVERLAY?=sample
+DOCKER_IMAGE?=quay.io/jetstack/preflight
+DOCKER_IMAGE_TAG?=$(DOCKER_IMAGE):$(VERSION)
 
 define LDFLAGS
 -X "github.com/jetstack/preflight/cmd.PreflightVersion=$(VERSION)" \
@@ -22,6 +22,11 @@ export GO111MODULE=on
 
 .PHONY: build
 
+clean:
+	cd $(ROOT_DIR) && rm -rf ./builds ./bundles
+
+# Golang cli
+
 build:
 	cd $(ROOT_DIR) && $(GO_BUILD) -o builds/preflight .
 
@@ -34,11 +39,44 @@ vet:
 lint: vet
 	cd $(ROOT_DIR) && golint
 
-clean:
-	cd $(ROOT_DIR) && rm -rf ./builds
+./builds/preflight-$(GOOS)-$(GOARCH):
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o ./builds/preflight-$(GOOS)-$(GOARCH) .
+
+build-all-platforms:
+	$(MAKE) GOOS=linux   GOARCH=amd64 ./builds/preflight-linux-amd64
+	$(MAKE) GOOS=darwin  GOARCH=amd64 ./builds/preflight-darwin-amd64
+	$(MAKE) GOOS=windows GOARCH=amd64 ./builds/preflight-windows-amd64
+
+# Bundles
+
+./bundles/preflight-bundle-$(GOOS)-$(GOARCH).tgz: ./builds/preflight-$(GOOS)-$(GOARCH)
+	cd $(ROOT_DIR) && \
+	mkdir -p ./bundles && \
+	tar --transform "s/assets\/packages/preflight-packages/" -cvf $@.tmp ./preflight-packages/ && \
+  tar --transform "s/examples\/pods.preflight.yaml/preflight.yaml/" -rvf $@.tmp examples/pods.preflight.yaml && \
+  tar --transform "s/builds\/preflight-$(GOOS)-$(GOARCH)/preflight/" -rvf $@.tmp $< && \
+	gzip < $@.tmp > $@ && \
+	rm $@.tmp
+
+bundle-all-platforms:
+	$(MAKE) GOOS=linux   GOARCH=amd64 ./bundles/preflight-bundle-linux-amd64.tgz
+	$(MAKE) GOOS=darwin  GOARCH=amd64 ./bundles/preflight-bundle-darwin-amd64.tgz
+	$(MAKE) GOOS=windows GOARCH=amd64 ./bundles/preflight-bundle-windows-amd64.tgz
+
+# Docker image
 
 build-docker-image:
-	docker build -t $(IMAGE_NAME) .
+	docker build --tag $(DOCKER_IMAGE_TAG) .
 
 push-docker-image:
-	docker push $(IMAGE_NAME)
+	docker tag $(DOCKER_IMAGE_TAG) $(DOCKER_IMAGE):latest
+	docker push $(DOCKER_IMAGE_TAG)
+	docker push $(DOCKER_IMAGE):latest
+
+# CI
+
+ci-test: test lint
+
+ci-build: ci-test build build-docker-image build-all-platforms bundle-all-platforms
+
+ci-publish: ci-build push-docker-image
