@@ -1,3 +1,12 @@
+<p align="center">
+<a href="https://prow.build-infra.jetstack.net/?job=post-preflight-release-canary">
+<!-- prow build badge, godoc, and go report card-->
+<img alt="Build Status" src="https://prow.build-infra.jetstack.net/badge.svg?jobs=post-preflight-release-canary">
+</a>
+<a href="https://godoc.org/github.com/jetstack/preflight"><img src="https://godoc.org/github.com/jetstack/preflight?status.svg"></a>
+<a href="https://goreportcard.com/report/github.com/jetstack/preflight"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/jetstack/preflight" /></a>
+</p>
+
 # Jetstack Preflight
 
 Preflight is a tool to automatically perform Kubernetes cluster configuration checks using [Open Policy Agent (OPA)](https://www.openpolicyagent.org/).
@@ -10,7 +19,7 @@ Preflight is a tool to automatically perform Kubernetes cluster configuration ch
     - [Preflight Packages](#preflight-packages)
     - [Install Preflight](#install-preflight)
         - [Use Preflight locally](#use-preflight-locally)
-        - [Get periodic reports by running Preflight as a CronJob](#get-periodic-reports-by-running-preflight-as-a-cronjob)
+        - [Preflight In-Cluster with periodic checks](#preflight-in-cluster-with-periodic-checks)
 
 <!-- markdown-toc end -->
 
@@ -77,6 +86,6 @@ If you want to visualice the report in your browser, you can access [preflight.j
 
 You can give it a try without even running the tool, since we provide some report examples ([gke.json](./examples/reports/gke.json), [pods.json](./examples/reports/pods.json)) ready to be loaded in [preflight.jetstack.io](https://preflight.jetstack.io/).
 
-### Get periodic reports by running Preflight as a CronJob
+### Preflight In-Cluster with periodic checks
 
 See [Installation Manual: Preflight In-Cluster](./docs/installation_manual_in_cluster.md).

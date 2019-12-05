@@ -1,3 +1,4 @@
+// Package gke provides a datagatherer for GKE.
 package gke
 
 import (

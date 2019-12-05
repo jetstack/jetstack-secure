@@ -1,3 +1,4 @@
+// Package api provides types for Preflight reports and some common helpers.
 package api
 
 import (
