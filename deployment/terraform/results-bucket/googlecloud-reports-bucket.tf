@@ -20,7 +20,6 @@ provider "google" {
   project = var.reports_bucket_gcp_project_id
 }
 
-# https://www.terraform.io/docs/providers/google/r/storage_bucket.html
 resource "google_storage_bucket" "report_store" {
   name     = var.reports_bucket_name
   location = "EU"

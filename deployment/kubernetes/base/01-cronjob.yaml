@@ -18,11 +18,11 @@ spec:
     spec:
       template:
         spec:
-          serviceAccountName: preflight
+          serviceAccountName: preflight-scanner
           restartPolicy: Never
           containers:
           - name: preflight
-            image: jetstack/preflight:latest
+            image: quay.io/jetstack/preflight
             imagePullPolicy: Always
             resources:
               requests:

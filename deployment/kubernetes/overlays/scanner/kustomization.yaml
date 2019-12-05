@@ -1,0 +1,20 @@
+bases:
+- ../../base
+namespace: preflight-scanner
+resources:
+- namespace.yaml
+configMapGenerator:
+- name: preflight-config
+  namespace: preflight-scanner
+  files:
+  - ./config/preflight.yaml
+secretGenerator:
+- name: gcs-credentials
+  namespace: preflight-scanner
+  files:
+  - ./secrets/credentials.json
+patchesStrategicMerge:
+- ./period.yaml
+- ./cluster-role-binding-namespace.yaml
+- ./workload-identity.yaml
+- ./image.yaml

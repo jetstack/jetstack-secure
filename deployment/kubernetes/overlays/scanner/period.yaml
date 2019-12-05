@@ -1,0 +1,7 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: preflight
+spec:
+  # every 30 minutes
+  schedule: "*/30 * * * *"

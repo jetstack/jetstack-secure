@@ -15,14 +15,12 @@ provider "google" {
   project = var.scanner_gcp_project_id
 }
 
-# https://www.terraform.io/docs/providers/google/r/google_service_account.html
 resource "google_service_account" "preflight_scanner_service_account" {
   account_id   = "preflight-scanner"
   display_name = "Service account for getting cluster information with workload identity"
   project = var.scanner_gcp_project_id
 }
 
-# https://www.terraform.io/docs/providers/google/r/google_project_iam_custom_role.html
 resource "google_project_iam_member" "preflight_scanner_cluster_viewer" {
   project = var.scanner_gcp_project_id
   role    = "roles/container.clusterViewer"

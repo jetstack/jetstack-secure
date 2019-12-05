@@ -1,0 +1,27 @@
+# this cluster-name is just used to mark the generated reports
+cluster-name: mycluster
+
+data-gatherers:
+  gke:
+    # change these properties to point to your GKE cluster
+    project: my-gcp-project
+    location: europe-west1-b
+    cluster: mycluster
+
+  k8s/pods:
+    kubeconfig: {}
+
+package-sources:
+- type: local
+  dir: /preflight-packages/
+
+enabled-packages:
+  - "examples.jetstack.io/gke_basic"
+  - "examples.jetstack.io/pods_basic"
+
+outputs:
+- type: gcs
+  format: json
+  # change this to your bucket
+  bucket-name: preflight-results
+  credentials-path: /var/run/secrets/preflight/credentials.json

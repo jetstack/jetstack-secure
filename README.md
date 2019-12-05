@@ -9,8 +9,8 @@ Preflight is a tool to automatically perform Kubernetes cluster configuration ch
     - [Background](#background)
     - [Preflight Packages](#preflight-packages)
     - [Install Preflight](#install-preflight)
-    - [Use Preflight locally](#use-preflight-locally)
-    - [Get periodic reports by running Preflight as a CronJob](#get-periodic-reports-by-running-preflight-as-a-cronjob)
+        - [Use Preflight locally](#use-preflight-locally)
+        - [Get periodic reports by running Preflight as a CronJob](#get-periodic-reports-by-running-preflight-as-a-cronjob)
 
 <!-- markdown-toc end -->
 

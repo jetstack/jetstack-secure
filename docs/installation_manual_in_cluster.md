@@ -27,17 +27,18 @@ make push-docker-image
 
 ### Create a bucket where to store the reports and a service account that can write to that bucket
 
-Now we need to [create a bucket](https://cloud.google.com/storage/docs/creating-buckets) where to store the reports. We are using `preflight-results** as the name for the bucket here, but you will need to choose a different name.
+Now we need to create a bucket where to store the reports. We are using `preflight-results` as the name for the bucket here, but you will need to choose a different name.
 
 Execute
 ```
-terraform init ./deployment/terraform/results-bucket
-terraform apply ./deployment/terraform/results-bucket
+cd ./deployment/terraform/results-bucket
+terraform init
+terraform apply
 ```
 
 It will ask for a name for the bucket and for the ID of the Google Cloud project where the bucket is going to be created.
 
-If it is executed correctly, it will generate the file `./deployment/kubernetes/overlay/scanner/secrets/credentials.json` with the key for the writer service account.
+If it is executed correctly, it will generate the file `deployment/kubernetes/overlay/scanner/secrets/credentials.json` with the key for the writer service account.
 
 ### Create another service account that Preflight will use to reach the Google Cloud API (only if we are going to use the `gke` datagatherer)
 
@@ -45,38 +46,44 @@ When Preflight runs inside a GKE cluster, the [`gke` datagatherer](./datagathere
 
 This consists of "linking" a Kubernetes service account (KSA) and a Google Cloud service account (GSA) so when a pod uses that KSA it can reach the Google Cloud API authenticated as the GSA.
 
-The following terraform module creates a GSA with the enough permissions to be used with the `gke` datagatherer and also enables _Workload Identity** on it.
+The following terraform module creates a GSA with the enough permissions to be used with the `gke` datagatherer and also enables _Workload Identity_ on it.
 
 **Create the service account**
 
 Execute:
 ```
-terraform init ./deployment/terraform/gke-datagatherer
-terraform apply ./deployment/terraform/gke-datagatherer
+cd ./deployment/terraform/gke-datagatherer
+terraform init
+terraform apply
 ```
 
 It will ask for the Google Cloud project ID where the cluster Preflight is going to check is running.
 
 As a result of applying that, it creates a GSA named `preflight-scanner@[project-id].iam.gserviceaccount.com`.
 
-## Create an overlay
+## Deploy Preflight
 
-We provide a Kustomize [base](../deployment/kubernetes/base) and a [sample overlay](../deployment/kubernetes/overlays/sample) to deploy Preflight as a CronJob in your Kubernetes cluster.
+**Configure Google Cloud service account**
 
-Create a new overlay, e.g. `deployment/kubernetes/overlays/myoverlay` (you can copy the example).
+First, we need to annotate the KSA so it points to the GSA where we have configured _Workload Identity_. Edit `deployment/kubernetes/overlays/scanner/workload-identity.yaml` and make sure you change the annotation `iam.gke.io/gcp-service-account` so it is the GSA we have created in the previous step (`preflight-scanner@[project-id].iam.gserviceaccount.com`).
 
-Add the service account key (`credentials.json`) to your overlay folder.
+**Custom Docker Image (optional)**
 
-Edit `preflight.yaml` as you want. It is important that you configure your bucket name in the output section.
+If you built your own Docker image for Preflight, you need to edit `deployment/kubernetes/overlays/scanner/image.yaml` and change `image` there.
 
-Edit `image.yaml` so it uses the docker image you built before.
+**Preflight configuration**
 
-## Deploy the CronJob
+We also need to customize some things in the configuration file. Edit `deployment/kubernetes/overlays/scanner/config/preflight.yaml` and chagne:
+- `cluster-name`, this is the name of the cluster in the context of Preflight. Will be used in the generated reports.
+- `data-gatherers.gke`, make sure `project`, `location` and `cluster` correspond to the GKE cluster you want Preflight to scan.
+- `bucket-name`, change it so it points to the cluster you created before.
 
-```
-kubectl apply -k ./deployment/kubernetes/overlays/myoverlay
-```
+**Deploy**
+
+Now, you can execute `kubectl apply -k deployment/kubernetes/overlays/scanner` and it will deploy Preflight.
+
+By default it runs every 30 minutes (you can change that by editing `deployment/kubernetes/overlays/scanner/period.yaml`). If you want to trigger an execution now, run `kubectl create job -n=preflight-scanner --from=cronjob/preflight preflight-job`.
 
 ## Results
 
-Soon, you will start seeing some results in the bucket.
+If Preflight runs correctly, some results will appear in the bucket, ordered by cluster name and timestamp: `<cluster-name>/<timestamp>/<package-name>.json`
