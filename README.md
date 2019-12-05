@@ -9,8 +9,8 @@ Preflight is a tool to automatically perform Kubernetes cluster configuration ch
     - [Background](#background)
     - [Preflight Packages](#preflight-packages)
     - [Install Preflight](#install-preflight)
-    - [Use Preflight locally](#use-preflight-locally)
-    - [Get periodic reports by running Preflight as a CronJob](#get-periodic-reports-by-running-preflight-as-a-cronjob)
+        - [Use Preflight locally](#use-preflight-locally)
+        - [Get periodic reports by running Preflight as a CronJob](#get-periodic-reports-by-running-preflight-as-a-cronjob)
 
 <!-- markdown-toc end -->
 
@@ -53,10 +53,9 @@ preflight package lint <path to package>
 
 ## Install Preflight
 
+### Use Preflight locally
+
 You can compile Preflight by running `make build`. It will create the binary in `builds/preflight`.
-
-
-## Use Preflight locally
 
 Create your `preflight.yaml` configuration file (you can take inspiration from the ones in `./examples`).
 
@@ -78,6 +77,6 @@ If you want to visualice the report in your browser, you can access [preflight.j
 
 You can give it a try without even running the tool, since we provide some report examples ([gke.json](./examples/reports/gke.json), [pods.json](./examples/reports/pods.json)) ready to be loaded in [preflight.jetstack.io](https://preflight.jetstack.io/).
 
-## Get periodic reports by running Preflight as a CronJob
+### Get periodic reports by running Preflight as a CronJob
 
-See [Run Preflight In-Cluster](./docs/preflight-in-cluster.md).
+See [Installation Manual: Preflight In-Cluster](./docs/installation_manual_in_cluster.md).
