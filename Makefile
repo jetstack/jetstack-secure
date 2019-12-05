@@ -75,7 +75,12 @@ push-docker-image:
 
 # CI
 
-ci-test: test lint
+export PATH:=$(GOPATH)/bin:$(PATH)
+
+ci-deps:
+	go install golang.org/x/lint/golint
+
+ci-test: ci-deps test lint
 
 ci-build: ci-test build build-docker-image build-all-platforms bundle-all-platforms
 
