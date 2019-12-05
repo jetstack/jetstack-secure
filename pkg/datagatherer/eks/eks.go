@@ -1,3 +1,4 @@
+// Package eks provides a datagatherer for EKS.
 package eks
 
 import (

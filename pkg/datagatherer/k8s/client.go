@@ -1,3 +1,4 @@
+// Package k8s provides datagatherers for different parts of the Kubernetes API.
 package k8s
 
 import (
