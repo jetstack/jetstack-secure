@@ -73,6 +73,11 @@ push-docker-image:
 	docker push $(DOCKER_IMAGE_TAG)
 	docker push $(DOCKER_IMAGE):latest
 
+push-docker-image-canary:
+	docker tag $(DOCKER_IMAGE_TAG) $(DOCKER_IMAGE):canary
+	docker push $(DOCKER_IMAGE_TAG)
+	docker push $(DOCKER_IMAGE):canary
+
 # CI
 
 export PATH:=$(GOPATH)/bin:$(PATH)
@@ -82,6 +87,6 @@ ci-deps:
 
 ci-test: ci-deps test lint
 
-ci-build: ci-test build build-docker-image build-all-platforms bundle-all-platforms
+ci-build: ci-test build build-docker-image build-all-platforms bundle-all-platforms push-docker-image-canary
 
 ci-publish: ci-build push-docker-image
