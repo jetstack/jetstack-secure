@@ -74,7 +74,7 @@ Run Preflight (by default it looks for `./preflight.yaml`)
 preflight check
 ```
 
-You can try `./examples/pods.preflight.yaml` without having to change a line, if you have your *kubeconfig* (~/.kube/config) pointing to a working cluster.
+You can try `./examples/pods.preflight.yaml` without having to change a line, if you have your *kubeconfig* (`~/.kube/config`) pointing to a working cluster.
 
 ```
 preflight check --config-file=./examples/pods.preflight.yaml
