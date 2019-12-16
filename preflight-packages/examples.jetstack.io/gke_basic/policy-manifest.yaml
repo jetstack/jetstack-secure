@@ -1,5 +1,7 @@
+schema-version: "1.0.0"
 id: "gke_basic"
 namespace: "examples.jetstack.io"
+package-version: "1.0.0"
 data-gatherers:
 - gke
 # `root-query` selects selects the rego package: `data.<repo_package>`.
