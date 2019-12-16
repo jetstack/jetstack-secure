@@ -24,6 +24,18 @@ func LintPolicyManifest(manifest packaging.PolicyManifest) []LintError {
 		lint("Manifest Namespace absent")
 	}
 
+	if manifest.SchemaVersion == "" {
+		lint("Manifest SchemaVersion absent")
+	} else if !isSemver(manifest.SchemaVersion) {
+		lint("Manifest SchemaVersion must be semver")
+	}
+
+	if manifest.PackageVersion == "" {
+		lint("Manifest PackageVersion absent")
+	} else if !isSemver(manifest.PackageVersion) {
+		lint("Manifest PackageVersion must be semver")
+	}
+
 	sections := manifest.Sections
 	if len(sections) == 0 {
 		lint("No sections in manifest")
@@ -171,4 +183,9 @@ func LintRule(sectionID string, rule packaging.Rule) []LintError {
 	}
 
 	return lints
+}
+
+func isSemver(version string) bool {
+	match, _ := regexp.MatchString("^v?\\d+.\\d+.\\d+(-.+)?$", version)
+	return match
 }

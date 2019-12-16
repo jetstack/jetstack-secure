@@ -22,13 +22,24 @@ type Package interface {
 
 // PolicyManifest contains all the information about the policy manifest of the package.
 type PolicyManifest struct {
-	Namespace     string    `yaml:"namespace"`
-	ID            string    `yaml:"id"`
-	DataGatherers []string  `yaml:"data-gatherers,omitempty"`
-	RootQuery     string    `yaml:"root-query"`
-	Name          string    `yaml:"name"`
-	Description   string    `yaml:"description,omitempty"`
-	Sections      []Section `yaml:"sections,omitempty"`
+	// SchemaVersion is the version of the PolicyManifest schema, and thus the version of the Preflight Package format. It follows semver.
+	SchemaVersion string `yaml:"schema-version"`
+	// PackageVersion is the version of the package. No format is enforced, but it is recommended to follow semver.
+	PackageVersion string `yaml:"package-version"`
+	// Namespace is the namespace of the package. We recommend to use FQDNs.
+	Namespace string `yaml:"namespace"`
+	// ID is the ID of the package itself.
+	ID string `yaml:"id"`
+	// DataGatherers is the list of data-gatherers the package depends on.
+	DataGatherers []string `yaml:"data-gatherers,omitempty"`
+	// RootQuery is the query needed in the REGO context to access the result of the checks.
+	RootQuery string `yaml:"root-query"`
+	// Name is the name of the package.
+	Name string `yaml:"name"`
+	// Description is a text describing the package.
+	Description string `yaml:"description,omitempty"`
+	// Sections contains the different sections inside the package.
+	Sections []Section `yaml:"sections,omitempty"`
 }
 
 // GlobalID returns a global unique ID that contains the namespace and the ID.
@@ -38,20 +49,30 @@ func (m *PolicyManifest) GlobalID() string {
 
 // Section holds the information for a section of the policy manifest.
 type Section struct {
-	ID          string `yaml:"id"`
-	Name        string `yaml:"name"`
+	// ID is the ID of the section.
+	ID string `yaml:"id"`
+	// Name is the name of the section.
+	Name string `yaml:"name"`
+	// Description is the description of the section.
 	Description string `yaml:"description,omitempty"`
-	Rules       []Rule `yaml:"rules,omitempty"`
+	// Rules contain all the rules in the section.
+	Rules []Rule `yaml:"rules,omitempty"`
 }
 
 // Rule holds the information for a rule.
 type Rule struct {
-	ID          string   `yaml:"id"`
-	Name        string   `yaml:"name"`
-	Description string   `yaml:"description,omitempty"`
-	Manual      bool     `yaml:"manual,omitempty"`
-	Remediation string   `yaml:"remediation,omitempty"`
-	Links       []string `yaml:"links,omitempty"`
+	// ID is the id of the rule.
+	ID string `yaml:"id"`
+	// Name is a shortname for the rule.
+	Name string `yaml:"name"`
+	// Description is a text describing what the rule is about.
+	Description string `yaml:"description,omitempty"`
+	// Manual indicated whether the rule can be evaluated automatically by Preflight or requires manual intervention.
+	Manual bool `yaml:"manual,omitempty"`
+	// Remediation is a text describing how to fix a failure of the rule.
+	Remediation string `yaml:"remediation,omitempty"`
+	// Links contains useful links related to the rule.
+	Links []string `yaml:"links,omitempty"`
 }
 
 // EvalPackage evaluated the rules in a package given an input

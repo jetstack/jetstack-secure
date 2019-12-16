@@ -211,9 +211,11 @@ func TestSectionLint(t *testing.T) {
 
 func TestLintPolicyManifestSuccess(t *testing.T) {
 	validPackage := packaging.PolicyManifest{
-		ID:        "mypackage",
-		Namespace: "mynamespace",
-		Name:      "My Package",
+		SchemaVersion:  "1.0.0",
+		ID:             "mypackage",
+		Namespace:      "mynamespace",
+		Name:           "My Package",
+		PackageVersion: "1.0.0",
 		Sections: []packaging.Section{
 			{
 				ID:   "1.2",
@@ -246,23 +248,65 @@ var invalidManifests = []struct {
 		name:         "No sections",
 		expectedLint: "No sections in manifest",
 		manifest: packaging.PolicyManifest{
-			ID:   "mypackage",
-			Name: "My Package",
+			SchemaVersion:  "1.0.0",
+			ID:             "mypackage",
+			Name:           "My Package",
+			PackageVersion: "1.0.0",
 		},
 	},
 	{
 		name:         "No ID",
 		expectedLint: "Manifest ID absent",
 		manifest: packaging.PolicyManifest{
-			Name: "My Package",
+			SchemaVersion:  "1.0.0",
+			Name:           "My Package",
+			PackageVersion: "1.0.0",
+		},
+	},
+	{
+		name:         "No SchemaVersion",
+		expectedLint: "Manifest SchemaVersion absent",
+		manifest: packaging.PolicyManifest{
+			ID:             "mypackage",
+			Name:           "My Package",
+			PackageVersion: "1.0.0",
+		},
+	},
+	{
+		name:         "SchemaVersion not semver",
+		expectedLint: "Manifest SchemaVersion must be semver",
+		manifest: packaging.PolicyManifest{
+			ID:            "mypackage",
+			Name:          "My Package",
+			SchemaVersion: "1",
+		},
+	},
+	{
+		name:         "No PackageVersion",
+		expectedLint: "Manifest PackageVersion absent",
+		manifest: packaging.PolicyManifest{
+			ID:            "mypackage",
+			Name:          "My Package",
+			SchemaVersion: "1.0.0",
+		},
+	},
+	{
+		name:         "PackageVersion not semver",
+		expectedLint: "Manifest PackageVersion must be semver",
+		manifest: packaging.PolicyManifest{
+			ID:             "mypackage",
+			Name:           "My Package",
+			PackageVersion: "1",
 		},
 	},
 	{
 		name:         "Duplicated section ID",
 		expectedLint: "Section ID 1.2 duplicated 2 times",
 		manifest: packaging.PolicyManifest{
-			ID:   "1",
-			Name: "My Package",
+			SchemaVersion:  "1.0.0",
+			ID:             "1",
+			Name:           "My Package",
+			PackageVersion: "1.0.0",
 			Sections: []packaging.Section{
 				{
 					ID:   "1.2",
@@ -291,8 +335,10 @@ var invalidManifests = []struct {
 		name:         "Duplicated section Name",
 		expectedLint: "Section Name 'foobar' duplicated 2 times",
 		manifest: packaging.PolicyManifest{
-			ID:   "1",
-			Name: "My Package",
+			SchemaVersion:  "1.0.0",
+			ID:             "1",
+			Name:           "My Package",
+			PackageVersion: "1.0.0",
 			Sections: []packaging.Section{
 				{
 					ID:   "1.1",
@@ -321,8 +367,10 @@ var invalidManifests = []struct {
 		name:         "Duplicated section Name",
 		expectedLint: "Rule Name 'My Rule' duplicated 3 times",
 		manifest: packaging.PolicyManifest{
-			ID:   "1",
-			Name: "My Package",
+			SchemaVersion:  "1.0.0",
+			ID:             "1",
+			Name:           "My Package",
+			PackageVersion: "1.0.0",
 			Sections: []packaging.Section{
 				{
 					ID:   "1.1",
@@ -380,5 +428,29 @@ func TestManfiestLint(t *testing.T) {
 				}
 			},
 		)
+	}
+}
+
+func TestIsSemver(t *testing.T) {
+	semverTcs := []struct {
+		version string
+		result  bool
+	}{
+		{"v1.0.0", true},
+		{"1.0.0", true},
+		{"v1.0.0-alpha", true},
+		{"1.0.0-alpha", true},
+		{"1", false},
+		{"a", false},
+		{"a.b.c", false},
+		{"", false},
+	}
+
+	for _, tc := range semverTcs {
+		t.Run(tc.version, func(t *testing.T) {
+			if got, want := isSemver(tc.version), tc.result; got != want {
+				t.Errorf("Failed to check if %s is semver: got = %v, want = %v", tc.version, got, want)
+			}
+		})
 	}
 }
