@@ -9,11 +9,11 @@ DOCKER_IMAGE?=quay.io/jetstack/preflight
 DOCKER_IMAGE_TAG?=$(DOCKER_IMAGE):$(VERSION)
 
 define LDFLAGS
--X "github.com/jetstack/preflight/cmd.PreflightVersion=$(VERSION)" \
--X "github.com/jetstack/preflight/cmd.Platform=$(GOOS)/$(GOARCH)" \
--X "github.com/jetstack/preflight/cmd.Commit=$(COMMIT)" \
--X "github.com/jetstack/preflight/cmd.BuildDate=$(DATE)" \
--X "github.com/jetstack/preflight/cmd.GoVersion=$(GOVERSION)"
+-X "github.com/jetstack/preflight/pkg/version.PreflightVersion=$(VERSION)" \
+-X "github.com/jetstack/preflight/pkg/version.Platform=$(GOOS)/$(GOARCH)" \
+-X "github.com/jetstack/preflight/pkg/version.Commit=$(COMMIT)" \
+-X "github.com/jetstack/preflight/pkg/version.BuildDate=$(DATE)" \
+-X "github.com/jetstack/preflight/pkg/version.GoVersion=$(GOVERSION)"
 endef
 
 GO_BUILD:=go build -ldflags '$(LDFLAGS)'
@@ -40,7 +40,7 @@ lint: vet
 	cd $(ROOT_DIR) && golint
 
 ./builds/preflight-$(GOOS)-$(GOARCH):
-	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o ./builds/preflight-$(GOOS)-$(GOARCH) .
+	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO_BUILD) -o ./builds/preflight-$(GOOS)-$(GOARCH) .
 
 build-all-platforms:
 	$(MAKE) GOOS=linux   GOARCH=amd64 ./builds/preflight-linux-amd64

@@ -2,17 +2,32 @@ package api
 
 // Report contains the fields of a Preflight report
 type Report struct {
-	// Unique ID of the report
+	// Unique ID of the report.
 	ID string `json:"id"`
-	// Timestamp indicates when the report was generated
+	// PreflightVersion indicates the version of preflight this report was generated with.
+	PreflightVersion string `json:"preflight-version"`
+	// Timestamp indicates when the report was generated.
 	Timestamp Time `json:"timestamp"`
-	// Cluster indicates which was the target of the report
+	// Cluster indicates which was the target of the report.
 	Cluster string `json:"cluster"`
-	// Package indicates which package was used for the report
-	Package     string          `json:"package"`
-	Name        string          `json:"name"`
-	Description string          `json:"description,omitempty"`
-	Sections    []ReportSection `json:"sections,omitempty"`
+	// Package indicates which package was used for the report.
+	Package Package `json:"package"`
+	// Name is the name of the package that was used for this report.
+	Name string `json:"name"`
+	// Description is the description of the package that was used for this report.
+	Description string `json:"description,omitempty"`
+	// Sections contains the sections of the package that was used for this report.
+	Sections []ReportSection `json:"sections,omitempty"`
+}
+
+// Package contains all the details to identify a package.
+type Package struct {
+	// Namespace the package belongs to.
+	Namespace string `json:"namespace"`
+	// ID is the ID of the package.
+	ID string `json:"id"`
+	// Version is the version of the package.
+	Version string `json:"version"`
 }
 
 // ReportSection contains the fields of a section inside a Report

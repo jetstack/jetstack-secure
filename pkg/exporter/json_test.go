@@ -14,9 +14,12 @@ import (
 
 func TestJSONExport(t *testing.T) {
 	pm := &packaging.PolicyManifest{
-		ID:          "test-pkg",
-		Name:        "Test Package",
-		Description: "This is a test package.",
+		SchemaVersion:  "1.0.0",
+		Namespace:      "test.org",
+		ID:             "test-pkg",
+		PackageVersion: "1.2.3",
+		Name:           "Test Package",
+		Description:    "This is a test package.",
 		Sections: []packaging.Section{
 			packaging.Section{
 				ID:          "section-1",
@@ -155,7 +158,12 @@ func TestJSONExport(t *testing.T) {
   ],
   "description": "This is a test package.",
   "name": "Test Package",
-  "package": "test-pkg",
+  "package": {
+    "id": "test-pkg",
+    "namespace": "test.org",
+    "version": "1.2.3"
+  },
+  "preflight-version": "development",
   "cluster": "",
   "timestamp": "0001-01-01T00:00:00Z",
   "id": ""

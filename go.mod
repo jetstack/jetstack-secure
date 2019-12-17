@@ -8,6 +8,7 @@ require (
 	github.com/gomarkdown/markdown v0.0.0-20191104174740-4d42851d4d5a
 	github.com/gookit/color v1.2.0
 	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
+	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/open-policy-agent/opa v0.15.0
 	github.com/pkg/errors v0.8.1
 	github.com/sergi/go-diff v1.0.0 // indirect
@@ -15,6 +16,7 @@ require (
 	github.com/spf13/viper v1.5.0
 	github.com/yudai/gojsondiff v1.0.0
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
+	github.com/yudai/pp v2.0.1+incompatible // indirect
 	golang.org/x/arch v0.0.0-20191126211547-368ea8f32fff // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	google.golang.org/api v0.13.0
