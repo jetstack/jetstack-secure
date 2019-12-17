@@ -8,6 +8,7 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
+	"github.com/jetstack/preflight/pkg/version"
 )
 
 // JSONExporter is an Exporter that outputs the results enriched with metadata in a JSON format
@@ -23,7 +24,13 @@ func NewJSONExporter() *JSONExporter {
 func (e *JSONExporter) Export(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, rc *results.ResultCollection) (*bytes.Buffer, error) {
 	report := api.Report{
 		// TODO: we are omitting ID, Timestamp and Cluster for now, but it will get fixed with #1
-		Package:     policyManifest.ID,
+		PreflightVersion: version.PreflightVersion,
+		Package:          policyManifest.ID,
+		PackageInformation: api.PackageInformation{
+			Namespace: policyManifest.Namespace,
+			ID:        policyManifest.ID,
+			Version:   policyManifest.PackageVersion,
+		},
 		Name:        policyManifest.Name,
 		Description: policyManifest.Description,
 		Sections:    make([]api.ReportSection, len(policyManifest.Sections)),
