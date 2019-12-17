@@ -13,7 +13,7 @@ type Report struct {
 	// Package indicates which package was used for the report. (deprecated)
 	Package string `json:"package"`
 	// PackageInformation contains all the information about the package that was used to generate the report.
-	PackageInformation Package `json:"package-information"`
+	PackageInformation PackageInformation `json:"package-information"`
 	// Name is the name of the package that was used for this report.
 	Name string `json:"name"`
 	// Description is the description of the package that was used for this report.
@@ -22,8 +22,8 @@ type Report struct {
 	Sections []ReportSection `json:"sections,omitempty"`
 }
 
-// Package contains all the details to identify a package.
-type Package struct {
+// PackageInformation contains all the details to identify a package.
+type PackageInformation struct {
 	// Namespace the package belongs to.
 	Namespace string `json:"namespace"`
 	// ID is the ID of the package.

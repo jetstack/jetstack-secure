@@ -26,7 +26,7 @@ func (e *JSONExporter) Export(ctx context.Context, policyManifest *packaging.Pol
 		// TODO: we are omitting ID, Timestamp and Cluster for now, but it will get fixed with #1
 		PreflightVersion: version.PreflightVersion,
 		Package:          policyManifest.ID,
-		PackageInformation: api.Package{
+		PackageInformation: api.PackageInformation{
 			Namespace: policyManifest.Namespace,
 			ID:        policyManifest.ID,
 			Version:   policyManifest.PackageVersion,
