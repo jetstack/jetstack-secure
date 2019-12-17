@@ -10,8 +10,10 @@ type Report struct {
 	Timestamp Time `json:"timestamp"`
 	// Cluster indicates which was the target of the report.
 	Cluster string `json:"cluster"`
-	// Package indicates which package was used for the report.
-	Package Package `json:"package"`
+	// Package indicates which package was used for the report. (deprecated)
+	Package string `json:"package"`
+	// PackageInformation contains all the information about the package that was used to generate the report.
+	PackageInformation Package `json:"package-information"`
 	// Name is the name of the package that was used for this report.
 	Name string `json:"name"`
 	// Description is the description of the package that was used for this report.

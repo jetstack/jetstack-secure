@@ -158,7 +158,8 @@ func TestJSONExport(t *testing.T) {
   ],
   "description": "This is a test package.",
   "name": "Test Package",
-  "package": {
+  "package": "test-pkg",
+  "package-information": {
     "id": "test-pkg",
     "namespace": "test.org",
     "version": "1.2.3"
