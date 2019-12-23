@@ -111,16 +111,6 @@ func LintSection(manifestID string, section packaging.Section) []LintError {
 	if section.ID == "" {
 		lint("Section ID absent")
 	}
-	re := regexp.MustCompile(`^(\d+)\.(\d+)$`)
-	matches := re.FindStringSubmatch(section.ID)
-	if len(matches) != 3 {
-		lint("Malformed Section ID")
-	} else {
-		if matches[0] != section.ID {
-			lint("Incorrectly formatted Section ID")
-		}
-		// No need to check matches[2], the regex implicitly did so
-	}
 
 	if section.Name == "" {
 		lint("Section Name absent")
@@ -163,19 +153,6 @@ func LintRule(sectionID string, rule packaging.Rule) []LintError {
 
 	if rule.ID == "" {
 		lint("Rule ID absent")
-	}
-	re := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)$`)
-	matches := re.FindStringSubmatch(rule.ID)
-	if len(matches) != 4 {
-		lint("Malformed Rule ID")
-	} else {
-		if matches[0] != rule.ID {
-			lint("Incorrectly formatted Rule ID")
-		}
-		if fmt.Sprintf("%s.%s", matches[1], matches[2]) != sectionID {
-			lint("Rule ID not decendant of Section ID")
-		}
-		// No need to check matches[3], the regex implicitly did so
 	}
 
 	if rule.Name == "" {

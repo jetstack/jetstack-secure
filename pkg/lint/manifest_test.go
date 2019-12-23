@@ -18,26 +18,6 @@ var invalidRules = []struct {
 		expectedLint: "Rule ID absent",
 	},
 	{
-		name:         "Non-numeric rule ID",
-		rule:         packaging.Rule{ID: "1.4.c"},
-		expectedLint: "Malformed Rule ID",
-	},
-	{
-		name:         "Rule ID too short",
-		rule:         packaging.Rule{ID: "1.4"},
-		expectedLint: "Malformed Rule ID",
-	},
-	{
-		name:         "Rule ID too long",
-		rule:         packaging.Rule{ID: "1.4.3.6"},
-		expectedLint: "Malformed Rule ID",
-	},
-	{
-		name:         "Rule ID not decendant",
-		rule:         packaging.Rule{ID: "1.5.1"},
-		expectedLint: "Rule ID not decendant of Section ID",
-	},
-	{
 		name:         "Rule Name absent",
 		rule:         packaging.Rule{},
 		expectedLint: "Rule Name absent",
@@ -132,27 +112,6 @@ var invalidSections = []struct {
 		expectedLint: "Section ID absent",
 		section: packaging.Section{
 			Name: "My Section",
-		},
-	},
-	{
-		name:         "Non-numeric ID",
-		expectedLint: "Malformed Section ID",
-		section: packaging.Section{
-			ID: "1.a",
-		},
-	},
-	{
-		name:         "Section ID too short",
-		expectedLint: "Malformed Section ID",
-		section: packaging.Section{
-			ID: "1",
-		},
-	},
-	{
-		name:         "Section ID too long",
-		expectedLint: "Malformed Section ID",
-		section: packaging.Section{
-			ID: "1.4.3",
 		},
 	},
 	{
