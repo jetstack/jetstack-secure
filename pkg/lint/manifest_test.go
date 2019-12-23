@@ -174,6 +174,7 @@ func TestLintPolicyManifestSuccess(t *testing.T) {
 		ID:             "mypackage",
 		Namespace:      "mynamespace",
 		Name:           "My Package",
+		RootQuery:      "data.pods",
 		PackageVersion: "1.0.0",
 		Sections: []packaging.Section{
 			{
@@ -216,6 +217,15 @@ var invalidManifests = []struct {
 	{
 		name:         "No ID",
 		expectedLint: "Manifest ID absent",
+		manifest: packaging.PolicyManifest{
+			SchemaVersion:  "1.0.0",
+			Name:           "My Package",
+			PackageVersion: "1.0.0",
+		},
+	},
+	{
+		name:         "No RootQuery",
+		expectedLint: "Manifest RootQuery absent",
 		manifest: packaging.PolicyManifest{
 			SchemaVersion:  "1.0.0",
 			Name:           "My Package",

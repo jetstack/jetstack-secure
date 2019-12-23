@@ -29,8 +29,7 @@ The linter will check for common issues with packages:
 - That a correctly structured policy-manifest.yaml file is present
 - That at least one .rego file is present with OPA rules
 - That at least one .rego test file is present
-- That the rego files use the correct module name
-- That all rules and sections follow the correct naming scheme`,
+- That the rego files use the correct module name`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			// Fail if given no input

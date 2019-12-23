@@ -36,6 +36,10 @@ func LintPolicyManifest(manifest packaging.PolicyManifest) []LintError {
 		lint("Manifest PackageVersion must be semver")
 	}
 
+	if manifest.RootQuery == "" {
+		lint("Manifest RootQuery absent")
+	}
+
 	sections := manifest.Sections
 	if len(sections) == 0 {
 		lint("No sections in manifest")
