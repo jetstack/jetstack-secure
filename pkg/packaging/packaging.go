@@ -1,11 +1,7 @@
 package packaging
 
 import (
-	"context"
 	"fmt"
-
-	"github.com/jetstack/preflight/pkg/results"
-	"github.com/open-policy-agent/opa/rego"
 )
 
 // A Package is an interface that Package Sources should implement to
@@ -18,6 +14,10 @@ type Package interface {
 	// Return any rego files, with their names as the keys and
 	// their content as strings.
 	RegoText() map[string]string
+
+	// Return any rego test files, with their names as the keys and
+	// their content as strings.
+	RegoTestsText() map[string]string
 }
 
 // PolicyManifest contains all the information about the policy manifest of the package.
@@ -73,31 +73,4 @@ type Rule struct {
 	Remediation string `yaml:"remediation,omitempty"`
 	// Links contains useful links related to the rule.
 	Links []string `yaml:"links,omitempty"`
-}
-
-// EvalPackage evaluated the rules in a package given an input
-func EvalPackage(ctx context.Context, pkg Package, input interface{}) (*results.ResultCollection, error) {
-	allResults := rego.ResultSet{}
-	for file, text := range pkg.RegoText() {
-		// Execute Open Policy Agent rules engine
-		r := rego.New(
-			rego.Query(pkg.PolicyManifest().RootQuery),
-			rego.Module(file, text),
-			rego.Input(input),
-		)
-
-		rs, err := r.Eval(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("cannot evaluate rules in %q`: %v", file, err)
-		}
-
-		allResults = append(allResults, rs...)
-	}
-
-	rc, err := results.NewResultCollectionFromRegoResultSet(&allResults)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read results from rego: %s", err)
-	}
-
-	return rc, nil
 }
