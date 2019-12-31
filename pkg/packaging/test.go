@@ -4,36 +4,32 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
 	"time"
 
 	"github.com/juju/errors"
+	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/tester"
-	util "github.com/open-policy-agent/opa/util/test"
 )
 
 // TestPackage executes the test for a package
 func TestPackage(ctx context.Context, pkg Package) (int, int, error) {
-	files := make(map[string]string, len(pkg.RegoText())+len(pkg.RegoTestsText()))
+	modules := make(map[string]*ast.Module)
+
 	for name, content := range pkg.RegoText() {
-		files[name] = content
+		parsed, err := ast.ParseModule(name, content)
+		if err != nil {
+			return 0, 0, fmt.Errorf("Error parsing %d: %v", name, err)
+		}
+		modules[name] = parsed
 	}
 
 	for name, content := range pkg.RegoTestsText() {
-		files[name] = content
+		parsed, err := ast.ParseModule(name, content)
+		if err != nil {
+			return 0, 0, fmt.Errorf("Error parsing %d: %v", name, err)
+		}
+		modules[name] = parsed
 	}
-
-	tmpDir, cleanup, err := util.MakeTempFS("", "preflight_test", files)
-	if err != nil {
-		return 0, 0, fmt.Errorf("Cannot create temporary files: %v", err)
-	}
-	defer cleanup()
-
-	fullPaths := []string{}
-	for name := range files {
-		fullPaths = append(fullPaths, path.Join(tmpDir, name))
-	}
-	modules, _, err := tester.Load(fullPaths, nil)
 
 	runner := tester.NewRunner().
 		EnableTracing(true).
