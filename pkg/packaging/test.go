@@ -18,7 +18,7 @@ func TestPackage(ctx context.Context, pkg Package, verbose bool, timeout time.Du
 	for name, content := range pkg.RegoText() {
 		parsed, err := ast.ParseModule(name, content)
 		if err != nil {
-			return 0, 0, fmt.Errorf("Error parsing %d: %v", name, err)
+			return 0, 0, fmt.Errorf("Error parsing %s: %v", name, err)
 		}
 		modules[name] = parsed
 	}
@@ -26,7 +26,7 @@ func TestPackage(ctx context.Context, pkg Package, verbose bool, timeout time.Du
 	for name, content := range pkg.RegoTestsText() {
 		parsed, err := ast.ParseModule(name, content)
 		if err != nil {
-			return 0, 0, fmt.Errorf("Error parsing %d: %v", name, err)
+			return 0, 0, fmt.Errorf("Error parsing %s: %v", name, err)
 		}
 		modules[name] = parsed
 	}
