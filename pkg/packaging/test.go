@@ -12,7 +12,7 @@ import (
 )
 
 // TestPackage executes the test for a package
-func TestPackage(ctx context.Context, pkg Package) (int, int, error) {
+func TestPackage(ctx context.Context, pkg Package, verbose bool, timeout time.Duration) (int, int, error) {
 	modules := make(map[string]*ast.Module)
 
 	for name, content := range pkg.RegoText() {
@@ -35,7 +35,7 @@ func TestPackage(ctx context.Context, pkg Package) (int, int, error) {
 		EnableTracing(true).
 		EnableFailureLine(true).
 		SetModules(modules).
-		SetTimeout(time.Second * 5)
+		SetTimeout(timeout)
 
 	ch, err := runner.RunTests(ctx, nil)
 	if err != nil {
@@ -43,7 +43,7 @@ func TestPackage(ctx context.Context, pkg Package) (int, int, error) {
 	}
 
 	reporter := tester.PrettyReporter{
-		Verbose:     true,
+		Verbose:     verbose,
 		FailureLine: true,
 		Output:      os.Stdout,
 	}

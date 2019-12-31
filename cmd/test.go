@@ -5,11 +5,17 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/jetstack/preflight/pkg/packagesources/local"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/spf13/cobra"
 )
+
+var testParams = struct {
+	verbose bool
+	timeout time.Duration
+}{}
 
 var testCmd = &cobra.Command{
 	Use:   "test",
@@ -43,7 +49,7 @@ It only works with local packages.
 
 			for _, pkg := range loadedPackages {
 				log.Printf("Testing package %s", pkg.PolicyManifest().GlobalID())
-				numFailures, numTotal, err := packaging.TestPackage(ctx, pkg)
+				numFailures, numTotal, err := packaging.TestPackage(ctx, pkg, testParams.verbose, testParams.timeout)
 
 				if err != nil {
 					log.Fatalf("Error testing package %s: %v", pkg.PolicyManifest().GlobalID(), err)
@@ -72,10 +78,6 @@ It only works with local packages.
 func init() {
 	packageCmd.AddCommand(testCmd)
 
-	// testCmd.Flags().BoolP("verbose", "v", false, "set verbose reporting mode")
-	// testCmd.Flags().BoolP("show-failure-line", "l", false, "show test failure line")
-	// testCmd.Flags().DurationP("timeout", "t", time.Second*5, "set test timeout")
-	// testCmd.Flags().BoolP("coverage", "c", false, "report coverage (overrides debug tracing)")
-	// testCmd.Flags().Float64P("threshold", "", 0, "set coverage threshold and exit with non-zero status if coverage is less than threshold %")
-	// testCmd.Flags().BoolP("bundle", "b", false, "load paths as bundle files or root directories")
+	testCmd.Flags().BoolVarP(&testParams.verbose, "verbose", "v", false, "set verbose reporting mode")
+	testCmd.Flags().DurationVarP(&testParams.timeout, "timeout", "t", time.Second*10, "set test timeout")
 }
