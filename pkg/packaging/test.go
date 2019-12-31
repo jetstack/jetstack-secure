@@ -3,6 +3,7 @@ package packaging
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 // TestPackage executes the test for a package
-func TestPackage(ctx context.Context, pkg Package) (int, error) {
+func TestPackage(ctx context.Context, pkg Package) (int, int, error) {
 	files := make(map[string]string, len(pkg.RegoText())+len(pkg.RegoTestsText()))
 	for name, content := range pkg.RegoText() {
 		files[name] = content
@@ -24,7 +25,7 @@ func TestPackage(ctx context.Context, pkg Package) (int, error) {
 
 	tmpDir, cleanup, err := util.MakeTempFS("", "preflight_test", files)
 	if err != nil {
-		return 0, fmt.Errorf("Cannot create temporary files: %v", err)
+		return 0, 0, fmt.Errorf("Cannot create temporary files: %v", err)
 	}
 	defer cleanup()
 
@@ -42,16 +43,34 @@ func TestPackage(ctx context.Context, pkg Package) (int, error) {
 
 	ch, err := runner.RunTests(ctx, nil)
 	if err != nil {
-		return 0, errors.Trace(err)
+		return 0, 0, errors.Trace(err)
 	}
 
-	numFailures := 0
+	reporter := tester.PrettyReporter{
+		Verbose:     true,
+		FailureLine: true,
+		Output:      os.Stdout,
+	}
 
-	for tr := range ch {
-		if !tr.Pass() {
-			numFailures++
+	numFail, numTotal := 0, 0
+
+	dup := make(chan *tester.Result)
+
+	go func() {
+		defer close(dup)
+
+		for tr := range ch {
+			if !tr.Pass() {
+				numFail++
+			}
+			numTotal++
+			dup <- tr
 		}
+	}()
+
+	if err := reporter.Report(dup); err != nil {
+		return numFail, numTotal, err
 	}
 
-	return numFailures, nil
+	return numFail, numTotal, nil
 }

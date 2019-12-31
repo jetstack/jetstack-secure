@@ -36,21 +36,21 @@ It only works with local packages.
 				}
 			}
 
-			packagesWithErrors := make(map[string]int)
+			packagesWithErrors := make(map[string][]int)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
 			for _, pkg := range loadedPackages {
 				log.Printf("Testing package %s", pkg.PolicyManifest().GlobalID())
-				numFailures, err := packaging.TestPackage(ctx, pkg)
+				numFailures, numTotal, err := packaging.TestPackage(ctx, pkg)
 
 				if err != nil {
 					log.Fatalf("Error testing package %s: %v", pkg.PolicyManifest().GlobalID(), err)
 				}
 
 				if numFailures != 0 {
-					packagesWithErrors[pkg.PolicyManifest().GlobalID()] = numFailures
+					packagesWithErrors[pkg.PolicyManifest().GlobalID()] = []int{numFailures, numTotal}
 				}
 			}
 
@@ -58,7 +58,7 @@ It only works with local packages.
 				log.Fatalf("Encountered failed tests in these packages: %s", func() (s string) {
 					pkgs := make([]string, 0)
 					for k, v := range packagesWithErrors {
-						pkgs = append(pkgs, fmt.Sprintf("%s (%d failures)", k, v))
+						pkgs = append(pkgs, fmt.Sprintf("%s (%d failures in %d tests)", k, v[0], v[1]))
 					}
 					return strings.Join(pkgs, ", ")
 				}())
