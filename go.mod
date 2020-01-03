@@ -1,6 +1,6 @@
 module github.com/jetstack/preflight
 
-go 1.13.5
+go 1.13
 
 require (
 	cloud.google.com/go/storage v1.4.0
