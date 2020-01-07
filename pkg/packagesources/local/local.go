@@ -16,8 +16,9 @@ import (
 const ManifestName = "policy-manifest.yaml"
 
 type LocalPackage struct {
-	manifest *packaging.PolicyManifest
-	rules    map[string]string
+	manifest   *packaging.PolicyManifest
+	rules      map[string]string
+	rulesTests map[string]string
 }
 
 func (lp *LocalPackage) PolicyManifest() *packaging.PolicyManifest {
@@ -26,6 +27,10 @@ func (lp *LocalPackage) PolicyManifest() *packaging.PolicyManifest {
 
 func (lp *LocalPackage) RegoText() map[string]string {
 	return lp.rules
+}
+
+func (lp *LocalPackage) RegoTestsText() map[string]string {
+	return lp.rulesTests
 }
 
 func IsPolicyFile(file os.FileInfo) bool {
@@ -68,13 +73,14 @@ func LoadLocalPackage(dirPath string) (*LocalPackage, error) {
 		manifest.GlobalID(),
 		manifest.Name)
 
-	// Look for `.rego` rules files and load them into a map
+	// Look for `.rego` and `_test.rego` files and load them into a the corresponding map.
 	files, err := ioutil.ReadDir(dirPath)
 	if err != nil {
 		return nil, err
 	}
 
 	regos := make(map[string]string)
+	regoTests := make(map[string]string)
 	for _, fi := range files {
 		if IsPolicyFile(fi) {
 			filePath := filepath.Join(dirPath, fi.Name())
@@ -86,11 +92,21 @@ func LoadLocalPackage(dirPath string) (*LocalPackage, error) {
 			log.Printf("Loaded policy file %s for package %s",
 				fi.Name(),
 				manifest.GlobalID())
+		} else if IsPolicyTestFile(fi) {
+			filePath := filepath.Join(dirPath, fi.Name())
+			text, err := ioutil.ReadFile(filePath)
+			if err != nil {
+				return nil, err
+			}
+			regoTests[fi.Name()] = string(text)
+			log.Printf("Loaded test policy file %s for package %s",
+				fi.Name(),
+				manifest.GlobalID())
 		}
 	}
 
 	// Create the struct and fire it back
-	return &LocalPackage{manifest: &manifest, rules: regos}, nil
+	return &LocalPackage{manifest: &manifest, rules: regos, rulesTests: regoTests}, nil
 }
 
 func LoadLocalPackages(dirPath string) ([]*LocalPackage, error) {
