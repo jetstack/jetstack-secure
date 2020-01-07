@@ -4,13 +4,13 @@
 
 A Preflight package contains the definition of a policy. A policy is a set of rules that Preflight will check in your cluster.
 
-Preflight packages are made of two well distinguished parts, the _policy manifest_ and the _REGO_ definition of the rules.
+Preflight packages are made of two well distinguished parts, the _policy manifest_ and the _Rego_ definition of the rules.
 
 <img align="center" width="460" height="300" src="./images/preflight_package.png">
 
 ## Writing the _policy manifest_
 
-The _policy manifest_ is a _YAML_ file that contains information about your policy. You can see [here](https://godoc.org/github.com/jetstack/preflight/pkg/packaging#policy manifest) the schema of this file.
+The _policy manifest_ is a _YAML_ file that contains information about your policy. You can see [here](https://godoc.org/github.com/jetstack/preflight/pkg/packaging#PolicyManifest) the schema of this file.
 
 There is some metadata for the package, such as the name and the description.
 
@@ -84,17 +84,17 @@ sections:
           - "https://kubernetes.io/docs/concepts/containers/images/"
 ```
 
-## Writing the policy definition in REGO
+## Writing the policy definition in Rego
 
 In the previous section, we created the _policy manifest_, which contains a human readable description of the rules in our policy. Now it's time to define the same rules in a language that is machine readable.
 
-### The REGO package
+### The Rego package
 
-Preflight relies on Open Policy Agent as the policy engine. REGO is OPA's language to define policies. You can find a comprenhensive [documentation](https://www.openpolicyagent.org/docs/latest/policy-language/).
+Preflight relies on Open Policy Agent as the policy engine. Rego is OPA's language to define policies. You can find a comprenhensive [documentation](https://www.openpolicyagent.org/docs/latest/policy-language/).
 
-You can have multiple REGO files inside the directory of a Preflight package.  All the REGO rules corresponding to the _policy manifest_ rules must be in the same REGO package, and that package must be indicated in the _policy manifest_ using the `root-query` property.
+You can have multiple Rego files inside the directory of a Preflight package.  All the Rego rules corresponding to the _policy manifest_ rules must be in the same Rego package, and that package must be indicated in the _policy manifest_ using the `root-query` property.
 
-For instance, this snippet shows an arbitrary REGO rule in a package named `podsbestpractices`:
+For instance, this snippet shows an arbitrary Rego rule in a package named `podsbestpractices`:
 
 ```
 package pods
@@ -106,16 +106,16 @@ preflight_tag_not_latest {
 }
 ```
 
-As you can identify, the REGO package for that policy is `pods`. In this case, OPA's `root-query` is `data.pods`, and that is why in the previous section, `policy-manifest.yaml` contains `root-query: "data.pods"`.
+As you can identify, the Rego package for that policy is `pods`. In this case, OPA's `root-query` is `data.pods`, and that is why in the previous section, `policy-manifest.yaml` contains `root-query: "data.pods"`.
 
-### Writing REGO rules
+### Writing Rego rules
 
-REGO can be challenging at the beginning because it does not behaves like a traditional programming language. It is strongly recommended to read ["The Basics"](https://www.openpolicyagent.org/docs/latest/policy-language/#the-basics). Also, it is useful to have the [language refence](https://www.openpolicyagent.org/docs/latest/policy-reference/) at hand.
+Rego can be challenging at the beginning because it does not behaves like a traditional programming language. It is strongly recommended to read ["The Basics"](https://www.openpolicyagent.org/docs/latest/policy-language/#the-basics). Also, it is useful to have the [language refence](https://www.openpolicyagent.org/docs/latest/policy-reference/) at hand.
 
-You will get faster as you write more REGO rules. In order to speed up this process, it's best to write tests for your rules, even if you think they are not needed. It means you can iterate fast while writing rules and make sure the rules are doing what you intended. It is conventional to name the test files for `policy.rego` as `policy_test.rego`.
+You will get faster as you write more Rego rules. In order to speed up this process, it's best to write tests for your rules, even if you think they are not needed. It means you can iterate fast while writing rules and make sure the rules are doing what you intended. It is conventional to name the test files for `policy.rego` as `policy_test.rego`.
 
 
-This example contains the definition for the `tag_no_latest` rule. As you can see, there is the convention within Preflight to add `preflight_` as prefix to the rule ID when that is written in REGO (related issue #27).
+This example contains the definition for the `tag_no_latest` rule. As you can see, there is the convention within Preflight to add `preflight_` as prefix to the rule ID when that is written in Rego (related issue #27).
 
 ```
 # preflight-packages/examples.jetstack.io/podsbestpractices/policy.rego
@@ -155,11 +155,11 @@ containers_using_latest[container] {
 }
 ```
 
-### Testing REGO
+### Testing Rego
 
-As mentioned before, it is very useful to [write tests for the REGO rules](https://www.openpolicyagent.org/docs/latest/policy-testing/).
+As mentioned before, it is very useful to [write tests for the Rego rules](https://www.openpolicyagent.org/docs/latest/policy-testing/).
 
-This snippet contains a testsuite for the previous REGO code.
+This snippet contains a testsuite for the previous Rego code.
 
 ```
 # preflight-packages/examples.jetstack.io/podsbestpractices/policy_test.rego
@@ -220,7 +220,7 @@ test_tag_not_latest_latest_multiple {
 }
 ```
 
-Soon, Preflight will be able to run REGO tests inside Preflight packages (#26), but unfortunatelly this is not possible yet.
+Soon, Preflight will be able to run Rego tests inside Preflight packages (#26), but unfortunatelly this is not possible yet.
 
 However it is possible to run these tests directly with the [OPA command line](https://www.openpolicyagent.org/docs/latest/#running-opa):
 
