@@ -10,19 +10,19 @@ Preflight packages are made of two well distinguished parts, the _policy manifes
 
 ## Writing the _policy manifest_
 
-The _policy manifest_ is a _YAML_ file that contains all the metadata about your policy. You can see [here](https://godoc.org/github.com/jetstack/preflight/pkg/packaging#policy manifest) the schema os this file.
+The _policy manifest_ is a _YAML_ file that contains information about your policy. You can see [here](https://godoc.org/github.com/jetstack/preflight/pkg/packaging#policy manifest) the schema of this file.
 
-There is some general information about the package, as the name or the description.
+There is some metadata for the package, such as the name and the description.
 
-The rules of your policy must be also declared here. They are organized in sections. Every section can have a name, a description and a list of rules.
+The rules of your policy must also be declared here. They are organized in sections. Every section can have a name, a description, and a list of rules.
 
-Every rule has its own name, description, useful links and mitiation instructions. There is a dedicated section about how to add rules.
+Every rule has its own name, description, useful links, and remediation instructions. This guide has a dedicated section about how to add rules.
 
 ### Choose your _data-gatherers_
 
 Preflight evaluates the policies against data that it fetches from different sources. These sources are the _data-gatherers_. You can see [here](./datagatherers) a list of the available _data-gatherers_ and their documentation. In the future, Preflight will support sourcing data from external _data-gatherers_ (#24).
 
-The _policy manifest_ is the place where to declare which _data-gatherers_ does your package expect.
+The _data-gatherers_ your package requires should be declared in the _policy manifest_.
 
 ```yaml
 schema-version: "1.0.0"
@@ -37,7 +37,7 @@ data-gatherers:
 
 ### Versioning
 
-Preflight packages are intented to evolve. Policies can be changed, new rules can be added or deleted, and all the metadata can mutate.
+Preflight packages are intended to evolve. Policies can be changed, new rules can be added or deleted, and all the metadata can mutate.
 
 In order to ease keeping track of those changes, Preflight packages have a version tag. That version is specified with the `package-version` property in the _policy manifest_.
 
@@ -51,11 +51,11 @@ Then create the `policy-manifest.yaml` file. The following fields are mandatory:
 
 - `schema-version`: indicates which schema is being used for the _policy manifest_. For the moment, there is only version `1.0.0`.
 
-- `namespace`, `id` and `package-version`: these properties identify the package. `namespace` must be a FQDN and it is encouraged that `package-version` uses semver.
+- `namespace`, `id`, and `package-version`: these properties identify the package. `namespace` must be a FQDN and it is encouraged that `package-version` uses semver.
 
 Then, you should also declare the _data-gatherers_ that your rules are going to need. For this example, let's just use `k8s/pods`.
 
-Finally, it's time to declare the rules for the policy. Rules are organized into sections. Every section has an ID, a name and a description. Also, every rule has its own ID, name and description. Additionally, rules can have additional metadata like a remediation or a set of related links.
+Finally, it's time to declare the rules for the policy. Rules are organized into sections. Every section has an ID, a name, and a description. Also, every rule has its own ID, name, and description. Additionally, rules can have other metadata like a remediation advice or a set of related links.
 
 For simplicity's sake, this example contains just one section with one rule.
 
@@ -92,9 +92,9 @@ In the previous section, we created the _policy manifest_, which contains a huma
 
 Preflight relies on Open Policy Agent as the policy engine. REGO is OPA's language to define policies. You can find a comprenhensive [documentation](https://www.openpolicyagent.org/docs/latest/policy-language/).
 
-You can have multiple REGO files inside the directory of a Preflight package. One important think to take into consideration is that all the final definition of the rules must be in the same REGO package, and that package must be indicated in the _policy manifest_ using the `root-query` property.
+You can have multiple REGO files inside the directory of a Preflight package.  All the REGO rules corresponding to the _policy manifest_ rules must be in the same REGO package, and that package must be indicated in the _policy manifest_ using the `root-query` property.
 
-For instance, these snippet shows an arbitrary REGO rule in a package named `podsbestpractices`:
+For instance, this snippet shows an arbitrary REGO rule in a package named `podsbestpractices`:
 
 ```
 package pods
@@ -110,9 +110,9 @@ As you can identify, the REGO package for that policy is `pods`. In this case, O
 
 ### Writing REGO rules
 
-REGO can be challenging at the beginning because it does not behaves like a traditional programming language. It is strongly recommended to read ["The Basics"](https://www.openpolicyagent.org/docs/latest/policy-language/#the-basics). Also, it is useful to have the language refence](https://www.openpolicyagent.org/docs/latest/policy-reference/) at a hand.
+REGO can be challenging at the beginning because it does not behaves like a traditional programming language. It is strongly recommended to read ["The Basics"](https://www.openpolicyagent.org/docs/latest/policy-language/#the-basics). Also, it is useful to have the [language refence](https://www.openpolicyagent.org/docs/latest/policy-reference/) at hand.
 
-You will get faster as you write more rules. In order to speed up this process, it usually works to write tests for your rules, even if you think it is not needed. It is just the best way of iterating fast while writing rules and making sure the rules are doing what you tried to write with REGO. It is a convention to name the test files for `policy.rego` as `policy_test.rego_`.
+You will get faster as you write more REGO rules. In order to speed up this process, it's best to write tests for your rules, even if you think they are not needed. It means you can iterate fast while writing rules and make sure the rules are doing what you intended. It is conventional to name the test files for `policy.rego` as `policy_test.rego`.
 
 
 This example contains the definition for the `tag_no_latest` rule. As you can see, there is the convention within Preflight to add `preflight_` as prefix to the rule ID when that is written in REGO (related issue #27).
@@ -232,10 +232,10 @@ opa test ./preflight-packages/examples.jetstack.io/podsbestpractices
 
 The Preflight command line has a built-in linter. This helps to make sure that the package follows the best practices.
 
-You can link your package by running:
+You can lint your package by running:
 
 ```
-preflight package link ./preflight-packages/examples.jetstack.io/podsbestpractices 
+preflight package lint ./preflight-packages/examples.jetstack.io/podsbestpractices 
 ```
 
 ## Configure Preflight to use your package
