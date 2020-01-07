@@ -20,7 +20,7 @@ var testParams = struct {
 var testCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Test REGO inside a Preflight package",
-	Long: `This uses OPA's engine to run all the testsuites
+	Long: `This uses OPA's engine to run all the test suites
 inside the package.
 
 It only works with local packages.
