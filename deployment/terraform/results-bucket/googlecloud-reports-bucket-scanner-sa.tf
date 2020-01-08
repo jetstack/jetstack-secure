@@ -20,5 +20,5 @@ resource "google_service_account_key" "preflight-scanner-reports-writter-key" {
 
 resource "local_file" "preflight-scanner-reports-writter-key-file" {
   sensitive_content = base64decode(google_service_account_key.preflight-scanner-reports-writter-key.private_key)
-  filename = "${path.module}/../../kubernetes/overlays/scanner/secrets/credentials.json"
+  filename          = "${path.module}/../../kubernetes/overlays/scanner/secrets/credentials.json"
 }
