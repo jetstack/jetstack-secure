@@ -1,13 +1,18 @@
 package pods
 
+import data.test_utils as test
+
 pods(x) = y { y := {"k8s/pods": {"items": x }} }
 
 # Rule 'container_cpu_limit'
 test_container_cpu_limit_no_pods {
-	preflight_container_cpu_limit with input as pods([])
+	output := preflight_container_cpu_limit with input as pods([])
+
+	# no validation messages should be returned
+	test.assert_allowed(output)
 }
 test_container_cpu_limit_cpu_limits_set {
-	preflight_container_cpu_limit with input as pods([
+	output := preflight_container_cpu_limit with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -18,9 +23,12 @@ test_container_cpu_limit_cpu_limits_set {
 		{"name": "container-two",
 				 "resources":{"limits":{"cpu": "100m"}}}
 	]}}])
+
+	# no validation messages should be returned
+	test.assert_allowed(output)
 }
 test_container_cpu_limit_init_containers_unset {
-	not preflight_container_cpu_limit with input as pods([
+	output := preflight_container_cpu_limit with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -34,9 +42,12 @@ test_container_cpu_limit_init_containers_unset {
 						 "resources":{"limits":{"cpu": "500m"}}},
 				 ]
 		}}])
+
+	# ensure validation message is returned
+	test.assert_violates(output, {"init container 'init-one' in pod 'foo' in namespace 'default' is missing a cpu limit"})
 }
 test_container_cpu_limit_init_containers_set {
-	preflight_container_cpu_limit with input as pods([
+	output := preflight_container_cpu_limit with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -51,9 +62,12 @@ test_container_cpu_limit_init_containers_set {
 						 "resources":{"limits":{"cpu": "500m"}}},
 				 ]
 		}}])
+
+	# no validation messages should be returned
+	test.assert_allowed(output)
 }
 test_container_cpu_limit_cpu_limits_unset {
-	not preflight_container_cpu_limit with input as pods([
+	output := preflight_container_cpu_limit with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -61,9 +75,12 @@ test_container_cpu_limit_cpu_limits_unset {
 		 "spec":{"containers":[
 		{"name": "container-one"}
 	]}}])
+
+	# ensure validation message is returned
+	test.assert_violates(output, {"container 'container-one' in pod 'foo' in namespace 'default' is missing a cpu limit"})
 }
 test_container_cpu_limit_cpu_limits_some_unset {
-	not preflight_container_cpu_limit with input as pods([
+	output := preflight_container_cpu_limit with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -73,6 +90,32 @@ test_container_cpu_limit_cpu_limits_some_unset {
 				 "resources":{"limits":{"cpu": "500m"}}},
 		{"name": "container-two"}
 	]}}])
+
+	# ensure validation message is returned
+	test.assert_violates(output, {"container 'container-two' in pod 'foo' in namespace 'default' is missing a cpu limit"})
+}
+test_container_cpu_limit_cpu_limits_many_unset {
+	output := preflight_container_cpu_limit with input as pods([
+		{"metadata": {
+				"name": "foo",
+				"namespace": "default"
+		 },
+		 "spec":{
+				 "initContainers":[
+				{"name": "init-one",
+						 "resources": {}}
+				 ],
+				 "containers":[
+				{"name": "container-one",
+						 "resources":{}},
+				 ]
+		}}])
+
+	# ensure validation message for each container is returned
+	test.assert_violates(output, {
+		"container 'container-one' in pod 'foo' in namespace 'default' is missing a cpu limit",
+		"init container 'init-one' in pod 'foo' in namespace 'default' is missing a cpu limit"
+	})
 }
 
 # Rule 'container_mem_limit'
