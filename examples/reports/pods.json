@@ -49,7 +49,7 @@
       "id": "2.3"
     }
   ],
-  "description": "This policy gives some basic rules for how Kubernetes Pods.",
+  "description": "This policy contains example rules to describe best-practice Pod configuration.",
   "name": "Pods",
   "package": "pods_basic",
   "cluster": "",

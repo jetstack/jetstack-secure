@@ -9,7 +9,7 @@ data-gatherers:
 root-query: "data.pods"
 name: Pods
 description: >
-  This policy gives some basic rules for how Kubernetes Pods.
+  This policy contains example rules to describe best-practice Pod configuration.
 sections:
 - id: "resources"
   name: Resources
