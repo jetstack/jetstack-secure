@@ -5,9 +5,10 @@ This doc explains how to run Preflight inside a GKE cluster, and get periodic re
 ## Prerequisites
 
 - A Google Cloud Platform project where to create the destination Google Cloud Storage Bucket.
-- A Kubernetes cluster where to install Preflight (it can be a GKE cluster inside the previous project, for instance).
+- A GKE cluster with Workload Identity enabled to run Preflight (it can be a GKE cluster inside the previous project, for instance).
+- `kubectl` 1.14+
 
-We will apply Terraform modules in this guide, so having Terraform installed locally is also needed. However, those operations can be done from the GCP console or using `gcloud`, so Terraform is not strictly a requirement.
+We will apply Terraform modules as part of this guide, so Terraform should also be installed. However, if required, these operations can be completed in the GCP console or using `gcloud` instead.
 
 ## A Preflight Docker image that includes your Preflight Packages.
 
@@ -73,10 +74,10 @@ If you built your own Docker image for Preflight, you need to edit `deployment/k
 
 **Preflight configuration**
 
-We also need to customize some things in the configuration file. Edit `deployment/kubernetes/overlays/scanner/config/preflight.yaml` and chagne:
+We also need to customize some things in the configuration file. Edit `deployment/kubernetes/overlays/scanner/config/preflight.yaml` and change:
 - `cluster-name`, this is the name of the cluster in the context of Preflight. Will be used in the generated reports.
 - `data-gatherers.gke`, make sure `project`, `location` and `cluster` correspond to the GKE cluster you want Preflight to scan.
-- `bucket-name`, change it so it points to the cluster you created before.
+- `outputs[_].bucket-name`, change it so it points to the bucket you created before.
 
 **Deploy**
 
