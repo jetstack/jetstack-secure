@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/datagatherer/aks"
 	"github.com/jetstack/preflight/pkg/datagatherer/eks"
 	"github.com/jetstack/preflight/pkg/datagatherer/gke"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
@@ -167,6 +168,27 @@ func check() {
 					Location: location,
 					Name:     cluster,
 				}, credentialsPath)
+			} else if name == "aks" {
+				aksConfig, ok := config.(map[string]interface{})
+				if !ok {
+					log.Fatal("Cannot parse 'data-gatherers.aks' in config.")
+				}
+				msg := "'data-gatherers.aks.%s' should be a non empty string."
+				var resourceGroup, clusterName, credentialsPath string
+				if resourceGroup, ok = aksConfig["resource-group"].(string); !ok {
+					log.Fatalf(msg, "resource-group")
+				}
+				if clusterName, ok = aksConfig["cluster"].(string); !ok {
+					log.Fatalf(msg, "cluster")
+				}
+				if credentialsPath, ok = aksConfig["credentials"].(string); !ok {
+					log.Fatalf(msg, "credentials")
+				}
+				var err error
+				dg, err = aks.NewAKSDataGatherer(ctx, resourceGroup, clusterName, credentialsPath)
+				if err != nil {
+					log.Fatalf("Cannot instantiate AKS datagatherer: %v", err)
+				}
 			} else if name == "k8s/pods" {
 				podsConfig, ok := config.(map[string]interface{})
 				if !ok {
