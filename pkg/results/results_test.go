@@ -261,22 +261,10 @@ func TestAdd(t *testing.T) {
 	rc.Add([]*Result{a})
 	rc.Add([]*Result{b, c})
 
-	want := []*Result{a}
-
-	got := rc.ListPassing()
-
-	var gotResultIDs []string
-	for _, v := range got {
-		gotResultIDs = append(gotResultIDs, v.ID)
-	}
-
-	var wantedResultIDs []string
-	for _, v := range want {
-		wantedResultIDs = append(wantedResultIDs, v.ID)
-	}
-
+	got := rc.ByID()
+	want := map[string]*Result{"a": a, "b": b, "c": c}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got != want; got=%+v, want=%+v", gotResultIDs, wantedResultIDs)
+		t.Fatalf("got != want; got=%+v, want=%+v", got, want)
 	}
 }
 
