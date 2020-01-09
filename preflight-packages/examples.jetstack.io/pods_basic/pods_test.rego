@@ -214,10 +214,11 @@ test_container_mem_limit_memory_limits_some_unset {
 
 # Rule 'explicit_image_tag'
 test_explicit_image_tag_no_pods {
-		preflight_explicit_image_tag with input as pods([])
+	output := preflight_explicit_image_tag with input as pods([])
+	test.assert_allowed(output)
 }
 test_explicit_image_tag_named_tag {
-		preflight_explicit_image_tag with input as pods([
+	output := preflight_explicit_image_tag with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -226,9 +227,11 @@ test_explicit_image_tag_named_tag {
 				{"name": "container-one",
 				 "image": "gcr.io/my-project/my-image:v0.1"}
 	]}}])
+
+	test.assert_allowed(output)
 }
 test_explicit_image_tag_latest_tag {
-		not preflight_explicit_image_tag with input as pods([
+	output := preflight_explicit_image_tag with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -237,9 +240,13 @@ test_explicit_image_tag_latest_tag {
 				{"name": "container-one",
 				 "image": "gcr.io/my-project/my-image:latest"}
 	]}}])
+
+	test.assert_violates(output, {
+		"container 'container-one' in pod 'foo' in namespace 'default' is missing an explicit image tag"
+		})
 }
 test_explicit_image_tag_missing_tag {
-		not preflight_explicit_image_tag with input as pods([
+	output := preflight_explicit_image_tag with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -248,9 +255,13 @@ test_explicit_image_tag_missing_tag {
 				{"name": "container-one",
 				 "image": "gcr.io/my-project/my-image"}
 	]}}])
+
+	test.assert_violates(output, {
+		"container 'container-one' in pod 'foo' in namespace 'default' is missing an explicit image tag"
+		})
 }
 test_explicit_image_tag_sha {
-		preflight_explicit_image_tag with input as pods([
+	output := preflight_explicit_image_tag with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -259,9 +270,11 @@ test_explicit_image_tag_sha {
 				{"name": "container-one",
 				 "image": "gcr.io/my-project/my-image@sha256:4bdd623e848417d96127e16037743f0cd8b528c026e9175e22a84f639eca58ff"}
 	]}}])
+
+	test.assert_allowed(output)
 }
 test_explicit_image_tag_some_pods_latest {
-		not preflight_explicit_image_tag with input as pods([
+	output := preflight_explicit_image_tag with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -279,9 +292,13 @@ test_explicit_image_tag_some_pods_latest {
 				 "image": "gcr.io/my-project/my-image:v0.2"}
 		]}}
 		])
+
+	test.assert_violates(output, {
+			"container 'container-one' in pod 'foo' in namespace 'default' is missing an explicit image tag"
+		})
 }
-test_explicit_image_tag_all_pods_complient {
-		preflight_explicit_image_tag with input as pods([
+test_explicit_image_tag_all_pods_compliant {
+	output := preflight_explicit_image_tag with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -299,4 +316,6 @@ test_explicit_image_tag_all_pods_complient {
 				"image": "gcr.io/my-project/another-image:v0.3"}
 		]}}
 		])
+
+	test.assert_allowed(output)
 }

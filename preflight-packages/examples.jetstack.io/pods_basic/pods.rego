@@ -51,17 +51,26 @@ preflight_container_mem_limit[message] {
 }
 
 # Rule 'explicit_image_tag'
-default preflight_explicit_image_tag = false
-preflight_explicit_image_tag {
-	count(containers_without_explicit_tag) == 0
-}
-explicit_tag(container) {
-	not re_match(`^.*:latest$`, container.image)
-	re_match(`^.*:.*$`, container.image)
-}
-containers_without_explicit_tag[container_name] {
+preflight_explicit_image_tag[message] {
+	# find all containers in all pods
 	pod := pods.items[_]
 	container := pod.spec.containers[_]
-	container_name = format_container(pod, container)
-	not explicit_tag(container)
+	# validate that the image value contains an explicit tag
+	{ re_match(`latest$`, container.image),
+	re_match(`^[^:]+$`, container.image) } & { true } != set()
+
+	# bind a message for reporting
+	message := sprintf("container '%s' in pod '%s' in namespace '%s' is missing an explicit image tag", [container.name, pod.metadata.name, pod.metadata.namespace])
+}
+
+preflight_explicit_image_tag[message] {
+	# find all containers in all pods
+	pod := pods.items[_]
+	container := pod.spec.initContainers[_]
+	# validate that the image value contains an explicit tag
+	{ re_match(`latest$`, container.image),
+	re_match(`^[^:]+$`, container.image) } & { true } != set()
+
+	# bind a message for reporting
+	message := sprintf("init container '%s' in pod '%s' in namespace '%s' is missing an explicit image tag", [container.name, pod.metadata.name, pod.metadata.namespace])
 }
