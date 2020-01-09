@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/open-policy-agent/opa/rego"
@@ -15,12 +16,8 @@ func TestIsSuccessState(t *testing.T) {
 		result *Result
 		want   bool
 	}{
-		{&Result{ID: "1", Value: ""}, false},
-		{&Result{ID: "2", Value: "aaa"}, false},
-		{&Result{ID: "3", Value: []interface{}{}}, false},
-		{&Result{ID: "4", Value: []string{"aaa"}}, false},
-		{&Result{ID: "5", Value: true}, true},
-		{&Result{ID: "6", Value: false}, false},
+		{&Result{ID: "1", Value: []string{}}, true},
+		{&Result{ID: "2", Value: []string{"violation"}}, false},
 	}
 
 	for idx, tc := range testCases {
@@ -37,12 +34,9 @@ func TestIsFailureState(t *testing.T) {
 		result *Result
 		want   bool
 	}{
-		{&Result{ID: "1", Value: ""}, false},
-		{&Result{ID: "2", Value: "aaa"}, false},
-		{&Result{ID: "3", Value: []interface{}{}}, false},
-		{&Result{ID: "4", Value: []string{"aaa"}}, false},
-		{&Result{ID: "5", Value: true}, false},
-		{&Result{ID: "6", Value: false}, true},
+		{&Result{ID: "1", Value: []string{}}, false},
+		{&Result{ID: "2", Value: []string{"violation"}}, true},
+		{&Result{ID: "3", Value: []string{"violation", "more violation"}}, true},
 	}
 
 	for idx, tc := range testCases {
@@ -98,24 +92,24 @@ func TestNewResultCollectionFromRegoResultSet(t *testing.T) {
 		regoResultSet := &rego.ResultSet{
 			rego.Result{Expressions: []*rego.ExpressionValue{&rego.ExpressionValue{
 				Value: map[string]interface{}{
-					"_1_4_3": true,
-					"_1_4_4": false,
-					"_1_4_5": true,
-					"_1_4_6": true,
-					"node_pools_with_legacy_endpoints_enabled": []interface{}{},
-					"node_pools_without_cloud_platform_scope":  []string{"default-pool"},
+					"_1_4_3": []string{},
+					"_1_4_4": []string{"violation"},
+					"_1_4_5": []string{},
+					"_1_4_6": []string{},
+					"node_pools_with_legacy_endpoints_enabled": []string{},
+					"node_pools_without_cloud_platform_scope":  []string{"violation"},
 				},
 				Text: "data.package.name",
 			}}},
 		}
 
 		expectedResults := []*Result{
-			&Result{ID: "_1_4_3", Value: true, Package: "package.name"},
-			&Result{ID: "_1_4_4", Value: false, Package: "package.name"},
-			&Result{ID: "_1_4_5", Value: true, Package: "package.name"},
-			&Result{ID: "_1_4_6", Value: true, Package: "package.name"},
-			&Result{ID: "node_pools_with_legacy_endpoints_enabled", Value: []interface{}{}, Package: "package.name"},
-			&Result{ID: "node_pools_without_cloud_platform_scope", Value: []string{"default-pool"}, Package: "package.name"},
+			&Result{ID: "_1_4_3", Value: []string{}, Package: "package.name"},
+			&Result{ID: "_1_4_4", Value: []string{"violation"}, Package: "package.name"},
+			&Result{ID: "_1_4_5", Value: []string{}, Package: "package.name"},
+			&Result{ID: "_1_4_6", Value: []string{}, Package: "package.name"},
+			&Result{ID: "node_pools_with_legacy_endpoints_enabled", Value: []string{}, Package: "package.name"},
+			&Result{ID: "node_pools_without_cloud_platform_scope", Value: []string{"violation"}, Package: "package.name"},
 		}
 
 		rc, err := NewResultCollectionFromRegoResultSet(regoResultSet)
@@ -156,8 +150,8 @@ func TestParse(t *testing.T) {
   "node_pools_without_cloud_platform_scope": [
 	"default-pool"
   ],
-  %q: false,
-  "my.package/_1_4_3": true
+  %q: [],
+  "my.package/_1_4_3": []
 }
 		`, id)))
 
@@ -169,9 +163,9 @@ func TestParse(t *testing.T) {
 
 	t.Run("parses a valid input", func(t *testing.T) {
 		results := []*Result{
-			&Result{ID: "_1_4_3", Value: true},
-			&Result{ID: "_1_4_4", Value: false, Package: "my.package"},
-			&Result{ID: "node_pools_without_cloud_platform_scope", Value: []interface{}{"default-pool"}},
+			&Result{ID: "_1_4_3", Value: []string{}},
+			&Result{ID: "_1_4_4", Value: []string{"violation"}, Package: "my.package"},
+			&Result{ID: "node_pools_without_cloud_platform_scope", Value: []string{"default-pool"}},
 		}
 
 		rc, err := Parse([]byte(`
@@ -179,8 +173,10 @@ func TestParse(t *testing.T) {
   "node_pools_without_cloud_platform_scope": [
 	"default-pool"
   ],
-  "_1_4_3": true,
-  "my.package/_1_4_4": false
+  "_1_4_3": [],
+  "my.package/_1_4_4": [
+	"violation"
+  ]
 }
 		`))
 		if err != nil {
@@ -206,68 +202,93 @@ func errorsEqual(err1 error, err2 error) bool {
 	return err1.Error() == err2.Error()
 }
 
-func TestListFailing(t *testing.T) {
-	a := &Result{ID: "a", Value: true}
-	b := &Result{ID: "b", Value: false}
-	c := &Result{ID: "c", Value: true}
-	d := &Result{ID: "d", Value: false}
-	e := &Result{ID: "e", Value: []string{}}
-	f := &Result{ID: "f", Value: []string{"something"}}
+func TestListPassing(t *testing.T) {
+	a := &Result{ID: "a", Value: []string{}}
+	b := &Result{ID: "b", Value: []string{"violation"}}
 
-	rc := &ResultCollection{a, b, c, d, e, f}
+	rc := &ResultCollection{a, b}
 
-	expected := []*Result{b, d}
+	want := []*Result{a}
 
-	if got, want := rc.ListFailing(), expected; !reflect.DeepEqual(got, want) {
-		t.Fatalf("got != want; got=%+v, want=%+v", got, want)
+	got := rc.ListPassing()
+
+	var gotResultIDs []string
+	for _, v := range got {
+		gotResultIDs = append(gotResultIDs, v.ID)
+	}
+
+	var wantedResultIDs []string
+	for _, v := range want {
+		wantedResultIDs = append(wantedResultIDs, v.ID)
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got != want; got=%+v, want=%+v", gotResultIDs, wantedResultIDs)
 	}
 }
 
-func TestListPassing(t *testing.T) {
-	a := &Result{ID: "a", Value: true}
-	b := &Result{ID: "b", Value: false}
-	c := &Result{ID: "c", Value: true}
-	d := &Result{ID: "d", Value: false}
-	e := &Result{ID: "e", Value: []string{}}
-	f := &Result{ID: "f", Value: []string{"something"}}
+func TestListFailing(t *testing.T) {
+	a := &Result{ID: "a", Value: []string{}}
+	b := &Result{ID: "b", Value: []string{"violation"}}
 
-	rc := &ResultCollection{a, b, c, d, e, f}
+	rc := &ResultCollection{a, b}
 
-	expected := []*Result{a, c}
+	want := []*Result{b}
 
-	if got, want := rc.ListPassing(), expected; !reflect.DeepEqual(got, want) {
-		t.Fatalf("got != want; got=%+v, want=%+v", got, want)
+	got := rc.ListFailing()
+
+	var gotResultIDs []string
+	for _, v := range got {
+		gotResultIDs = append(gotResultIDs, v.ID)
+	}
+
+	var wantedResultIDs []string
+	for _, v := range want {
+		wantedResultIDs = append(wantedResultIDs, v.ID)
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got != want; got=%+v, want=%+v", gotResultIDs, wantedResultIDs)
 	}
 }
 
 func TestAdd(t *testing.T) {
-	a := &Result{ID: "a", Value: false}
-	b := &Result{ID: "b", Value: true}
-	c := &Result{ID: "c", Value: false}
-	d := &Result{ID: "d", Value: true}
+	a := &Result{ID: "a", Value: []string{}}
+	b := &Result{ID: "b", Value: []string{"violation"}}
+	c := &Result{ID: "c", Value: []string{"violation"}}
 
 	rc := NewResultCollection()
-	rc.Add([]*Result{a, b})
-	rc.Add([]*Result{c, d})
+	rc.Add([]*Result{a})
+	rc.Add([]*Result{b, c})
 
-	expected := []*Result{a, b, c, d}
+	want := []*Result{a}
 
-	if got, want := []*Result(*rc), expected; !reflect.DeepEqual(got, want) {
-		t.Fatalf("got != want; got=%+v, want=%+v", got, want)
+	got := rc.ListPassing()
+
+	var gotResultIDs []string
+	for _, v := range got {
+		gotResultIDs = append(gotResultIDs, v.ID)
+	}
+
+	var wantedResultIDs []string
+	for _, v := range want {
+		wantedResultIDs = append(wantedResultIDs, v.ID)
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got != want; got=%+v, want=%+v", gotResultIDs, wantedResultIDs)
 	}
 }
 
 func TestByID(t *testing.T) {
-	a := &Result{ID: "a", Value: false}
-	b := &Result{ID: "b", Value: true}
-	c := &Result{ID: "c", Value: false}
-	d := &Result{ID: "d", Value: true}
+	a := &Result{ID: "a", Value: []string{}}
+	b := &Result{ID: "b", Value: []string{"violation"}}
 
-	rc := &ResultCollection{a, b, c, d}
+	rc := &ResultCollection{a, b}
 
 	rByID := rc.ByID()
 
-	expected := map[string]*Result{"a": a, "b": b, "c": c, "d": d}
+	expected := map[string]*Result{"a": a, "b": b}
 
 	if got, want := rByID, expected; !reflect.DeepEqual(got, want) {
 		t.Fatalf("got != want; got=%+v, want=%+v", got, want)
@@ -277,7 +298,7 @@ func TestByID(t *testing.T) {
 func TestSerialize(t *testing.T) {
 	t.Run("returns error if Package if empty", func(t *testing.T) {
 		rc := &ResultCollection{
-			&Result{ID: "a", Value: true, Package: ""},
+			&Result{ID: "a", Value: []string{}, Package: ""},
 		}
 
 		var buf bytes.Buffer
@@ -292,14 +313,13 @@ func TestSerialize(t *testing.T) {
 
 	t.Run("writes desired JSON serialization of ResultCollection", func(t *testing.T) {
 		rc := &ResultCollection{
-			&Result{ID: "a", Value: true, Package: "p1"},
-			&Result{ID: "b", Value: false, Package: "p1"},
-			&Result{ID: "c", Value: []string{}, Package: "p1"},
-			&Result{ID: "d", Value: []string{"something"}, Package: "p2"},
+			&Result{ID: "a", Package: "p1", Value: []string{}},
+			&Result{ID: "b", Package: "p1", Value: []string{"violation"}},
+			&Result{ID: "c", Package: "p1", Value: []string{}},
+			&Result{ID: "d", Package: "p2", Value: []string{"violation"}},
 		}
 
-		expectedSerialization := `{"p1/a":true,"p1/b":false,"p1/c":[],"p2/d":["something"]}
-`
+		expectedSerialization := `{"p1/a":[],"p1/b":["violation"],"p1/c":[],"p2/d":["violation"]}`
 
 		var buf bytes.Buffer
 		err := rc.Serialize(&buf)
@@ -307,7 +327,7 @@ func TestSerialize(t *testing.T) {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		if got, want := buf.String(), expectedSerialization; got != want {
+		if got, want := strings.TrimSpace(buf.String()), expectedSerialization; got != want {
 			t.Fatalf("got!=want: got=%s, want=%s", got, want)
 		}
 	})

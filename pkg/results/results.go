@@ -12,25 +12,23 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 )
 
-type outputResult map[string]interface{}
+type outputResult map[string][]string
 
 // Result holds the information about the result of a check
 type Result struct {
 	ID      string
-	Value   interface{}
+	Value   []string
 	Package string
 }
 
 // IsSuccessState returns true if Value is boolean and it is true.
 func (r *Result) IsSuccessState() bool {
-	success, ok := r.Value.(bool)
-	return success && ok
+	return len(r.Value) == 0
 }
 
 // IsFailureState returns true if Value is boolean and it is false.
 func (r *Result) IsFailureState() bool {
-	success, ok := r.Value.(bool)
-	return !success && ok
+	return len(r.Value) != 0
 }
 
 // ResultCollection is a collection of Result
@@ -105,9 +103,13 @@ func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet) (*ResultCollection
 
 	rc := make(ResultCollection, 0, len(keys))
 	for _, k := range keys {
+		value, ok := values[k].([]string)
+		if !ok {
+			return nil, fmt.Errorf("format error, cannot unmarshall value '%+v' to []string", values[k])
+		}
 		rc = append(rc, &Result{
 			ID:      k,
-			Value:   values[k],
+			Value:   value,
 			Package: pkg,
 		})
 	}

@@ -56,17 +56,6 @@ func TestJSONExport(t *testing.T) {
 				Description: "This is another section.",
 				Rules: []packaging.Rule{
 					packaging.Rule{
-						ID:          "r3",
-						Name:        "Another rule",
-						Description: "This is another rule.",
-						Manual:      false,
-						Remediation: "No remedy.",
-						Links: []string{
-							"http://jetstack.io/docs",
-							"http://jetstack.io/docs2",
-						},
-					},
-					packaging.Rule{
 						ID:          "r4",
 						Name:        "Another rule",
 						Description: "This is another rule.",
@@ -85,9 +74,8 @@ func TestJSONExport(t *testing.T) {
 	jsonExporter := JSONExporter{}
 
 	rc := &results.ResultCollection{
-		&results.Result{ID: ruleToResult("r1"), Value: true},
-		&results.Result{ID: ruleToResult("r2"), Value: false},
-		&results.Result{ID: ruleToResult("r3"), Value: "not a bool"},
+		&results.Result{ID: ruleToResult("r1"), Value: []string{}},
+		&results.Result{ID: ruleToResult("r2"), Value: []string{"violation"}},
 	}
 
 	expectedJSON := `{
@@ -125,19 +113,6 @@ func TestJSONExport(t *testing.T) {
     },
     {
       "rules": [
-        {
-          "missing": false,
-		  "value": "not a bool",
-          "success": false,
-          "links": [
-            "http://jetstack.io/docs",
-            "http://jetstack.io/docs2"
-          ],
-          "remediation": "No remedy.",
-          "description": "This is another rule.",
-          "name": "Another rule",
-          "id": "r3"
-        },
         {
           "missing": true,
           "success": false,
