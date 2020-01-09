@@ -4,42 +4,50 @@ package gke_basic
 import input.gke.Cluster as gke
 
 # Rule 'private_cluster'
-default preflight_private_cluster = false
-preflight_private_cluster {
-	gke.privateClusterConfig.enablePrivateNodes == true
+preflight_private_cluster[message] {
+	not gke.privateClusterConfig.enablePrivateNodes
+
+	message := "cluster does not have private nodes enabled"
 }
 
 # Rule 'basic_auth_disabled'
-default preflight_basic_auth_disabled = false
-preflight_basic_auth_disabled {
-	not gke.masterAuth.username
-	not gke.masterAuth.password
+preflight_basic_auth_disabled[message] {
+	# masterAuth must be missing or an empty {}
+	{ gke.masterAuth } & { null, {}} == set()
+
+	message := "cluster does not have basic auth disabled"
 }
 
 # Rule 'abac_disabled'
-default preflight_abac_disabled = false
-preflight_abac_disabled {
-	not gke.legacyAbac.enabled == true
+preflight_abac_disabled[message] {
+	gke.legacyAbac.enabled
+
+	message := "cluster has legacy abac enabled"
 }
 
 # Rule 'k8s_master_up_to_date'
-default preflight_k8s_master_up_to_date = false
-preflight_k8s_master_up_to_date {
-	re_match(`^1\.1[234].*$`, gke.currentMasterVersion)
+preflight_k8s_master_up_to_date[message] {
+	not gke.currentMasterVersion
+
+	message := "cluster master version is missing"
+}
+preflight_k8s_master_up_to_date[message] {
+	not re_match(`^1\.1[23467].*$`, gke.currentMasterVersion)
+
+	message := "cluster master is not up to date"
 }
 
 # Rule 'k8s_nodes_up_to_date'
-default preflight_k8s_nodes_up_to_date = false
-preflight_k8s_nodes_up_to_date {
-	count(node_pools_old_version) == 0
+preflight_k8s_nodes_up_to_date[message] {
+	node_pool := gke.nodePools[_]
+	not re_match(`^1\.1[234567].*$`, node_pool.version)
+
+	message := sprintf("cluster node pool '%s' is outdated", [node_pool.name])
 }
-node_pools_old_version[name] {
-	np := gke.nodePools[_]
-	name := np.name
-	not node_pools_current_version[name]
-}
-node_pools_current_version[name] {
-	np := gke.nodePools[_]
-	name := np.name
-	re_match(`^1\.1[234].*$`, np.version)
+
+preflight_k8s_nodes_up_to_date[message] {
+	node_pool:= gke.nodePools[_]
+	not node_pool.version
+
+	message := sprintf("cluster node pool '%s' has no version", [node_pool.name])
 }
