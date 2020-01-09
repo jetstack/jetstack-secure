@@ -66,10 +66,6 @@ func (r *ResultCollection) Add(rr []*Result) {
 	*r = append(*r, rr...)
 }
 
-func (r *ResultCollection) Raw() []*Result {
-	return *r
-}
-
 // ByID returns a map of results by ID.
 func (r *ResultCollection) ByID() map[string]*Result {
 	resultMap := make(map[string]*Result)
