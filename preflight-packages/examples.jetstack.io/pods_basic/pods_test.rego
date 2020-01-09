@@ -120,10 +120,13 @@ test_container_cpu_limit_cpu_limits_many_unset {
 
 # Rule 'container_mem_limit'
 test_container_mem_limit_no_pods {
-	preflight_container_mem_limit with input as pods([])
+	output := preflight_container_mem_limit with input as pods([])
+
+	# no validation messages should be returned
+	test.assert_allowed(output)
 }
 test_container_mem_limit_memory_limits_set {
-	preflight_container_mem_limit with input as pods([
+	output := preflight_container_mem_limit with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -134,9 +137,12 @@ test_container_mem_limit_memory_limits_set {
 		{"name": "container-two",
 				 "resources":{"limits":{"memory": "100m"}}}
 	]}}])
+
+	# no validation messages should be returned
+	test.assert_allowed(output)
 }
 test_container_mem_limit_init_containers_unset {
-	not preflight_container_mem_limit with input as pods([
+	output := preflight_container_mem_limit with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -150,9 +156,13 @@ test_container_mem_limit_init_containers_unset {
 						 "resources":{"limits":{"memory": "500m"}}},
 				 ]
 		}}])
+
+	test.assert_violates(output, {
+		"init container 'init-one' in pod 'foo' in namespace 'default' is missing a memory limit"
+	})
 }
 test_container_mem_limit_init_containers_set {
-	preflight_container_mem_limit with input as pods([
+	output := preflight_container_mem_limit with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -167,9 +177,12 @@ test_container_mem_limit_init_containers_set {
 						 "resources":{"limits":{"memory": "500m"}}},
 				 ]
 		}}])
+
+	# no validation messages should be returned
+	test.assert_allowed(output)
 }
 test_container_mem_limit_memory_limits_unset {
-	not preflight_container_mem_limit with input as pods([
+	output := preflight_container_mem_limit with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -177,9 +190,13 @@ test_container_mem_limit_memory_limits_unset {
 		 "spec":{"containers":[
 		{"name": "container-one"}
 	]}}])
+
+	test.assert_violates(output, {
+		"container 'container-one' in pod 'foo' in namespace 'default' is missing a memory limit"
+	})
 }
 test_container_mem_limit_memory_limits_some_unset {
-	not preflight_container_mem_limit with input as pods([
+	output := preflight_container_mem_limit with input as pods([
 		{"metadata": {
 				"name": "foo",
 				"namespace": "default"
@@ -189,6 +206,10 @@ test_container_mem_limit_memory_limits_some_unset {
 				 "resources":{"limits":{"memory": "500m"}}},
 		{"name": "container-two"}
 	]}}])
+
+	test.assert_violates(output, {
+		"container 'container-two' in pod 'foo' in namespace 'default' is missing a memory limit"
+	})
 }
 
 # Rule 'explicit_image_tag'
