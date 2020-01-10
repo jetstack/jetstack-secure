@@ -66,7 +66,7 @@ bundle-all-platforms:
 # Packages
 
 package-test:
-	cd $(ROOT_DIR) && go run ./main.go package test preflight-packages/examples.jetstack.io
+	cd $(ROOT_DIR) && go run ./main.go package test ./preflight-packages/examples.jetstack.io
 
 # Docker image
 
