@@ -4,6 +4,8 @@ VERSION:=$(shell $(ROOT_DIR)/hack/getversion)
 COMMIT:=$(shell git rev-list -1 HEAD)
 DATE:=$(shell date -uR)
 GOVERSION:=$(shell go version | awk '{print $$3 " " $$4}')
+GOOS:=$(shell go env GOOS)
+GOARCH:=$(shell go env GOARCH)
 
 DOCKER_IMAGE?=quay.io/jetstack/preflight
 DOCKER_IMAGE_TAG?=$(DOCKER_IMAGE):$(VERSION)
@@ -17,6 +19,7 @@ define LDFLAGS
 endef
 
 GO_BUILD:=go build -ldflags '$(LDFLAGS)'
+GO_INSTALL:=go install -ldflags '$(LDFLAGS)'
 
 export GO111MODULE=on
 
@@ -29,6 +32,9 @@ clean:
 
 build:
 	cd $(ROOT_DIR) && $(GO_BUILD) -o builds/preflight .
+
+install:
+	cd $(ROOT_DIR) && $(GO_INSTALL)
 
 test:
 	cd $(ROOT_DIR) && go test ./...

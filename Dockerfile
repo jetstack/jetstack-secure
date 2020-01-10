@@ -12,7 +12,7 @@ RUN go mod download
 
 ## Bring in everything else and build an amd64 image
 COPY . .
-RUN GOOS=linux GOARCH=amd64 go install .
+RUN make install
 
 # STAGE 2
 # Use a distroless nonroot base image for just our executable
