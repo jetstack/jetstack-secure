@@ -17,10 +17,14 @@ type outputResult map[string][]string
 
 // Result holds the information about the result of a check
 type Result struct {
-	ID         string
+	// ID is the identifier for the rule of this result.
+	ID string
+	// Violations contains a list of each violation for the rule from the OPA evaluator
 	Violations []string
-	Value      interface{} // deprecated
-	Package    string
+	// Deprecated: Value contains the raw result of the rule from the OPA evaluator.
+	Value interface{}
+	// Package references the package the rule belongs to.
+	Package string
 }
 
 // IsSuccessState returns true if Value is boolean and it is true.
