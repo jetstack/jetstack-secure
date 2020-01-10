@@ -3,13 +3,6 @@ package pods
 # See https://github.com/jetstack/preflight/blob/master/docs/datagatherers/k8s_pods.md for more details
 import input["k8s/pods"] as pods
 
-format_container(pod, container) = data {
-	data := {
-		"namespace": pod.metadata.namespace,
-		"pod": pod.metadata.name,
-		"container": container.name
-	}
-}
 # Rule 'container_cpu_limit'
 preflight_container_cpu_limit[message] {
 	# find all containers in all pods
