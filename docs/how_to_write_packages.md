@@ -114,7 +114,7 @@ As you can identify, the Rego package for that policy is `pods`. In this case, O
 
 Rego is a declarative language and has a bit of a learning curve. It is strongly recommended to read ["The Basics"](https://www.openpolicyagent.org/docs/latest/policy-language/#the-basics). Also, it is useful to have the [language reference](https://www.openpolicyagent.org/docs/latest/policy-reference/) to hand.
 
-In order to speed up the process of writing Rego rules, it's best to write tests. It means you can iterate fast while writing rules and make sure the rules are doing what you intended without int. It is conventional to name the test files for `policy.rego` as `policy_test.rego`.
+In order to speed up the process of writing Rego rules, it's best to write tests. It means you can iterate fast while writing rules and make sure the rules are doing what you intended. It is conventional to name the test files for `policy.rego` as `policy_test.rego`.
 
 This example contains the definition for the `tag_no_latest` rule. As you can see, there is the convention within Preflight to add `preflight_` as prefix to the rule ID when that is written in Rego (related issue #27).
 
