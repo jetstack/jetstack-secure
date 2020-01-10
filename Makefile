@@ -66,7 +66,7 @@ bundle-all-platforms:
 # Packages
 
 package-test:
-	opa test -v --explain=notes $(ROOT_DIR)/preflight-packages/examples.jetstack.io
+	preflight package test $(ROOT_DIR)/preflight-packages/examples.jetstack.io
 
 # Docker image
 

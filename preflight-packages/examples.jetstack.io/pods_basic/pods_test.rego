@@ -1,6 +1,17 @@
 package pods
 
-import data.test_utils as test
+assert_allowed(output) = output {
+	trace(sprintf("GOT: %s", [concat(",", output)]))
+	trace("WANT: empty set")
+	output == set()
+}
+
+assert_violates(output, messages) = output {
+	trace(sprintf("GOT: %s", [concat(",", output)]))
+	trace(sprintf("WANT: %s", [concat(",", messages)]))
+
+	output == messages
+}
 
 pods(x) = y { y := {"k8s/pods": {"items": x }} }
 
@@ -9,7 +20,7 @@ test_container_cpu_limit_no_pods {
 	output := preflight_container_cpu_limit with input as pods([])
 
 	# no validation messages should be returned
-	test.assert_allowed(output)
+	assert_allowed(output)
 }
 test_container_cpu_limit_cpu_limits_set {
 	output := preflight_container_cpu_limit with input as pods([
@@ -25,7 +36,7 @@ test_container_cpu_limit_cpu_limits_set {
 	]}}])
 
 	# no validation messages should be returned
-	test.assert_allowed(output)
+	assert_allowed(output)
 }
 test_container_cpu_limit_init_containers_unset {
 	output := preflight_container_cpu_limit with input as pods([
@@ -44,7 +55,7 @@ test_container_cpu_limit_init_containers_unset {
 		}}])
 
 	# ensure validation message is returned
-	test.assert_violates(output, {"init container 'init-one' in pod 'foo' in namespace 'default' is missing a cpu limit"})
+	assert_violates(output, {"init container 'init-one' in pod 'foo' in namespace 'default' is missing a cpu limit"})
 }
 test_container_cpu_limit_init_containers_set {
 	output := preflight_container_cpu_limit with input as pods([
@@ -64,7 +75,7 @@ test_container_cpu_limit_init_containers_set {
 		}}])
 
 	# no validation messages should be returned
-	test.assert_allowed(output)
+	assert_allowed(output)
 }
 test_container_cpu_limit_cpu_limits_unset {
 	output := preflight_container_cpu_limit with input as pods([
@@ -77,7 +88,7 @@ test_container_cpu_limit_cpu_limits_unset {
 	]}}])
 
 	# ensure validation message is returned
-	test.assert_violates(output, {"container 'container-one' in pod 'foo' in namespace 'default' is missing a cpu limit"})
+	assert_violates(output, {"container 'container-one' in pod 'foo' in namespace 'default' is missing a cpu limit"})
 }
 test_container_cpu_limit_cpu_limits_some_unset {
 	output := preflight_container_cpu_limit with input as pods([
@@ -92,7 +103,7 @@ test_container_cpu_limit_cpu_limits_some_unset {
 	]}}])
 
 	# ensure validation message is returned
-	test.assert_violates(output, {"container 'container-two' in pod 'foo' in namespace 'default' is missing a cpu limit"})
+	assert_violates(output, {"container 'container-two' in pod 'foo' in namespace 'default' is missing a cpu limit"})
 }
 test_container_cpu_limit_cpu_limits_many_unset {
 	output := preflight_container_cpu_limit with input as pods([
@@ -112,7 +123,7 @@ test_container_cpu_limit_cpu_limits_many_unset {
 		}}])
 
 	# ensure validation message for each container is returned
-	test.assert_violates(output, {
+	assert_violates(output, {
 		"container 'container-one' in pod 'foo' in namespace 'default' is missing a cpu limit",
 		"init container 'init-one' in pod 'foo' in namespace 'default' is missing a cpu limit"
 	})
@@ -123,7 +134,7 @@ test_container_mem_limit_no_pods {
 	output := preflight_container_mem_limit with input as pods([])
 
 	# no validation messages should be returned
-	test.assert_allowed(output)
+	assert_allowed(output)
 }
 test_container_mem_limit_memory_limits_set {
 	output := preflight_container_mem_limit with input as pods([
@@ -139,7 +150,7 @@ test_container_mem_limit_memory_limits_set {
 	]}}])
 
 	# no validation messages should be returned
-	test.assert_allowed(output)
+	assert_allowed(output)
 }
 test_container_mem_limit_init_containers_unset {
 	output := preflight_container_mem_limit with input as pods([
@@ -157,7 +168,7 @@ test_container_mem_limit_init_containers_unset {
 				 ]
 		}}])
 
-	test.assert_violates(output, {
+	assert_violates(output, {
 		"init container 'init-one' in pod 'foo' in namespace 'default' is missing a memory limit"
 	})
 }
@@ -179,7 +190,7 @@ test_container_mem_limit_init_containers_set {
 		}}])
 
 	# no validation messages should be returned
-	test.assert_allowed(output)
+	assert_allowed(output)
 }
 test_container_mem_limit_memory_limits_unset {
 	output := preflight_container_mem_limit with input as pods([
@@ -191,7 +202,7 @@ test_container_mem_limit_memory_limits_unset {
 		{"name": "container-one"}
 	]}}])
 
-	test.assert_violates(output, {
+	assert_violates(output, {
 		"container 'container-one' in pod 'foo' in namespace 'default' is missing a memory limit"
 	})
 }
@@ -207,7 +218,7 @@ test_container_mem_limit_memory_limits_some_unset {
 		{"name": "container-two"}
 	]}}])
 
-	test.assert_violates(output, {
+	assert_violates(output, {
 		"container 'container-two' in pod 'foo' in namespace 'default' is missing a memory limit"
 	})
 }
@@ -215,7 +226,7 @@ test_container_mem_limit_memory_limits_some_unset {
 # Rule 'explicit_image_tag'
 test_explicit_image_tag_no_pods {
 	output := preflight_explicit_image_tag with input as pods([])
-	test.assert_allowed(output)
+	assert_allowed(output)
 }
 test_explicit_image_tag_named_tag {
 	output := preflight_explicit_image_tag with input as pods([
@@ -228,7 +239,7 @@ test_explicit_image_tag_named_tag {
 				 "image": "gcr.io/my-project/my-image:v0.1"}
 	]}}])
 
-	test.assert_allowed(output)
+	assert_allowed(output)
 }
 test_explicit_image_tag_latest_tag {
 	output := preflight_explicit_image_tag with input as pods([
@@ -241,7 +252,7 @@ test_explicit_image_tag_latest_tag {
 				 "image": "gcr.io/my-project/my-image:latest"}
 	]}}])
 
-	test.assert_violates(output, {
+	assert_violates(output, {
 		"container 'container-one' in pod 'foo' in namespace 'default' is missing an explicit image tag"
 		})
 }
@@ -256,7 +267,7 @@ test_explicit_image_tag_missing_tag {
 				 "image": "gcr.io/my-project/my-image"}
 	]}}])
 
-	test.assert_violates(output, {
+	assert_violates(output, {
 		"container 'container-one' in pod 'foo' in namespace 'default' is missing an explicit image tag"
 		})
 }
@@ -271,7 +282,7 @@ test_explicit_image_tag_sha {
 				 "image": "gcr.io/my-project/my-image@sha256:4bdd623e848417d96127e16037743f0cd8b528c026e9175e22a84f639eca58ff"}
 	]}}])
 
-	test.assert_allowed(output)
+	assert_allowed(output)
 }
 test_explicit_image_tag_some_pods_latest {
 	output := preflight_explicit_image_tag with input as pods([
@@ -293,7 +304,7 @@ test_explicit_image_tag_some_pods_latest {
 		]}}
 		])
 
-	test.assert_violates(output, {
+	assert_violates(output, {
 			"container 'container-one' in pod 'foo' in namespace 'default' is missing an explicit image tag"
 		})
 }
@@ -317,5 +328,5 @@ test_explicit_image_tag_all_pods_compliant {
 		]}}
 		])
 
-	test.assert_allowed(output)
+	assert_allowed(output)
 }
