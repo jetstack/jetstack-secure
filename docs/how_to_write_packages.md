@@ -98,7 +98,7 @@ You can have multiple Rego files inside the directory of a Preflight package.  A
 For instance, this snippet shows an arbitrary Rego rule in a package named `podsbestpractices`:
 
 ```
-package pods
+package podsbestpractices
 
 import input["k8s/pods"] as pods
 
@@ -121,7 +121,7 @@ This example contains the definition for the `tag_no_latest` rule. As you can se
 ```
 # preflight-packages/examples.jetstack.io/podsbestpractices/policy.rego
 
-package pods
+package podsbestpractices
 
 import input["k8s/pods"] as pods
 
@@ -147,7 +147,7 @@ This snippet contains a test case for the previous Rego code.
 ```
 # preflight-packages/examples.jetstack.io/podsbestpractices/policy_test.rego
 
-package pods
+package podsbestpractices
 
 pods(x) = y { y := {"k8s/pods": {"items": x }} }
 
