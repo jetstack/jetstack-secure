@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"strings"
 
@@ -16,19 +17,22 @@ type outputResult map[string][]string
 
 // Result holds the information about the result of a check
 type Result struct {
-	ID      string
-	Value   []string
-	Package string
+	ID         string
+	Violations []string
+	Value      interface{} // deprecated
+	Package    string
 }
 
 // IsSuccessState returns true if Value is boolean and it is true.
 func (r *Result) IsSuccessState() bool {
-	return len(r.Value) == 0
+	success, ok := r.Value.(bool)
+	return len(r.Violations) == 0 || (ok && success)
 }
 
 // IsFailureState returns true if Value is boolean and it is false.
 func (r *Result) IsFailureState() bool {
-	return len(r.Value) != 0
+	success, ok := r.Value.(bool)
+	return len(r.Violations) != 0 || (ok && !success)
 }
 
 // ResultCollection is a collection of Result
@@ -99,14 +103,25 @@ func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet) (*ResultCollection
 
 	rc := make(ResultCollection, 0, len(keys))
 	for _, k := range keys {
-		value, ok := values[k].([]string)
-		if !ok {
-			return nil, fmt.Errorf("format error, cannot unmarshall value '%+v' to []string", values[k])
+		var violations []string
+		boolValid, boolOk := values[k].(bool)
+		strings, stringsOk := values[k].([]string)
+		if boolOk {
+			log.Printf("Using a boolean for `Value` is deprecated, found for key: (%s)", k)
+			if boolValid {
+				violations = []string{}
+			} else {
+				violations = []string{"missing violation context in rule definition"}
+			}
+		} else if stringsOk {
+			violations = strings
+		} else {
+			return nil, fmt.Errorf("format error, cannot unmarshall value '%+v' to bool or []string", values[k])
 		}
 		rc = append(rc, &Result{
-			ID:      k,
-			Value:   value,
-			Package: pkg,
+			ID:         k,
+			Violations: violations,
+			Package:    pkg,
 		})
 	}
 
@@ -165,7 +180,7 @@ func (r *ResultCollection) Serialize(w io.Writer) error {
 		if len(result.Package) == 0 {
 			return fmt.Errorf("missing Package in result with ID: %q", result.ID)
 		}
-		output[fmt.Sprintf("%s/%s", result.Package, result.ID)] = result.Value
+		output[fmt.Sprintf("%s/%s", result.Package, result.ID)] = result.Violations
 	}
 
 	e := json.NewEncoder(w)

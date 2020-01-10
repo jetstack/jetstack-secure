@@ -16,8 +16,8 @@ func TestIsSuccessState(t *testing.T) {
 		result *Result
 		want   bool
 	}{
-		{&Result{ID: "1", Value: []string{}}, true},
-		{&Result{ID: "2", Value: []string{"violation"}}, false},
+		{&Result{ID: "1", Violations: []string{}}, true},
+		{&Result{ID: "2", Violations: []string{"violation"}}, false},
 	}
 
 	for idx, tc := range testCases {
@@ -34,9 +34,9 @@ func TestIsFailureState(t *testing.T) {
 		result *Result
 		want   bool
 	}{
-		{&Result{ID: "1", Value: []string{}}, false},
-		{&Result{ID: "2", Value: []string{"violation"}}, true},
-		{&Result{ID: "3", Value: []string{"violation", "more violation"}}, true},
+		{&Result{ID: "1", Violations: []string{}}, false},
+		{&Result{ID: "2", Violations: []string{"violation"}}, true},
+		{&Result{ID: "3", Violations: []string{"violation", "more violation"}}, true},
 	}
 
 	for idx, tc := range testCases {
@@ -104,12 +104,12 @@ func TestNewResultCollectionFromRegoResultSet(t *testing.T) {
 		}
 
 		expectedResults := []*Result{
-			&Result{ID: "_1_4_3", Value: []string{}, Package: "package.name"},
-			&Result{ID: "_1_4_4", Value: []string{"violation"}, Package: "package.name"},
-			&Result{ID: "_1_4_5", Value: []string{}, Package: "package.name"},
-			&Result{ID: "_1_4_6", Value: []string{}, Package: "package.name"},
-			&Result{ID: "node_pools_with_legacy_endpoints_enabled", Value: []string{}, Package: "package.name"},
-			&Result{ID: "node_pools_without_cloud_platform_scope", Value: []string{"violation"}, Package: "package.name"},
+			&Result{ID: "_1_4_3", Violations: []string{}, Package: "package.name"},
+			&Result{ID: "_1_4_4", Violations: []string{"violation"}, Package: "package.name"},
+			&Result{ID: "_1_4_5", Violations: []string{}, Package: "package.name"},
+			&Result{ID: "_1_4_6", Violations: []string{}, Package: "package.name"},
+			&Result{ID: "node_pools_with_legacy_endpoints_enabled", Violations: []string{}, Package: "package.name"},
+			&Result{ID: "node_pools_without_cloud_platform_scope", Violations: []string{"violation"}, Package: "package.name"},
 		}
 
 		rc, err := NewResultCollectionFromRegoResultSet(regoResultSet)
@@ -203,8 +203,8 @@ func errorsEqual(err1 error, err2 error) bool {
 }
 
 func TestListPassing(t *testing.T) {
-	a := &Result{ID: "a", Value: []string{}}
-	b := &Result{ID: "b", Value: []string{"violation"}}
+	a := &Result{ID: "a", Violations: []string{}}
+	b := &Result{ID: "b", Violations: []string{"violation"}}
 
 	rc := &ResultCollection{a, b}
 
@@ -228,8 +228,8 @@ func TestListPassing(t *testing.T) {
 }
 
 func TestListFailing(t *testing.T) {
-	a := &Result{ID: "a", Value: []string{}}
-	b := &Result{ID: "b", Value: []string{"violation"}}
+	a := &Result{ID: "a", Violations: []string{}}
+	b := &Result{ID: "b", Violations: []string{"violation"}}
 
 	rc := &ResultCollection{a, b}
 
@@ -253,9 +253,9 @@ func TestListFailing(t *testing.T) {
 }
 
 func TestAdd(t *testing.T) {
-	a := &Result{ID: "a", Value: []string{}}
-	b := &Result{ID: "b", Value: []string{"violation"}}
-	c := &Result{ID: "c", Value: []string{"violation"}}
+	a := &Result{ID: "a", Violations: []string{}}
+	b := &Result{ID: "b", Violations: []string{"violation"}}
+	c := &Result{ID: "c", Violations: []string{"violation"}}
 
 	rc := NewResultCollection()
 	rc.Add([]*Result{a})
@@ -269,8 +269,8 @@ func TestAdd(t *testing.T) {
 }
 
 func TestByID(t *testing.T) {
-	a := &Result{ID: "a", Value: []string{}}
-	b := &Result{ID: "b", Value: []string{"violation"}}
+	a := &Result{ID: "a"}
+	b := &Result{ID: "b"}
 
 	rc := &ResultCollection{a, b}
 
@@ -286,7 +286,7 @@ func TestByID(t *testing.T) {
 func TestSerialize(t *testing.T) {
 	t.Run("returns error if Package if empty", func(t *testing.T) {
 		rc := &ResultCollection{
-			&Result{ID: "a", Value: []string{}, Package: ""},
+			&Result{ID: "a", Violations: []string{}, Package: ""},
 		}
 
 		var buf bytes.Buffer
@@ -301,10 +301,10 @@ func TestSerialize(t *testing.T) {
 
 	t.Run("writes desired JSON serialization of ResultCollection", func(t *testing.T) {
 		rc := &ResultCollection{
-			&Result{ID: "a", Package: "p1", Value: []string{}},
-			&Result{ID: "b", Package: "p1", Value: []string{"violation"}},
-			&Result{ID: "c", Package: "p1", Value: []string{}},
-			&Result{ID: "d", Package: "p2", Value: []string{"violation"}},
+			&Result{ID: "a", Package: "p1", Violations: []string{}},
+			&Result{ID: "b", Package: "p1", Violations: []string{"violation"}},
+			&Result{ID: "c", Package: "p1", Violations: []string{}},
+			&Result{ID: "d", Package: "p2", Violations: []string{"violation"}},
 		}
 
 		expectedSerialization := `{"p1/a":[],"p1/b":["violation"],"p1/c":[],"p2/d":["violation"]}`

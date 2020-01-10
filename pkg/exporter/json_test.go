@@ -74,8 +74,8 @@ func TestJSONExport(t *testing.T) {
 	jsonExporter := JSONExporter{}
 
 	rc := &results.ResultCollection{
-		&results.Result{ID: ruleToResult("r1"), Value: []string{}},
-		&results.Result{ID: ruleToResult("r2"), Value: []string{"violation"}},
+		&results.Result{ID: ruleToResult("r1"), Violations: []string{}},
+		&results.Result{ID: ruleToResult("r2"), Violations: []string{"violation"}},
 	}
 
 	expectedJSON := `{
