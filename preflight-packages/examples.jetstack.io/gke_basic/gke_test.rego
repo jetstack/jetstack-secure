@@ -98,13 +98,6 @@ test_abac_disabled_legacy_abac_missing {
 }
 
 # Rule 'k8s_master_up_to_date'
-test_k8s_master_up_to_date_missing_kubernetes_version {
-	output := preflight_k8s_master_up_to_date with input as cluster({})
-
-	assert_violates(output, {
-		"cluster master version is missing"
-		})
-}
 test_k8s_master_up_to_date_empty_kubernetes_version {
 	output :=  preflight_k8s_master_up_to_date with input as
 		cluster({"currentMasterVersion": ""})

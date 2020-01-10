@@ -27,11 +27,6 @@ preflight_abac_disabled[message] {
 
 # Rule 'k8s_master_up_to_date'
 preflight_k8s_master_up_to_date[message] {
-	not gke.currentMasterVersion
-
-	message := "cluster master version is missing"
-}
-preflight_k8s_master_up_to_date[message] {
 	not re_match(`^1\.1[3467].*$`, gke.currentMasterVersion)
 
 	message := "cluster master is not up to date"
