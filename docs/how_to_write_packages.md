@@ -225,7 +225,7 @@ Soon, Preflight will be able to run Rego tests inside Preflight packages (#26), 
 However it is possible to run these tests directly with the [OPA command line](https://www.openpolicyagent.org/docs/latest/#running-opa):
 
 ```
-opa test ./preflight-packages/examples.jetstack.io/podsbestpractices 
+opa test -v --explain=notes ./preflight-packages/examples.jetstack.io/podsbestpractices
 ```
 
 ## Lint your packages
@@ -235,7 +235,7 @@ The Preflight command line has a built-in linter. This helps to make sure that t
 You can lint your package by running:
 
 ```
-preflight package lint ./preflight-packages/examples.jetstack.io/podsbestpractices 
+preflight package lint ./preflight-packages/examples.jetstack.io/podsbestpractices
 ```
 
 ## Configure Preflight to use your package
