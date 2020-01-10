@@ -43,17 +43,18 @@ In order to ease keeping track of those changes, Preflight packages have a versi
 
 ### The minimal _policy manifest_
 
-Let's just write the minimal _policy manifest_ possible.
+Let's write a minimal _policy manifest_ to get started.
 
 First, create a directory for this new package. We are going to create this new package under the `examples.jetstack.io` namespace, and we are going to name it `podsbestpractices`.
 
 Then create the `policy-manifest.yaml` file. The following fields are mandatory:
 
-- `schema-version`: indicates which schema is being used for the _policy manifest_. For the moment, there is only version `1.0.0`.
+- `schema-version`: indicates which schema is being used for the _policy manifest_. For now, there is only version: `1.0.0`.
+- `namespace`, `id`, and `package-version`: these properties identify the package. `namespace` must be a FQDN and it is encouraged that `package-version` uses [semver](https://semver.org).
+- `root-query`: Name of the Rego package containing the rules backing the
+  package (see below).
 
-- `namespace`, `id`, and `package-version`: these properties identify the package. `namespace` must be a FQDN and it is encouraged that `package-version` uses semver.
-
-Then, you should also declare the _data-gatherers_ that your rules are going to need. For this example, let's just use `k8s/pods`.
+Then, you should also declare the _data-gatherers_ that your rules are going to need. For this example, we only need one, `k8s/pods`.
 
 Finally, it's time to declare the rules for the policy. Rules are organized into sections. Every section has an ID, a name, and a description. Also, every rule has its own ID, name, and description. Additionally, rules can have other metadata like a remediation advice or a set of related links.
 
@@ -70,18 +71,18 @@ root-query: "data.pods" # the concept of `root-query` is explained later in this
 data-gatherers:
 - k8s/pods
 sections:
-  - id: images
-    name: Images
-    description: "Restrictions over the images."
-    rules:
-      - id: tag_not_latest
-        name: "Tag is not latest"
-        description: >
-          Avoid using "latest" as tag for the image since.
-        remediation: >
-          Change your manifest and edit the Pod template so the image is pinned to a certain tag.
-        links:
-          - "https://kubernetes.io/docs/concepts/containers/images/"
+- id: images
+  name: Images
+  description: "Restrictions over the images."
+  rules:
+  - id: tag_not_latest
+    name: "Tag is not latest"
+    description: >
+      Avoid using "latest" as tag for the image since.
+    remediation: >
+      Change your manifest and edit the Pod template so the image is pinned to a certain tag.
+    links:
+      - "https://kubernetes.io/docs/concepts/containers/images/"
 ```
 
 ## Writing the policy definition in Rego
@@ -90,7 +91,7 @@ In the previous section, we created the _policy manifest_, which contains a huma
 
 ### The Rego package
 
-Preflight relies on Open Policy Agent as the policy engine. Rego is OPA's language to define policies. You can find a comprenhensive [documentation](https://www.openpolicyagent.org/docs/latest/policy-language/).
+Preflight relies on Open Policy Agent as the policy engine. Rego is OPA's language to define policies. You can find their comprehensive [documentation here](https://www.openpolicyagent.org/docs/latest/policy-language/).
 
 You can have multiple Rego files inside the directory of a Preflight package.  All the Rego rules corresponding to the _policy manifest_ rules must be in the same Rego package, and that package must be indicated in the _policy manifest_ using the `root-query` property.
 
@@ -101,8 +102,9 @@ package pods
 
 import input["k8s/pods"] as pods
 
-preflight_tag_not_latest {
+preflight_tag_not_latest[message] {
   true
+  message := "true was found to be true"
 }
 ```
 
@@ -110,10 +112,9 @@ As you can identify, the Rego package for that policy is `pods`. In this case, O
 
 ### Writing Rego rules
 
-Rego can be challenging at the beginning because it does not behaves like a traditional programming language. It is strongly recommended to read ["The Basics"](https://www.openpolicyagent.org/docs/latest/policy-language/#the-basics). Also, it is useful to have the [language refence](https://www.openpolicyagent.org/docs/latest/policy-reference/) at hand.
+Rego is a declarative language and has a bit of a learning curve. It is strongly recommended to read ["The Basics"](https://www.openpolicyagent.org/docs/latest/policy-language/#the-basics). Also, it is useful to have the [language reference](https://www.openpolicyagent.org/docs/latest/policy-reference/) to hand.
 
-You will get faster as you write more Rego rules. In order to speed up this process, it's best to write tests for your rules, even if you think they are not needed. It means you can iterate fast while writing rules and make sure the rules are doing what you intended. It is conventional to name the test files for `policy.rego` as `policy_test.rego`.
-
+In order to speed up the process of writing Rego rules, it's best to write tests. It means you can iterate fast while writing rules and make sure the rules are doing what you intended without int. It is conventional to name the test files for `policy.rego` as `policy_test.rego`.
 
 This example contains the definition for the `tag_no_latest` rule. As you can see, there is the convention within Preflight to add `preflight_` as prefix to the rule ID when that is written in Rego (related issue #27).
 
@@ -124,42 +125,24 @@ package pods
 
 import input["k8s/pods"] as pods
 
-default preflight_tag_not_latest = false
-preflight_tag_not_latest {
-  count(containers_using_latest) == 0
-}
+preflight_explicit_image_tag[message] {
+	# find all containers in all pods
+	pod := pods.items[_]
+	container := pod.spec.containers[_]
+	# validate that the image value contains an explicit tag
+	{ re_match(`latest$`, container.image),
+	re_match(`^[^:]+$`, container.image) } & { true } != set()
 
-format_container(pod, container) = name {
-  name := {
-    "namespace": pod.metadata.namespace,
-    "pod": pod.metadata.name,
-    "image": container.image,
-    "name": container.name
-  }
-}
-
-all_containers[container_name] {
-  pod := pods.items[_]
-  container := pod.spec.containers[_]
-  container_name = format_container(pod, container)
-}
-
-containers_using_latest[container] {
-  container := all_containers[_]
-  re_match(".*:latest", container.image)
-}
-
-containers_using_latest[container] {
-  container := all_containers[_]
-  not re_match(".*:.+", container.image)
+	# bind a message for reporting
+	message := sprintf("container '%s' in pod '%s' in namespace '%s' is missing an explicit image tag", [container.name, pod.metadata.name, pod.metadata.namespace])
 }
 ```
 
 ### Testing Rego
 
-As mentioned before, it is very useful to [write tests for the Rego rules](https://www.openpolicyagent.org/docs/latest/policy-testing/).
+As mentioned before, it is very useful to [write tests for your Rego rules](https://www.openpolicyagent.org/docs/latest/policy-testing/).
 
-This snippet contains a testsuite for the previous Rego code.
+This snippet contains a test case for the previous Rego code.
 
 ```
 # preflight-packages/examples.jetstack.io/podsbestpractices/policy_test.rego
@@ -168,61 +151,44 @@ package pods
 
 pods(x) = y { y := {"k8s/pods": {"items": x }} }
 
-test_tag_not_latest_no_pods {
-	preflight_tag_not_latest with input as pods([])
+assert_allowed(output) = output {
+	trace(sprintf("GOT: %s", [concat(",", output)]))
+	trace("WANT: empty set")
+	output == set()
 }
-test_tag_not_latest_v1 {
-	preflight_tag_not_latest with input as pods([
-    {
-      "metadata": { "namespace": "default", "name": "p1" },
-      "spec": { "containers":[
-        {"name": "c1", "image": "golang:v1"},
-      ]}
-    }
-  ])
+
+assert_violates(output, messages) = output {
+	trace(sprintf("GOT: %s", [concat(",", output)]))
+	trace(sprintf("WANT: %s", [concat(",", messages)]))
+
+	output == messages
 }
-test_tag_not_latest_latest {
-	not preflight_tag_not_latest with input as pods([
-    {
-      "metadata": { "namespace": "default", "name": "p1" },
-      "spec": { "containers":[
-        {"name": "c1", "image": "golang:latest"}
-      ]}
-    }
-  ])
+
+test_explicit_image_tag_no_pods {
+	output := preflight_explicit_image_tag with input as pods([])
+	assert_allowed(output)
 }
-test_tag_not_latest_latest_implicit {
-	not preflight_tag_not_latest with input as pods([
-    {
-      "metadata": { "namespace": "default", "name": "p1" },
-      "spec": { "containers":[
-        {"name": "c1", "image": "golang"}
-      ]}
-    }
-  ])
-}
-test_tag_not_latest_latest_multiple {
-	not preflight_tag_not_latest with input as pods([
-    {
-      "metadata": { "namespace": "default", "name": "p1" },
-      "spec": { "containers":[
-        {"name": "c1", "image": "golang:v1"}
-      ]}
-    },
-    {
-      "metadata": { "namespace": "default", "name": "p2"},
-      "spec": { "containers":[
-        {"name": "c1", "image": "golang:v2"},
-        {"name": "c2", "image": "golang:latest"},
-      ]}
-    }
-  ])
+
+test_explicit_image_tag_latest_tag {
+	output := preflight_explicit_image_tag with input as pods([
+		{"metadata": {
+				"name": "foo",
+				"namespace": "default"
+		 },
+		 "spec":{"containers":[
+				{"name": "container-one",
+				 "image": "gcr.io/my-project/my-image:latest"}
+	]}}])
+
+	assert_violates(output, {
+		"container 'container-one' in pod 'foo' in namespace 'default' is missing an explicit image tag"
+		})
 }
 ```
 
-Soon, Preflight will be able to run Rego tests inside Preflight packages (#26), but unfortunatelly this is not possible yet.
+Soon, Preflight will be able to run Rego tests inside Preflight packages (#26), but unfortunately this is not possible yet.
 
-However it is possible to run these tests directly with the [OPA command line](https://www.openpolicyagent.org/docs/latest/#running-opa):
+To run our tests, we must use the [OPA command line](https://www.openpolicyagent.org/docs/latest/#running-opa) like this:
 
 ```
 opa test -v --explain=notes ./preflight-packages/examples.jetstack.io/podsbestpractices
