@@ -61,9 +61,9 @@ sections:
   - id: "k8s_master_up_to_date"
     name: Kubernetes master version up to date
     description: >
-      Kubernetes versions older than 1.12 no longer receive any patch updates
+      Kubernetes versions older than 1.13 no longer receive any patch updates
       and therefore are at risk as common vulnerabilities and exploits will not
-      be fixed. Upgrade to at least Kubernetes 1.12.
+      be fixed. Upgrade to at least Kubernetes 1.13.
     remediation: >
       On GKE the master components are periodically upgraded automatically, but
       it’s possible to manually prompt an upgrade when a new stable version is
@@ -74,9 +74,9 @@ sections:
   - id: "k8s_nodes_up_to_date"
     name: Kubernetes node version up to date
     description: >
-      Kubernetes versions older than 1.12 no longer receive any patch updates
+      Kubernetes versions older than 1.13 no longer receive any patch updates
       and therefore are at risk as common vulnerabilities and exploits will not
-      be fixed. Upgrade to at least Kubernetes 1.12.
+      be fixed. Upgrade to at least Kubernetes 1.13.
     remediation: >
       Nodes are also periodically upgraded by default. They cannot be newer than
       the master version and should not be more than 2 minor versions behind.

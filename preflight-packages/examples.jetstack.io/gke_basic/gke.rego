@@ -32,7 +32,7 @@ preflight_k8s_master_up_to_date[message] {
 	message := "cluster master version is missing"
 }
 preflight_k8s_master_up_to_date[message] {
-	not re_match(`^1\.1[23467].*$`, gke.currentMasterVersion)
+	not re_match(`^1\.1[3467].*$`, gke.currentMasterVersion)
 
 	message := "cluster master is not up to date"
 }
@@ -40,7 +40,7 @@ preflight_k8s_master_up_to_date[message] {
 # Rule 'k8s_nodes_up_to_date'
 preflight_k8s_nodes_up_to_date[message] {
 	node_pool := gke.nodePools[_]
-	not re_match(`^1\.1[234567].*$`, node_pool.version)
+	not re_match(`^1\.1[34567].*$`, node_pool.version)
 
 	message := sprintf("cluster node pool '%s' is outdated", [node_pool.name])
 }
