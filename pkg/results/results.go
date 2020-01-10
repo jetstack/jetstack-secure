@@ -25,14 +25,32 @@ type Result struct {
 
 // IsSuccessState returns true if Value is boolean and it is true.
 func (r *Result) IsSuccessState() bool {
+	if r.Violations != nil {
+		return len(r.Violations) == 0
+	}
+
 	success, ok := r.Value.(bool)
-	return len(r.Violations) == 0 || (ok && success)
+	if ok {
+		log.Println("Using a boolean for `Value` is deprecated")
+		return success
+	} else {
+		return false
+	}
 }
 
 // IsFailureState returns true if Value is boolean and it is false.
 func (r *Result) IsFailureState() bool {
+	if r.Violations != nil {
+		return len(r.Violations) != 0
+	}
+
 	success, ok := r.Value.(bool)
-	return len(r.Violations) != 0 || (ok && !success)
+	if ok {
+		log.Println("Using a boolean for `Value` is deprecated")
+		return !success
+	} else {
+		return false
+	}
 }
 
 // ResultCollection is a collection of Result
@@ -120,6 +138,7 @@ func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet) (*ResultCollection
 		}
 		rc = append(rc, &Result{
 			ID:         k,
+			Value:      violations,
 			Violations: violations,
 			Package:    pkg,
 		})

@@ -29,6 +29,28 @@ func TestIsSuccessState(t *testing.T) {
 	}
 }
 
+func TestIsSuccessStateWithLegacyValueResult(t *testing.T) {
+	testCases := []struct {
+		result *Result
+		want   bool
+	}{
+		{&Result{ID: "1", Value: ""}, false},
+		{&Result{ID: "2", Value: "aaa"}, false},
+		{&Result{ID: "3", Value: []interface{}{}}, false},
+		{&Result{ID: "4", Value: []string{"aaa"}}, false},
+		{&Result{ID: "5", Value: true}, true},
+		{&Result{ID: "6", Value: false}, false},
+	}
+
+	for idx, tc := range testCases {
+		t.Run(string(idx), func(t *testing.T) {
+			if got, want := tc.result.IsSuccessState(), tc.want; got != want {
+				t.Fatalf("got!=want: got=%v, want=%v", got, want)
+			}
+		})
+	}
+}
+
 func TestIsFailureState(t *testing.T) {
 	testCases := []struct {
 		result *Result
@@ -37,6 +59,28 @@ func TestIsFailureState(t *testing.T) {
 		{&Result{ID: "1", Violations: []string{}}, false},
 		{&Result{ID: "2", Violations: []string{"violation"}}, true},
 		{&Result{ID: "3", Violations: []string{"violation", "more violation"}}, true},
+	}
+
+	for idx, tc := range testCases {
+		t.Run(string(idx), func(t *testing.T) {
+			if got, want := tc.result.IsFailureState(), tc.want; got != want {
+				t.Fatalf("got!=want: got=%v, want=%v", got, want)
+			}
+		})
+	}
+}
+
+func TestIsFailureStateWithLegacyValueResult(t *testing.T) {
+	testCases := []struct {
+		result *Result
+		want   bool
+	}{
+		{&Result{ID: "1", Value: ""}, false},
+		{&Result{ID: "2", Value: "aaa"}, false},
+		{&Result{ID: "3", Value: []interface{}{}}, false},
+		{&Result{ID: "4", Value: []string{"aaa"}}, false},
+		{&Result{ID: "5", Value: true}, false},
+		{&Result{ID: "6", Value: false}, true},
 	}
 
 	for idx, tc := range testCases {
@@ -104,12 +148,12 @@ func TestNewResultCollectionFromRegoResultSet(t *testing.T) {
 		}
 
 		expectedResults := []*Result{
-			&Result{ID: "_1_4_3", Violations: []string{}, Package: "package.name"},
-			&Result{ID: "_1_4_4", Violations: []string{"violation"}, Package: "package.name"},
-			&Result{ID: "_1_4_5", Violations: []string{}, Package: "package.name"},
-			&Result{ID: "_1_4_6", Violations: []string{}, Package: "package.name"},
-			&Result{ID: "node_pools_with_legacy_endpoints_enabled", Violations: []string{}, Package: "package.name"},
-			&Result{ID: "node_pools_without_cloud_platform_scope", Violations: []string{"violation"}, Package: "package.name"},
+			&Result{ID: "_1_4_3", Value: []string{}, Violations: []string{}, Package: "package.name"},
+			&Result{ID: "_1_4_4", Value: []string{"violation"}, Violations: []string{"violation"}, Package: "package.name"},
+			&Result{ID: "_1_4_5", Value: []string{}, Violations: []string{}, Package: "package.name"},
+			&Result{ID: "_1_4_6", Value: []string{}, Violations: []string{}, Package: "package.name"},
+			&Result{ID: "node_pools_with_legacy_endpoints_enabled", Value: []string{}, Violations: []string{}, Package: "package.name"},
+			&Result{ID: "node_pools_without_cloud_platform_scope", Value: []string{"violation"}, Violations: []string{"violation"}, Package: "package.name"},
 		}
 
 		rc, err := NewResultCollectionFromRegoResultSet(regoResultSet)
