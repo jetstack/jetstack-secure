@@ -27,7 +27,8 @@ type Result struct {
 	Package string
 }
 
-// IsSuccessState returns true if Value is boolean and it is true.
+// IsSuccessState returns true if there are no Violations
+// If Violations are missing, the Value is parsed and if it is a bool that is used, otherwise false
 func (r *Result) IsSuccessState() bool {
 	if r.Violations != nil {
 		return len(r.Violations) == 0
@@ -42,7 +43,8 @@ func (r *Result) IsSuccessState() bool {
 	}
 }
 
-// IsFailureState returns true if Value is boolean and it is false.
+// IsFailureState returns true if there are Violations
+// If Violations are missing, the Value is parsed and if it is a bool that is negated and returned, otherwise false
 func (r *Result) IsFailureState() bool {
 	if r.Violations != nil {
 		return len(r.Violations) != 0
