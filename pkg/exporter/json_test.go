@@ -85,6 +85,7 @@ func TestJSONExport(t *testing.T) {
         {
           "missing": false,
           "success": true,
+          "violations": [],
           "links": [
             "http://jetstack.io/docs",
             "http://jetstack.io/docs2"
@@ -97,6 +98,9 @@ func TestJSONExport(t *testing.T) {
         {
           "missing": false,
           "success": false,
+          "violations": [
+            "violation"
+          ],
           "links": [
             "http://jetstack.io/docs",
             "http://jetstack.io/docs2"
@@ -116,6 +120,7 @@ func TestJSONExport(t *testing.T) {
         {
           "missing": true,
           "success": false,
+          "violations": [],
           "links": [
             "http://jetstack.io/docs",
             "http://jetstack.io/docs2"

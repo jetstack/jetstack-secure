@@ -51,6 +51,7 @@ func (e *JSONExporter) Export(ctx context.Context, policyManifest *packaging.Pol
 			results := rc.ByID()
 			result := results[ruleToResult(rule.ID)]
 			var value interface{}
+			violations := []string{}
 			success := false
 			missing := false
 
@@ -59,6 +60,7 @@ func (e *JSONExporter) Export(ctx context.Context, policyManifest *packaging.Pol
 				missing = true
 			case result.IsFailureState():
 				success = false
+				violations = result.Violations
 			case result.IsSuccessState():
 				success = true
 			default:
@@ -72,6 +74,7 @@ func (e *JSONExporter) Export(ctx context.Context, policyManifest *packaging.Pol
 				Manual:      rule.Manual,
 				Remediation: rule.Remediation,
 				Links:       links,
+				Violations:  violations,
 				Success:     success,
 				Value:       value,
 				Missing:     missing,
