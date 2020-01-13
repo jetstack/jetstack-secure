@@ -186,12 +186,10 @@ test_explicit_image_tag_latest_tag {
 }
 ```
 
-Soon, Preflight will be able to run Rego tests inside Preflight packages (#26), but unfortunately this is not possible yet.
-
-To run our tests, we must use the [OPA command line](https://www.openpolicyagent.org/docs/latest/#running-opa) like this:
+To run the tests, you can execute preflight as follows:
 
 ```
-opa test -v --explain=notes ./preflight-packages/examples.jetstack.io/podsbestpractices
+preflight package test ./preflight-packages/examples.jetstack.io/podsbestpractices
 ```
 
 ## Lint your packages
