@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"strings"
 
@@ -12,25 +13,50 @@ import (
 	"github.com/open-policy-agent/opa/rego"
 )
 
-type outputResult map[string]interface{}
+type outputResult map[string][]string
 
 // Result holds the information about the result of a check
 type Result struct {
-	ID      string
-	Value   interface{}
+	// ID is the identifier for the rule of this result.
+	ID string
+	// Violations contains a list of each violation for the rule from the OPA evaluator
+	Violations []string
+	// Deprecated: Value contains the raw result of the rule from the OPA evaluator.
+	Value interface{}
+	// Package references the package the rule belongs to.
 	Package string
 }
 
-// IsSuccessState returns true if Value is boolean and it is true.
+// IsSuccessState returns true if there are no Violations
+// If Violations are missing, the Value is parsed and if it is a bool that is used, otherwise false
 func (r *Result) IsSuccessState() bool {
+	if r.Violations != nil {
+		return len(r.Violations) == 0
+	}
+
 	success, ok := r.Value.(bool)
-	return success && ok
+	if ok {
+		log.Println("Using a boolean for `Value` is deprecated")
+		return success
+	} else {
+		return false
+	}
 }
 
-// IsFailureState returns true if Value is boolean and it is false.
+// IsFailureState returns true if there are Violations
+// If Violations are missing, the Value is parsed and if it is a bool that is negated and returned, otherwise false
 func (r *Result) IsFailureState() bool {
+	if r.Violations != nil {
+		return len(r.Violations) != 0
+	}
+
 	success, ok := r.Value.(bool)
-	return !success && ok
+	if ok {
+		log.Println("Using a boolean for `Value` is deprecated")
+		return !success
+	} else {
+		return false
+	}
 }
 
 // ResultCollection is a collection of Result
@@ -68,10 +94,6 @@ func (r *ResultCollection) Add(rr []*Result) {
 	*r = append(*r, rr...)
 }
 
-func (r *ResultCollection) Raw() []*Result {
-	return *r
-}
-
 // ByID returns a map of results by ID.
 func (r *ResultCollection) ByID() map[string]*Result {
 	resultMap := make(map[string]*Result)
@@ -105,10 +127,26 @@ func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet) (*ResultCollection
 
 	rc := make(ResultCollection, 0, len(keys))
 	for _, k := range keys {
+		var violations []string
+		boolValid, boolOk := values[k].(bool)
+		strings, stringsOk := values[k].([]string)
+		if boolOk {
+			log.Printf("Using a boolean for `Value` is deprecated, found for key: (%s)", k)
+			if boolValid {
+				violations = []string{}
+			} else {
+				violations = []string{"missing violation context in rule definition"}
+			}
+		} else if stringsOk {
+			violations = strings
+		} else {
+			return nil, fmt.Errorf("format error, cannot unmarshall value '%+v' to bool or []string", values[k])
+		}
 		rc = append(rc, &Result{
-			ID:      k,
-			Value:   values[k],
-			Package: pkg,
+			ID:         k,
+			Value:      violations,
+			Violations: violations,
+			Package:    pkg,
 		})
 	}
 
@@ -167,7 +205,7 @@ func (r *ResultCollection) Serialize(w io.Writer) error {
 		if len(result.Package) == 0 {
 			return fmt.Errorf("missing Package in result with ID: %q", result.ID)
 		}
-		output[fmt.Sprintf("%s/%s", result.Package, result.ID)] = result.Value
+		output[fmt.Sprintf("%s/%s", result.Package, result.ID)] = result.Violations
 	}
 
 	e := json.NewEncoder(w)

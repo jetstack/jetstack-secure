@@ -32,7 +32,7 @@ type PolicyManifest struct {
 	ID string `yaml:"id"`
 	// DataGatherers is the list of data-gatherers the package depends on.
 	DataGatherers []string `yaml:"data-gatherers,omitempty"`
-	// RootQuery is the query needed in the REGO context to access the result of the checks.
+	// RootQuery is the query needed in the Rego context to access the result of the checks.
 	RootQuery string `yaml:"root-query"`
 	// Name is the name of the package.
 	Name string `yaml:"name"`

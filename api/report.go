@@ -62,7 +62,7 @@ type ReportRule struct {
 	Success bool `json:"success"`
 	// Value contains the raw result of the check.
 	Value interface{} `json:"value,omitempty"`
-	// Missing indicated wherer the REGO rule was missing or not.
+	// Missing indicates whether the Rego rule was missing or not.
 	Missing bool `json:"missing"`
 }
 

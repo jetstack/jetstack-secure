@@ -53,8 +53,8 @@ build-all-platforms:
 	cd $(ROOT_DIR) && \
 	mkdir -p ./bundles && \
 	tar --transform "s/assets\/packages/preflight-packages/" -cvf $@.tmp ./preflight-packages/ && \
-  tar --transform "s/examples\/pods.preflight.yaml/preflight.yaml/" -rvf $@.tmp examples/pods.preflight.yaml && \
-  tar --transform "s/builds\/preflight-$(GOOS)-$(GOARCH)/preflight/" -rvf $@.tmp $< && \
+	tar --transform "s/examples\/pods.preflight.yaml/preflight.yaml/" -rvf $@.tmp examples/pods.preflight.yaml && \
+	tar --transform "s/builds\/preflight-$(GOOS)-$(GOARCH)/preflight/" -rvf $@.tmp $< && \
 	gzip < $@.tmp > $@ && \
 	rm $@.tmp
 
@@ -62,6 +62,11 @@ bundle-all-platforms:
 	$(MAKE) GOOS=linux   GOARCH=amd64 ./bundles/preflight-bundle-linux-amd64.tgz
 	$(MAKE) GOOS=darwin  GOARCH=amd64 ./bundles/preflight-bundle-darwin-amd64.tgz
 	$(MAKE) GOOS=windows GOARCH=amd64 ./bundles/preflight-bundle-windows-amd64.tgz
+
+# Packages
+
+package-test:
+	cd $(ROOT_DIR) && go run ./main.go package test ./preflight-packages/examples.jetstack.io
 
 # Docker image
 
