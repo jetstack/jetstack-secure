@@ -129,7 +129,7 @@ func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet) (*ResultCollection
 	for _, k := range keys {
 		var violations []string
 		boolValid, boolOk := values[k].(bool)
-		strings, stringsOk := values[k].([]string)
+		sliceValid, sliceOk := values[k].([]interface{})
 		if boolOk {
 			log.Printf("Using a boolean for `Value` is deprecated, found for key: (%s)", k)
 			if boolValid {
@@ -137,11 +137,20 @@ func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet) (*ResultCollection
 			} else {
 				violations = []string{"missing violation context in rule definition"}
 			}
-		} else if stringsOk {
-			violations = strings
+		} else if sliceOk {
+			violations = make([]string, len(sliceValid))
+			for idx, e := range sliceValid {
+				violation, ok := e.(string)
+				if !ok {
+					// worst case scenario, use string representation of the variable
+					violation = fmt.Sprintf("%+v", e)
+				}
+				violations[idx] = violation
+			}
 		} else {
 			return nil, fmt.Errorf("format error, cannot unmarshall value '%+v' to bool or []string", values[k])
 		}
+
 		rc = append(rc, &Result{
 			ID:         k,
 			Value:      violations,

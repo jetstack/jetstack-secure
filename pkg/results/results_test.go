@@ -136,12 +136,13 @@ func TestNewResultCollectionFromRegoResultSet(t *testing.T) {
 		regoResultSet := &rego.ResultSet{
 			rego.Result{Expressions: []*rego.ExpressionValue{&rego.ExpressionValue{
 				Value: map[string]interface{}{
-					"_1_4_3": []string{},
-					"_1_4_4": []string{"violation"},
-					"_1_4_5": []string{},
-					"_1_4_6": []string{},
-					"node_pools_with_legacy_endpoints_enabled": []string{},
-					"node_pools_without_cloud_platform_scope":  []string{"violation"},
+					"_1_4_3": []interface{}{},
+					"_1_4_4": []interface{}{"violation"},
+					"_1_4_5": []interface{}{},
+					"_1_4_6": []interface{}{},
+					"node_pools_with_legacy_endpoints_enabled": []interface{}{},
+					"node_pools_without_cloud_platform_scope":  []interface{}{"violation"},
+					"something_returning_a_map":                []interface{}{map[string]string{"bar": "foo"}},
 				},
 				Text: "data.package.name",
 			}}},
@@ -154,6 +155,7 @@ func TestNewResultCollectionFromRegoResultSet(t *testing.T) {
 			&Result{ID: "_1_4_6", Value: []string{}, Violations: []string{}, Package: "package.name"},
 			&Result{ID: "node_pools_with_legacy_endpoints_enabled", Value: []string{}, Violations: []string{}, Package: "package.name"},
 			&Result{ID: "node_pools_without_cloud_platform_scope", Value: []string{"violation"}, Violations: []string{"violation"}, Package: "package.name"},
+			&Result{ID: "something_returning_a_map", Value: []string{fmt.Sprintf("%+v", map[string]string{"bar": "foo"})}, Violations: []string{fmt.Sprintf("%+v", map[string]string{"bar": "foo"})}, Package: "package.name"},
 		}
 
 		rc, err := NewResultCollectionFromRegoResultSet(regoResultSet)
