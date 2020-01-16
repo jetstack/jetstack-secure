@@ -105,6 +105,7 @@ func LintPolicyManifest(manifest packaging.PolicyManifest) []LintError {
 	return lints
 }
 
+// LintSection lints a section of the policy manifest.
 func LintSection(manifestID string, section packaging.Section) []LintError {
 	lints := make([]LintError, 0)
 
@@ -154,6 +155,7 @@ func LintSection(manifestID string, section packaging.Section) []LintError {
 	return lints
 }
 
+// LintRule lints a rule of the policy manifest.
 func LintRule(sectionID string, rule packaging.Rule) []LintError {
 	lints := make([]LintError, 0)
 
