@@ -18,24 +18,14 @@ var invalidRules = []struct {
 		expectedLint: "Rule ID absent",
 	},
 	{
-		name:         "Non-numeric rule ID",
-		rule:         packaging.Rule{ID: "1.4.c"},
-		expectedLint: "Malformed Rule ID",
+		name:         "Starting with a number",
+		rule:         packaging.Rule{ID: "1_a"},
+		expectedLint: "Malformed rule ID",
 	},
 	{
-		name:         "Rule ID too short",
-		rule:         packaging.Rule{ID: "1.4"},
-		expectedLint: "Malformed Rule ID",
-	},
-	{
-		name:         "Rule ID too long",
-		rule:         packaging.Rule{ID: "1.4.3.6"},
-		expectedLint: "Malformed Rule ID",
-	},
-	{
-		name:         "Rule ID not decendant",
-		rule:         packaging.Rule{ID: "1.5.1"},
-		expectedLint: "Rule ID not decendant of Section ID",
+		name:         "Containing not allowed characters",
+		rule:         packaging.Rule{ID: "a.1"},
+		expectedLint: "Malformed rule ID",
 	},
 	{
 		name:         "Rule Name absent",
@@ -53,16 +43,17 @@ func TestLintRule(t *testing.T) {
 				lints := LintRule(sectionID, ruleCase.rule)
 				var containsExpectedLint = false
 				for _, l := range lints {
-					if l.Lint == ruleCase.expectedLint {
+					if strings.HasPrefix(l.Lint, ruleCase.expectedLint) {
 						containsExpectedLint = true
 						break
 					}
 				}
 				if !containsExpectedLint {
 					t.Errorf(
-						"Expected rule %#v to produce lint '%s', but it didn't.",
+						"Expected rule %#v to produce lint '%s', but it didn't. Got %v",
 						ruleCase.rule,
 						ruleCase.expectedLint,
+						lints,
 					)
 				}
 			})
@@ -71,7 +62,7 @@ func TestLintRule(t *testing.T) {
 
 func TestLintRuleSuccess(t *testing.T) {
 	validRule := packaging.Rule{
-		ID:   "1.2.3",
+		ID:   "_1_B2_a3",
 		Name: "My Rule",
 	}
 	sectionID := "1.2"
@@ -87,11 +78,11 @@ func TestLintRuleSuccess(t *testing.T) {
 
 func TestLintSectionSuccess(t *testing.T) {
 	validSection := packaging.Section{
-		ID:   "1.4",
+		ID:   "_1_4",
 		Name: "My section",
 		Rules: []packaging.Rule{
 			packaging.Rule{
-				ID:   "1.4.1",
+				ID:   "_1_B2_a3",
 				Name: "My Rule",
 			},
 		},
@@ -135,25 +126,14 @@ var invalidSections = []struct {
 		},
 	},
 	{
-		name:         "Non-numeric ID",
-		expectedLint: "Malformed Section ID",
-		section: packaging.Section{
-			ID: "1.a",
-		},
+		name:         "Starting with a number",
+		expectedLint: "Malformed section ID",
+		section:      packaging.Section{ID: "1_a"},
 	},
 	{
-		name:         "Section ID too short",
-		expectedLint: "Malformed Section ID",
-		section: packaging.Section{
-			ID: "1",
-		},
-	},
-	{
-		name:         "Section ID too long",
-		expectedLint: "Malformed Section ID",
-		section: packaging.Section{
-			ID: "1.4.3",
-		},
+		name:         "Containing not allowed characters",
+		expectedLint: "Malformed section ID",
+		section:      packaging.Section{ID: "a.1"},
 	},
 	{
 		name:         "Duplicate rule ID",
@@ -187,7 +167,7 @@ func TestSectionLint(t *testing.T) {
 				)
 				var containsExpectedLint = false
 				for _, l := range lints {
-					if l.Lint == sectionCase.expectedLint {
+					if strings.HasPrefix(l.Lint, sectionCase.expectedLint) {
 						containsExpectedLint = true
 						break
 					}
@@ -215,14 +195,15 @@ func TestLintPolicyManifestSuccess(t *testing.T) {
 		ID:             "mypackage",
 		Namespace:      "mynamespace",
 		Name:           "My Package",
+		RootQuery:      "data.pods",
 		PackageVersion: "1.0.0",
 		Sections: []packaging.Section{
 			{
-				ID:   "1.2",
+				ID:   "a_section",
 				Name: "My section",
 				Rules: []packaging.Rule{
 					{
-						ID:   "1.2.3",
+						ID:   "a_rule",
 						Name: "My Rule",
 					},
 				},
@@ -257,6 +238,15 @@ var invalidManifests = []struct {
 	{
 		name:         "No ID",
 		expectedLint: "Manifest ID absent",
+		manifest: packaging.PolicyManifest{
+			SchemaVersion:  "1.0.0",
+			Name:           "My Package",
+			PackageVersion: "1.0.0",
+		},
+	},
+	{
+		name:         "No RootQuery",
+		expectedLint: "Manifest RootQuery absent",
 		manifest: packaging.PolicyManifest{
 			SchemaVersion:  "1.0.0",
 			Name:           "My Package",

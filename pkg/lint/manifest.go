@@ -36,6 +36,10 @@ func LintPolicyManifest(manifest packaging.PolicyManifest) []LintError {
 		lint("Manifest PackageVersion must be semver")
 	}
 
+	if manifest.RootQuery == "" {
+		lint("Manifest RootQuery absent")
+	}
+
 	sections := manifest.Sections
 	if len(sections) == 0 {
 		lint("No sections in manifest")
@@ -101,6 +105,7 @@ func LintPolicyManifest(manifest packaging.PolicyManifest) []LintError {
 	return lints
 }
 
+// LintSection lints a section of the policy manifest.
 func LintSection(manifestID string, section packaging.Section) []LintError {
 	lints := make([]LintError, 0)
 
@@ -111,15 +116,11 @@ func LintSection(manifestID string, section packaging.Section) []LintError {
 	if section.ID == "" {
 		lint("Section ID absent")
 	}
-	re := regexp.MustCompile(`^(\d+)\.(\d+)$`)
-	matches := re.FindStringSubmatch(section.ID)
-	if len(matches) != 3 {
-		lint("Malformed Section ID")
-	} else {
-		if matches[0] != section.ID {
-			lint("Incorrectly formatted Section ID")
-		}
-		// No need to check matches[2], the regex implicitly did so
+
+	// section IDs should follow the same syntax as rules IDs
+	match, _ := regexp.MatchString(`^[_a-zA-Z][_a-zA-Z0-9]*$`, section.ID)
+	if !match {
+		lint("Malformed section ID: it should only contain alphanumeric characters and underscores and it should not start with a number.")
 	}
 
 	if section.Name == "" {
@@ -154,6 +155,7 @@ func LintSection(manifestID string, section packaging.Section) []LintError {
 	return lints
 }
 
+// LintRule lints a rule of the policy manifest.
 func LintRule(sectionID string, rule packaging.Rule) []LintError {
 	lints := make([]LintError, 0)
 
@@ -164,18 +166,11 @@ func LintRule(sectionID string, rule packaging.Rule) []LintError {
 	if rule.ID == "" {
 		lint("Rule ID absent")
 	}
-	re := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)$`)
-	matches := re.FindStringSubmatch(rule.ID)
-	if len(matches) != 4 {
-		lint("Malformed Rule ID")
-	} else {
-		if matches[0] != rule.ID {
-			lint("Incorrectly formatted Rule ID")
-		}
-		if fmt.Sprintf("%s.%s", matches[1], matches[2]) != sectionID {
-			lint("Rule ID not decendant of Section ID")
-		}
-		// No need to check matches[3], the regex implicitly did so
+
+	// rule IDs should follow Rego grammar: https://www.openpolicyagent.org/docs/latest/policy-reference/#grammar
+	match, _ := regexp.MatchString(`^[_a-zA-Z][_a-zA-Z0-9]*$`, rule.ID)
+	if !match {
+		lint("Malformed rule ID: it should only contain alphanumeric characters and underscores and it should not start with a number.")
 	}
 
 	if rule.Name == "" {
