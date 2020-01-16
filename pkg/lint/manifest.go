@@ -116,6 +116,12 @@ func LintSection(manifestID string, section packaging.Section) []LintError {
 		lint("Section ID absent")
 	}
 
+	// section IDs should follow the same syntax as rules IDs
+	match, _ := regexp.MatchString(`^[_a-zA-Z][_a-zA-Z0-9]*$`, section.ID)
+	if !match {
+		lint("Malformed section ID: it should only contain alphanumeric characters and underscores and it should not start with a number.")
+	}
+
 	if section.Name == "" {
 		lint("Section Name absent")
 	}
@@ -157,6 +163,12 @@ func LintRule(sectionID string, rule packaging.Rule) []LintError {
 
 	if rule.ID == "" {
 		lint("Rule ID absent")
+	}
+
+	// rule IDs should follow Rego grammar: https://www.openpolicyagent.org/docs/latest/policy-reference/#grammar
+	match, _ := regexp.MatchString(`^[_a-zA-Z][_a-zA-Z0-9]*$`, rule.ID)
+	if !match {
+		lint("Malformed rule ID: it should only contain alphanumeric characters and underscores and it should not start with a number.")
 	}
 
 	if rule.Name == "" {

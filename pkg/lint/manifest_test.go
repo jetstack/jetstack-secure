@@ -18,6 +18,16 @@ var invalidRules = []struct {
 		expectedLint: "Rule ID absent",
 	},
 	{
+		name:         "Starting with a number",
+		rule:         packaging.Rule{ID: "1_a"},
+		expectedLint: "Malformed rule ID",
+	},
+	{
+		name:         "Containing not allowed characters",
+		rule:         packaging.Rule{ID: "a.1"},
+		expectedLint: "Malformed rule ID",
+	},
+	{
 		name:         "Rule Name absent",
 		rule:         packaging.Rule{},
 		expectedLint: "Rule Name absent",
@@ -33,16 +43,17 @@ func TestLintRule(t *testing.T) {
 				lints := LintRule(sectionID, ruleCase.rule)
 				var containsExpectedLint = false
 				for _, l := range lints {
-					if l.Lint == ruleCase.expectedLint {
+					if strings.HasPrefix(l.Lint, ruleCase.expectedLint) {
 						containsExpectedLint = true
 						break
 					}
 				}
 				if !containsExpectedLint {
 					t.Errorf(
-						"Expected rule %#v to produce lint '%s', but it didn't.",
+						"Expected rule %#v to produce lint '%s', but it didn't. Got %v",
 						ruleCase.rule,
 						ruleCase.expectedLint,
+						lints,
 					)
 				}
 			})
@@ -51,7 +62,7 @@ func TestLintRule(t *testing.T) {
 
 func TestLintRuleSuccess(t *testing.T) {
 	validRule := packaging.Rule{
-		ID:   "1.2.3",
+		ID:   "_1_B2_a3",
 		Name: "My Rule",
 	}
 	sectionID := "1.2"
@@ -67,11 +78,11 @@ func TestLintRuleSuccess(t *testing.T) {
 
 func TestLintSectionSuccess(t *testing.T) {
 	validSection := packaging.Section{
-		ID:   "1.4",
+		ID:   "_1_4",
 		Name: "My section",
 		Rules: []packaging.Rule{
 			packaging.Rule{
-				ID:   "1.4.1",
+				ID:   "_1_B2_a3",
 				Name: "My Rule",
 			},
 		},
@@ -115,6 +126,16 @@ var invalidSections = []struct {
 		},
 	},
 	{
+		name:         "Starting with a number",
+		expectedLint: "Malformed section ID",
+		section:      packaging.Section{ID: "1_a"},
+	},
+	{
+		name:         "Containing not allowed characters",
+		expectedLint: "Malformed section ID",
+		section:      packaging.Section{ID: "a.1"},
+	},
+	{
 		name:         "Duplicate rule ID",
 		expectedLint: "Rule ID 1.4.1 duplicated 2 times",
 		section: packaging.Section{
@@ -146,7 +167,7 @@ func TestSectionLint(t *testing.T) {
 				)
 				var containsExpectedLint = false
 				for _, l := range lints {
-					if l.Lint == sectionCase.expectedLint {
+					if strings.HasPrefix(l.Lint, sectionCase.expectedLint) {
 						containsExpectedLint = true
 						break
 					}
@@ -178,11 +199,11 @@ func TestLintPolicyManifestSuccess(t *testing.T) {
 		PackageVersion: "1.0.0",
 		Sections: []packaging.Section{
 			{
-				ID:   "1.2",
+				ID:   "a_section",
 				Name: "My section",
 				Rules: []packaging.Rule{
 					{
-						ID:   "1.2.3",
+						ID:   "a_rule",
 						Name: "My Rule",
 					},
 				},
