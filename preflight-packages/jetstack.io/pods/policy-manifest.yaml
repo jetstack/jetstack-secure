@@ -4,7 +4,7 @@ namespace: "jetstack.io"
 package-version: "1.1.0"
 data-gatherers:
 - k8s/pods
-root-query: "data.preflight._2_pods"
+root-query: "data.preflight.pods"
 name: Pods
 description: >
   This policy gives rules for how Kubernetes Pods should be configured. Pods are
