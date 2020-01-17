@@ -1,4 +1,4 @@
-package preflight.pods
+package pods
 
 assert_allowed(output) = output {
 	trace(sprintf("GOT: %s", [concat(",", output)]))

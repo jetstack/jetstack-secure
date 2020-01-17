@@ -1,4 +1,4 @@
-package preflight.pods
+package pods
 
 import input["k8s/pods"] as pods
 
