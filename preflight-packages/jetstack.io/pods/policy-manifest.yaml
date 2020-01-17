@@ -11,7 +11,7 @@ description: >
   the basic units of a cluster workload, so it's important to get the details
   correct to maximise performance and minimise faults.
 sections:
-- id: "2.1"
+- id: "resources"
   name: Resources
   description: >
     Pods can specify resource requests and limits for CPU and memory. The
@@ -26,7 +26,7 @@ sections:
     error, whereas limits that are set too low can result in poor performance or
     a Pod being unnecessarily restarted.
   rules:
-  - id: "2.1.1"
+  - id: cpu_requests_set
     name: CPU requests set
     description: >
       The CPU requests of containers specify how much CPU time that container
@@ -41,7 +41,7 @@ sections:
     links:
     - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-cpu"
     - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#how-pods-with-resource-requests-are-scheduled"
-  - id: "2.1.2"
+  - id: memory_requests_set
     name: Memory requests set
     description: >
       The memory requests of containers specify how much memory that container
@@ -57,7 +57,7 @@ sections:
     links:
     - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory"
     - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#how-pods-with-resource-requests-are-scheduled"
-  - id: "2.1.3"
+  - id: cpu_limits_set
     name: CPU limits set
     description: >
       The CPU limits of containers specify the maximum amount of CPU time that
@@ -73,7 +73,7 @@ sections:
     links:
     - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-cpu"
     - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#how-pods-with-resource-limits-are-run"
-  - id: "2.1.4"
+  - id: memory_limits_set
     name: Memory limits set
     description: >
       The memory limits of containers specify the maximum amount of memory that
@@ -90,8 +90,8 @@ sections:
     links:
     - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory"
     - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#how-pods-with-resource-limits-are-run"
-  - id: "2.1.5"
-    name: Guarantead QoS
+  - id: guaranteed_qos
+    name: Guaranteed QoS
     description: >
       Kubernetes uses requests and limits of a Pod's containers in order to
       determine the Quality of Service (QoS) class of the Pod. This class
@@ -120,7 +120,7 @@ sections:
       appropriately.
     links:
     - "https://github.com/kubernetes/community/blob/master/contributors/design-proposals/node/resource-qos.md"
-  - id: "2.1.6"
+  - id: cpu_limits_disabled_for_latency_sensitive_workloads
     name: CPU limits disabled for latency sensitive workloads
     manual: true
     description: >
@@ -140,10 +140,10 @@ sections:
     - "https://github.com/kubernetes/kubernetes/issues/51135"
     - "https://kubernetes.io/docs/tasks/administer-cluster/cpu-management-policies/"
     - "https://github.com/kubernetes/kubernetes/issues/67577"
-- id: "2.2"
+- id: monitoring
   name: Monitoring
   rules:
-  - id: "2.2.1"
+  - id: liveness_probe_set
     name: Liveness probe set
     description: >
       The liveness probe should indicate whether a container in a Pod is
@@ -166,7 +166,7 @@ sections:
       the state of the application.
     links:
     - "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/"
-  - id: "2.2.2"
+  - id: readiness_probe_set
     name: Readiness probe set
     description: >
       The readiness probe should indicate when an application is ready to serve.
@@ -184,7 +184,7 @@ sections:
       do this.
     links:
     - "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/"
-  - id: "2.2.3"
+  - id: liveness_and_readiness_probes_are_different
     name: Liveness and readiness probes are different
     description: >
       The liveness and readiness probes are intended to check distinct
@@ -197,10 +197,10 @@ sections:
       that the container is ready to serve.
     links:
     - "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/"
-- id: "2.3"
+- id: images
   name: Images
   rules:
-  - id: "2.3.1"
+  - id: imagepullpolicy_is_ifnotpresent
     name: imagePullPolicy is ifNotPresent
     description: >
       For faster Pod start-ups and reduced network usage, it’s advised that the
@@ -217,7 +217,7 @@ sections:
       this problem.
     links:
     - "https://kubernetes.io/docs/concepts/containers/images/"
-  - id: "2.3.2"
+  - id: image_has_explicit_tag_or_sha
     name: Image has explicit tag or SHA
     description: >
       By default images without a tag specified used the `latest` tag. This
@@ -237,7 +237,7 @@ sections:
       required.
     links:
     - "https://kubernetes.io/docs/concepts/containers/images/"
-  - id: "2.3.3"
+  - id: container_registry_close_to_cluster
     name: Container registry close to cluster
     manual: true
     description: >
@@ -253,10 +253,10 @@ sections:
       Make use of a container registry close to your cluster. For example, if
       the cluster is running on Google Kubernetes Engine use Google Container
       Registry. Most container registries allow mirroring of public images
-- id: "2.4"
+- id: namespaces
   name: Namespaces
   rules:
-  - id: "2.4.1"
+  - id: deployments_across_multiple_namespaces
     name: Deployments across multiple Namespaces
     description: >
       Using Namespaces is the ideal way to divide resources in a logical way.

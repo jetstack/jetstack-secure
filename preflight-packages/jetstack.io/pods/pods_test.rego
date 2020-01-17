@@ -1,4 +1,4 @@
-package preflight._2_pods
+package preflight.pods
 
 assert_allowed(output) = output {
 	trace(sprintf("GOT: %s", [concat(",", output)]))
@@ -17,12 +17,12 @@ pods(x) = y { y := {"k8s/pods": {"items": x }} }
 # 2.1 Resources
 
 # 2.1.1 CPU requests set
-test_2_1_1_no_pods {
-	output := preflight_2_1_1 with input as pods([])
+test_cpu_requests_set_no_pods {
+	output := cpu_requests_set with input as pods([])
 	assert_allowed(output)
 }
-test_2_1_1_cpu_requests_set {
-	output := preflight_2_1_1 with input as pods(
+test_cpu_requests_set_cpu_requests_set {
+	output := cpu_requests_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -54,8 +54,8 @@ test_2_1_1_cpu_requests_set {
 	)
 	assert_allowed(output)
 }
-test_2_1_1_init_containers_unset {
-	output := preflight_2_1_1 with input as pods(
+test_cpu_requests_set_init_containers_unset {
+	output := cpu_requests_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -88,8 +88,8 @@ test_2_1_1_init_containers_unset {
 		}
 	)
 }
-test_2_1_1_init_containers_set {
-	output := preflight_2_1_1 with input as pods(
+test_cpu_requests_set_init_containers_set {
+	output := cpu_requests_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -123,8 +123,8 @@ test_2_1_1_init_containers_set {
 	)
 	assert_allowed(output)
 }
-test_2_1_1_cpu_requests_unset {
-	output := preflight_2_1_1 with input as pods(
+test_cpu_requests_set_cpu_requests_unset {
+	output := cpu_requests_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -147,8 +147,8 @@ test_2_1_1_cpu_requests_unset {
 		}
 	)
 }
-test_2_1_1_cpu_requests_some_unset {
-	output := preflight_2_1_1 with input as pods(
+test_cpu_requests_set_cpu_requests_some_unset {
+	output := cpu_requests_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -180,13 +180,13 @@ test_2_1_1_cpu_requests_some_unset {
 	)
 }
 
-# 2.1.2 Memory requests set
-test_2_1_2_no_pods {
-	output := preflight_2_1_2 with input as pods([])
+# Memory requests set
+test_memory_requests_set_no_pods {
+	output := memory_requests_set with input as pods([])
 	assert_allowed(output)
 }
-test_2_1_2_memory_requests_set {
-	output := preflight_2_1_2 with input as pods(
+test_memory_requests_set_memory_requests_set {
+	output := memory_requests_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -218,8 +218,8 @@ test_2_1_2_memory_requests_set {
 	)
 	assert_allowed(output)
 }
-test_2_1_2_init_containers_unset {
-	output := preflight_2_1_2 with input as pods(
+test_memory_requests_set_init_containers_unset {
+	output := memory_requests_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -252,8 +252,8 @@ test_2_1_2_init_containers_unset {
 		}
 	)
 }
-test_2_1_2_init_containers_set {
-	output := preflight_2_1_2 with input as pods(
+test_memory_requests_set_init_containers_set {
+	output := memory_requests_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -287,8 +287,8 @@ test_2_1_2_init_containers_set {
 	)
 	assert_allowed(output)
 }
-test_2_1_2_memory_requests_unset {
-	output := preflight_2_1_2 with input as pods(
+test_memory_requests_set_memory_requests_unset {
+	output := memory_requests_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -311,8 +311,8 @@ test_2_1_2_memory_requests_unset {
 		}
 	)
 }
-test_2_1_2_memory_requests_some_unset {
-	output := preflight_2_1_2 with input as pods(
+test_memory_requests_set_memory_requests_some_unset {
+	output := memory_requests_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -345,13 +345,13 @@ test_2_1_2_memory_requests_some_unset {
 }
 
 
-# 2.1.3 CPU limits set
-test_2_1_3_no_pods {
-	output := preflight_2_1_3 with input as pods([])
+# CPU limits set
+test_cpu_limits_set_no_pods {
+	output := cpu_limits_set with input as pods([])
 	assert_allowed(output)
 }
-test_2_1_3_cpu_limits_set {
-	output := preflight_2_1_3 with input as pods(
+test_cpu_limits_set_cpu_limits_set {
+	output := cpu_limits_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -383,8 +383,8 @@ test_2_1_3_cpu_limits_set {
 	)
 	assert_allowed(output)
 }
-test_2_1_3_init_containers_unset {
-	output := preflight_2_1_3 with input as pods(
+test_cpu_limits_set_init_containers_unset {
+	output := cpu_limits_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -417,8 +417,8 @@ test_2_1_3_init_containers_unset {
 		}
 	)
 }
-test_2_1_3_init_containers_set {
-	output := preflight_2_1_3 with input as pods(
+test_cpu_limits_set_init_containers_set {
+	output := cpu_limits_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -452,8 +452,8 @@ test_2_1_3_init_containers_set {
 	)
 	assert_allowed(output)
 }
-test_2_1_3_cpu_limits_unset {
-	output := preflight_2_1_3 with input as pods(
+test_cpu_limits_set_cpu_limits_unset {
+	output := cpu_limits_set with input as pods(
 		[
 			{
 				"metadata":{
@@ -476,8 +476,8 @@ test_2_1_3_cpu_limits_unset {
 		}
 	)
 }
-test_2_1_3_cpu_limits_some_unset {
-	output := preflight_2_1_3 with input as pods(
+test_cpu_limits_set_cpu_limits_some_unset {
+	output := cpu_limits_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -509,13 +509,13 @@ test_2_1_3_cpu_limits_some_unset {
 	)
 }
 
-# 2.1.4 Memory limits set
-test_2_1_4_no_pods {
-	output := preflight_2_1_4 with input as pods([])
+# Memory limits set
+test_memory_limits_set_no_pods {
+	output := memory_limits_set with input as pods([])
 	assert_allowed(output)
 }
-test_2_1_4_memory_limits_set {
-	output := preflight_2_1_4 with input as pods(
+test_memory_limits_set_memory_limits_set {
+	output := memory_limits_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -547,8 +547,8 @@ test_2_1_4_memory_limits_set {
 	)
 	assert_allowed(output)
 }
-test_2_1_4_init_containers_unset {
-	output := preflight_2_1_4 with input as pods(
+test_memory_limits_set_init_containers_unset {
+	output := memory_limits_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -581,8 +581,8 @@ test_2_1_4_init_containers_unset {
 		}
 	)
 }
-test_2_1_4_init_containers_set {
-	output := preflight_2_1_4 with input as pods(
+test_memory_limits_set_init_containers_set {
+	output := memory_limits_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -616,8 +616,8 @@ test_2_1_4_init_containers_set {
 	)
 	assert_allowed(output)
 }
-test_2_1_4_memory_limits_unset {
-	output := preflight_2_1_4 with input as pods(
+test_memory_limits_set_memory_limits_unset {
+	output := memory_limits_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -640,8 +640,8 @@ test_2_1_4_memory_limits_unset {
 		}
 	)
 }
-test_2_1_4_memory_limits_some_unset {
-	output := preflight_2_1_4 with input as pods(
+test_memory_limits_set_memory_limits_some_unset {
+	output := memory_limits_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -673,13 +673,13 @@ test_2_1_4_memory_limits_some_unset {
 	)
 }
 
-# 2.1.5 Guarantead QoS
-test_2_1_5_no_pods {
-	output := preflight_2_1_5 with input as pods([])
+# Guarantead QoS
+test_guaranteed_qos_no_pods {
+	output := guaranteed_qos with input as pods([])
 	assert_allowed(output)
 }
-test_2_1_5_requests_limits_equal {
-	output := preflight_2_1_5 with input as pods(
+test_guaranteed_qos_requests_limits_equal {
+	output := guaranteed_qos with input as pods(
 		[
 			{
 				"metadata": {
@@ -708,8 +708,8 @@ test_2_1_5_requests_limits_equal {
 	)
 	assert_allowed(output)
 }
-test_2_1_5_requests_missing {
-	output := preflight_2_1_5 with input as pods(
+test_guaranteed_qos_requests_missing {
+	output := guaranteed_qos with input as pods(
 		[
 			{
 				"metadata": {
@@ -738,8 +738,8 @@ test_2_1_5_requests_missing {
 		}
 	)
 }
-test_2_1_5_limits_missing {
-	output := preflight_2_1_5 with input as pods(
+test_guaranteed_qos_limits_missing {
+	output := guaranteed_qos with input as pods(
 		[
 			{
 				"metadata": {
@@ -768,8 +768,8 @@ test_2_1_5_limits_missing {
 		}
 	)
 }
-test_2_1_5_requests_limits_absent {
-	output := preflight_2_1_5 with input as pods(
+test_guaranteed_qos_requests_limits_absent {
+	output := guaranteed_qos with input as pods(
 		[
 			{
 				"metadata": {
@@ -792,8 +792,8 @@ test_2_1_5_requests_limits_absent {
 		}
 	)
 }
-test_2_1_5_requests_limits_not_set {
-	output := preflight_2_1_5 with input as pods(
+test_guaranteed_qos_requests_limits_not_set {
+	output := guaranteed_qos with input as pods(
 		[
 			{
 				"metadata": {
@@ -817,8 +817,8 @@ test_2_1_5_requests_limits_not_set {
 		}
 	)
 }
-test_2_1_5_requests_limits_blank {
-	output := preflight_2_1_5 with input as pods(
+test_guaranteed_qos_requests_limits_blank {
+	output := guaranteed_qos with input as pods(
 		[
 			{
 				"metadata": {
@@ -845,8 +845,8 @@ test_2_1_5_requests_limits_blank {
 		}
 	)
 }
-test_2_1_5_requests_limits_some_not_set {
-	output := preflight_2_1_5 with input as pods(
+test_guaranteed_qos_requests_limits_some_not_set {
+	output := guaranteed_qos with input as pods(
 		[
 			{
 				"metadata": {
@@ -883,8 +883,8 @@ test_2_1_5_requests_limits_some_not_set {
 		}
 	)
 }
-test_2_1_5_requests_limits_all_set {
-	output := preflight_2_1_5 with input as pods(
+test_guaranteed_qos_requests_limits_all_set {
+	output := guaranteed_qos with input as pods(
 		[
 			{
 				"metadata": {
@@ -927,15 +927,15 @@ test_2_1_5_requests_limits_all_set {
 	assert_allowed(output)
 }
 
-# 2.2 Monitoring
+# Monitoring
 
-# 2.2.1 Liveness probe set
-test_2_2_1_no_pods {
-	output := preflight_2_2_1 with input as pods([])
+# Liveness probe set
+test_liveness_probe_set_no_pods {
+	output := liveness_probe_set with input as pods([])
 	assert_allowed(output)
 }
-test_2_2_1_liveness_probe_set {
-	output := preflight_2_2_1 with input as pods(
+test_liveness_probe_set_liveness_probe_set {
+	output := liveness_probe_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -964,8 +964,8 @@ test_2_2_1_liveness_probe_set {
 	)
 	assert_allowed(output)
 }
-test_2_2_1_liveness_probe_unset {
-	output := preflight_2_2_1 with input as pods(
+test_liveness_probe_set_liveness_probe_unset {
+	output := liveness_probe_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -988,8 +988,8 @@ test_2_2_1_liveness_probe_unset {
 		}
 	)
 }
-test_2_2_1_liveness_probe_empty {
-	output := preflight_2_2_1 with input as pods(
+test_liveness_probe_set_liveness_probe_empty {
+	output := liveness_probe_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -1013,8 +1013,8 @@ test_2_2_1_liveness_probe_empty {
 		}
 	)
 }
-test_2_2_1_liveness_probe_some_unset {
-	output := preflight_2_2_1 with input as pods(
+test_liveness_probe_set_liveness_probe_some_unset {
+	output := liveness_probe_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -1050,8 +1050,8 @@ test_2_2_1_liveness_probe_some_unset {
 		}
 	)
 }
-test_2_2_1_liveness_probe_all_set {
-	output := preflight_2_2_1 with input as pods(
+test_liveness_probe_set_liveness_probe_all_set {
+	output := liveness_probe_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -1094,13 +1094,13 @@ test_2_2_1_liveness_probe_all_set {
 	assert_allowed(output)
 }
 
-# 2.2.2 Readiness probe set
-test_2_2_2_no_pods {
-	output := preflight_2_2_2 with input as pods([])
+# Readiness probe set
+test_readiness_probe_set_no_pods {
+	output := readiness_probe_set with input as pods([])
 	assert_allowed(output)
 }
-test_2_2_2_readiness_probe_set {
-	output := preflight_2_2_2 with input as pods(
+test_readiness_probe_set_readiness_probe_set {
+	output := readiness_probe_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -1129,8 +1129,8 @@ test_2_2_2_readiness_probe_set {
 	)
 	assert_allowed(output)
 }
-test_2_2_2_readiness_probe_unset {
-	output := preflight_2_2_2 with input as pods(
+test_readiness_probe_set_readiness_probe_unset {
+	output := readiness_probe_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -1154,8 +1154,8 @@ test_2_2_2_readiness_probe_unset {
 	)
 }
 # TODO, is this possible?
-test_2_2_2_readiness_probe_empty {
-	output := preflight_2_2_2 with input as pods(
+test_readiness_probe_set_readiness_probe_empty {
+	output := readiness_probe_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -1179,8 +1179,8 @@ test_2_2_2_readiness_probe_empty {
 		}
 	)
 }
-test_2_2_2_readiness_probe_some_unset {
-	output := preflight_2_2_2 with input as pods(
+test_readiness_probe_set_readiness_probe_some_unset {
+	output := readiness_probe_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -1216,8 +1216,8 @@ test_2_2_2_readiness_probe_some_unset {
 		}
 	)
 }
-test_2_2_2_readiness_probe_all_set {
-	output := preflight_2_2_2 with input as pods(
+test_readiness_probe_set_readiness_probe_all_set {
+	output := readiness_probe_set with input as pods(
 		[
 			{
 				"metadata": {
@@ -1260,13 +1260,13 @@ test_2_2_2_readiness_probe_all_set {
 	assert_allowed(output)
 }
 
-# 2.2.3
-test_2_2_3_no_pods {
-	output := preflight_2_2_3 with input as pods([])
+# Liveness and readiness probes are different
+test_liveness_and_readiness_probes_are_different_no_pods {
+	output := liveness_and_readiness_probes_are_different with input as pods([])
 	assert_allowed(output)
 }
-test_2_2_3_liveness_readiness_not_equal {
-	output := preflight_2_2_3 with input as pods(
+test_liveness_and_readiness_probes_are_different_liveness_readiness_not_equal {
+	output := liveness_and_readiness_probes_are_different with input as pods(
 		[
 			{
 				"metadata": {
@@ -1303,8 +1303,8 @@ test_2_2_3_liveness_readiness_not_equal {
 	)
 	assert_allowed(output)
 }
-test_2_2_3_liveness_readiness_equal {
-	output := preflight_2_2_3 with input as pods(
+test_liveness_and_readiness_probes_are_different_liveness_readiness_equal {
+	output := liveness_and_readiness_probes_are_different with input as pods(
 		[
 			{
 				"metadata": {
@@ -1347,8 +1347,8 @@ test_2_2_3_liveness_readiness_equal {
 		}
 	)
 }
-test_2_2_3_liveness_readiness_some_pods_equal {
-	output := preflight_2_2_3 with input as pods(
+test_liveness_and_readiness_probes_are_different_liveness_readiness_some_pods_equal {
+	output := liveness_and_readiness_probes_are_different with input as pods(
 		[
 			{
 				"metadata": {
@@ -1423,15 +1423,15 @@ test_2_2_3_liveness_readiness_some_pods_equal {
 	)
 }
 
-# 2.3 Images
+# Images
 
-# 2.3.1 Image pull policy is ifNotPresent
-test_2_3_1_no_pods {
-	output := preflight_2_3_1 with input as pods([])
+# Image pull policy is ifNotPresent
+test_imagepullpolicy_is_ifnotpresent_no_pods {
+	output := imagepullpolicy_is_ifnotpresent with input as pods([])
 	assert_allowed(output)
 }
-test_2_3_1_no_pull_policy {
-	output := preflight_2_3_1 with input as pods(
+test_imagepullpolicy_is_ifnotpresent_no_pull_policy {
+	output := imagepullpolicy_is_ifnotpresent with input as pods(
 		[
 			{
 				"metadata": {
@@ -1454,8 +1454,8 @@ test_2_3_1_no_pull_policy {
 		}
 	)
 }
-test_2_3_1_always {
-	output := preflight_2_3_1 with input as pods(
+test_imagepullpolicy_is_ifnotpresent_always {
+	output := imagepullpolicy_is_ifnotpresent with input as pods(
 		[
 			{
 				"metadata": {
@@ -1479,8 +1479,8 @@ test_2_3_1_always {
 		}
 	)
 }
-test_2_3_1_if_not_present {
-	output := preflight_2_3_1 with input as pods(
+test_imagepullpolicy_is_ifnotpresent_if_not_present {
+	output := imagepullpolicy_is_ifnotpresent with input as pods(
 		[
 			{
 				"metadata": {
@@ -1500,8 +1500,8 @@ test_2_3_1_if_not_present {
 	)
 	assert_allowed(output)
 }
-test_2_3_1_some_pods_always {
-	output := preflight_2_3_1 with input as pods(
+test_imagepullpolicy_is_ifnotpresent_some_pods_always {
+	output := imagepullpolicy_is_ifnotpresent with input as pods(
 		[
 			{
 				"metadata": {
@@ -1539,8 +1539,8 @@ test_2_3_1_some_pods_always {
 		}
 	)
 }
-test_2_3_1_all_pods_ifnotpresent {
-	output := preflight_2_3_1 with input as pods(
+test_imagepullpolicy_is_ifnotpresent_all_pods_ifnotpresent {
+	output := imagepullpolicy_is_ifnotpresent with input as pods(
 		[
 			{
 				"metadata": {
@@ -1575,13 +1575,13 @@ test_2_3_1_all_pods_ifnotpresent {
 	assert_allowed(output)
 }
 
-# 2.3.2 Image has explicit tag or SHA
-test_2_3_2_no_pods {
-	output := preflight_2_3_2 with input as pods([])
+# Image has explicit tag or SHA
+test_image_has_explicit_tag_or_sha_no_pods {
+	output := image_has_explicit_tag_or_sha with input as pods([])
 	assert_allowed(output)
 }
-test_2_3_2_named_tag {
-	output := preflight_2_3_2 with input as pods(
+test_image_has_explicit_tag_or_sha_named_tag {
+	output := image_has_explicit_tag_or_sha with input as pods(
 		[
 			{
 				"metadata": {
@@ -1601,8 +1601,8 @@ test_2_3_2_named_tag {
 	)
 	assert_allowed(output)
 }
-test_2_3_2_latest_tag {
-	output := preflight_2_3_2 with input as pods(
+test_image_has_explicit_tag_or_sha_latest_tag {
+	output := image_has_explicit_tag_or_sha with input as pods(
 		[
 			{
 				"metadata": {
@@ -1626,8 +1626,8 @@ test_2_3_2_latest_tag {
 		}
 	)
 }
-test_2_3_2_missing_tag {
-	output := preflight_2_3_2 with input as pods(
+test_image_has_explicit_tag_or_sha_missing_tag {
+	output := image_has_explicit_tag_or_sha with input as pods(
 		[
 			{
 				"metadata": {
@@ -1651,8 +1651,8 @@ test_2_3_2_missing_tag {
 		}
 	)
 }
-test_2_3_2_sha {
-	output := preflight_2_3_2 with input as pods(
+test_image_has_explicit_tag_or_sha_sha {
+	output := image_has_explicit_tag_or_sha with input as pods(
 		[
 			{
 				"metadata": {
@@ -1672,8 +1672,8 @@ test_2_3_2_sha {
 	)
 	assert_allowed(output)
 }
-test_2_3_2_some_pods_latest {
-	output := preflight_2_3_2 with input as pods(
+test_image_has_explicit_tag_or_sha_some_pods_latest {
+	output := image_has_explicit_tag_or_sha with input as pods(
 		[
 			{
 				"metadata": {
@@ -1711,8 +1711,8 @@ test_2_3_2_some_pods_latest {
 		}
 	)
 }
-test_2_3_2_all_pods_complient {
-	output := preflight_2_3_2 with input as pods(
+test_image_has_explicit_tag_or_sha_all_pods_complient {
+	output := image_has_explicit_tag_or_sha with input as pods(
 		[
 			{
 				"metadata": {
@@ -1747,15 +1747,15 @@ test_2_3_2_all_pods_complient {
 	assert_allowed(output)
 }
 
-# 2.4 Namespaces
+# Namespaces
 
-# 2.4.1 Pods across multiple namespaces
-test_2_4_1_no_pods {
-	output := preflight_2_4_1 with input as pods([])
+# Pods across multiple namespaces
+test_deployments_across_multiple_namespaces_no_pods {
+	output := deployments_across_multiple_namespaces with input as pods([])
 	assert_allowed(output)
 }
-test_2_4_1_no_default {
-	output := preflight_2_4_1 with input as pods(
+test_deployments_across_multiple_namespaces_no_default {
+	output := deployments_across_multiple_namespaces with input as pods(
 		[
 			{
 				"metadata": {
@@ -1767,8 +1767,8 @@ test_2_4_1_no_default {
 	)
 	assert_allowed(output)
 }
-test_2_4_1_default {
-	output := preflight_2_4_1 with input as pods(
+test_deployments_across_multiple_namespaces_default {
+	output := deployments_across_multiple_namespaces with input as pods(
 		[
 			{
 				"metadata": {
@@ -1784,8 +1784,8 @@ test_2_4_1_default {
 		}
 	)
 }
-test_2_4_1_multiple_no_default {
-	output := preflight_2_4_1 with input as pods(
+test_deployments_across_multiple_namespaces_multiple_no_default {
+	output := deployments_across_multiple_namespaces with input as pods(
 		[
 			{
 				"metadata": {
@@ -1803,8 +1803,8 @@ test_2_4_1_multiple_no_default {
 	)
 	assert_allowed(output)
 }
-test_2_4_1_multiple_default {
-	output := preflight_2_4_1 with input as pods(
+test_deployments_across_multiple_namespaces_multiple_default {
+	output := deployments_across_multiple_namespaces with input as pods(
 		[
 			{
 				"metadata": {
