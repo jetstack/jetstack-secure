@@ -1,0 +1,279 @@
+schema-version: "1.0.0"
+id: "pods"
+namespace: "jetstack.io"
+package-version: "1.1.0"
+data-gatherers:
+- k8s/pods
+root-query: "data.preflight._2_pods"
+name: Pods
+description: >
+  This policy gives rules for how Kubernetes Pods should be configured. Pods are
+  the basic units of a cluster workload, so it's important to get the details
+  correct to maximise performance and minimise faults.
+sections:
+- id: "2.1"
+  name: Resources
+  description: >
+    Pods can specify resource requests and limits for CPU and memory. The
+    requests are used to inform the scheduler about which Nodes to run different
+    Pods on. These are important so that the scheduler can make good decisions
+    about which Nodes to use; requests that are greater than a Pod needs will
+    result in allocated resources that are not used, whereas requests that are
+    below what a Pod needs will result in Nodes being overloaded. The limits
+    define the maximum resources Pods can use and are used by the Kubelet to
+    determine if a Pod should be killed. These are also important; a pod with
+    limits greater than it needs may consume excessive resources due to an
+    error, whereas limits that are set too low can result in poor performance or
+    a Pod being unnecessarily restarted.
+  rules:
+  - id: "2.1.1"
+    name: CPU requests set
+    description: >
+      The CPU requests of containers specify how much CPU time that container
+      needs, and are summed together to determine the total CPU that time a Pod
+      needs. Containers in a Pod can exceed the requested CPU time.
+    remediation: >
+      All `containers` in a Pod should have a `resources.requests.cpu` value
+      set, which is given in relative `CPU` units based on a single virtual CPU
+      core or hyperthread. Choosing appropriate CPU request values generally
+      requires some experimentation and benchmarking. The chosen value should be
+      just above the normal CPU utilisation of the workload.
+    links:
+    - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-cpu"
+    - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#how-pods-with-resource-requests-are-scheduled"
+  - id: "2.1.2"
+    name: Memory requests set
+    description: >
+      The memory requests of containers specify how much memory that container
+      needs, and are summed together to determine the total memory that a Pod
+      needs. Containers in a Pod can exceed the requested memory.
+    remediation: >
+      All `containers` in a Pod should have a `resources.requests.memory` value
+      set, which is given in bytes with optional units such as `M` for multiples
+      of 1,000,000 bytes, or `Ki` for multiples of 1,024 bytes. Choosing
+      appropriate memory request values generally requires some experimentation
+      and benchmarking. The chosen value should be just above the normal memory
+      usage of the workload.
+    links:
+    - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory"
+    - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#how-pods-with-resource-requests-are-scheduled"
+  - id: "2.1.3"
+    name: CPU limits set
+    description: >
+      The CPU limits of containers specify the maximum amount of CPU time that
+      container should get, and are summed together to determine the total
+      maximum CPU time that a Pod should get. It a Pod exceeds this it will
+      experience CPU throttling.
+    remediation: >
+      All `containers` in a Pod should have a `resources.limits.cpu` value set,
+      which is given in relative `CPU` units based on a single virtual CPU core
+      or hyperthread. Choosing appropriate CPU limit values generally requires
+      some experimentation and benchmarking. The chosen value should be just
+      above the normal maximum CPU utilisation of the workload.
+    links:
+    - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-cpu"
+    - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#how-pods-with-resource-limits-are-run"
+  - id: "2.1.4"
+    name: Memory limits set
+    description: >
+      The memory limits of containers specify the maximum amount of memory that
+      container should get, and are summed together to determine the total
+      maximum memory that a Pod should get. If a Pod exceeds this it will
+      experience an ‘out of memory’ (OOM) termination.
+    remediation: >
+      All `containers` in a Pod should have a `resources.limits.memory` value
+      set, which is given in bytes with optional units such as `M` for multiples
+      of 1,000,000 bytes, or `Ki` for multiples of 1,024 bytes. Choosing
+      appropriate memory limit values generally requires some experimentation
+      and benchmarking. The chosen value should be just above the normal maximum
+      memory usage of the workload.
+    links:
+    - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#meaning-of-memory"
+    - "https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#how-pods-with-resource-limits-are-run"
+  - id: "2.1.5"
+    name: Guarantead QoS
+    description: >
+      Kubernetes uses requests and limits of a Pod's containers in order to
+      determine the Quality of Service (QoS) class of the Pod. This class
+      dictates how the Pod should be treated when the Node it’s running on is
+      under resource pressure for CPU or memory. If limits and requests are set
+      for all containers in a Pod, and they are equal, then the Pod is
+      classified as `Guaranteed`. If requests or limits are set for at least one
+      container in a Pod, then the Pod is classified as `Burstable`. If no
+      requests or limits are not set for any of the containers in the Pod, then
+      it is classified as `Best-Effort`. Pods with a QoS class less than
+      `Guaranteed` may be killed when the Node is under resource pressure to
+      avoid costly OOM terminations and pro-actively maintain Node stability.
+      Therefore, for important workloads such as those used in production, the
+      request and limit values should be the same to ensure they have
+      `Guaranteed` QoS class.
+    remediation: >
+      All `containers` in a Pod should have `resources.requests` equal to
+      `resources.limits`. This will likely mean increasing the request values to
+      match the limits, however if the limits are set very high both may need to
+      be reduced. This may result in more resources being allocated but not
+      used. For example, in the case of workloads that normally have low
+      resource use but occasional necessary spikes, the requests and limits will
+      have to be greater than the resource use during the spikes to avoid being
+      killed, and will thus be much greater than is normally used. This is a
+      trade-off to ensure that important workloads are prioritised
+      appropriately.
+    links:
+    - "https://github.com/kubernetes/community/blob/master/contributors/design-proposals/node/resource-qos.md"
+  - id: "2.1.6"
+    name: CPU limits disabled for latency sensitive workloads
+    manual: true
+    description: >
+      Kubernetes implements a container’s CPU limit by configuring CPU quota in
+      its corresponding `cgroup`. The period over which this quota is considered
+      is hard coded to `100ms`. This can cause issues for latency sensitive
+      workloads, since if they happen to use up their quota within a particular
+      `100ms` period, they will not be scheduled again until the next period
+      comes around. This could result in up to `100ms` of inactivity.
+    remediation: >
+      For latency sensitive workloads it is better to remove the CPU limits.
+      This goes against the normal recommendation that all containers have
+      limits set, but unfortunately is required due to limitations of how
+      resource management works. All containers should still have requests set.
+    links:
+    - "https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/cm/helpers_linux.go#L44"
+    - "https://github.com/kubernetes/kubernetes/issues/51135"
+    - "https://kubernetes.io/docs/tasks/administer-cluster/cpu-management-policies/"
+    - "https://github.com/kubernetes/kubernetes/issues/67577"
+- id: "2.2"
+  name: Monitoring
+  rules:
+  - id: "2.2.1"
+    name: Liveness probe set
+    description: >
+      The liveness probe should indicate whether a container in a Pod is
+      healthy. This means not just running, but whether the application in that
+      containers is functional. This does not have to cover whether the
+      application is ready to serve, it could be healthy but still completing
+      some initialisation. The liveness probe must not require any external
+      dependencies. If the liveness probe fails, the Kubelet kills the container
+      and it is restarted. If a container does not provide a liveness probe the
+      default state is `Success`, meaning that even if the application has
+      crashed the container will not be restarted.
+    remediation: >
+      All `containers` in a Pod should have a `livenessProbe` specified, which
+      can indicate whether the application in the container is running and
+      healthy, without external dependencies. A good probe for web applications
+      is an HTTP check that gets the status page of the application.
+      Alternatively a good check could be a command that is executed inside the
+      container to check the status of a process. Only in a few cases would it
+      be effective to just use TCP checks as these won't give much insight into
+      the state of the application.
+    links:
+    - "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/"
+  - id: "2.2.2"
+    name: Readiness probe set
+    description: >
+      The readiness probe should indicate when an application is ready to serve.
+      This is beyond the running and healthy checks of a liveness probe, and
+      means that any initialisation is complete and that any external
+      dependencies are available. Depending on the probe's result, Services that
+      match the Pod will be updated to add or removes the Pod’s IP address. If a
+      readiness probe is not specified the default state is `Success`, meaning
+      that even if the Pod is not yet ready it will be sent traffic, likely
+      resulting in failed connections and errors.
+    remediation: >
+      All `containers` in a Pod should have a `readinessProbe` specified, which
+      can indicate whether the application in the container is running and ready
+      to serve connections, including any external dependencies that it needs to
+      do this.
+    links:
+    - "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/"
+  - id: "2.2.3"
+    name: Liveness and readiness probes are different
+    description: >
+      The liveness and readiness probes are intended to check distinct
+      properties of containers. While it can be tempting to reduce work by
+      sharing the same check for both it's unlikely that they should be the same
+      as they need to check different properties in order to work effectively.
+    remediation: >
+      Ensure that the liveness probe is only checking the health of the
+      container, and that the readiness probe is more comprehensive and check
+      that the container is ready to serve.
+    links:
+    - "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/"
+- id: "2.3"
+  name: Images
+  rules:
+  - id: "2.3.1"
+    name: imagePullPolicy is ifNotPresent
+    description: >
+      For faster Pod start-ups and reduced network usage, it’s advised that the
+      `imagePullPolicy` for is set to `IfNotPresent` rather than `Always`. This
+      avoids forcing the Kubelet to download images it already has. To force
+      downloading an image because the software is updated, a new image should
+      be created with a different tag. A rolling update can then be carried out
+      to switch to the new image without downtime. This also allows for a
+      roll-back if needed because the previous image still exists on its unique
+      tag.
+    remediation: >
+      The `IfNotPresent` policy is the default, so simply removing
+      `imagePullPolicy: Always` from any specified `containers` will resolve
+      this problem.
+    links:
+    - "https://kubernetes.io/docs/concepts/containers/images/"
+  - id: "2.3.2"
+    name: Image has explicit tag or SHA
+    description: >
+      By default images without a tag specified used the `latest` tag. This
+      means if a new image is released it will be used on new Pods without any
+      explicit upgrade. If the functionality of the image has changed, for
+      example with new versions of software, then this can cause unexpected
+      behaviour. Because the upgrade happens implicitly there is no opportunity
+      to review changes. There is also no way to roll back, or run multiple
+      Deployments to phase a new version in. As the image is fetched when a Pod
+      starts Deployment can have multiple versions of an image in use, which can
+      cause inconsistent behaviour between replicas.
+    remediation: >
+      Determine the version of images in use and set them explicitly in the
+      `image` specification for all `containers`. When new versions become
+      available change the tag explicitly to upgrade, and ensure the new image
+      version still works as desired, rolling back to the previous one if
+      required.
+    links:
+    - "https://kubernetes.io/docs/concepts/containers/images/"
+  - id: "2.3.3"
+    name: Container registry close to cluster
+    manual: true
+    description: >
+      It is best practice to keep the container registry as close as possible to
+      the Kubernetes cluster. Although Docker performs a lot of caching, it can
+      still take a long time to download images when the layers are large. When
+      the container registry is closer to the cluster and on a high-speed
+      networking interface, this will increase the download speed of the image
+      and thereby reduce the start-up time of a pod. This can also have a
+      positive effect on the network costs as local traffic is frequently
+      cheaper than traffic from the internet.
+    remediation: >
+      Make use of a container registry close to your cluster. For example, if
+      the cluster is running on Google Kubernetes Engine use Google Container
+      Registry. Most container registries allow mirroring of public images
+- id: "2.4"
+  name: Namespaces
+  rules:
+  - id: "2.4.1"
+    name: Deployments across multiple Namespaces
+    description: >
+      Using Namespaces is the ideal way to divide resources in a logical way.
+      They are perfect for dividing multiple microservices, or having multiple
+      environments on one Kubernetes cluster. The network layer is still shared
+      over the whole Kubernetes cluster, meaning that applications are still
+      able to talk to each other even when divided into separate Namespaces.
+      Though NetworkPolicies and other restrictions can be more easily applied
+      to all resources in the Namespace if required. Namespacing makes it easier
+      to set the correct access rights to resources. For example, ensuring team
+      A can only access the resources in Namespaces belonging to team A. It can
+      also be used to create resource quotas for your teams/applications.
+    remediation: >
+      Determine logical ways to divide up your Kubernetes workloads, for example
+      based on what services they provide, or who should be able to access them.
+      Create corresponding Namespace resources in the cluster with appropriate
+      names. Then update your Deployment, Service, etc. resources `metadata`
+      section to include a `namespace`.
+    links:
+    - "https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/"
