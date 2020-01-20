@@ -1,4 +1,4 @@
-schema-version: "1.0.0"
+schema-version: "0.1.0"
 id: "aks_basic"
 namespace: "examples.jetstack.io"
 package-version: "1.0.0"
