@@ -14,7 +14,7 @@ import (
 
 func TestJSONExport(t *testing.T) {
 	pm := &packaging.PolicyManifest{
-		SchemaVersion:  "1.0.0",
+		SchemaVersion:  "0.1.0",
 		Namespace:      "test.org",
 		ID:             "test-pkg",
 		PackageVersion: "1.2.3",

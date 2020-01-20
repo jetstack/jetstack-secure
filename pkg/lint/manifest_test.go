@@ -191,7 +191,7 @@ func TestSectionLint(t *testing.T) {
 
 func TestLintPolicyManifestSuccess(t *testing.T) {
 	validPackage := packaging.PolicyManifest{
-		SchemaVersion:  "1.0.0",
+		SchemaVersion:  "0.1.0",
 		ID:             "mypackage",
 		Namespace:      "mynamespace",
 		Name:           "My Package",
@@ -229,7 +229,7 @@ var invalidManifests = []struct {
 		name:         "No sections",
 		expectedLint: "No sections in manifest",
 		manifest: packaging.PolicyManifest{
-			SchemaVersion:  "1.0.0",
+			SchemaVersion:  "0.1.0",
 			ID:             "mypackage",
 			Name:           "My Package",
 			PackageVersion: "1.0.0",
@@ -239,7 +239,7 @@ var invalidManifests = []struct {
 		name:         "No ID",
 		expectedLint: "Manifest ID absent",
 		manifest: packaging.PolicyManifest{
-			SchemaVersion:  "1.0.0",
+			SchemaVersion:  "0.1.0",
 			Name:           "My Package",
 			PackageVersion: "1.0.0",
 		},
@@ -248,7 +248,7 @@ var invalidManifests = []struct {
 		name:         "No RootQuery",
 		expectedLint: "Manifest RootQuery absent",
 		manifest: packaging.PolicyManifest{
-			SchemaVersion:  "1.0.0",
+			SchemaVersion:  "0.1.0",
 			Name:           "My Package",
 			PackageVersion: "1.0.0",
 		},
@@ -277,7 +277,7 @@ var invalidManifests = []struct {
 		manifest: packaging.PolicyManifest{
 			ID:            "mypackage",
 			Name:          "My Package",
-			SchemaVersion: "1.0.0",
+			SchemaVersion: "0.1.0",
 		},
 	},
 	{
@@ -293,7 +293,7 @@ var invalidManifests = []struct {
 		name:         "Duplicated section ID",
 		expectedLint: "Section ID 1.2 duplicated 2 times",
 		manifest: packaging.PolicyManifest{
-			SchemaVersion:  "1.0.0",
+			SchemaVersion:  "0.1.0",
 			ID:             "1",
 			Name:           "My Package",
 			PackageVersion: "1.0.0",
@@ -325,7 +325,7 @@ var invalidManifests = []struct {
 		name:         "Duplicated section Name",
 		expectedLint: "Section Name 'foobar' duplicated 2 times",
 		manifest: packaging.PolicyManifest{
-			SchemaVersion:  "1.0.0",
+			SchemaVersion:  "0.1.0",
 			ID:             "1",
 			Name:           "My Package",
 			PackageVersion: "1.0.0",
@@ -357,7 +357,7 @@ var invalidManifests = []struct {
 		name:         "Duplicated section Name",
 		expectedLint: "Rule Name 'My Rule' duplicated 3 times",
 		manifest: packaging.PolicyManifest{
-			SchemaVersion:  "1.0.0",
+			SchemaVersion:  "0.1.0",
 			ID:             "1",
 			Name:           "My Package",
 			PackageVersion: "1.0.0",
