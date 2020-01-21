@@ -16,6 +16,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer/gke"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/output"
+	"github.com/jetstack/preflight/pkg/output/azblob"
 	"github.com/jetstack/preflight/pkg/output/gcs"
 	"github.com/jetstack/preflight/pkg/packagesources/local"
 	"github.com/jetstack/preflight/pkg/packaging"
@@ -243,14 +244,43 @@ func check() {
 			}
 			op, err = output.NewCLIOutput(outputFormat)
 		} else if outputType == "local" {
-			outputFormat := outputDefinition["format"].(string)
-			outputPath := expandHome(outputDefinition["path"].(string))
-			op, err = output.NewLocalOutput(outputFormat, outputPath)
+			outputFormat, ok := outputDefinition["format"].(string)
+			if !ok {
+				log.Fatal("Missing 'format' property in local output configuration.")
+			}
+			outputPath, ok := outputDefinition["path"].(string)
+			if !ok {
+				log.Fatal("Missing 'path' property in local output configuration.")
+			}
+			op, err = output.NewLocalOutput(outputFormat, expandHome(outputPath))
 		} else if outputType == "gcs" {
-			outputFormat := outputDefinition["format"].(string)
-			outputBucketName := outputDefinition["bucket-name"].(string)
-			outputCredentialsPath := outputDefinition["credentials-path"].(string)
+			outputFormat, ok := outputDefinition["format"].(string)
+			if !ok {
+				log.Fatal("Missing 'format' property in gcs output configuration.")
+			}
+			outputBucketName, ok := outputDefinition["bucket-name"].(string)
+			if !ok {
+				log.Fatal("Missing 'bucket-name' property in gcs output configuration.")
+			}
+			outputCredentialsPath, ok := outputDefinition["credentials-path"].(string)
+			if !ok {
+				log.Fatal("Missing 'credentials-path' property in gcs output configuration.")
+			}
 			op, err = gcs.NewOutput(ctx, outputFormat, outputBucketName, outputCredentialsPath)
+		} else if outputType == "azblob" {
+			outputFormat, ok := outputDefinition["format"].(string)
+			if !ok {
+				log.Fatal("Missing 'format' property in azblob output configuration.")
+			}
+			outputContainer, ok := outputDefinition["container"].(string)
+			if !ok {
+				log.Fatal("Missing 'container' property in azblob output configuration.")
+			}
+			accountName, accountKey := os.Getenv("AZURE_STORAGE_ACCOUNT"), os.Getenv("AZURE_STORAGE_ACCESS_KEY")
+			if len(accountName) == 0 || len(accountKey) == 0 {
+				log.Fatal("Either the AZURE_STORAGE_ACCOUNT or AZURE_STORAGE_ACCESS_KEY environment variable is not set.")
+			}
+			op, err = azblob.NewOutput(ctx, outputFormat, outputContainer, accountName, accountKey)
 		} else {
 			log.Fatalf("Output type not recognised: %s", outputType)
 		}
