@@ -17,7 +17,7 @@ package-sources:
 
 enabled-packages:
   - "examples.jetstack.io/gke_basic"
-  - "examples.jetstack.io/pods_basic"
+  - "jetstack.io/pods"
 
 outputs:
 - type: gcs
