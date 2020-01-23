@@ -14,7 +14,7 @@ sections:
 - id: "networking"
   name: Networking
   rules:
-  - id: "private_cluster"
+  - id: private_cluster_enabled
     name: Private cluster enabled
     description: >
       Enabling private cluster means Nodes do not have public IP addresses, and
@@ -29,7 +29,7 @@ sections:
 - id: "authentication"
   name: Authentication
   rules:
-  - id: "basic_auth_disabled"
+  - id: basic_authentication_disabled
     name: Basic authentication disabled
     description: >
       Basic authentication allows a static plain-text username and password to
@@ -41,7 +41,7 @@ sections:
       authentication method immediately.
     links:
     - "https://cloud.google.com/kubernetes-engine/docs/how-to/hardening-your-cluster#disable_basic_auth"
-  - id: "abac_disabled"
+  - id: legacy_abac_disabled
     name: Legacy ABAC disabled
     description: >
       Attribute Based Access Control (ABAC) should be disabled as it has been
@@ -58,7 +58,7 @@ sections:
 - id: "maintenance"
   name: Maintenance
   rules:
-  - id: "k8s_master_up_to_date"
+  - id: Kubernetes_master_version_up_to_date
     name: Kubernetes master version up to date
     description: >
       Kubernetes versions older than 1.13 no longer receive any patch updates
@@ -71,7 +71,7 @@ sections:
       zonal clusters, then upgrades will cause master downtime.
     links:
     - "https://cloud.google.com/kubernetes-engine/versioning-and-upgrades"
-  - id: "k8s_nodes_up_to_date"
+  - id: kubernetes_node_version_up_to_date
     name: Kubernetes node version up to date
     description: >
       Kubernetes versions older than 1.13 no longer receive any patch updates
