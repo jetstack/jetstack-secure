@@ -32,9 +32,13 @@ const (
 )
 
 func ruleToResult(ruleID string) string {
-	return fmt.Sprintf("preflight_%s", strings.ReplaceAll(ruleID, ".", "_"))
+	return strings.ReplaceAll(ruleID, ".", "_")
 }
 
 func resultToRule(resultID string) string {
-	return strings.TrimPrefix(strings.ReplaceAll(resultID, "_", "."), "preflight.")
+	return strings.ReplaceAll(resultID, "_", ".")
+}
+
+func legacyRuleToResult(ruleID string) string {
+	return fmt.Sprintf("preflight_%s", strings.ReplaceAll(ruleID, ".", "_"))
 }
