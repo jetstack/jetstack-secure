@@ -9,7 +9,8 @@
 
 # Jetstack Preflight
 
-Preflight is a tool to automatically perform Kubernetes cluster configuration checks using [Open Policy Agent (OPA)](https://www.openpolicyagent.org/).
+Preflight is a tool to automatically perform Kubernetes cluster
+configuration checks using [Open Policy Agent (OPA)](https://www.openpolicyagent.org/).
 
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Table of Contents**
@@ -23,11 +24,9 @@ Preflight is a tool to automatically perform Kubernetes cluster configuration ch
 
 <!-- markdown-toc end -->
 
-
 ## Background
 
-Preflight was originally designed to automate Jetstack's
-production readiness assessments.
+Preflight was originally designed to automate Jetstack's production readiness assessments.
 These are consulting sessions in which a Jetstack engineer inspects a customer's
 cluster to suggest improvements and identify configuration issues. 
 The product of this assessment is a report
@@ -39,53 +38,100 @@ Automating the checks allows them to be more comprehensive and much faster.
 
 The automation also allows the checks to be run repeatedly,
 meaning they can be deployed in-cluster to provide continuous configuration checking.
-
 This enables new interesting use cases as policy compliance audits.
+
+## Preflight Application
+
+The Preflight application uses *data gatherers*
+to collect required data in JSON format.
+Preflight then checks the gathered data against rules specified in
+*Preflight packages* and outputs rule violations with relevant information.
+
+Preflight is designed to run both locally for one-off checking,
+and in-cluster to for continuous checking.
 
 ## Preflight Packages
 
-Policies for cluster configuration are encoded into "Preflight Packages".
+Policies for cluster configuration are encoded into *Preflight packages*.
+You can find some examples in [./preflight-packages](./preflight-packages).
 
-You can find some examples in [./preflight-packages](./preflight-packages) and you can also [write your own Preflight Packages](./docs/how_to_write_packages.md).
+Each package focuses on a different aspect of the cluster.
+For example, the [`gke_basic`](preflight-packages/examples.jetstack.io/gke_basic)
+package provides rules for the configuration of a GKE cluster,
+and the [`pods`](preflight-packages/jetstack.io/pods) package
+provides rules for the configuration of Kubernetes Pods.
 
-Preflight Packages are a very thin wrapper around OPA's policies. A package is made of [Rego](https://www.openpolicyagent.org/docs/latest/#rego) files (OPA's high-level declarative language) and a *Policy Manifest*.
+A Preflight package consists of a *Policy Manifest* and a
+[Rego](https://www.openpolicyagent.org/docs/latest/#rego) package.
 
-The *Policy Manifest* is a YAML file intended to add metadata to the rules, so the tool can display useful information when a rule doesn't pass.
+The *Policy Manifest* is a YAML file that specifies a package's rules.
+It gives descriptions of the rules and remeditation advice,
+so the tool can display useful information when a rule doesn't pass.
 
-Since the logic in these packages is just Rego, you can add tests to your policies and use OPA's command line to run them (see [OPA Policy Testing tutorial](https://www.openpolicyagent.org/docs/latest/policy-testing/)).
+Rego is OPA's high-level declarative language for specifying rules.
+Rego rules can be defined in multiples files grouped into logical Rego packages.
 
-Additionally, Preflight has a built-in linter for packages:
+Anyone can create new Preflight packages to perform their own checks.
+The Preflight docs include a guide on [how to write packages](./docs/how_to_write_packages.md).
 
-```
-preflight package lint <path to package>
-```
+![Preflight package structure diagram](./docs/images/preflight_package.png)
 
-## Install Preflight
+## Get Preflight
 
-### Use Preflight locally
+### Download
 
-You can compile Preflight by running `make build`. It will create the binary in `builds/preflight`.
+Preflight binaries and *bundles*,
+which include a binary and all the *packages* in this repo,
+can be downloaded from the [releases page](https://github.com/jetstack/preflight/releases).
 
-Create your `preflight.yaml` configuration file (you can take inspiration from the ones in `./examples`).
+### Build
 
-Run Preflight (by default it looks for `./preflight.yaml`)
+You can compile Preflight by running `make build`.
+It will create the binary in `builds/preflight`.
+
+## Use Preflight
+
+Create your `preflight.yaml` configuration file.
+There is full [configuration documentation](./docs/configuration.md) available,
+as well as several example files in [`./examples`](./examples).
+
+### Use Preflight Locally
+
+By default Preflight looks for a configuration at `./preflight.yaml`.
+Once this is set up, run a Preflight check like so:
 
 ```
 preflight check
 ```
 
-You can try `./examples/pods.preflight.yaml` without having to change a line, if you have your *kubeconfig* (`~/.kube/config`) pointing to a working cluster.
+You can try the Pods example
+[`./examples/pods.preflight.yaml`](./examples/pods.preflight.yaml)
+without having to change a line,
+if you have your *kubeconfig* is located at `~/.kube/config` and
+is pointing to a working cluster.
 
 ```
 preflight check --config-file=./examples/pods.preflight.yaml
 ```
 
-You will see a CLI formatted report if everything goes well. Also, you will get a JSON report in `./output`. 
+You will see a CLI formatted report if everything goes well.
+Also, you will get a JSON report in `./output`. 
 
-If you want to visualice the report in your browser, you can access [preflight.jetstack.io](https://preflight.jetstack.io/) and load the JSON report. **This is a static website. Your report is not being uploaded to any server. Everything happens in your browser.**
+## Use Preflight Web UI
 
-You can give it a try without even running the tool, since we provide some report examples ([gke.json](./examples/reports/gke.json), [pods.json](./examples/reports/pods.json)) ready to be loaded in [preflight.jetstack.io](https://preflight.jetstack.io/).
+If you want to visualise the report in your browser,
+you can access the [*Preflight Web UI*](https://preflight.jetstack.io/)
+and load the JSON report.
+**This is a static website.**
+**Your report is not being uploaded to any server.**
+**Everything happens in your browser.**
 
-### Preflight In-Cluster with periodic checks
+You can give it a try without even running the tool,
+since we provide some report examples, [gke.json](./examples/reports/gke.json),
+and [pods.json](./examples/reports/pods.json),
+ready to be loaded into the [*Preflight Web UI*](https://preflight.jetstack.io/).
 
-See [Installation Manual: Preflight In-Cluster](./docs/installation_manual_in_cluster.md).
+### Use Preflight In-Cluster
+
+Preflight can be installed in-cluster to run continuous checks.
+See the [Installation Manual: Preflight In-Cluster](./docs/installation_manual_in_cluster.md).
