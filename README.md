@@ -17,10 +17,14 @@ configuration checks using [Open Policy Agent (OPA)](https://www.openpolicyagent
 
 - [Jetstack Preflight](#jetstack-preflight)
     - [Background](#background)
+    - [Preflight Application](#preflight-application)
     - [Preflight Packages](#preflight-packages)
-    - [Install Preflight](#install-preflight)
-        - [Use Preflight locally](#use-preflight-locally)
-        - [Preflight In-Cluster with periodic checks](#preflight-in-cluster-with-periodic-checks)
+    - [Get Preflight](#get-preflight)
+        - [Download](#download)
+        - [Build](#build)
+    - [Use Preflight](#use-preflight)
+        - [Use Preflight Locally](#use-preflight-locally)
+        - [Use Preflight In-Cluster](#use-preflight-in-cluster)
 
 <!-- markdown-toc end -->
 
