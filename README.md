@@ -119,9 +119,9 @@ preflight check --config-file=./examples/pods.preflight.yaml
 ```
 
 You will see a CLI formatted report if everything goes well.
-Also, you will get a JSON report in `./output`. 
+Also, you will get a JSON report in `./output`.
 
-## Use Preflight Web UI
+### Use Preflight Web UI
 
 If you want to visualise the report in your browser,
 you can access the [*Preflight Web UI*](https://preflight.jetstack.io/)
