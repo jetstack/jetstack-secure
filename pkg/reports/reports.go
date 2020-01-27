@@ -10,6 +10,24 @@ import (
 	"github.com/jetstack/preflight/pkg/version"
 )
 
+// ConstructClusterSummary builds a summary for a current cluster based on a
+// freshly generated report set
+func ConstructClusterSummary(reports []api.Report) (api.ClusterSummary, error) {
+	if len(reports) < 1 {
+		return api.ClusterSummary{}, fmt.Errorf("you must supply at least one report")
+	}
+
+	reportSet, err := ConstructReportSet(reports)
+	if err != nil {
+		return api.ClusterSummary{}, fmt.Errorf("error constructing report set: %v", err)
+	}
+
+	return api.ClusterSummary{
+		Cluster:         reportSet.Cluster,
+		LatestReportSet: &reportSet,
+	}, nil
+}
+
 // ConstructReportSet generates a summarized report set from the supplied reports
 func ConstructReportSet(reports []api.Report) (api.ReportSet, error) {
 	if len(reports) < 1 {
