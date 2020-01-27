@@ -3,8 +3,6 @@ package exporter
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"strings"
 
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
@@ -30,15 +28,3 @@ const (
 	// FormatIntermediate is the intermediate JSON format
 	FormatIntermediate = "intermediate"
 )
-
-func ruleToResult(ruleID string) string {
-	return strings.ReplaceAll(ruleID, ".", "_")
-}
-
-func resultToRule(resultID string) string {
-	return strings.ReplaceAll(resultID, "_", ".")
-}
-
-func legacyRuleToResult(ruleID string) string {
-	return fmt.Sprintf("preflight_%s", strings.ReplaceAll(ruleID, ".", "_"))
-}
