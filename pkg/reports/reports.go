@@ -1,12 +1,39 @@
 package reports
 
 import (
+	"fmt"
+
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
 	"github.com/jetstack/preflight/pkg/rules"
 	"github.com/jetstack/preflight/pkg/version"
 )
+
+// ConstructReportSet generates a summarized report set from the supplied reports
+func ConstructReportSet(reports []api.Report) (api.ReportSet, error) {
+	if len(reports) < 1 {
+		return api.ReportSet{}, fmt.Errorf("you must supply at least one report")
+	}
+
+	reportSet := api.ReportSet{
+		Cluster:   reports[0].Cluster,
+		Timestamp: reports[0].Timestamp,
+		Reports:   []*api.ReportSummary{},
+	}
+
+	for _, report := range reports {
+		summary := SummarizeReport(report)
+		reportSet.Reports = append(reportSet.Reports, &summary)
+	}
+
+	for _, summary := range reportSet.Reports {
+		reportSet.SuccessCount += summary.SuccessCount
+		reportSet.FailureCount += summary.FailureCount
+	}
+
+	return reportSet, nil
+}
 
 // SummarizeReport produces as ReportSummary from a Report
 func SummarizeReport(report api.Report) api.ReportSummary {
