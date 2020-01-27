@@ -11,6 +11,72 @@ import (
 	"github.com/jetstack/preflight/pkg/version"
 )
 
+func TestGenerateSummary(t *testing.T) {
+	exampleReport := api.Report{
+		ID:               "exampleReport",
+		PreflightVersion: "version.PreflightVersion",
+		Package:          "examplePackage.ID",
+		PackageInformation: api.PackageInformation{
+			Namespace: "examplePackage.Namespace",
+			ID:        "examplePackage.ID",
+			Version:   "examplePackage.PackageVersion",
+		},
+		Name:        "examplePackage.Name",
+		Description: "examplePackage.Description",
+		Cluster:     "exampleCluster",
+		Sections: []api.ReportSection{
+			api.ReportSection{
+				ID:   "a_section",
+				Name: "My section",
+				Rules: []api.ReportRule{
+					api.ReportRule{
+						ID:         "a_rule",
+						Name:       "My Rule A",
+						Manual:     false,
+						Success:    true,
+						Missing:    false,
+						Links:      []string{},
+						Violations: []string{},
+					},
+					api.ReportRule{
+						ID:         "b_rule",
+						Name:       "My Rule B",
+						Manual:     false,
+						Success:    false,
+						Missing:    false,
+						Links:      []string{},
+						Violations: []string{"violation"},
+					},
+					api.ReportRule{
+						ID:         "c_rule",
+						Name:       "My Rule C (missing)",
+						Manual:     false,
+						Success:    false,
+						Missing:    true,
+						Links:      []string{},
+						Violations: []string{},
+					},
+				},
+			},
+		},
+	}
+
+	got := SummarizeReport(exampleReport)
+
+	want := api.ReportSummary{
+		ID:           "exampleReport",
+		Package:      "examplePackage.ID",
+		Cluster:      "exampleCluster",
+		Timestamp:    api.Time{},
+		FailureCount: 2, // missing is a failure
+		SuccessCount: 1,
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got != want;\ngot= %+v,\nwant=%+v", got, want)
+	}
+}
+
 func TestNewReport(t *testing.T) {
 	examplePackage := &packaging.PolicyManifest{
 		SchemaVersion:  "0.1.0",
