@@ -8,8 +8,8 @@ import (
 	"github.com/jetstack/preflight/pkg/version"
 )
 
-// ConstructReport creates a report from a policy manifest and a results collection
-func ConstructReport(pm *packaging.PolicyManifest, rc *results.ResultCollection) (api.Report, error) {
+// NewReport creates a report from a policy manifest and a results collection
+func NewReport(pm *packaging.PolicyManifest, rc *results.ResultCollection) (api.Report, error) {
 	report := api.Report{
 		// TODO: we are omitting ID, Timestamp and Cluster for now, but it will get fixed with #1
 		PreflightVersion: version.PreflightVersion,

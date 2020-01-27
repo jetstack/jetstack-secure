@@ -11,7 +11,7 @@ import (
 	"github.com/jetstack/preflight/pkg/version"
 )
 
-func TestConstructReport(t *testing.T) {
+func TestNewReport(t *testing.T) {
 	examplePackage := &packaging.PolicyManifest{
 		SchemaVersion:  "0.1.0",
 		ID:             "mypackage",
@@ -46,9 +46,9 @@ func TestConstructReport(t *testing.T) {
 		&results.Result{ID: rules.RuleToResult("b_rule"), Violations: []string{"violation"}},
 	}
 
-	got, err := ConstructReport(examplePackage, resultCollection)
+	got, err := NewReport(examplePackage, resultCollection)
 	if err != nil {
-		t.Fatalf("ConstructReport returned error: %v", err)
+		t.Fatalf("NewReport returned error: %v", err)
 	}
 
 	want := api.Report{

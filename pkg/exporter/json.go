@@ -21,7 +21,7 @@ func NewJSONExporter() *JSONExporter {
 
 // Export writes a report with the evaluated results enriched with the metadata from the policy manifest in a JSON format.
 func (e *JSONExporter) Export(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, rc *results.ResultCollection) (*bytes.Buffer, error) {
-	report, err := reports.ConstructReport(policyManifest, rc)
+	report, err := reports.NewReport(policyManifest, rc)
 	if err != nil {
 		return nil, err
 	}
