@@ -3,46 +3,63 @@ package gke_basic
 # See https://github.com/jetstack/preflight/blob/master/docs/datagatherers/gke.md for more details
 import input.gke.Cluster as gke
 
-# Rule 'private_cluster'
-preflight_private_cluster[message] {
-	not gke.privateClusterConfig.enablePrivateNodes
+# Networking
 
-	message := "cluster does not have private nodes enabled"
+# Private cluster enabled
+private_cluster_enabled[message] {
+	not gke.privateClusterConfig.enablePrivateNodes == true
+	message := "private cluster has not been enabled"
 }
 
-# Rule 'basic_auth_disabled'
-preflight_basic_auth_disabled[message] {
-	# masterAuth must be missing or an empty {}
-	{ gke.masterAuth } & { null, {}} == set()
+# Authentication
 
-	message := "cluster does not have basic auth disabled"
+# Basic authentication disabled
+basic_authentication_disabled[message] {
+	gke.masterAuth.username
+	message := sprintf("basic authentication is enabled with username '%s'", [gke.masterAuth.username])
+}
+basic_authentication_disabled[message] {
+	gke.masterAuth.password
+	message := "basic authentication is enabled"
 }
 
-# Rule 'abac_disabled'
-preflight_abac_disabled[message] {
-	gke.legacyAbac.enabled
-
-	message := "cluster has legacy abac enabled"
+# Legacy ABAC disabled
+legacy_abac_disabled[message] {
+	gke.legacyAbac.enabled == true
+	message := "legacy ABAC is enabled"
 }
 
-# Rule 'k8s_master_up_to_date'
-preflight_k8s_master_up_to_date[message] {
-	not re_match(`^1\.1[3467].*$`, gke.currentMasterVersion)
+# Maintainance
 
-	message := "cluster master is not up to date"
+# Kubernetes master version up to date
+Kubernetes_master_version_up_to_date[message] {
+	not gke.currentMasterVersion == ""
+	not re_match(`^1\.1[34567].*$`, gke.currentMasterVersion)
+	message := sprintf("current master version '%s' is not up to date", [gke.currentMasterVersion])
+}
+Kubernetes_master_version_up_to_date[message] {
+	gke.currentMasterVersion == ""
+	message := "current master version is missing"
+}
+Kubernetes_master_version_up_to_date[message] {
+	not gke.currentMasterVersion
+	message := "current master version is missing"
 }
 
-# Rule 'k8s_nodes_up_to_date'
-preflight_k8s_nodes_up_to_date[message] {
-	node_pool := gke.nodePools[_]
-	not re_match(`^1\.1[34567].*$`, node_pool.version)
-
-	message := sprintf("cluster node pool '%s' is outdated", [node_pool.name])
+# Kubernetes node version up to date
+kubernetes_node_version_up_to_date[message] {
+	np := gke.nodePools[_]
+	not np.version == ""
+	not re_match(`^1\.1[34567].*$`, np.version)
+	message := sprintf("node pool '%s' current version '%s' not up to date", [np.name, np.version])
 }
-
-preflight_k8s_nodes_up_to_date[message] {
-	node_pool:= gke.nodePools[_]
-	not node_pool.version
-
-	message := sprintf("cluster node pool '%s' has no version", [node_pool.name])
+kubernetes_node_version_up_to_date[message] {
+	np := gke.nodePools[_]
+	np.version == ""
+	message := sprintf("node pool '%s' version is missing", [np.name])
+}
+kubernetes_node_version_up_to_date[message] {
+	np := gke.nodePools[_]
+	not np.version
+	message := sprintf("node pool '%s' version is missing", [np.name])
 }
