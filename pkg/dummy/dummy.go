@@ -35,7 +35,7 @@ func ReportOnDummy(
 	log.Printf("Executed Dummy Preflight package")
 
 	// Convert result from OPA and serialize
-	rc, err := results.NewResultCollectionFromRegoResultSet(&rs)
+	rc, err := results.NewResultCollectionFromRegoResultSet(&rs, []string{})
 	if err != nil {
 		return nil, err
 	}

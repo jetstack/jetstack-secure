@@ -104,7 +104,7 @@ func (r *ResultCollection) ByID() map[string]*Result {
 }
 
 // NewResultCollectionFromRegoResultSet creates a new ResultCollection from a rego.ResultSet.
-func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet) (*ResultCollection, error) {
+func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet, disabledRules []string) (*ResultCollection, error) {
 	if len(*rs) != 1 {
 		return nil, errors.New("ResultSet does not contain 1 exact element")
 	}
@@ -121,6 +121,11 @@ func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet) (*ResultCollection
 
 	keys := make([]string, 0, len(values))
 	for k := range values {
+		for _, disabledRule := range disabledRules {
+			if k == disabledRule {
+				continue
+			}
+		}
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)

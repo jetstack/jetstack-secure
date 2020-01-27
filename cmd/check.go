@@ -339,7 +339,7 @@ func check() {
 			input[dg] = information[dg]
 		}
 
-		rc, err := packaging.EvalPackage(ctx, pkg, input)
+		rc, err := packaging.EvalPackage(ctx, pkg, input, enabledPackage.DisabledRules)
 		if err != nil {
 			if _, ok := err.(*reports.MissingRegoDefinitionError); ok {
 				missingRules = true

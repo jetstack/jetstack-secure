@@ -125,7 +125,7 @@ func TestNewResultCollectionFromRegoResultSet(t *testing.T) {
 
 	for idx, tc := range testCases {
 		t.Run(fmt.Sprintf("returns error on wrong format %d", idx), func(t *testing.T) {
-			_, err := NewResultCollectionFromRegoResultSet(tc.input)
+			_, err := NewResultCollectionFromRegoResultSet(tc.input, []string{})
 			if got, want := err, tc.wantErr; !errorsEqual(got, want) {
 				t.Fatalf("got != want: got=%+v, want=%+v", got, want)
 			}
@@ -158,7 +158,7 @@ func TestNewResultCollectionFromRegoResultSet(t *testing.T) {
 			&Result{ID: "something_returning_a_map", Value: []string{fmt.Sprintf("%+v", map[string]string{"bar": "foo"})}, Violations: []string{fmt.Sprintf("%+v", map[string]string{"bar": "foo"})}, Package: "package.name"},
 		}
 
-		rc, err := NewResultCollectionFromRegoResultSet(regoResultSet)
+		rc, err := NewResultCollectionFromRegoResultSet(regoResultSet, []string{})
 		if err != nil {
 			t.Fatalf("Unexpected error: %+v", err)
 		}

@@ -9,7 +9,7 @@ import (
 )
 
 // EvalPackage evaluates the rules in a package given an input.
-func EvalPackage(ctx context.Context, pkg Package, input interface{}) (*results.ResultCollection, error) {
+func EvalPackage(ctx context.Context, pkg Package, input interface{}, disabledRules []string) (*results.ResultCollection, error) {
 	allResults := rego.ResultSet{}
 	for file, text := range pkg.RegoText() {
 		// Execute Open Policy Agent rules engine
@@ -27,5 +27,10 @@ func EvalPackage(ctx context.Context, pkg Package, input interface{}) (*results.
 		allResults = append(allResults, rs...)
 	}
 
-	return results.NewResultCollectionFromRegoResultSet(&allResults)
+	rc, err := results.NewResultCollectionFromRegoResultSet(&allResults, disabledRules)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read results from rego: %s", err)
+	}
+
+	return rc, nil
 }
