@@ -298,22 +298,3 @@ sections:
       the linked documentation.
     links:
     - "https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity"
-  - id: pod_affinity_used
-    name: Pod affinity used
-    description: >
-      In some cases it may be preferable or required for a Pod to run on the
-      same node as another Pod. This may be due to a shared requirement or
-      dependency. In other cases it may be preferable or required for a Pod not
-      to run on the same node as another Pod. This may be for greater
-      redundancy in the event of node failure, or due to a shared spike in
-      resource usage.
-    remediation: >
-      Pods can be assigned to run alongside other Pods using `podAffinity`, and
-      can be assigned not to run with other Pods using `podAntiAffinity`. Both
-      have two types of affinity or anti-affinity;
-      `requiredDuringSchedulingIgnoredDuringExecution` which specifies a hard
-      requirement, and `preferredDuringSchedulingIgnoredDuringExecution` which
-      specifies a preference. Full details of the constraints can be found in
-      the linked documentation.
-    links:
-    - "https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity"
