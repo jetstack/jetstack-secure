@@ -301,19 +301,28 @@ func check() {
 		outputs = append(outputs, op)
 	}
 
-	// Loop over enabled packages and evaluate.
-	enabledPackages := viper.GetStringSlice("enabled-packages")
+	type EnabledPackage struct {
+		Name string
+		// TODO: Add EnabledRules functionality later
+		// EnabledRules  []string `mapstructure:"enabled-rules"`
+		DisabledRules []string `mapstructure:"disabled-rules"`
+	}
+	var enabledPackages []EnabledPackage
+	err := viper.UnmarshalKey("enabled-packages", &enabledPackages)
+	if err != nil {
+		log.Fatalf("unable to decode into struct, %v", err)
+	}
 
 	if len(enabledPackages) == 0 {
 		log.Fatal("No packages were enabled. Use 'enables-packages' option in configuration to enable the packages you want to use.")
 	}
 
 	missingRules := false
-	for _, pkgID := range enabledPackages {
+	for _, enabledPackage := range enabledPackages {
 		// Make sure we loaded the package for this.
-		pkg := packages[pkgID]
+		pkg := packages[enabledPackage.Name]
 		if pkg == nil {
-			log.Fatalf("Package with ID %q was specified in configuration but it wasn't found.", pkgID)
+			log.Fatalf("Package with ID %q was specified in configuration but it wasn't found.", enabledPackage.Name)
 		}
 
 		manifest := pkg.PolicyManifest()
