@@ -24,6 +24,7 @@ configuration checks using [Open Policy Agent (OPA)](https://www.openpolicyagent
         - [Build](#build)
     - [Use Preflight](#use-preflight)
         - [Use Preflight Locally](#use-preflight-locally)
+        - [Use Preflight Web UI](#use-preflight-web-ui)
         - [Use Preflight In-Cluster](#use-preflight-in-cluster)
 
 <!-- markdown-toc end -->
