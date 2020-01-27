@@ -8,6 +8,7 @@ import (
 
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
+	"github.com/jetstack/preflight/pkg/rules"
 )
 
 // MarkdownExporter is an Exporter that outputs a report in markdown format
@@ -32,7 +33,7 @@ func (e *MarkdownExporter) Export(ctx context.Context, policyManifest *packaging
 		for _, rule := range section.Rules {
 			icon := "!"
 			var info interface{}
-			result := resultsByID[ruleToResult(rule.ID)]
+			result := resultsByID[rules.RuleToResult(rule.ID)]
 			if result != nil {
 				if result.IsFailureState() {
 					icon = "✗"
@@ -76,7 +77,7 @@ func (e *MarkdownExporter) Export(ctx context.Context, policyManifest *packaging
 		fmt.Fprintf(writer, "%d rules failed: ", len(failedRules))
 		links := make([]string, len(failedRules))
 		for idx, f := range failedRules {
-			id := resultToRule(f.ID)
+			id := rules.ResultToRule(f.ID)
 			links[idx] = fmt.Sprintf("[%s](#%s)", id, id)
 		}
 		fmt.Fprintln(writer, strings.Join(links, ", "))

@@ -10,6 +10,7 @@ import (
 
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
+	"github.com/jetstack/preflight/pkg/rules"
 )
 
 func TestJSONExport(t *testing.T) {
@@ -85,8 +86,8 @@ func TestJSONExport(t *testing.T) {
 	jsonExporter := JSONExporter{}
 
 	rc := &results.ResultCollection{
-		&results.Result{ID: ruleToResult("r1"), Violations: []string{}},
-		&results.Result{ID: ruleToResult("r2"), Violations: []string{"violation"}},
+		&results.Result{ID: rules.RuleToResult("r1"), Violations: []string{}},
+		&results.Result{ID: rules.RuleToResult("r2"), Violations: []string{"violation"}},
 		&results.Result{ID: "preflight_r3", Violations: []string{"another violation"}},
 	}
 
@@ -247,8 +248,8 @@ func TestJSONExportBackwardsCompatibility(t *testing.T) {
 	jsonExporter := JSONExporter{}
 
 	rc := &results.ResultCollection{
-		&results.Result{ID: ruleToResult("r1"), Violations: []string{}},
-		&results.Result{ID: legacyRuleToResult("r2"), Violations: []string{"violation"}},
+		&results.Result{ID: rules.RuleToResult("r1"), Violations: []string{}},
+		&results.Result{ID: rules.LegacyRuleToResult("r2"), Violations: []string{"violation"}},
 	}
 
 	expectedJSON := `{

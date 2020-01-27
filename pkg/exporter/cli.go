@@ -10,6 +10,7 @@ import (
 
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
+	"github.com/jetstack/preflight/pkg/rules"
 )
 
 // CLIExporter is an Exporter that outputs a report in Command Line Interface format
@@ -44,7 +45,7 @@ func (e *CLIExporter) Export(ctx context.Context, policyManifest *packaging.Poli
 		for _, rule := range section.Rules {
 			icon := color.FgYellow.Sprint("!")
 			var info interface{}
-			result := resultsByID[ruleToResult(rule.ID)]
+			result := resultsByID[rules.RuleToResult(rule.ID)]
 			if result != nil {
 				if result.IsFailureState() {
 					icon = color.FgRed.Sprint("✗")
@@ -84,7 +85,7 @@ func (e *CLIExporter) Export(ctx context.Context, policyManifest *packaging.Poli
 		fmt.Fprintf(writer, fmtError("%d rules failed: "), len(failedRules))
 		links := make([]string, len(failedRules))
 		for idx, f := range failedRules {
-			id := resultToRule(f.ID)
+			id := rules.ResultToRule(f.ID)
 			links[idx] = id
 		}
 		fmt.Fprintln(writer, strings.Join(links, ", "))
