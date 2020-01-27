@@ -339,7 +339,16 @@ func check() {
 			input[dg] = information[dg]
 		}
 
-		rc, err := packaging.EvalPackage(ctx, pkg, input, enabledPackage.DisabledRules)
+		// Determine which rules should be enabled
+		enabledRuleIDs := map[string]bool{}
+		for _, ruleID := range manifest.RuleIDs() {
+			enabledRuleIDs[ruleID] = true
+		}
+		for _, disabledRule := range enabledPackage.DisabledRules {
+			enabledRuleIDs[disabledRule] = false
+		}
+
+		rc, err := packaging.EvalPackage(ctx, pkg, input, enabledRuleIDs)
 		if err != nil {
 			if _, ok := err.(*reports.MissingRegoDefinitionError); ok {
 				missingRules = true

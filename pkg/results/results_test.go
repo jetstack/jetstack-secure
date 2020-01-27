@@ -125,7 +125,7 @@ func TestNewResultCollectionFromRegoResultSet(t *testing.T) {
 
 	for idx, tc := range testCases {
 		t.Run(fmt.Sprintf("returns error on wrong format %d", idx), func(t *testing.T) {
-			_, err := NewResultCollectionFromRegoResultSet(tc.input, []string{})
+			_, err := NewResultCollectionFromRegoResultSet(tc.input, map[string]bool{})
 			if got, want := err, tc.wantErr; !errorsEqual(got, want) {
 				t.Fatalf("got != want: got=%+v, want=%+v", got, want)
 			}
@@ -147,6 +147,15 @@ func TestNewResultCollectionFromRegoResultSet(t *testing.T) {
 				Text: "data.package.name",
 			}}},
 		}
+		enabledRuleIDs := map[string]bool{
+			"_1_4_3": true,
+			"_1_4_4": true,
+			"_1_4_5": true,
+			"_1_4_6": true,
+			"node_pools_with_legacy_endpoints_enabled": true,
+			"node_pools_without_cloud_platform_scope":  true,
+			"something_returning_a_map":                true,
+		}
 
 		expectedResults := []*Result{
 			&Result{ID: "_1_4_3", Value: []string{}, Violations: []string{}, Package: "package.name"},
@@ -158,7 +167,7 @@ func TestNewResultCollectionFromRegoResultSet(t *testing.T) {
 			&Result{ID: "something_returning_a_map", Value: []string{fmt.Sprintf("%+v", map[string]string{"bar": "foo"})}, Violations: []string{fmt.Sprintf("%+v", map[string]string{"bar": "foo"})}, Package: "package.name"},
 		}
 
-		rc, err := NewResultCollectionFromRegoResultSet(regoResultSet, []string{})
+		rc, err := NewResultCollectionFromRegoResultSet(regoResultSet, enabledRuleIDs)
 		if err != nil {
 			t.Fatalf("Unexpected error: %+v", err)
 		}
