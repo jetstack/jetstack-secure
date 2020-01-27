@@ -24,6 +24,7 @@ configuration checks using [Open Policy Agent (OPA)](https://www.openpolicyagent
         - [Build](#build)
     - [Use Preflight](#use-preflight)
         - [Use Preflight Locally](#use-preflight-locally)
+        - [Use Preflight Web UI](#use-preflight-web-ui)
         - [Use Preflight In-Cluster](#use-preflight-in-cluster)
 
 <!-- markdown-toc end -->
@@ -119,9 +120,9 @@ preflight check --config-file=./examples/pods.preflight.yaml
 ```
 
 You will see a CLI formatted report if everything goes well.
-Also, you will get a JSON report in `./output`. 
+Also, you will get a JSON report in `./output`.
 
-## Use Preflight Web UI
+### Use Preflight Web UI
 
 If you want to visualise the report in your browser,
 you can access the [*Preflight Web UI*](https://preflight.jetstack.io/)
