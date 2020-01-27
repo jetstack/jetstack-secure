@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/storage v1.4.0
 	github.com/Azure/aks-engine v0.43.1
 	github.com/aws/aws-sdk-go v1.25.30
+	github.com/blang/semver v3.5.1+incompatible
 	github.com/gomarkdown/markdown v0.0.0-20191104174740-4d42851d4d5a
 	github.com/gookit/color v1.2.0
 	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect

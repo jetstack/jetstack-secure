@@ -50,6 +50,18 @@ func (e *JSONExporter) Export(ctx context.Context, policyManifest *packaging.Pol
 
 			results := rc.ByID()
 			result := results[ruleToResult(rule.ID)]
+
+			if result == nil {
+				supportsPrefix, err := policyManifest.SupportsPreflightPrefix()
+				if err != nil {
+					return nil, err
+				}
+
+				if supportsPrefix {
+					result = results[legacyRuleToResult(rule.ID)]
+				}
+			}
+
 			var value interface{}
 			violations := []string{}
 			success := false
