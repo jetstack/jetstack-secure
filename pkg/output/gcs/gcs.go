@@ -14,13 +14,13 @@ import (
 	"google.golang.org/api/option"
 )
 
-// GCSOutput writes to a Google Cloud Storage bucket
+// Output writes to a Google Cloud Storage bucket
 type Output struct {
 	bucket   *storage.BucketHandle
 	exporter exporter.Exporter
 }
 
-// NewOutput creates a new GCSOutput
+// NewOutput creates a new Output
 func NewOutput(ctx context.Context, format, bucketName, credentialsPath string) (*Output, error) {
 	c, err := storage.NewClient(ctx, option.WithCredentialsFile(credentialsPath))
 	if err != nil {

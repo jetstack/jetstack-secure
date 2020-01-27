@@ -95,10 +95,8 @@ outputs:
 - type: cli
 ```
 
-Possible types of output include:
-- `local` for a local file.
-- `gcs` for a Google Cloud Storage bucket.
-- `cli` for command line output.
+There are different ways to output the results.
+The `type` property indicates support of platform where results are going to be written.
 
 Most types also require a `format` to be specified.
 Possible formats are:
@@ -107,9 +105,6 @@ Possible formats are:
 - `html` for a HTML formatted report.
 - `intermediate` to output the raw JSON fetched by the *data gatherers*.
 
-With the `cli` type output the format is optional
-and defaults to the `cli` format, for a coloured CLI formatted report.
-
 The reports in `markdown`, `html` and `cli` format make use of the
 *policy manifest* to produce a human readable report describing
  which checks passed and which failed.
@@ -117,3 +112,54 @@ The `json` format is raw output from OPA evaluation.
 
 If no `outputs` are specified Preflight will output a report
 of the results to the CLI.
+
+### cli
+
+With the `cli` type output the format is optional
+and defaults to the `cli` format, for a coloured CLI formatted report.
+
+### local
+
+The `local` type output writes the results to a local directory.
+The directory must be specified with the `path` property.
+It will be created in case it does not exist.
+
+```
+- type: local
+  format: json
+  path: ./output
+```
+
+### gcs
+
+The `gcs` type output uploads the results to a Google Cloud Storage bucket.
+
+The property `bucket-name` indicates the ID of the GCS bucket where the results are going to be uploaded.
+Preflight assumes the bucket already exists.
+
+`credentials-path` is the path to the credentials that can be used to write to that bucket.
+It is recommended to create a JSON key for a dedicated service account.
+
+```
+- type: gcs
+  format: json
+  bucket-name: myresultsbucket
+  credentials-path: ./credentials.json
+```
+
+### azblob
+
+The `azblob` output uploads the results to an Azure Blob Storage container.
+
+The `container` property indicated the ID of the container where to upload the results.
+Preflight assumes the container already exists.
+
+```
+- type: azblob
+  format: json
+  container: myresultscontainer
+```
+
+Authentication is done by setting the environment variables `AZURE_STORAGE_ACCOUNT` and `AZURE_STORAGE_ACCESS_KEY`. You can create keys for a storage account from the Azure portal:
+
+<img align="center" width="460" height="300" src="./images/azblob_keys.png">
