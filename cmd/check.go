@@ -302,9 +302,8 @@ func check() {
 	}
 
 	type EnabledPackage struct {
-		Name string
-		// TODO: Add EnabledRules functionality later
-		// EnabledRules  []string `mapstructure:"enabled-rules"`
+		Name          string
+		EnabledRules  []string `mapstructure:"enabled-rules"`
 		DisabledRules []string `mapstructure:"disabled-rules"`
 	}
 	var enabledPackages []EnabledPackage
@@ -341,8 +340,15 @@ func check() {
 
 		// Determine which rules should be enabled
 		enabledRuleIDs := map[string]bool{}
+		ruleEnabledDefault := true
+		if len(enabledPackage.EnabledRules) != 0 {
+			ruleEnabledDefault = false
+		}
 		for _, ruleID := range manifest.RuleIDs() {
-			enabledRuleIDs[ruleID] = true
+			enabledRuleIDs[ruleID] = ruleEnabledDefault
+		}
+		for _, enabledRule := range enabledPackage.EnabledRules {
+			enabledRuleIDs[enabledRule] = true
 		}
 		for _, disabledRule := range enabledPackage.DisabledRules {
 			enabledRuleIDs[disabledRule] = false
