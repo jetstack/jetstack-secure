@@ -47,6 +47,17 @@ func (m *PolicyManifest) GlobalID() string {
 	return fmt.Sprintf("%s/%s", m.Namespace, m.ID)
 }
 
+// RuleIDs returns a list of the IDs of all the rules in this policy manifest
+func (m *PolicyManifest) RuleIDs() []string {
+	var ruleIDs []string
+	for _, section := range m.Sections {
+		for _, rule := range section.Rules {
+			ruleIDs = append(ruleIDs, rule.ID)
+		}
+	}
+	return ruleIDs
+}
+
 // Section holds the information for a section of the policy manifest.
 type Section struct {
 	// ID is the ID of the section.
