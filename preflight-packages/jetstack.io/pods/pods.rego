@@ -186,3 +186,12 @@ deployments_across_multiple_namespaces[message] {
 	pod.metadata.namespace == "default"
 	message := sprintf("pod '%s' is running in default namespace", [pod.metadata.name])
 }
+
+# Affinity
+
+# Node affinity used
+node_affinity_used[message] {
+	pod := pods.items[_]
+	pod.spec.nodeSelector
+	message := sprintf("pod '%s' is using node selector", [pod.metadata.name])
+}
