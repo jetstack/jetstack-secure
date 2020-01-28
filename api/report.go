@@ -22,6 +22,29 @@ type Report struct {
 	Sections []ReportSection `json:"sections,omitempty"`
 }
 
+// Summarize produces as ReportSummary from a Report
+func (r *Report) Summarize() ReportSummary {
+	var successes, failures int
+	for _, section := range r.Sections {
+		for _, rule := range section.Rules {
+			if rule.Success {
+				successes++
+			} else {
+				failures++
+			}
+		}
+	}
+
+	return ReportSummary{
+		ID:           r.ID,
+		Package:      r.Package,
+		Cluster:      r.Cluster,
+		Timestamp:    r.Timestamp,
+		FailureCount: failures,
+		SuccessCount: successes,
+	}
+}
+
 // PackageInformation contains all the details to identify a package.
 type PackageInformation struct {
 	// Namespace the package belongs to.

@@ -1,12 +1,78 @@
 package reports
 
 import (
+	"fmt"
+
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
 	"github.com/jetstack/preflight/pkg/rules"
 	"github.com/jetstack/preflight/pkg/version"
 )
+
+// NewClusterSummary builds a summary for a current cluster based on a
+// freshly generated slice of reports.
+func NewClusterSummary(reports []api.Report) (api.ClusterSummary, error) {
+	if len(reports) < 1 {
+		return api.ClusterSummary{}, fmt.Errorf("you must supply at least one report")
+	}
+
+	reportSet, err := NewReportSet(reports)
+	if err != nil {
+		return api.ClusterSummary{}, fmt.Errorf("error constructing report set: %v", err)
+	}
+
+	return api.ClusterSummary{
+		Cluster:         reportSet.Cluster,
+		LatestReportSet: &reportSet,
+	}, nil
+}
+
+// NewReportSet generates a summarized ReportSet from the supplied reports
+// all reports should have the same Cluster and Timestamp
+func NewReportSet(reports []api.Report) (api.ReportSet, error) {
+	if len(reports) < 1 {
+		return api.ReportSet{}, fmt.Errorf("you must supply at least one report")
+	}
+
+	clusters := map[string]int{}
+	timestamps := map[api.Time]int{}
+	for _, r := range reports {
+		clusters[r.Cluster]++
+		timestamps[r.Timestamp]++
+	}
+
+	if len(clusters) > 1 {
+		return api.ReportSet{}, fmt.Errorf("reports must be for the same cluster")
+	}
+
+	if len(timestamps) > 1 {
+		return api.ReportSet{}, fmt.Errorf("reports must have the same timestamp")
+	}
+
+	reportSet := api.ReportSet{
+		Cluster:   reports[0].Cluster,
+		Timestamp: reports[0].Timestamp,
+		Reports:   []*api.ReportSummary{},
+	}
+
+	for _, report := range reports {
+		if report.Cluster != reportSet.Cluster {
+			return reportSet, fmt.Errorf("reports must be for the same cluster")
+		}
+		if report.Timestamp != reportSet.Timestamp {
+			return reportSet, fmt.Errorf("reports must be for the same timestamp")
+		}
+
+		summary := report.Summarize()
+		reportSet.Reports = append(reportSet.Reports, &summary)
+
+		reportSet.SuccessCount += summary.SuccessCount
+		reportSet.FailureCount += summary.FailureCount
+	}
+
+	return reportSet, nil
+}
 
 // NewReport creates a report from a policy manifest and a results collection
 func NewReport(pm *packaging.PolicyManifest, rc *results.ResultCollection) (api.Report, error) {
