@@ -57,11 +57,16 @@ func NewReportSet(reports []api.Report) (api.ReportSet, error) {
 	}
 
 	for _, report := range reports {
+		if report.Cluster != reportSet.Cluster {
+			return reportSet, fmt.Errorf("reports must be for the same cluster")
+		}
+		if report.Timestamp != reportSet.Timestamp {
+			return reportSet, fmt.Errorf("reports must be for the same timestamp")
+		}
+
 		summary := report.Summarize()
 		reportSet.Reports = append(reportSet.Reports, &summary)
-	}
 
-	for _, summary := range reportSet.Reports {
 		reportSet.SuccessCount += summary.SuccessCount
 		reportSet.FailureCount += summary.FailureCount
 	}
