@@ -20,6 +20,7 @@ import (
 	"github.com/jetstack/preflight/pkg/output/gcs"
 	"github.com/jetstack/preflight/pkg/packagesources/local"
 	"github.com/jetstack/preflight/pkg/packaging"
+	"github.com/jetstack/preflight/pkg/reports"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -307,6 +308,7 @@ func check() {
 		log.Fatal("No packages were enabled. Use 'enables-packages' option in configuration to enable the packages you want to use.")
 	}
 
+	missingRules := false
 	for _, pkgID := range enabledPackages {
 		// Make sure we loaded the package for this.
 		pkg := packages[pkgID]
@@ -330,7 +332,12 @@ func check() {
 
 		rc, err := packaging.EvalPackage(ctx, pkg, input)
 		if err != nil {
-			log.Fatalf("Cannot evaluate package %q: %v", manifest.ID, err)
+			if _, ok := err.(*reports.MissingRegoDefinitionError); ok {
+				missingRules = true
+				log.Printf("%+v", err)
+			} else {
+				log.Fatalf("Cannot evaluate package %q: %v", manifest.ID, err)
+			}
 		}
 
 		intermediateBytes, err := json.Marshal(input)
@@ -346,7 +353,11 @@ func check() {
 		}
 	}
 
-	log.Printf("Done.")
+	if missingRules {
+		log.Fatalf("Some of the rules are missing their corresponding Rego definition. See the rest of the log or the reports to see more details.")
+	} else {
+		log.Printf("Done.")
+	}
 }
 
 func homeDir() string {

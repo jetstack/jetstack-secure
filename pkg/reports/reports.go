@@ -2,6 +2,7 @@ package reports
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/packaging"
@@ -91,6 +92,7 @@ func NewReport(pm *packaging.PolicyManifest, rc *results.ResultCollection) (api.
 		Sections:    make([]api.ReportSection, len(pm.Sections)),
 	}
 
+	missingRules := []string{}
 	for idxSection, section := range pm.Sections {
 		report.Sections[idxSection] = api.ReportSection{
 			ID:          section.ID,
@@ -125,6 +127,7 @@ func NewReport(pm *packaging.PolicyManifest, rc *results.ResultCollection) (api.
 			switch {
 			case result == nil:
 				missing = true
+				missingRules = append(missingRules, rule.ID)
 			case result.IsFailureState():
 				success = false
 				violations = result.Violations
@@ -149,5 +152,21 @@ func NewReport(pm *packaging.PolicyManifest, rc *results.ResultCollection) (api.
 		}
 	}
 
+	if len(missingRules) > 0 {
+		return report, &MissingRegoDefinitionError{
+			pkg: report.Package,
+			ids: missingRules,
+		}
+	}
 	return report, nil
+}
+
+// MissingRegoDefinitionError error to be returned when a rule from the PolicyManifest was not found in Rego.
+type MissingRegoDefinitionError struct {
+	pkg string
+	ids []string
+}
+
+func (e *MissingRegoDefinitionError) Error() string {
+	return fmt.Sprintf("the following rules from the package %q are missing its Rego definition: %s", e.pkg, strings.Join(e.ids, ", "))
 }

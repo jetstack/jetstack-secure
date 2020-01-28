@@ -9,6 +9,7 @@ import (
 	"github.com/yudai/gojsondiff/formatter"
 
 	"github.com/jetstack/preflight/pkg/packaging"
+	"github.com/jetstack/preflight/pkg/reports"
 	"github.com/jetstack/preflight/pkg/results"
 	"github.com/jetstack/preflight/pkg/rules"
 )
@@ -178,7 +179,7 @@ func TestJSONExport(t *testing.T) {
 }`
 
 	buf, err := jsonExporter.Export(context.Background(), pm, nil, rc)
-	if err != nil {
+	if _, ok := err.(*reports.MissingRegoDefinitionError); !ok {
 		t.Fatalf("unexpected err: %+v", err)
 	}
 
