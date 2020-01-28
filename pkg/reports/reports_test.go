@@ -463,7 +463,7 @@ func TestNewReportSetDifferentTimestamps(t *testing.T) {
 	}
 }
 
-func TestSummarizeReport(t *testing.T) {
+func TestReportSummarize(t *testing.T) {
 	exampleReport := api.Report{
 		ID:               "exampleReport",
 		PreflightVersion: "version.PreflightVersion",
@@ -513,7 +513,7 @@ func TestSummarizeReport(t *testing.T) {
 		},
 	}
 
-	got := SummarizeReport(exampleReport)
+	got := exampleReport.Summarize()
 
 	want := api.ReportSummary{
 		ID:           "exampleReport",
