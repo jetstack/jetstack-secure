@@ -11,7 +11,7 @@ import (
 )
 
 // NewClusterSummary builds a summary for a current cluster based on a
-// freshly generated report set
+// freshly generated slice of reports.
 func NewClusterSummary(reports []api.Report) (api.ClusterSummary, error) {
 	if len(reports) < 1 {
 		return api.ClusterSummary{}, fmt.Errorf("you must supply at least one report")
