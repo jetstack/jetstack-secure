@@ -28,10 +28,26 @@ func NewClusterSummary(reports []api.Report) (api.ClusterSummary, error) {
 	}, nil
 }
 
-// NewReportSet generates a summarized report set from the supplied reports
+// NewReportSet generates a summarized ReportSet from the supplied reports
+// all reports should have the same Cluster and Timestamp
 func NewReportSet(reports []api.Report) (api.ReportSet, error) {
 	if len(reports) < 1 {
 		return api.ReportSet{}, fmt.Errorf("you must supply at least one report")
+	}
+
+	clusters := map[string]int{}
+	timestamps := map[api.Time]int{}
+	for _, r := range reports {
+		clusters[r.Cluster]++
+		timestamps[r.Timestamp]++
+	}
+
+	if len(clusters) > 1 {
+		return api.ReportSet{}, fmt.Errorf("reports must be for the same cluster")
+	}
+
+	if len(timestamps) > 1 {
+		return api.ReportSet{}, fmt.Errorf("reports must have the same timestamp")
 	}
 
 	reportSet := api.ReportSet{

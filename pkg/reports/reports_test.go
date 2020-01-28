@@ -1,8 +1,10 @@
 package reports
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/packaging"
@@ -261,6 +263,203 @@ func TestNewReportSet(t *testing.T) {
 
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got != want;\ngot= %+v,\nwant=%+v", got, want)
+	}
+}
+
+func TestNewReportSetDifferentClusters(t *testing.T) {
+	exampleReport1 := api.Report{
+		ID:               "exampleReport1",
+		PreflightVersion: "version.PreflightVersion",
+		Package:          "examplePackage.ID",
+		PackageInformation: api.PackageInformation{
+			Namespace: "examplePackage.Namespace",
+			ID:        "examplePackage.ID",
+			Version:   "examplePackage.PackageVersion",
+		},
+		Name:        "examplePackage.Name",
+		Description: "examplePackage.Description",
+		Cluster:     "exampleCluster1",
+		Sections: []api.ReportSection{
+			api.ReportSection{
+				ID:   "a_section",
+				Name: "My section",
+				Rules: []api.ReportRule{
+					api.ReportRule{
+						ID:         "a_rule",
+						Name:       "My Rule A",
+						Manual:     false,
+						Success:    true,
+						Missing:    false,
+						Links:      []string{},
+						Violations: []string{},
+					},
+					api.ReportRule{
+						ID:         "b_rule",
+						Name:       "My Rule B",
+						Manual:     false,
+						Success:    false,
+						Missing:    false,
+						Links:      []string{},
+						Violations: []string{"violation"},
+					},
+					api.ReportRule{
+						ID:         "c_rule",
+						Name:       "My Rule C (missing)",
+						Manual:     false,
+						Success:    false,
+						Missing:    true,
+						Links:      []string{},
+						Violations: []string{},
+					},
+				},
+			},
+		},
+	}
+
+	exampleReport2 := api.Report{
+		ID:               "exampleReport2",
+		PreflightVersion: "version.PreflightVersion",
+		Package:          "examplePackage.ID",
+		PackageInformation: api.PackageInformation{
+			Namespace: "examplePackage.Namespace",
+			ID:        "examplePackage.ID",
+			Version:   "examplePackage.PackageVersion",
+		},
+		Name:        "examplePackage.Name",
+		Description: "examplePackage.Description",
+		Cluster:     "exampleCluster2",
+		Sections: []api.ReportSection{
+			api.ReportSection{
+				ID:   "a_section",
+				Name: "My section",
+				Rules: []api.ReportRule{
+					api.ReportRule{
+						ID:         "a_rule",
+						Name:       "My Rule A",
+						Manual:     false,
+						Success:    false,
+						Missing:    false,
+						Links:      []string{},
+						Violations: []string{"violation"},
+					},
+					api.ReportRule{
+						ID:         "b_rule",
+						Name:       "My Rule B",
+						Manual:     false,
+						Success:    false,
+						Missing:    false,
+						Links:      []string{},
+						Violations: []string{"violation"},
+					},
+				},
+			},
+		},
+	}
+
+	_, got := NewReportSet([]api.Report{exampleReport1, exampleReport2})
+	want := fmt.Errorf("reports must be for the same cluster")
+
+	if got.Error() != want.Error() {
+		t.Fatalf("got != want;\ngot= %s,\nwant=%s", got, want)
+	}
+}
+
+func TestNewReportSetDifferentTimestamps(t *testing.T) {
+	exampleReport1 := api.Report{
+		ID:               "exampleReport1",
+		PreflightVersion: "version.PreflightVersion",
+		Package:          "examplePackage.ID",
+		PackageInformation: api.PackageInformation{
+			Namespace: "examplePackage.Namespace",
+			ID:        "examplePackage.ID",
+			Version:   "examplePackage.PackageVersion",
+		},
+		Name:        "examplePackage.Name",
+		Description: "examplePackage.Description",
+		Cluster:     "exampleCluster",
+		Sections: []api.ReportSection{
+			api.ReportSection{
+				ID:   "a_section",
+				Name: "My section",
+				Rules: []api.ReportRule{
+					api.ReportRule{
+						ID:         "a_rule",
+						Name:       "My Rule A",
+						Manual:     false,
+						Success:    true,
+						Missing:    false,
+						Links:      []string{},
+						Violations: []string{},
+					},
+					api.ReportRule{
+						ID:         "b_rule",
+						Name:       "My Rule B",
+						Manual:     false,
+						Success:    false,
+						Missing:    false,
+						Links:      []string{},
+						Violations: []string{"violation"},
+					},
+					api.ReportRule{
+						ID:         "c_rule",
+						Name:       "My Rule C (missing)",
+						Manual:     false,
+						Success:    false,
+						Missing:    true,
+						Links:      []string{},
+						Violations: []string{},
+					},
+				},
+			},
+		},
+	}
+
+	exampleReport2 := api.Report{
+		ID:               "exampleReport2",
+		PreflightVersion: "version.PreflightVersion",
+		Package:          "examplePackage.ID",
+		PackageInformation: api.PackageInformation{
+			Namespace: "examplePackage.Namespace",
+			ID:        "examplePackage.ID",
+			Version:   "examplePackage.PackageVersion",
+		},
+		Name:        "examplePackage.Name",
+		Description: "examplePackage.Description",
+		Cluster:     "exampleCluster",
+		Timestamp:   api.Time{Time: time.Now()},
+		Sections: []api.ReportSection{
+			api.ReportSection{
+				ID:   "a_section",
+				Name: "My section",
+				Rules: []api.ReportRule{
+					api.ReportRule{
+						ID:         "a_rule",
+						Name:       "My Rule A",
+						Manual:     false,
+						Success:    false,
+						Missing:    false,
+						Links:      []string{},
+						Violations: []string{"violation"},
+					},
+					api.ReportRule{
+						ID:         "b_rule",
+						Name:       "My Rule B",
+						Manual:     false,
+						Success:    false,
+						Missing:    false,
+						Links:      []string{},
+						Violations: []string{"violation"},
+					},
+				},
+			},
+		},
+	}
+
+	_, got := NewReportSet([]api.Report{exampleReport1, exampleReport2})
+	want := fmt.Errorf("reports must have the same timestamp")
+
+	if got.Error() != want.Error() {
+		t.Fatalf("got != want;\ngot= %s,\nwant=%s", got, want)
 	}
 }
 
