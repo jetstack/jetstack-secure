@@ -86,7 +86,7 @@ type ReportRule struct {
 	// Value contains the raw result of the check.
 	Value interface{} `json:"value,omitempty"`
 	// Violations contains the list of messages from the execution of the check
-	Violations interface{} `json:"violations,omitempty"`
+	Violations interface{} `json:"violations"`
 	// Missing indicates whether the Rego rule was missing or not.
 	Missing bool `json:"missing"`
 }
