@@ -53,6 +53,8 @@ type PackageInformation struct {
 	ID string `json:"id"`
 	// Version is the version of the package.
 	Version string `json:"version"`
+	// SchemaVersion is the version of the Preflight package schema.
+	SchemaVersion string `json:"schema-version"`
 }
 
 // ReportSection contains the fields of a section inside a Report

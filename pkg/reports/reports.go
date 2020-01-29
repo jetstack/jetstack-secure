@@ -81,9 +81,10 @@ func NewReport(pm *packaging.PolicyManifest, rc *results.ResultCollection) (api.
 		PreflightVersion: version.PreflightVersion,
 		Package:          pm.ID,
 		PackageInformation: api.PackageInformation{
-			Namespace: pm.Namespace,
-			ID:        pm.ID,
-			Version:   pm.PackageVersion,
+			Namespace:     pm.Namespace,
+			ID:            pm.ID,
+			Version:       pm.PackageVersion,
+			SchemaVersion: pm.SchemaVersion,
 		},
 		Name:        pm.Name,
 		Description: pm.Description,

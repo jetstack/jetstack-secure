@@ -168,7 +168,8 @@ func TestJSONExport(t *testing.T) {
   "package-information": {
     "id": "test-pkg",
     "namespace": "test.org",
-    "version": "1.2.3"
+    "version": "1.2.3",
+    "schema-version": "0.1.1"
   },
   "preflight-version": "development",
   "cluster": "",
@@ -296,7 +297,8 @@ func TestJSONExportBackwardsCompatibility(t *testing.T) {
   "package-information": {
     "id": "test-pkg",
     "namespace": "test.org",
-    "version": "1.2.3"
+    "version": "1.2.3",
+    "schema-version": "0.1.0"
   },
   "preflight-version": "development",
   "cluster": "",
