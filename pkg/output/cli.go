@@ -74,6 +74,4 @@ func (o *CLIOutput) WriteIndex(ctx context.Context, cluster string, timestamp ti
 	}
 
 	return nil
-
-	return nil
 }
