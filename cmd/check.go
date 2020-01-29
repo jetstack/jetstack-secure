@@ -303,9 +303,9 @@ func check() {
 	}
 
 	type EnabledPackage struct {
-		Name          string
-		EnabledRules  []string `mapstructure:"enabled-rules"`
-		DisabledRules []string `mapstructure:"disabled-rules"`
+		ID              string
+		EnabledRuleIDs  []string `mapstructure:"enabled-rules"`
+		DisabledRuleIDs []string `mapstructure:"disabled-rules"`
 	}
 	var enabledPackages []EnabledPackage
 	err := viper.UnmarshalKey("enabled-packages", &enabledPackages)
@@ -314,7 +314,7 @@ func check() {
 		log.Print("using legacy enabled-packages format")
 		enabledPackageIDs := viper.GetStringSlice("enabled-packages")
 		for _, enabledPackageID := range enabledPackageIDs {
-			enabledPackages = append(enabledPackages, EnabledPackage{Name: enabledPackageID})
+			enabledPackages = append(enabledPackages, EnabledPackage{ID: enabledPackageID})
 		}
 	}
 	if len(enabledPackages) == 0 {
@@ -324,9 +324,9 @@ func check() {
 	missingRules := false
 	for _, enabledPackage := range enabledPackages {
 		// Make sure we loaded the package for this.
-		pkg := packages[enabledPackage.Name]
+		pkg := packages[enabledPackage.ID]
 		if pkg == nil {
-			log.Fatalf("Package with ID %q was specified in configuration but it wasn't found.", enabledPackage.Name)
+			log.Fatalf("Package with ID %q was specified in configuration but it wasn't found.", enabledPackage.ID)
 		}
 
 		manifest := pkg.PolicyManifest()
@@ -353,7 +353,7 @@ func check() {
 			}
 		}
 
-		rc = results.FilterResultCollection(rc, enabledPackage.DisabledRules, enabledPackage.EnabledRules)
+		rc = results.FilterResultCollection(rc, enabledPackage.DisabledRuleIDs, enabledPackage.EnabledRuleIDs)
 
 		intermediateBytes, err := json.Marshal(input)
 		if err != nil {
