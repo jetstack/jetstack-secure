@@ -268,9 +268,10 @@ func TestNewReport(t *testing.T) {
 		PreflightVersion: version.PreflightVersion,
 		Package:          examplePackage.ID,
 		PackageInformation: api.PackageInformation{
-			Namespace: examplePackage.Namespace,
-			ID:        examplePackage.ID,
-			Version:   examplePackage.PackageVersion,
+			Namespace:     examplePackage.Namespace,
+			ID:            examplePackage.ID,
+			Version:       examplePackage.PackageVersion,
+			SchemaVersion: examplePackage.SchemaVersion,
 		},
 		Name:        examplePackage.Name,
 		Description: examplePackage.Description,
