@@ -310,9 +310,13 @@ func check() {
 	var enabledPackages []EnabledPackage
 	err := viper.UnmarshalKey("enabled-packages", &enabledPackages)
 	if err != nil {
-		log.Fatalf("unable to decode into struct, %v", err)
+		log.Printf("unable to decode into struct, %v", err)
+		log.Print("using legacy enabled-packages format")
+		enabledPackageIDs := viper.GetStringSlice("enabled-packages")
+		for _, enabledPackageID := range enabledPackageIDs {
+			enabledPackages = append(enabledPackages, EnabledPackage{Name: enabledPackageID})
+		}
 	}
-
 	if len(enabledPackages) == 0 {
 		log.Fatal("No packages were enabled. Use 'enables-packages' option in configuration to enable the packages you want to use.")
 	}
