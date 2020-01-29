@@ -78,3 +78,26 @@ func (o *Output) Write(ctx context.Context, policyManifest *packaging.PolicyMani
 
 	return nil
 }
+
+// WriteIndex exports clusterSummary data in the specified format
+func (o *Output) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) error {
+	buffer, err := o.exporter.ExportIndex(ctx, clusterSummary)
+	if err != nil {
+		return err
+	}
+
+	pipeline := azblob.NewPipeline(o.credential, azblob.PipelineOptions{})
+	containerURL := azblob.NewContainerURL(o.container, pipeline)
+	blobURL := containerURL.NewBlockBlobURL(fmt.Sprintf("index/%s%s", cluster, o.exporter.FileExtension()))
+
+	_, err = azblob.UploadStreamToBlockBlob(ctx, buffer, blobURL, azblob.UploadStreamToBlockBlobOptions{
+		// values chosen arbitrarily
+		BufferSize: 2 * 1024 * 1024,
+		MaxBuffers: 3,
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

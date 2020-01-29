@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
 )
@@ -11,6 +12,7 @@ import (
 // Exporter consumes policy manifests, intermediate JSON, and results, and exports them to a buffer in a certain format
 type Exporter interface {
 	Export(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, results *results.ResultCollection) (*bytes.Buffer, error)
+	ExportIndex(ctx context.Context, clusterIndex *api.ClusterSummary) (*bytes.Buffer, error)
 	FileExtension() string
 }
 

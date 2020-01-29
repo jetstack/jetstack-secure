@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/exporter"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
@@ -56,6 +57,23 @@ func (o *CLIOutput) Write(ctx context.Context, policyManifest *packaging.PolicyM
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// WriteIndex exports clusterSummary data in the specified format
+func (o *CLIOutput) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) error {
+	buffer, err := o.exporter.ExportIndex(ctx, clusterSummary)
+	if err != nil {
+		return err
+	}
+
+	_, err = os.Stdout.Write(buffer.Bytes())
+	if err != nil {
+		return err
+	}
+
+	return nil
 
 	return nil
 }

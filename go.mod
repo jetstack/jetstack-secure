@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go v1.25.30
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/gomarkdown/markdown v0.0.0-20191104174740-4d42851d4d5a
+	github.com/google/go-cmp v0.3.0
 	github.com/gookit/color v1.2.0
 	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
 	github.com/juju/errors v0.0.0-20190930114154-d42613fe1ab9
