@@ -104,7 +104,7 @@ func (r *ResultCollection) ByID() map[string]*Result {
 }
 
 // NewResultCollectionFromRegoResultSet creates a new ResultCollection from a rego.ResultSet.
-func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet, enabledRuleIDs map[string]bool) (*ResultCollection, error) {
+func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet) (*ResultCollection, error) {
 	if len(*rs) != 1 {
 		return nil, errors.New("ResultSet does not contain 1 exact element")
 	}
@@ -121,9 +121,6 @@ func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet, enabledRuleIDs map
 
 	keys := make([]string, 0, len(values))
 	for k := range values {
-		if enabledRuleIDs[k] == false {
-			continue
-		}
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -163,6 +160,35 @@ func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet, enabledRuleIDs map
 	}
 
 	return &rc, nil
+}
+
+// FilterResultCollection filters a collection of results based on lists of
+// disabled and enabled rule IDs and returns a filtered ResultCollection. The
+// filtered ResultCollection does not include results for disabled rules. If the
+// enabled rules list is not empty the filtered ResultCollection only contains
+// results for enabled rules.
+func FilterResultCollection(resultCollection *ResultCollection, disabledRuleIDs, enabledRuleIDs []string) *ResultCollection {
+	filteredResultCollection := NewResultCollection()
+	for _, result := range resultCollection.ByID() {
+		filterResult := false
+		if len(enabledRuleIDs) != 0 {
+			filterResult = true
+			for _, enabledRuleID := range enabledRuleIDs {
+				if result.ID == enabledRuleID {
+					filterResult = true
+				}
+			}
+		}
+		for _, disabledRuleID := range disabledRuleIDs {
+			if result.ID == disabledRuleID {
+				filterResult = true
+			}
+		}
+		if !filterResult {
+			filteredResultCollection.Add([]*Result{result})
+		}
+	}
+	return filteredResultCollection
 }
 
 // Parse takes the raw result of evaluating a set of rego rules in preflight and returns a ResultCollection collection.

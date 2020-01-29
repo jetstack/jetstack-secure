@@ -21,6 +21,7 @@ import (
 	"github.com/jetstack/preflight/pkg/packagesources/local"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/reports"
+	"github.com/jetstack/preflight/pkg/results"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -338,23 +339,7 @@ func check() {
 			input[dg] = information[dg]
 		}
 
-		// Determine which rules should be enabled
-		enabledRuleIDs := map[string]bool{}
-		ruleEnabledDefault := true
-		if len(enabledPackage.EnabledRules) != 0 {
-			ruleEnabledDefault = false
-		}
-		for _, ruleID := range manifest.RuleIDs() {
-			enabledRuleIDs[ruleID] = ruleEnabledDefault
-		}
-		for _, enabledRule := range enabledPackage.EnabledRules {
-			enabledRuleIDs[enabledRule] = true
-		}
-		for _, disabledRule := range enabledPackage.DisabledRules {
-			enabledRuleIDs[disabledRule] = false
-		}
-
-		rc, err := packaging.EvalPackage(ctx, pkg, input, enabledRuleIDs)
+		rc, err := packaging.EvalPackage(ctx, pkg, input)
 		if err != nil {
 			if _, ok := err.(*reports.MissingRegoDefinitionError); ok {
 				missingRules = true
@@ -363,6 +348,8 @@ func check() {
 				log.Fatalf("Cannot evaluate package %q: %v", manifest.ID, err)
 			}
 		}
+
+		rc = results.FilterResultCollection(rc, enabledPackage.DisabledRules, enabledPackage.EnabledRules)
 
 		intermediateBytes, err := json.Marshal(input)
 		if err != nil {
