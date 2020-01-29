@@ -168,5 +168,5 @@ type MissingRegoDefinitionError struct {
 }
 
 func (e *MissingRegoDefinitionError) Error() string {
-	return fmt.Sprintf("the following rules from the package %q are missing its Rego definition: %s", e.pkg, strings.Join(e.ids, ", "))
+	return fmt.Sprintf("the following rules from the package %q are missing their Rego definitions: %s", e.pkg, strings.Join(e.ids, ", "))
 }
