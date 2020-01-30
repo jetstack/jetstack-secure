@@ -27,5 +27,10 @@ func EvalPackage(ctx context.Context, pkg Package, input interface{}) (*results.
 		allResults = append(allResults, rs...)
 	}
 
-	return results.NewResultCollectionFromRegoResultSet(&allResults)
+	rc, err := results.NewResultCollectionFromRegoResultSet(&allResults)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read results from rego: %s", err)
+	}
+
+	return rc, nil
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/jetstack/preflight/pkg/packagesources/local"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/reports"
+	"github.com/jetstack/preflight/pkg/results"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -301,19 +302,31 @@ func check() {
 		outputs = append(outputs, op)
 	}
 
-	// Loop over enabled packages and evaluate.
-	enabledPackages := viper.GetStringSlice("enabled-packages")
-
+	type EnabledPackage struct {
+		ID              string
+		EnabledRuleIDs  []string `mapstructure:"enabled-rules"`
+		DisabledRuleIDs []string `mapstructure:"disabled-rules"`
+	}
+	var enabledPackages []EnabledPackage
+	err := viper.UnmarshalKey("enabled-packages", &enabledPackages)
+	if err != nil {
+		log.Printf("unable to decode into struct, %v", err)
+		log.Print("using legacy enabled-packages format")
+		enabledPackageIDs := viper.GetStringSlice("enabled-packages")
+		for _, enabledPackageID := range enabledPackageIDs {
+			enabledPackages = append(enabledPackages, EnabledPackage{ID: enabledPackageID})
+		}
+	}
 	if len(enabledPackages) == 0 {
 		log.Fatal("No packages were enabled. Use 'enables-packages' option in configuration to enable the packages you want to use.")
 	}
 
 	missingRules := false
-	for _, pkgID := range enabledPackages {
+	for _, enabledPackage := range enabledPackages {
 		// Make sure we loaded the package for this.
-		pkg := packages[pkgID]
+		pkg := packages[enabledPackage.ID]
 		if pkg == nil {
-			log.Fatalf("Package with ID %q was specified in configuration but it wasn't found.", pkgID)
+			log.Fatalf("Package with ID %q was specified in configuration but it wasn't found.", enabledPackage.ID)
 		}
 
 		manifest := pkg.PolicyManifest()
@@ -339,6 +352,8 @@ func check() {
 				log.Fatalf("Cannot evaluate package %q: %v", manifest.ID, err)
 			}
 		}
+
+		rc = results.FilterResultCollection(rc, enabledPackage.DisabledRuleIDs, enabledPackage.EnabledRuleIDs)
 
 		intermediateBytes, err := json.Marshal(input)
 		if err != nil {

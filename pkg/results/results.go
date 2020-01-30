@@ -162,6 +162,35 @@ func NewResultCollectionFromRegoResultSet(rs *rego.ResultSet) (*ResultCollection
 	return &rc, nil
 }
 
+// FilterResultCollection filters a collection of results based on lists of
+// disabled and enabled rule IDs and returns a filtered ResultCollection. The
+// filtered ResultCollection does not include results for disabled rules. If the
+// enabled rules list is not empty the filtered ResultCollection only contains
+// results for enabled rules.
+func FilterResultCollection(resultCollection *ResultCollection, disabledRuleIDs, enabledRuleIDs []string) *ResultCollection {
+	filteredResultCollection := NewResultCollection()
+	for _, result := range resultCollection.ByID() {
+		filterResult := false
+		if len(enabledRuleIDs) != 0 {
+			filterResult = true
+			for _, enabledRuleID := range enabledRuleIDs {
+				if result.ID == enabledRuleID {
+					filterResult = true
+				}
+			}
+		}
+		for _, disabledRuleID := range disabledRuleIDs {
+			if result.ID == disabledRuleID {
+				filterResult = true
+			}
+		}
+		if !filterResult {
+			filteredResultCollection.Add([]*Result{result})
+		}
+	}
+	return filteredResultCollection
+}
+
 // Parse takes the raw result of evaluating a set of rego rules in preflight and returns a ResultCollection collection.
 func Parse(rawResult []byte) (*ResultCollection, error) {
 	// parse raw data with opa.rego package
