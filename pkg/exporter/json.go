@@ -23,15 +23,18 @@ func NewJSONExporter() *JSONExporter {
 func (e *JSONExporter) Export(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, rc *results.ResultCollection) (*bytes.Buffer, error) {
 	report, err := reports.NewReport(policyManifest, rc)
 	if err != nil {
-		return nil, err
+		if _, ok := err.(*reports.MissingRegoDefinitionError); !ok {
+			return nil, err
+		}
 	}
+	missingRuleError := err
 
 	b, err := json.Marshal(report)
 	if err != nil {
 		return nil, err
 	}
 
-	return bytes.NewBuffer(b), nil
+	return bytes.NewBuffer(b), missingRuleError
 }
 
 // FileExtension returns the file extension for this exporter's format

@@ -245,74 +245,117 @@ func TestNewReport(t *testing.T) {
 						ID:   "b_rule",
 						Name: "My Rule B",
 					},
-					{
-						ID:   "c_rule",
-						Name: "My Rule C (missing)",
-					},
 				},
 			},
 		},
 	}
 
-	resultCollection := &results.ResultCollection{
-		&results.Result{ID: rules.RuleToResult("a_rule"), Violations: []string{}},
-		&results.Result{ID: rules.RuleToResult("b_rule"), Violations: []string{"violation"}},
-	}
+	t.Run("returns a report", func(t *testing.T) {
+		resultCollection := &results.ResultCollection{
+			&results.Result{ID: rules.RuleToResult("a_rule"), Violations: []string{}},
+			&results.Result{ID: rules.RuleToResult("b_rule"), Violations: []string{"violation"}},
+		}
 
-	got, err := NewReport(examplePackage, resultCollection)
-	if err != nil {
-		t.Fatalf("NewReport returned error: %v", err)
-	}
+		got, err := NewReport(examplePackage, resultCollection)
+		if err != nil {
+			t.Fatalf("NewReport returned error: %v", err)
+		}
 
-	want := api.Report{
-		PreflightVersion: version.PreflightVersion,
-		Package:          examplePackage.ID,
-		PackageInformation: api.PackageInformation{
-			Namespace:     examplePackage.Namespace,
-			ID:            examplePackage.ID,
-			Version:       examplePackage.PackageVersion,
-			SchemaVersion: examplePackage.SchemaVersion,
-		},
-		Name:        examplePackage.Name,
-		Description: examplePackage.Description,
-		Sections: []api.ReportSection{
-			api.ReportSection{
-				ID:   "a_section",
-				Name: "My section",
-				Rules: []api.ReportRule{
-					api.ReportRule{
-						ID:         "a_rule",
-						Name:       "My Rule A",
-						Manual:     false,
-						Success:    true,
-						Missing:    false,
-						Links:      []string{},
-						Violations: []string{},
-					},
-					api.ReportRule{
-						ID:         "b_rule",
-						Name:       "My Rule B",
-						Manual:     false,
-						Success:    false,
-						Missing:    false,
-						Links:      []string{},
-						Violations: []string{"violation"},
-					},
-					api.ReportRule{
-						ID:         "c_rule",
-						Name:       "My Rule C (missing)",
-						Manual:     false,
-						Success:    false,
-						Missing:    true,
-						Links:      []string{},
-						Violations: []string{},
+		want := api.Report{
+			PreflightVersion: version.PreflightVersion,
+			Package:          examplePackage.ID,
+			PackageInformation: api.PackageInformation{
+				Namespace:     examplePackage.Namespace,
+				ID:            examplePackage.ID,
+				Version:       examplePackage.PackageVersion,
+				SchemaVersion: examplePackage.SchemaVersion,
+			},
+			Name:        examplePackage.Name,
+			Description: examplePackage.Description,
+			Sections: []api.ReportSection{
+				api.ReportSection{
+					ID:   "a_section",
+					Name: "My section",
+					Rules: []api.ReportRule{
+						api.ReportRule{
+							ID:         "a_rule",
+							Name:       "My Rule A",
+							Manual:     false,
+							Success:    true,
+							Missing:    false,
+							Links:      []string{},
+							Violations: []string{},
+						},
+						api.ReportRule{
+							ID:         "b_rule",
+							Name:       "My Rule B",
+							Manual:     false,
+							Success:    false,
+							Missing:    false,
+							Links:      []string{},
+							Violations: []string{"violation"},
+						},
 					},
 				},
 			},
-		},
-	}
+		}
 
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got != want; got=%+v, want=%+v", got, want)
-	}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("got != want; got=%+v, want=%+v", got, want)
+		}
+	})
+
+	t.Run("returns error MissingRegoDefinitionError if definition missing", func(t *testing.T) {
+		resultCollection := &results.ResultCollection{
+			&results.Result{ID: rules.RuleToResult("a_rule"), Violations: []string{}},
+		}
+
+		got, err := NewReport(examplePackage, resultCollection)
+		if _, ok := err.(*MissingRegoDefinitionError); !ok {
+			t.Errorf("expected MissingRegoDefinitionError but got: %v", err)
+		}
+
+		want := api.Report{
+			PreflightVersion: version.PreflightVersion,
+			Package:          examplePackage.ID,
+			PackageInformation: api.PackageInformation{
+				Namespace:     examplePackage.Namespace,
+				ID:            examplePackage.ID,
+				Version:       examplePackage.PackageVersion,
+				SchemaVersion: examplePackage.SchemaVersion,
+			},
+			Name:        examplePackage.Name,
+			Description: examplePackage.Description,
+			Sections: []api.ReportSection{
+				api.ReportSection{
+					ID:   "a_section",
+					Name: "My section",
+					Rules: []api.ReportRule{
+						api.ReportRule{
+							ID:         "a_rule",
+							Name:       "My Rule A",
+							Manual:     false,
+							Success:    true,
+							Missing:    false,
+							Links:      []string{},
+							Violations: []string{},
+						},
+						api.ReportRule{
+							ID:         "b_rule",
+							Name:       "My Rule B",
+							Manual:     false,
+							Success:    false,
+							Missing:    true,
+							Links:      []string{},
+							Violations: []string{},
+						},
+					},
+				},
+			},
+		}
+
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("got != want; got=%+v, want=%+v", got, want)
+		}
+	})
 }
