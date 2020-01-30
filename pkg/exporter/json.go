@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/reports"
 	"github.com/jetstack/preflight/pkg/results"
@@ -35,6 +36,16 @@ func (e *JSONExporter) Export(ctx context.Context, policyManifest *packaging.Pol
 	}
 
 	return bytes.NewBuffer(b), missingRuleError
+}
+
+// ExportIndex formats the supplied cluster summary
+func (e *JSONExporter) ExportIndex(ctx context.Context, clusterSummary *api.ClusterSummary) (*bytes.Buffer, error) {
+	b, err := json.Marshal(clusterSummary)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes.NewBuffer(b), nil
 }
 
 // FileExtension returns the file extension for this exporter's format

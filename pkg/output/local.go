@@ -78,3 +78,38 @@ func (o *LocalOutput) Write(ctx context.Context, policyManifest *packaging.Polic
 
 	return nil
 }
+
+// WriteIndex exports clusterSummary data in the specified format
+func (o *LocalOutput) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) error {
+	buffer, err := o.exporter.ExportIndex(ctx, clusterSummary)
+	if err != nil {
+		return err
+	}
+
+	fullpath := path.Join(o.path, "index", fmt.Sprintf("%s%s", cluster, o.exporter.FileExtension()))
+	info, err := os.Stat(fullpath)
+
+	if os.IsNotExist(err) {
+		err = os.MkdirAll(path.Dir(fullpath), 0744)
+		if err != nil {
+			return err
+		}
+		file, err := os.Create(fullpath)
+		if err != nil {
+			return err
+		}
+
+		_, err = file.Write(buffer.Bytes())
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else if info.IsDir() {
+		return fmt.Errorf("%q is an existing directory", fullpath)
+	} else {
+		return fmt.Errorf("%q is an existing file", fullpath)
+	}
+
+	return nil
+}

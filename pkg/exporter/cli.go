@@ -8,6 +8,7 @@ import (
 
 	"github.com/gookit/color"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
 	"github.com/jetstack/preflight/pkg/rules"
@@ -93,6 +94,28 @@ func (e *CLIExporter) Export(ctx context.Context, policyManifest *packaging.Poli
 
 	fmt.Fprintln(writer, "_____")
 	return writer, nil
+}
+
+// ExportIndex formats the supplied cluster summary
+func (e *CLIExporter) ExportIndex(ctx context.Context, clusterSummary *api.ClusterSummary) (*bytes.Buffer, error) {
+	lines := []string{
+		"Summary",
+		"-------",
+		fmt.Sprintf("cluster: %s", clusterSummary.Cluster),
+		fmt.Sprintf("failures: %d", clusterSummary.LatestReportSet.FailureCount),
+		fmt.Sprintf("successes: %d", clusterSummary.LatestReportSet.SuccessCount),
+		"reports:",
+	}
+
+	for _, r := range clusterSummary.LatestReportSet.Reports {
+		lines = append(lines, []string{
+			fmt.Sprintf("  package: %s", r.Package),
+			fmt.Sprintf("    failures: %d", r.FailureCount),
+			fmt.Sprintf("    successes: %d", r.SuccessCount)}...)
+	}
+	lines = append(lines, "")
+
+	return bytes.NewBuffer([]byte(strings.Join(lines, "\n"))), nil
 }
 
 // FileExtension returns the file extension for this exporter's format

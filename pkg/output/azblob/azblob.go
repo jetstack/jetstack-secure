@@ -1,6 +1,7 @@
 package azblob
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/url"
@@ -63,15 +64,34 @@ func (o *Output) Write(ctx context.Context, policyManifest *packaging.PolicyMani
 		return err
 	}
 
+	path := fmt.Sprintf("%s/%s/%s%s", cluster, timestamp.Format(api.TimeFormat), policyManifest.ID, o.exporter.FileExtension())
+
+	return writeBufferToPath(o, ctx, path, buffer)
+}
+
+// WriteIndex exports clusterSummary data in the specified format
+func (o *Output) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) error {
+	buffer, err := o.exporter.ExportIndex(ctx, clusterSummary)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("index/%s%s", cluster, o.exporter.FileExtension())
+
+	return writeBufferToPath(o, ctx, path, buffer)
+}
+
+func writeBufferToPath(o *Output, ctx context.Context, path string, buffer *bytes.Buffer) error {
 	pipeline := azblob.NewPipeline(o.credential, azblob.PipelineOptions{})
 	containerURL := azblob.NewContainerURL(o.container, pipeline)
-	blobURL := containerURL.NewBlockBlobURL(fmt.Sprintf("%s/%s/%s%s", cluster, timestamp.Format(api.TimeFormat), policyManifest.ID, o.exporter.FileExtension()))
+	blobURL := containerURL.NewBlockBlobURL(path)
 
-	_, err = azblob.UploadStreamToBlockBlob(ctx, buffer, blobURL, azblob.UploadStreamToBlockBlobOptions{
+	_, err := azblob.UploadStreamToBlockBlob(ctx, buffer, blobURL, azblob.UploadStreamToBlockBlobOptions{
 		// values chosen arbitrarily
 		BufferSize: 2 * 1024 * 1024,
 		MaxBuffers: 3,
 	})
+
 	if err != nil {
 		return err
 	}

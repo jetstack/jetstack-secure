@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/exporter"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
@@ -48,6 +49,21 @@ func NewCLIOutput(format string) (*CLIOutput, error) {
 // Write exports data in the specified format, or CLI format by default, and writes it to stdout
 func (o *CLIOutput) Write(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, rc *results.ResultCollection, cluster string, timestamp time.Time) error {
 	buffer, err := o.exporter.Export(ctx, policyManifest, intermediateJSON, rc)
+	if err != nil {
+		return err
+	}
+
+	_, err = os.Stdout.Write(buffer.Bytes())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// WriteIndex exports clusterSummary data in the specified format
+func (o *CLIOutput) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) error {
+	buffer, err := o.exporter.ExportIndex(ctx, clusterSummary)
 	if err != nil {
 		return err
 	}

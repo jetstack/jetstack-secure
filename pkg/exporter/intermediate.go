@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
 )
@@ -25,6 +26,11 @@ func (e *IntermediateExporter) Export(ctx context.Context, policyManifest *packa
 		return nil, err
 	}
 	return writer, nil
+}
+
+// ExportIndex formats the supplied cluster summary
+func (e *IntermediateExporter) ExportIndex(ctx context.Context, clusterSummary *api.ClusterSummary) (*bytes.Buffer, error) {
+	return bytes.NewBuffer([]byte("there is no intermediateJSON for cluster report summaries")), nil
 }
 
 // FileExtension returns the file extension for this exporter's format

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
 	"github.com/jetstack/preflight/pkg/rules"
@@ -84,6 +85,26 @@ func (e *MarkdownExporter) Export(ctx context.Context, policyManifest *packaging
 	}
 
 	return writer, nil
+}
+
+// ExportIndex formats the supplied cluster summary
+func (e *MarkdownExporter) ExportIndex(ctx context.Context, clusterSummary *api.ClusterSummary) (*bytes.Buffer, error) {
+	lines := []string{
+		"# Summary",
+		fmt.Sprintf("**cluster:** %s", clusterSummary.Cluster),
+		fmt.Sprintf("**failures:** %d", clusterSummary.LatestReportSet.FailureCount),
+		fmt.Sprintf("**successes:** %d\n", clusterSummary.LatestReportSet.SuccessCount),
+		"## Report Breakdown\n",
+	}
+
+	for _, r := range clusterSummary.LatestReportSet.Reports {
+		lines = append(lines, []string{
+			fmt.Sprintf("* **%s**\n", r.Package),
+			fmt.Sprintf("  * **failures:** %d", r.FailureCount),
+			fmt.Sprintf("  * **successes:** %d\n", r.SuccessCount)}...)
+	}
+
+	return bytes.NewBuffer([]byte(strings.Join(lines, "\n"))), nil
 }
 
 // FileExtension returns the file extension for this exporter's format

@@ -67,3 +67,21 @@ func (o *Output) Write(ctx context.Context, policyManifest *packaging.PolicyMani
 
 	return nil
 }
+
+// WriteIndex exports clusterSummary data in the specified format
+func (o *Output) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) error {
+	buffer, err := o.exporter.ExportIndex(ctx, clusterSummary)
+	if err != nil {
+		return err
+	}
+	object := o.bucket.Object(fmt.Sprintf("index/%s%s", cluster, o.exporter.FileExtension()))
+	writer := object.NewWriter(ctx)
+	defer func() { err = writer.Close() }()
+
+	_, err = writer.Write(buffer.Bytes())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
