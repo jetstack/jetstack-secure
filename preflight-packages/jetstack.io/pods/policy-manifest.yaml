@@ -120,26 +120,6 @@ sections:
       appropriately.
     links:
     - "https://github.com/kubernetes/community/blob/master/contributors/design-proposals/node/resource-qos.md"
-  - id: cpu_limits_disabled_for_latency_sensitive_workloads
-    name: CPU limits disabled for latency sensitive workloads
-    manual: true
-    description: >
-      Kubernetes implements a container’s CPU limit by configuring CPU quota in
-      its corresponding `cgroup`. The period over which this quota is considered
-      is hard coded to `100ms`. This can cause issues for latency sensitive
-      workloads, since if they happen to use up their quota within a particular
-      `100ms` period, they will not be scheduled again until the next period
-      comes around. This could result in up to `100ms` of inactivity.
-    remediation: >
-      For latency sensitive workloads it is better to remove the CPU limits.
-      This goes against the normal recommendation that all containers have
-      limits set, but unfortunately is required due to limitations of how
-      resource management works. All containers should still have requests set.
-    links:
-    - "https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/cm/helpers_linux.go#L44"
-    - "https://github.com/kubernetes/kubernetes/issues/51135"
-    - "https://kubernetes.io/docs/tasks/administer-cluster/cpu-management-policies/"
-    - "https://github.com/kubernetes/kubernetes/issues/67577"
 - id: monitoring
   name: Monitoring
   rules:
@@ -237,22 +217,6 @@ sections:
       required.
     links:
     - "https://kubernetes.io/docs/concepts/containers/images/"
-  - id: container_registry_close_to_cluster
-    name: Container registry close to cluster
-    manual: true
-    description: >
-      It is best practice to keep the container registry as close as possible to
-      the Kubernetes cluster. Although Docker performs a lot of caching, it can
-      still take a long time to download images when the layers are large. When
-      the container registry is closer to the cluster and on a high-speed
-      networking interface, this will increase the download speed of the image
-      and thereby reduce the start-up time of a pod. This can also have a
-      positive effect on the network costs as local traffic is frequently
-      cheaper than traffic from the internet.
-    remediation: >
-      Make use of a container registry close to your cluster. For example, if
-      the cluster is running on Google Kubernetes Engine use Google Container
-      Registry. Most container registries allow mirroring of public images
 - id: namespaces
   name: Namespaces
   rules:
