@@ -12,7 +12,8 @@ package-sources:
   dir: preflight-packages/
 
 enabled-packages:
-  - "examples.jetstack.io/aks_basic"
+- "examples.jetstack.io/aks_basic"
+- "jetstack.io/pods"
 
 # This configures how the results will be reported.
 outputs:

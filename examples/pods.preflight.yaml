@@ -9,7 +9,7 @@ package-sources:
   dir: preflight-packages/
 
 enabled-packages:
-  - "jetstack.io/pods"
+- id: "jetstack.io/pods"
 
 outputs:
 - type: local

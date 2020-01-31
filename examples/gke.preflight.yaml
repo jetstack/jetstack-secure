@@ -23,8 +23,8 @@ package-sources:
 
 # Preflight will only evaluate the packages listed here.
 enabled-packages:
-  - "examples.jetstack.io/gke_basic"
-  - "jetstack.io/pods"
+- id: "examples.jetstack.io/gke_basic"
+- id: "jetstack.io/pods"
 
 # This configures how the results will be reported.
 outputs:
