@@ -1,8 +1,10 @@
 package output
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"time"
@@ -55,19 +57,7 @@ func (o *LocalOutput) Write(ctx context.Context, policyManifest *packaging.Polic
 	info, err := os.Stat(fullpath)
 
 	if os.IsNotExist(err) {
-		err = os.MkdirAll(path.Dir(fullpath), 0744)
-		if err != nil {
-			return err
-		}
-		file, err := os.Create(fullpath)
-		if err != nil {
-			return err
-		}
-
-		_, err = file.Write(buffer.Bytes())
-		if err != nil {
-			return err
-		}
+		return writeBufferToPath(fullpath, buffer)
 	} else if err != nil {
 		return err
 	} else if info.IsDir() {
@@ -75,8 +65,6 @@ func (o *LocalOutput) Write(ctx context.Context, policyManifest *packaging.Polic
 	} else {
 		return fmt.Errorf("%q is an existing file", fullpath)
 	}
-
-	return nil
 }
 
 // WriteIndex exports clusterSummary data in the specified format
@@ -90,26 +78,27 @@ func (o *LocalOutput) WriteIndex(ctx context.Context, cluster string, timestamp 
 	info, err := os.Stat(fullpath)
 
 	if os.IsNotExist(err) {
-		err = os.MkdirAll(path.Dir(fullpath), 0744)
-		if err != nil {
-			return err
-		}
-		file, err := os.Create(fullpath)
-		if err != nil {
-			return err
-		}
-
-		_, err = file.Write(buffer.Bytes())
-		if err != nil {
-			return err
-		}
+		return writeBufferToPath(fullpath, buffer)
 	} else if err != nil {
 		return err
 	} else if info.IsDir() {
 		return fmt.Errorf("%q is an existing directory", fullpath)
 	} else {
-		return fmt.Errorf("%q is an existing file", fullpath)
+		log.Printf("%q is an existing index, overwriting...", fullpath)
+		return writeBufferToPath(fullpath, buffer)
+	}
+}
+
+func writeBufferToPath(fullpath string, buffer *bytes.Buffer) error {
+	err := os.MkdirAll(path.Dir(fullpath), 0744)
+	if err != nil {
+		return err
+	}
+	file, err := os.Create(fullpath)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	_, err = file.Write(buffer.Bytes())
+	return err
 }
