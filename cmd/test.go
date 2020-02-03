@@ -30,33 +30,34 @@ It only works with local packages.
 			// Fail if given no input
 			log.Fatal("No packages provided for linting")
 		} else {
-			loadedPackages := make([]packaging.Package, 0)
+			ctx, cancel := context.WithCancel(context.Background())
+			packages := make([]*packaging.Package, 0)
 
 			for _, packagePath := range args {
-				pkgs, err := local.LoadLocalPackages(packagePath)
+				packageSource, err := local.NewLocalPackageSource(ctx, &local.LocalPackageSourceConfig{
+					Path: packagePath,
+				})
+				loadedPackages, err := packageSource.Load()
 				if err != nil {
 					log.Fatalf("Error loading packages from %s: %v", packagePath, err)
 				}
-				for _, p := range pkgs {
-					loadedPackages = append(loadedPackages, p)
-				}
+				packages = append(packages, loadedPackages...)
 			}
 
 			packagesWithErrors := make(map[string][]int)
 
-			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			for _, pkg := range loadedPackages {
-				log.Printf("Testing package %s", pkg.PolicyManifest().GlobalID())
+			for _, pkg := range packages {
+				log.Printf("Testing package %s", pkg.PolicyManifest.GlobalID())
 				numFailures, numTotal, err := packaging.TestPackage(ctx, pkg, testParams.verbose, testParams.timeout)
 
 				if err != nil {
-					log.Fatalf("Error testing package %s: %v", pkg.PolicyManifest().GlobalID(), err)
+					log.Fatalf("Error testing package %s: %v", pkg.PolicyManifest.GlobalID(), err)
 				}
 
 				if numFailures != 0 {
-					packagesWithErrors[pkg.PolicyManifest().GlobalID()] = []int{numFailures, numTotal}
+					packagesWithErrors[pkg.PolicyManifest.GlobalID()] = []int{numFailures, numTotal}
 				}
 			}
 

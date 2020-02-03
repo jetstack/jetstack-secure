@@ -6,21 +6,13 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/user"
-	"path/filepath"
 	"time"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
-	"github.com/jetstack/preflight/pkg/datagatherer/aks"
-	"github.com/jetstack/preflight/pkg/datagatherer/eks"
-	"github.com/jetstack/preflight/pkg/datagatherer/gke"
-	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
-	localdatagatherer "github.com/jetstack/preflight/pkg/datagatherer/local"
+	"github.com/jetstack/preflight/pkg/exporter"
 	"github.com/jetstack/preflight/pkg/output"
-	"github.com/jetstack/preflight/pkg/output/azblob"
-	"github.com/jetstack/preflight/pkg/output/gcs"
-	"github.com/jetstack/preflight/pkg/packagesources/local"
+	"github.com/jetstack/preflight/pkg/packagesources"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/reports"
 	"github.com/jetstack/preflight/pkg/results"
@@ -63,6 +55,22 @@ func init() {
 		fmt.Sprintf("Config file location, without this flag we search for `preflight.yaml` in the current working directory and '%s'.", globalConfigDirectory))
 }
 
+type PreflightCheckConfig struct {
+	ClusterName     string                                `mapstructure:"cluster-name"`
+	DataGatherers   *datagatherer.DataGatherersConfig     `mapstructure:"data-gatherers,omitempty"`
+	PackageSources  []*packagesources.PackageSourceConfig `mapstructure:"package-sources,omitempty"`
+	EnabledPackages []*EnabledPackage                     `mapstructure:"enabled-packages,omitempty"`
+	Outputs         []*output.OutputConfig
+}
+
+type EnabledPackage struct {
+	ID              string
+	EnabledRuleIDs  []string `mapstructure:"enabled-rules"`
+	DisabledRuleIDs []string `mapstructure:"disabled-rules"`
+}
+
+var config PreflightCheckConfig
+
 func loadConfigFile() {
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
@@ -84,292 +92,123 @@ func loadConfigFile() {
 		// Not having a configuration file is an usual case, so alert on it.
 		log.Printf("Not using config file")
 	}
+
+	err := viper.Unmarshal(&config)
+	if err != nil {
+		log.Println("Unable to decode config", err)
+		log.Println("Will now decode with legacy config format")
+		unmarshalLegacy()
+	}
+
+	// If any AZBlobOutputs are configured get the account name and key from
+	// environment variables
+	accountName := os.Getenv("AZURE_STORAGE_ACCOUNT")
+	accountKey := os.Getenv("AZURE_STORAGE_ACCESS_KEY")
+	for _, outputConfig := range config.Outputs {
+		outputConfig.AccountName = accountName
+		outputConfig.AccountKey = accountKey
+	}
+}
+
+func unmarshalLegacy() {
+	var legacyConfig struct {
+		ClusterName     string                                `mapstructure:"cluster-name"`
+		DataGatherers   *datagatherer.DataGatherersConfig     `mapstructure:"data-gatherers,omitempty"`
+		PackageSources  []*packagesources.PackageSourceConfig `mapstructure:"package-sources,omitempty"`
+		EnabledPackages []string                              `mapstructure:"enabled-packages,omitempty"`
+		Outputs         []*output.OutputConfig
+	}
+	err := viper.Unmarshal(&legacyConfig)
+	if err != nil {
+		log.Fatal("Unable to decode legacy config:", err)
+	}
+	config := PreflightCheckConfig{
+		ClusterName:    legacyConfig.ClusterName,
+		DataGatherers:  legacyConfig.DataGatherers,
+		PackageSources: legacyConfig.PackageSources,
+		Outputs:        legacyConfig.Outputs,
+	}
+	for _, enabledPackageID := range legacyConfig.EnabledPackages {
+		config.EnabledPackages = append(config.EnabledPackages, &EnabledPackage{
+			ID: enabledPackageID,
+		})
+	}
 }
 
 func check() {
 	ctx := context.Background()
 
-	// Collect details about this run
-	clusterName := viper.GetString("cluster-name")
 	checkTime := time.Now()
+	clusterName := config.ClusterName
 
-	// Load Preflight Packages
-	var packages = make(map[string]packaging.Package)
+	packageSources := packagesources.NewPackageSources(ctx, config.PackageSources)
+	dataGatherers := datagatherer.NewDataGatherers(ctx, config.DataGatherers)
+	outputs := output.NewOutputs(ctx, config.Outputs)
+	enabledPackages := config.EnabledPackages
 
-	packageSources, ok := viper.Get("package-sources").([]interface{})
-	if !ok {
-		log.Fatalf("No package sources provided")
-	}
-	for _, packageSource := range packageSources {
-		ps := packageSource.(map[interface{}]interface{})
-		sourceType := ps["type"].(string)
-		// TODO Support source types that are not "local"
-		// TODO Replace this awful if-else chain with something nicer
-		if sourceType == "local" {
-			dir := ps["dir"].(string)
-			loadedPackages, err := local.LoadLocalPackages(dir)
-			if err != nil {
-				log.Fatalf("Failed to load package(s) from local source: %s", err)
-			}
-			for _, loadedPackage := range loadedPackages {
-				packages[loadedPackage.PolicyManifest().GlobalID()] = loadedPackage
-			}
-		} else {
-			log.Fatalf("Can't understand package source of type %s", sourceType)
-		}
+	if len(enabledPackages) == 0 {
+		log.Fatal("No packages were enabled. Use 'enabled-packages' in configuration to enable the packages you want to use.")
 	}
 
-	if len(packages) == 0 {
-		log.Fatalf("No Packages loaded")
-	}
-
-	// Load datagatherers
-	gatherers := make(map[string]datagatherer.DataGatherer)
-	gatherersConfig, ok := viper.Get("data-gatherers").(map[string]interface{})
-	// we don't error if no data-gatherers to keep backwards compatibility
-	if ok {
-		for name, config := range gatherersConfig {
-			// TODO: create gatherer from config in a more clever way. We need to read gatherer config from here and its schema depends on the gatherer itself.
-			var dg datagatherer.DataGatherer
-			dataGathererConfig, ok := config.(map[string]interface{})
-			if !ok {
-				log.Fatalf("Cannot parse %s data gatherer config.", name)
-			}
-			// Check if this data gatherer's config specifies a data-path.
-			// If it does create a LocalDataGatherer to load this data but keep
-			// the name of the data gatherer it is impersonating so it can
-			// provide stubbed data.
-			if dataPath, ok := dataGathererConfig["data-path"].(string); ok && dataPath != "" {
-				dg = localdatagatherer.NewLocalDataGatherer(dataPath)
-				gatherers[name] = dg
-				continue
-			}
-			if name == "eks" {
-				eksConfig, ok := config.(map[string]interface{})
-				if !ok {
-					log.Fatal("Cannot parse 'data-gatherers.eks' in config.")
-				}
-				if clusterName, ok := eksConfig["cluster"].(string); ok && clusterName != "" {
-					dg = eks.NewEKSDataGatherer(clusterName)
-				} else {
-					log.Fatal("'data-gatherers.eks.cluster' should be a non empty string.")
-				}
-			} else if name == "gke" {
-				gkeConfig, ok := config.(map[string]interface{})
-				if !ok {
-					log.Fatal("Cannot parse 'data-gatherers.gke' in config.")
-				}
-				var project, zone, cluster, location, credentialsPath string
-				msg := "'data-gatherers.gke.%s' should be a non empty string."
-				if project, ok = gkeConfig["project"].(string); !ok {
-					log.Fatalf(msg, "project")
-				}
-				if zone, ok = gkeConfig["zone"].(string); ok {
-					log.Println("'data-gatherers.gke.zone' is deprecated and will be deleted soon. Please use 'data-gatherers.gke.location' instead.")
-				}
-				if location, ok = gkeConfig["location"].(string); !ok {
-					if len(zone) == 0 {
-						log.Fatalf(msg, "location")
-					}
-				}
-				if len(location) > 0 && len(zone) > 0 {
-					log.Fatal("'data-gatherers.gke.zone' and 'data-gatherers.gke.location' cannot be used at the same time.")
-				}
-				if cluster, ok = gkeConfig["cluster"].(string); !ok {
-					log.Fatalf(msg, "cluster")
-				}
-				// credentialsPath empty or not-present is also valid
-				credentialsPath, _ = gkeConfig["credentials"].(string)
-				dg = gke.NewGKEDataGatherer(ctx, &gke.Cluster{
-					Project:  project,
-					Zone:     zone,
-					Location: location,
-					Name:     cluster,
-				}, credentialsPath)
-			} else if name == "aks" {
-				aksConfig, ok := config.(map[string]interface{})
-				if !ok {
-					log.Fatal("Cannot parse 'data-gatherers.aks' in config.")
-				}
-				msg := "'data-gatherers.aks.%s' should be a non empty string."
-				var resourceGroup, clusterName, credentialsPath string
-				if resourceGroup, ok = aksConfig["resource-group"].(string); !ok {
-					log.Fatalf(msg, "resource-group")
-				}
-				if clusterName, ok = aksConfig["cluster"].(string); !ok {
-					log.Fatalf(msg, "cluster")
-				}
-				if credentialsPath, ok = aksConfig["credentials"].(string); !ok {
-					log.Fatalf(msg, "credentials")
-				}
-				var err error
-				dg, err = aks.NewAKSDataGatherer(ctx, resourceGroup, clusterName, credentialsPath)
-				if err != nil {
-					log.Fatalf("Cannot instantiate AKS datagatherer: %v", err)
-				}
-			} else if name == "k8s/pods" {
-				podsConfig, ok := config.(map[string]interface{})
-				if !ok {
-					log.Fatal("Cannot parse 'data-gatherers.k8s/pods' in config.")
-				}
-				kubeconfigPath, ok := podsConfig["kubeconfig"].(string)
-				if !ok {
-					log.Println("Didn't find 'kubeconfig' in 'data-gatherers.k8s/pods' configuration. Assuming it runs in-cluster.")
-				}
-				k8sClient, err := k8s.NewClient(expandHome(kubeconfigPath))
-				if err != nil {
-					log.Fatalf("Cannot create k8s client: %+v", err)
-				}
-				dg = k8s.NewPodsDataGatherer(k8sClient)
-			} else if name == "local" {
-				localConfig, ok := config.(map[string]interface{})
-				if !ok {
-					log.Fatal("Cannot parse 'data-gatherers.local' in config.")
-				}
-				dataPath, ok := localConfig["data-path"].(string)
-				dg = localdatagatherer.NewLocalDataGatherer(dataPath)
-			} else {
-				log.Fatalf("Found unsupported data-gatherer %q in config.", name)
-			}
-			gatherers[name] = dg
-		}
-	}
-
-	// Fetch from all datagatherers
-	information := make(map[string]interface{})
-	for k, g := range gatherers {
-		i, err := g.Fetch()
-		if err != nil {
-			log.Fatalf("Error fetching with DataGatherer %q: %s", k, err)
-		}
-		information[k] = i
-	}
-
-	// Load Output config
-	var outputs = make([]output.Output, 0)
-	outputDefinitions, ok := viper.Get("outputs").([]interface{})
-	if !ok {
-		log.Fatalf("No outputs provided")
-	}
-	for _, o := range outputDefinitions {
-		outputDefinition := o.(map[interface{}]interface{})
-		outputType := outputDefinition["type"].(string)
-		var (
-			op  output.Output
-			err error
-		)
-		if outputType == "cli" {
-			var outputFormat string
-			// Format is optional for CLI, will be defaulted to CLI format
-			if outputDefinition["format"] != nil {
-				outputFormat = outputDefinition["format"].(string)
-			} else {
-				outputFormat = ""
-			}
-			op, err = output.NewCLIOutput(outputFormat)
-		} else if outputType == "local" {
-			outputFormat, ok := outputDefinition["format"].(string)
-			if !ok {
-				log.Fatal("Missing 'format' property in local output configuration.")
-			}
-			outputPath, ok := outputDefinition["path"].(string)
-			if !ok {
-				log.Fatal("Missing 'path' property in local output configuration.")
-			}
-			op, err = output.NewLocalOutput(outputFormat, expandHome(outputPath))
-		} else if outputType == "gcs" {
-			outputFormat, ok := outputDefinition["format"].(string)
-			if !ok {
-				log.Fatal("Missing 'format' property in gcs output configuration.")
-			}
-			outputBucketName, ok := outputDefinition["bucket-name"].(string)
-			if !ok {
-				log.Fatal("Missing 'bucket-name' property in gcs output configuration.")
-			}
-			outputCredentialsPath, ok := outputDefinition["credentials-path"].(string)
-			if !ok {
-				log.Fatal("Missing 'credentials-path' property in gcs output configuration.")
-			}
-			op, err = gcs.NewOutput(ctx, outputFormat, outputBucketName, outputCredentialsPath)
-		} else if outputType == "azblob" {
-			outputFormat, ok := outputDefinition["format"].(string)
-			if !ok {
-				log.Fatal("Missing 'format' property in azblob output configuration.")
-			}
-			outputContainer, ok := outputDefinition["container"].(string)
-			if !ok {
-				log.Fatal("Missing 'container' property in azblob output configuration.")
-			}
-			accountName, accountKey := os.Getenv("AZURE_STORAGE_ACCOUNT"), os.Getenv("AZURE_STORAGE_ACCESS_KEY")
-			if len(accountName) == 0 || len(accountKey) == 0 {
-				log.Fatal("Either the AZURE_STORAGE_ACCOUNT or AZURE_STORAGE_ACCESS_KEY environment variable is not set.")
-			}
-			op, err = azblob.NewOutput(ctx, outputFormat, outputContainer, accountName, accountKey)
-		} else {
-			log.Fatalf("Output type not recognised: %s", outputType)
-		}
-		if err != nil {
-			log.Fatalf("Could not create %s output: %s", outputType, err)
-		}
-		outputs = append(outputs, op)
-	}
-
+	// If no outputs are specified add a default CLI output.
 	if len(outputs) == 0 {
-		// Default to CLI output
-		log.Printf("No outputs specified, will default to CLI")
-		op, err := output.NewCLIOutput("")
+		log.Printf("No outputs specified, will default to CLI.")
+		cliOutput, err := output.NewCLIOutput(ctx, &output.CLIOutputConfig{
+			Format: exporter.FormatCLI,
+		})
 		if err != nil {
 			log.Fatalf("Could not create cli output: %s", err)
 		}
-		outputs = append(outputs, op)
+		outputs = append(outputs, cliOutput)
 	}
 
-	type EnabledPackage struct {
-		ID              string
-		EnabledRuleIDs  []string `mapstructure:"enabled-rules"`
-		DisabledRuleIDs []string `mapstructure:"disabled-rules"`
-	}
-	var enabledPackages []EnabledPackage
-	err := viper.UnmarshalKey("enabled-packages", &enabledPackages)
-	if err != nil {
-		log.Printf("unable to decode into struct, %v", err)
-		log.Print("using legacy enabled-packages format")
-		// The failed UnmarshalKey creates an EnabledPackage in the slice,
-		// so we recreate the slice here to make sure it's empty.
-		enabledPackages = []EnabledPackage{}
-		enabledPackageIDs := viper.GetStringSlice("enabled-packages")
-		for _, enabledPackageID := range enabledPackageIDs {
-			enabledPackages = append(enabledPackages, EnabledPackage{ID: enabledPackageID})
+	// Load Preflight packages from PackageSources
+	packages := make([]*packaging.Package, 0)
+	for _, packageSource := range packageSources {
+		loadedPackages, err := packageSource.Load()
+		if err != nil {
+			log.Fatalf("%s", err)
 		}
+		packages = append(packages, loadedPackages...)
 	}
-	if len(enabledPackages) == 0 {
-		log.Fatal("No packages were enabled. Use 'enables-packages' option in configuration to enable the packages you want to use.")
+	if len(packages) == 0 {
+		log.Fatalf("No Preflight packages loaded from package sources.")
+	}
+
+	// Fetch data from data gatherers.
+	data := make(map[string]interface{})
+	for dataGathererType, dataGatherer := range dataGatherers {
+		fetchedData, err := dataGatherer.Fetch()
+		if err != nil {
+			log.Fatalf("Error fetching data with %s data gatherer : %s", dataGathererType, err)
+		}
+		data[dataGathererType] = fetchedData
 	}
 
 	missingRules := false
 	packageReports := []api.Report{}
 	for _, enabledPackage := range enabledPackages {
 		// Make sure we loaded the package for this.
-		pkg := packages[enabledPackage.ID]
+		pkg := getPackageByID(packages, enabledPackage.ID)
 		if pkg == nil {
 			log.Fatalf("Package with ID %q was specified in configuration but it wasn't found.", enabledPackage.ID)
 		}
 
-		manifest := pkg.PolicyManifest()
+		manifest := pkg.PolicyManifest
 		// Make sure we loaded the DataGatherers.
-		for _, g := range manifest.DataGatherers {
-			if gatherers[g] == nil {
-				log.Fatalf("Package with ID %q requires DataGatherer %q, but it is not configured.", pkg.PolicyManifest().ID, g)
+		for _, dataGathererType := range manifest.DataGatherers {
+			if dataGatherers[dataGathererType] == nil {
+				log.Fatalf("Package with ID %q requires DataGatherer %q, but it is not configured.", pkg.PolicyManifest.ID, dataGathererType)
 			}
 		}
 
-		// Extract the exact information needed for this package.
-		input := make(map[string]interface{})
-		for _, dg := range manifest.DataGatherers {
-			input[dg] = information[dg]
+		// Collect the data required for this package
+		inputData := make(map[string]interface{})
+		for _, dataGathererType := range manifest.DataGatherers {
+			inputData[dataGathererType] = data[dataGathererType]
 		}
 
-		rc, err := packaging.EvalPackage(ctx, pkg, input)
+		rc, err := packaging.EvalPackage(ctx, pkg, inputData)
 		if err != nil {
 			if _, ok := err.(*reports.MissingRegoDefinitionError); ok {
 				missingRules = true
@@ -381,12 +220,12 @@ func check() {
 
 		rc = results.FilterResultCollection(rc, enabledPackage.DisabledRuleIDs, enabledPackage.EnabledRuleIDs)
 
-		intermediateBytes, err := json.Marshal(input)
+		intermediateBytes, err := json.Marshal(inputData)
 		if err != nil {
 			log.Fatalf("Cannot marshal intermediate result: %v", err)
 		}
 
-		// build a report to build the updated context for the report index
+		// Build a report to build the updated context for the report index
 		report, err := reports.NewReport(manifest, rc)
 		if err != nil {
 			log.Fatalf("Cannot generate report for results: %v", err)
@@ -424,21 +263,11 @@ func check() {
 	log.Printf("Done.")
 }
 
-func homeDir() string {
-	usr, err := user.Current()
-	if err != nil {
-		return ""
+func getPackageByID(packages []*packaging.Package, packageID string) *packaging.Package {
+	for _, pkg := range packages {
+		if pkg.PolicyManifest.ID == packageID {
+			return pkg
+		}
 	}
-	return usr.HomeDir
-}
-
-func expandHome(path string) string {
-	if len(path) == 0 {
-		return ""
-	}
-
-	if path[:2] == "~/" {
-		return filepath.Join(homeDir(), path[2:])
-	}
-	return path
+	return nil
 }

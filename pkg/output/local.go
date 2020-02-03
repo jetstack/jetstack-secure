@@ -21,10 +21,21 @@ type LocalOutput struct {
 	exporter exporter.Exporter
 }
 
+type LocalOutputConfig struct {
+	Format string
+	Path   string
+}
+
 // NewLocalOutput creates a new LocalOutput
-func NewLocalOutput(format, path string) (*LocalOutput, error) {
+func NewLocalOutput(ctx context.Context, config *LocalOutputConfig) (*LocalOutput, error) {
+	if config.Format == "" {
+		log.Fatal("Missing 'format' property in local output configuration.")
+	}
+	if config.Path == "" {
+		log.Fatal("Missing 'path' property in local output configuration.")
+	}
 	var e exporter.Exporter
-	switch format {
+	switch config.Format {
 	case exporter.FormatJSON:
 		e = exporter.NewJSONExporter()
 	case exporter.FormatRaw:
@@ -36,11 +47,11 @@ func NewLocalOutput(format, path string) (*LocalOutput, error) {
 	case exporter.FormatIntermediate:
 		e = exporter.NewIntermediateExporter()
 	default:
-		return nil, fmt.Errorf("format %q not supported", format)
+		return nil, fmt.Errorf("format %q not supported", config.Format)
 	}
 
 	o := &LocalOutput{
-		path:     path,
+		path:     config.Path,
 		exporter: e,
 	}
 	return o, nil

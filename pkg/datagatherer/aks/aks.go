@@ -19,6 +19,13 @@ type AKSDataGatherer struct {
 	credentials   *AzureCredentials
 }
 
+type AKSDataGathererConfig struct {
+	Cluster       string `mapstructure:"cluster"`
+	ResourceGroup string `mapstructure:"resource-group"`
+	Credentials   string `mapstructure:"credentials"`
+	DataPath      string `mapstructure:"data-path"`
+}
+
 // AKSInfo contains the data retrieved from AKS.
 type AKSInfo struct {
 	Cluster *aks.ManagedCluster
@@ -55,16 +62,16 @@ func readCredentials(path string) (*AzureCredentials, error) {
 }
 
 // NewAKSDataGatherer creates a new AKSDataGatherer for a cluster.
-func NewAKSDataGatherer(ctx context.Context, resourceGroup, clusterName, credentialsPath string) (*AKSDataGatherer, error) {
-	credentials, err := readCredentials(credentialsPath)
+func NewAKSDataGatherer(ctx context.Context, config *AKSDataGathererConfig) (*AKSDataGatherer, error) {
+	credentials, err := readCredentials(config.Credentials)
 	if err != nil {
 		return nil, err
 	}
 
 	return &AKSDataGatherer{
 		ctx:           ctx,
-		resourceGroup: resourceGroup,
-		clusterName:   clusterName,
+		resourceGroup: config.ResourceGroup,
+		clusterName:   config.Cluster,
 		credentials:   credentials,
 	}, nil
 }

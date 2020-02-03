@@ -18,6 +18,15 @@ type GKEDataGatherer struct {
 	credentialsPath string
 }
 
+type GKEDataGathererConfig struct {
+	Project     string `mapstructure:"project"`
+	Location    string `mapstructure:"location"`
+	Zone        string `mapstructure:"location"` // Deprecated
+	Cluster     string `mapstructure:"cluster"`
+	Credentials string `mapstructure:"credentials"`
+	DataPath    string `mapstructure:"data-path"`
+}
+
 // GKEInfo contains the data retrieved from GKE.
 type GKEInfo struct {
 	Cluster *container.Cluster
@@ -33,11 +42,16 @@ type Cluster struct {
 }
 
 // NewGKEDataGatherer creates a new GKEDataGatherer for a cluster.
-func NewGKEDataGatherer(ctx context.Context, cluster *Cluster, credsPath string) *GKEDataGatherer {
+func NewGKEDataGatherer(ctx context.Context, config *GKEDataGathererConfig) *GKEDataGatherer {
 	return &GKEDataGatherer{
-		ctx:             ctx,
-		cluster:         cluster,
-		credentialsPath: credsPath,
+		ctx: ctx,
+		cluster: &Cluster{
+			Project:  config.Project,
+			Zone:     config.Zone,
+			Name:     config.Cluster,
+			Location: config.Location,
+		},
+		credentialsPath: config.Credentials,
 	}
 }
 

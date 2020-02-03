@@ -14,21 +14,36 @@ import (
 	"google.golang.org/api/option"
 )
 
-// Output writes to a Google Cloud Storage bucket
-type Output struct {
+// GCSOutput writes to a Google Cloud Storage bucket
+type GCSOutput struct {
 	bucket   *storage.BucketHandle
 	exporter exporter.Exporter
 }
 
-// NewOutput creates a new Output
-func NewOutput(ctx context.Context, format, bucketName, credentialsPath string) (*Output, error) {
-	c, err := storage.NewClient(ctx, option.WithCredentialsFile(credentialsPath))
+type GCSOutputConfig struct {
+	Format          string
+	BucketName      string
+	CredentialsPath string
+}
+
+// NewGCSOutput creates a new GCSOutput
+func NewGCSOutput(ctx context.Context, config *GCSOutputConfig) (*GCSOutput, error) {
+	if config.Format == "" {
+		log.Fatal("Missing 'format' property in gcs output configuration.")
+	}
+	if config.BucketName == "" {
+		log.Fatal("Missing 'bucket-name' property in gcs output configuration.")
+	}
+	if config.CredentialsPath == "" {
+		log.Fatal("Missing 'credentials-path' property in gcs output configuration.")
+	}
+	c, err := storage.NewClient(ctx, option.WithCredentialsFile(config.CredentialsPath))
 	if err != nil {
 		log.Fatalf("Failed to open Google Cloud Storage connection: %s", err)
 	}
-	s := c.Bucket(bucketName)
+	s := c.Bucket(config.BucketName)
 	var e exporter.Exporter
-	switch format {
+	switch config.Format {
 	case exporter.FormatJSON:
 		e = exporter.NewJSONExporter()
 	case exporter.FormatRaw:
@@ -40,10 +55,10 @@ func NewOutput(ctx context.Context, format, bucketName, credentialsPath string) 
 	case exporter.FormatIntermediate:
 		e = exporter.NewIntermediateExporter()
 	default:
-		return nil, fmt.Errorf("format %q not supported", format)
+		return nil, fmt.Errorf("format %q not supported", config.Format)
 	}
 
-	o := &Output{
+	o := &GCSOutput{
 		bucket:   s,
 		exporter: e,
 	}
@@ -51,7 +66,7 @@ func NewOutput(ctx context.Context, format, bucketName, credentialsPath string) 
 }
 
 // Write exports data in the specified format and writes it to the specified GCS bucket
-func (o *Output) Write(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, rc *results.ResultCollection, cluster string, timestamp time.Time) error {
+func (o *GCSOutput) Write(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, rc *results.ResultCollection, cluster string, timestamp time.Time) error {
 	buffer, err := o.exporter.Export(ctx, policyManifest, intermediateJSON, rc)
 	if err != nil {
 		return err
@@ -69,7 +84,7 @@ func (o *Output) Write(ctx context.Context, policyManifest *packaging.PolicyMani
 }
 
 // WriteIndex exports clusterSummary data in the specified format
-func (o *Output) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) (err error) {
+func (o *GCSOutput) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) (err error) {
 	buffer, err := o.exporter.ExportIndex(ctx, clusterSummary)
 	if err != nil {
 		return err

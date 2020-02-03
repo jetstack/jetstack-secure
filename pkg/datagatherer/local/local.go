@@ -1,15 +1,22 @@
 package local
 
-import "io/ioutil"
+import (
+	"context"
+	"io/ioutil"
+)
 
 type LocalDataGatherer struct {
 	dataPath string
 }
 
+type LocalDataGathererConfig struct {
+	DataPath string `mapstructure:"data-path"`
+}
+
 // NewLocalDataGatherer returns a LocalDatagatherer with the dataPath provided.
-func NewLocalDataGatherer(dataPath string) *LocalDataGatherer {
+func NewLocalDataGatherer(ctx context.Context, config *LocalDataGathererConfig) *LocalDataGatherer {
 	return &LocalDataGatherer{
-		dataPath: dataPath,
+		dataPath: config.DataPath,
 	}
 }
 

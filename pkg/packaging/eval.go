@@ -9,12 +9,12 @@ import (
 )
 
 // EvalPackage evaluates the rules in a package given an input.
-func EvalPackage(ctx context.Context, pkg Package, input interface{}) (*results.ResultCollection, error) {
+func EvalPackage(ctx context.Context, pkg *Package, input interface{}) (*results.ResultCollection, error) {
 	allResults := rego.ResultSet{}
-	for file, text := range pkg.RegoText() {
+	for file, text := range pkg.Rego {
 		// Execute Open Policy Agent rules engine
 		r := rego.New(
-			rego.Query(pkg.PolicyManifest().RootQuery),
+			rego.Query(pkg.PolicyManifest.RootQuery),
 			rego.Module(file, text),
 			rego.Input(input),
 		)

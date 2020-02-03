@@ -1,7 +1,9 @@
 package local
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -15,38 +17,84 @@ import (
 
 const ManifestName = "policy-manifest.yaml"
 
-type LocalPackage struct {
-	manifest   *packaging.PolicyManifest
-	rules      map[string]string
-	rulesTests map[string]string
+type LocalPackageSourceConfig struct {
+	Path string
 }
 
-func (lp *LocalPackage) PolicyManifest() *packaging.PolicyManifest {
-	return lp.manifest
+func NewLocalPackageSource(ctx context.Context, config *LocalPackageSourceConfig) (*LocalPackageSource, error) {
+	if config.Path == "" {
+		return nil, fmt.Errorf("Local package source has invalid path: %s", config.Path)
+	}
+	localPackageSource := &LocalPackageSource{
+		path: config.Path,
+	}
+	return localPackageSource, nil
 }
 
-func (lp *LocalPackage) RegoText() map[string]string {
-	return lp.rules
+type LocalPackageSource struct {
+	path string
 }
 
-func (lp *LocalPackage) RegoTestsText() map[string]string {
-	return lp.rulesTests
+func (ps *LocalPackageSource) Load() ([]*packaging.Package, error) {
+	return loadPackagesFromDirectory(ps.path)
 }
 
-func IsPolicyFile(file os.FileInfo) bool {
-	return !file.IsDir() &&
-		strings.HasSuffix(file.Name(), ".rego") &&
-		!strings.HasSuffix(file.Name(), "_test.rego")
+// loadPackagesFromDirectory searches the directory specified for Preflight
+// packages, recursively searching sub-directories. When it finds a package it
+// loads it with loadPackageFromDirectory.
+func loadPackagesFromDirectory(dirPath string) ([]*packaging.Package, error) {
+	// Check we've been given a directory
+	fi, err := os.Stat(dirPath)
+	if err != nil {
+		return nil, err
+	}
+	if !fi.IsDir() {
+		return nil, errors.New("Search path is not a directory")
+	}
+
+	// Create list to accumulate loaded packages
+	var packages = make([]*packaging.Package, 0)
+
+	// Check if a manifest file exists
+	manifestPath := filepath.Join(dirPath, ManifestName)
+	if _, err := os.Stat(manifestPath); err == nil {
+		// If so this dir is a package
+		loadedPackage, err := loadPackageFromDirectory(dirPath)
+		if err != nil {
+			return nil, err
+		}
+		packages = append(packages, loadedPackage)
+		return packages, nil
+	}
+
+	// Otherwise assume this dir contains package dirs
+	dirEntries, err := ioutil.ReadDir(dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range dirEntries {
+		// Ignore things that aren't dirs
+		if !entry.IsDir() {
+			continue
+		}
+		// Allow nested package dirs
+		entryPath := filepath.Join(dirPath, entry.Name())
+		loadedPackages, err := loadPackagesFromDirectory(entryPath)
+		// Any errors on nested dirs will stop search and return
+		if err != nil {
+			return nil, err
+		}
+		// Add newly loaded packages to main list
+		packages = append(packages, loadedPackages...)
+	}
+
+	return packages, nil
 }
 
-func IsPolicyTestFile(file os.FileInfo) bool {
-	return !file.IsDir() &&
-		strings.HasSuffix(file.Name(), "_test.rego")
-}
-
-// LoadLocalPackage eagerly reads and parses files on disk to present
-// a Preflight package.
-func LoadLocalPackage(dirPath string) (*LocalPackage, error) {
+// loadPackageFromDirectory loads a Preflight package from the directory
+// specified.
+func loadPackageFromDirectory(dirPath string) (*packaging.Package, error) {
 	// Check we've been given a directory
 	fi, err := os.Stat(dirPath)
 	if err != nil {
@@ -106,55 +154,21 @@ func LoadLocalPackage(dirPath string) (*LocalPackage, error) {
 	}
 
 	// Create the struct and fire it back
-	return &LocalPackage{manifest: &manifest, rules: regos, rulesTests: regoTests}, nil
+	loadedPackage := &packaging.Package{
+		PolicyManifest: &manifest,
+		Rego:           regos,
+		RegoTests:      regoTests,
+	}
+	return loadedPackage, nil
 }
 
-func LoadLocalPackages(dirPath string) ([]*LocalPackage, error) {
-	// Check we've been given a directory
-	fi, err := os.Stat(dirPath)
-	if err != nil {
-		return nil, err
-	}
-	if !fi.IsDir() {
-		return nil, errors.New("Search path is not a directory")
-	}
+func IsPolicyFile(file os.FileInfo) bool {
+	return !file.IsDir() &&
+		strings.HasSuffix(file.Name(), ".rego") &&
+		!strings.HasSuffix(file.Name(), "_test.rego")
+}
 
-	// Create list to accumulate loaded packages
-	var packages = make([]*LocalPackage, 0)
-
-	// Check if a manifest file exists
-	manifestPath := filepath.Join(dirPath, ManifestName)
-	if _, err := os.Stat(manifestPath); err == nil {
-		// If so this dir is a package
-		loadedPackage, err := LoadLocalPackage(dirPath)
-		if err != nil {
-			return nil, err
-		}
-		packages = append(packages, loadedPackage)
-		return packages, nil
-	}
-
-	// Otherwise assume this dir contains package dirs
-	dirEntries, err := ioutil.ReadDir(dirPath)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, entry := range dirEntries {
-		// Ignore things that aren't dirs
-		if !entry.IsDir() {
-			continue
-		}
-		// Allow nested package dirs
-		entryPath := filepath.Join(dirPath, entry.Name())
-		loadedPackages, err := LoadLocalPackages(entryPath)
-		// Any errors on nested dirs will stop search and return
-		if err != nil {
-			return nil, err
-		}
-		// Add newly loaded packages to main list
-		packages = append(packages, loadedPackages...)
-	}
-
-	return packages, nil
+func IsPolicyTestFile(file os.FileInfo) bool {
+	return !file.IsDir() &&
+		strings.HasSuffix(file.Name(), "_test.rego")
 }

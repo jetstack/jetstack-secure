@@ -17,10 +17,15 @@ type CLIOutput struct {
 	exporter exporter.Exporter
 }
 
+type CLIOutputConfig struct {
+	Format string
+}
+
 // NewCLIOutput creates a new CLIOutput
-func NewCLIOutput(format string) (*CLIOutput, error) {
+func NewCLIOutput(ctx context.Context, config *CLIOutputConfig) (*CLIOutput, error) {
+	format := config.Format
 	if format == "" {
-		format = "cli"
+		format = exporter.FormatCLI
 	}
 	var e exporter.Exporter
 	switch format {

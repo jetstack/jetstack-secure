@@ -1,6 +1,10 @@
 package k8s
 
 import (
+	"context"
+	"log"
+
+	"github.com/jetstack/preflight/pkg/homeutils"
 	"github.com/pkg/errors"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,13 +16,21 @@ type PodsDataGatherer struct {
 	client *kubernetes.Clientset
 }
 
+type PodsDataGathererConfig struct {
+	KubeConfig string `mapstructure:"kubeconfig,omitempty"`
+}
+
 // PodsInfo contains Pods information retrieved from the Kubernetes API.
 type PodsInfo *core.PodList
 
 // NewPodsDataGatherer creates a new PodsDataGatherer.
-func NewPodsDataGatherer(client *kubernetes.Clientset) *PodsDataGatherer {
+func NewPodsDataGatherer(ctx context.Context, config *PodsDataGathererConfig) *PodsDataGatherer {
+	k8sClient, err := NewClient(homeutils.ExpandHome(config.KubeConfig))
+	if err != nil {
+		log.Fatalf("Cannot create k8s client: %+v", err)
+	}
 	return &PodsDataGatherer{
-		client: client,
+		client: k8sClient,
 	}
 }
 

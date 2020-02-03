@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"net/url"
 	"time"
 
@@ -16,26 +17,45 @@ import (
 )
 
 // Output writes to an Azure Blob Storage bucket
-type Output struct {
+type AZBlobOutput struct {
 	credential azblob.Credential
 	container  url.URL
 	exporter   exporter.Exporter
 }
 
-// NewOutput creates a new Output
-func NewOutput(ctx context.Context, format, containerName, accountName, accountKey string) (*Output, error) {
-	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
+type AZBlobOutputConfig struct {
+	Format        string
+	ContainerName string
+	AccountName   string
+	AccountKey    string
+}
+
+// NewAZBlobOutput creates a new Output
+func NewAZBlobOutput(ctx context.Context, config *AZBlobOutputConfig) (*AZBlobOutput, error) {
+	if config.Format == "" {
+		log.Fatal("Missing 'format' property in azblob output configuration.")
+	}
+	if config.ContainerName == "" {
+		log.Fatal("Missing 'container' property in azblob output configuration.")
+	}
+	if config.AccountName == "" {
+		log.Fatal("Either the AZURE_STORAGE_ACCOUNT or AZURE_STORAGE_ACCESS_KEY environment variable is not set.")
+	}
+	if config.AccountKey == "" {
+		log.Fatal("Either the AZURE_STORAGE_ACCOUNT or AZURE_STORAGE_ACCESS_KEY environment variable is not set.")
+	}
+	credential, err := azblob.NewSharedKeyCredential(config.AccountName, config.AccountKey)
 	if err != nil {
 		return nil, err
 	}
 
-	container, err := url.Parse(fmt.Sprintf("https://%s.blob.core.windows.net/%s", accountName, containerName))
+	container, err := url.Parse(fmt.Sprintf("https://%s.blob.core.windows.net/%s", config.AccountName, config.ContainerName))
 	if err != nil {
 		return nil, err
 	}
 
 	var e exporter.Exporter
-	switch format {
+	switch config.Format {
 	case exporter.FormatJSON:
 		e = exporter.NewJSONExporter()
 	case exporter.FormatRaw:
@@ -47,10 +67,10 @@ func NewOutput(ctx context.Context, format, containerName, accountName, accountK
 	case exporter.FormatIntermediate:
 		e = exporter.NewIntermediateExporter()
 	default:
-		return nil, fmt.Errorf("format %q not supported", format)
+		return nil, fmt.Errorf("format %q not supported", config.Format)
 	}
 
-	return &Output{
+	return &AZBlobOutput{
 		credential: credential,
 		container:  *container,
 		exporter:   e,
@@ -58,7 +78,7 @@ func NewOutput(ctx context.Context, format, containerName, accountName, accountK
 }
 
 // Write exports data in the specified format and writes it to the speficied bucket
-func (o *Output) Write(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, rc *results.ResultCollection, cluster string, timestamp time.Time) error {
+func (o *AZBlobOutput) Write(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, rc *results.ResultCollection, cluster string, timestamp time.Time) error {
 	buffer, err := o.exporter.Export(ctx, policyManifest, intermediateJSON, rc)
 	if err != nil {
 		return err
@@ -70,7 +90,7 @@ func (o *Output) Write(ctx context.Context, policyManifest *packaging.PolicyMani
 }
 
 // WriteIndex exports clusterSummary data in the specified format
-func (o *Output) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) error {
+func (o *AZBlobOutput) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) error {
 	buffer, err := o.exporter.ExportIndex(ctx, clusterSummary)
 	if err != nil {
 		return err
@@ -81,7 +101,7 @@ func (o *Output) WriteIndex(ctx context.Context, cluster string, timestamp time.
 	return writeBufferToPath(o, ctx, path, buffer)
 }
 
-func writeBufferToPath(o *Output, ctx context.Context, path string, buffer *bytes.Buffer) error {
+func writeBufferToPath(o *AZBlobOutput, ctx context.Context, path string, buffer *bytes.Buffer) error {
 	pipeline := azblob.NewPipeline(o.credential, azblob.PipelineOptions{})
 	containerURL := azblob.NewContainerURL(o.container, pipeline)
 	blobURL := containerURL.NewBlockBlobURL(path)

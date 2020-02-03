@@ -2,6 +2,8 @@
 package eks
 
 import (
+	"context"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
@@ -13,6 +15,10 @@ type EKSDataGatherer struct {
 	clusterName string
 }
 
+type EKSDataGathererConfig struct {
+	ClusterName string
+}
+
 // EKSInfo contains the data retrieved from EKS.
 type EKSInfo struct {
 	// https://docs.aws.amazon.com/sdk-for-go/api/service/eks/#Cluster
@@ -20,10 +26,10 @@ type EKSInfo struct {
 }
 
 // NewEKSDataGatherer creates a new EKSDataGatherer for a cluster.
-func NewEKSDataGatherer(clusterName string) *EKSDataGatherer {
+func NewEKSDataGatherer(ctx context.Context, config *EKSDataGathererConfig) *EKSDataGatherer {
 	return &EKSDataGatherer{
 		client:      eks.New(session.New()),
-		clusterName: clusterName,
+		clusterName: config.ClusterName,
 	}
 }
 
