@@ -277,3 +277,24 @@ sections:
       section to include a `namespace`.
     links:
     - "https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/"
+- id: affinity
+  name: Affinity
+  rules:
+  - id: node_affinity_used
+    name: Node affinity used
+    description: >
+      In some cases it may be preferable or required for a Pod to run on a
+      particular Node. This is usually when some Nodes have different resources,
+      such as additional memory or SSD storage, that is beneficial or required
+      for certain workloads.
+    remediation: >
+      Pods can be assigned to nodes using `nodeSelector`, however this is a very
+      limited constraint. Instead it's recommended that `nodeAffinity` is used
+      as it greatly expands the types of constraints you can express. There are
+      two types of node affinity; 
+      `requiredDuringSchedulingIgnoredDuringExecution` which specifies a hard
+      requirement, and `preferredDuringSchedulingIgnoredDuringExecution` which
+      specifies a preference. Full details of the constraints can be found in
+      the linked documentation.
+    links:
+    - "https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity"

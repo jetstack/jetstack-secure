@@ -1826,3 +1826,64 @@ test_deployments_across_multiple_namespaces_multiple_default {
 		}
 	)
 }
+
+# Affinity
+
+# Node affinity used
+test_node_affinity_used_used {
+	output := node_affinity_used with input as pods(
+		[
+			{
+				"metadata": {
+					"name": "foo",
+					"namespace": "default"
+				},
+				"spec": {
+					"affinity": {
+    					"nodeAffinity": {
+							"requiredDuringSchedulingIgnoredDuringExecution": {
+        						"nodeSelectorTerms": [
+        							{
+										"matchExpressions": [
+											{
+												"key": "kubernetes.io/e2e-az-name",
+												"operator": "In",
+												"values": [
+													"e2e-az1",
+													"e2e-az2"
+												]
+											}
+										]
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		]
+	)
+	assert_allowed(output)
+}
+test_node_affinity_used_node_selector {
+	output := node_affinity_used with input as pods(
+		[
+			{
+				"metadata": {
+					"name": "foo",
+					"namespace": "default"
+				},
+				"spec": {
+					"nodeSelector": {
+						"disktype": "ssd"
+					}
+				}
+			}
+		]
+	)
+	assert_violates(output,
+		{
+			"pod 'foo' is using node selector"
+		}
+	)
+}
