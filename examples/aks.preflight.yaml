@@ -18,7 +18,7 @@ enabled-packages:
 outputs:
 # uploads a json file to Azure Blob Storage.
 # `AZURE_STORAGE_ACCOUNT` and `AZURE_STORAGE_ACCESS_KEY` env vars need to be set.
-- type: azblob/
+- type: azblob
   container: mycontainer
   format: json
 # writes a file with the data gathered.
