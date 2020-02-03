@@ -313,6 +313,9 @@ func check() {
 	if err != nil {
 		log.Printf("unable to decode into struct, %v", err)
 		log.Print("using legacy enabled-packages format")
+		// The failed UnmarshalKey creates an EnabledPackage in the slice,
+		// so we recreate the slice here to make sure it's empty.
+		enabledPackages = []EnabledPackage{}
 		enabledPackageIDs := viper.GetStringSlice("enabled-packages")
 		for _, enabledPackageID := range enabledPackageIDs {
 			enabledPackages = append(enabledPackages, EnabledPackage{ID: enabledPackageID})
