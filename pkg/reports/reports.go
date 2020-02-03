@@ -126,8 +126,10 @@ func NewReport(pm *packaging.PolicyManifest, rc *results.ResultCollection) (api.
 
 			switch {
 			case result == nil:
-				missing = true
-				missingRules = append(missingRules, rule.ID)
+				if !rule.Manual {
+					missing = true
+					missingRules = append(missingRules, rule.ID)
+				}
 			case result.IsFailureState():
 				success = false
 				violations = result.Violations
