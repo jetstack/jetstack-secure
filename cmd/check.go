@@ -16,6 +16,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer/eks"
 	"github.com/jetstack/preflight/pkg/datagatherer/gke"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
+	localdatagatherer "github.com/jetstack/preflight/pkg/datagatherer/local"
 	"github.com/jetstack/preflight/pkg/output"
 	"github.com/jetstack/preflight/pkg/output/azblob"
 	"github.com/jetstack/preflight/pkg/output/gcs"
@@ -207,6 +208,13 @@ func check() {
 					log.Fatalf("Cannot create k8s client: %+v", err)
 				}
 				dg = k8s.NewPodsDataGatherer(k8sClient)
+			} else if name == "local" {
+				localConfig, ok := config.(map[string]interface{})
+				if !ok {
+					log.Fatal("Cannot parse 'data-gatherers.local' in config.")
+				}
+				dataPath, ok := localConfig["data-path"].(string)
+				dg = localdatagatherer.NewLocalDataGatherer(dataPath)
 			} else {
 				log.Fatalf("Found unsupported data-gatherer %q in config.", name)
 			}
