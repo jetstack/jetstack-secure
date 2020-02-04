@@ -178,7 +178,7 @@ func check() {
 					log.Fatal("Cannot parse 'data-gatherers.aks' in config.")
 				}
 				msg := "'data-gatherers.aks.%s' should be a non empty string."
-				var resourceGroup, clusterName, credentialsPath, dataPath string
+				var resourceGroup, clusterName, credentialsPath string
 				if resourceGroup, ok = aksConfig["resource-group"].(string); !ok {
 					log.Fatalf(msg, "resource-group")
 				}
@@ -188,11 +188,8 @@ func check() {
 				if credentialsPath, ok = aksConfig["credentials"].(string); !ok {
 					log.Fatalf(msg, "credentials")
 				}
-				if dataPath, ok = aksConfig["data-path"].(string); !ok {
-					log.Fatalf(msg, "credentials")
-				}
 				var err error
-				dg, err = aks.NewAKSDataGatherer(ctx, resourceGroup, clusterName, credentialsPath, dataPath)
+				dg, err = aks.NewAKSDataGatherer(ctx, resourceGroup, clusterName, credentialsPath)
 				if err != nil {
 					log.Fatalf("Cannot instantiate AKS datagatherer: %v", err)
 				}
