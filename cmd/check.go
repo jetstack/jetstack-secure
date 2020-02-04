@@ -131,6 +131,19 @@ func check() {
 		for name, config := range gatherersConfig {
 			// TODO: create gatherer from config in a more clever way. We need to read gatherer config from here and its schema depends on the gatherer itself.
 			var dg datagatherer.DataGatherer
+			dataGathererConfig, ok := config.(map[string]interface{})
+			if !ok {
+				log.Fatalf("Cannot parse %s data gatherer config.", name)
+			}
+			// Check if this data gatherer's config specifies a data-path.
+			// If it does create a LocalDataGatherer to load this data but keep
+			// the name of the data gatherer it is impersonating so it can
+			// provide fake data.
+			if dataPath, ok := dataGathererConfig["data-path"].(string); ok && dataPath != "" {
+				dg = localdatagatherer.NewLocalDataGatherer(dataPath)
+				gatherers[name] = dg
+				continue
+			}
 			if name == "eks" {
 				eksConfig, ok := config.(map[string]interface{})
 				if !ok {
