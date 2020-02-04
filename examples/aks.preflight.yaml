@@ -13,7 +13,6 @@ package-sources:
 
 enabled-packages:
 - id: "examples.jetstack.io/aks_basic"
-- id: "jetstack.io/pods"
 
 # This configures how the results will be reported.
 outputs:
