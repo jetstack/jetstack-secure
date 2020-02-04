@@ -16,8 +16,8 @@ package-sources:
   dir: /preflight-packages/
 
 enabled-packages:
-  - "examples.jetstack.io/gke_basic"
-  - "jetstack.io/pods"
+- id: "examples.jetstack.io/gke_basic"
+- id: "jetstack.io/pods"
 
 outputs:
 - type: gcs

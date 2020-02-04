@@ -12,7 +12,7 @@ package-sources:
   dir: preflight-packages/
 
 enabled-packages:
-  - "examples.jetstack.io/aks_basic"
+- id: "examples.jetstack.io/aks_basic"
 
 # This configures how the results will be reported.
 outputs:

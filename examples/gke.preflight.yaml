@@ -13,9 +13,6 @@ data-gatherers:
     # Path to a file containing the credentials. If empty, it will try to use Workload Identity (run `gcloud auth application-default login`).
     # credentials: /tmp/credentials.json
 
-  k8s/pods:
-    kubeconfig: ~/.kube/config
-
 # This configures where the preflight packages are located.
 package-sources:
 - type: local
@@ -23,8 +20,7 @@ package-sources:
 
 # Preflight will only evaluate the packages listed here.
 enabled-packages:
-  - "examples.jetstack.io/gke_basic"
-  - "jetstack.io/pods"
+- id: "examples.jetstack.io/gke_basic"
 
 # This configures how the results will be reported.
 outputs:
