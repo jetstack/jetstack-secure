@@ -1,0 +1,21 @@
+cluster-name: my-fake-cluster
+
+data-gatherers:
+  aks:
+    # Fake data for AKS.
+    data-path: ./examples/data/aks.json
+  gke:
+    # Fake data for GKE.
+    data-path: ./examples/data/gke.json
+
+package-sources:
+- type: local
+  dir: preflight-packages/
+
+enabled-packages:
+  - "examples.jetstack.io/aks_basic"
+  - "examples.jetstack.io/gke_basic"
+
+outputs:
+# Write the report to the CLI.
+- type: cli
