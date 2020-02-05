@@ -138,7 +138,7 @@ func check() {
 			// Check if this data gatherer's config specifies a data-path.
 			// If it does create a LocalDataGatherer to load this data but keep
 			// the name of the data gatherer it is impersonating so it can
-			// provide fake data.
+			// provide stubbed data.
 			if dataPath, ok := dataGathererConfig["data-path"].(string); ok && dataPath != "" {
 				dg = localdatagatherer.NewLocalDataGatherer(dataPath)
 				gatherers[name] = dg

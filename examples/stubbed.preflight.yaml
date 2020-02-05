@@ -1,11 +1,11 @@
-cluster-name: my-fake-cluster
+cluster-name: my-stubbed-cluster
 
 data-gatherers:
   aks:
-    # Fake data for AKS.
+    # Stubbed data for AKS.
     data-path: ./examples/data/aks.json
   gke:
-    # Fake data for GKE.
+    # Stubbed data for GKE.
     data-path: ./examples/data/gke.json
 
 package-sources:
