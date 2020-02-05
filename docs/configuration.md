@@ -41,6 +41,7 @@ The following data gatherers are available:
 - [Google Kubernetes Engine](docs/datagatherers/gke.md)
 - [Amazon Elastic Kubernetes Service](docs/datagatherers/eks.md)
 - [Microsoft Azure Kubernetes Service](docs/datagatherers/aks.md)
+- [Local](docs/datagatheres/local.md)
 
 # Package Sources
 

@@ -1,0 +1,45 @@
+{
+  "aks": {
+    "Cluster": {
+      "properties": {
+        "networkProfile": {
+          "dockerBridgeCidr": "172.17.0.1/16",
+          "dnsServiceIP": "10.0.0.10",
+          "serviceCidr": "10.0.0.0/16",
+          "podCidr": "10.244.0.0/16",
+          "networkPlugin": "kubenet"
+        },
+        "enableRBAC": true,
+        "nodeResourceGroup": "MC_preflight_preflight-test_uksouth",
+        "addonProfiles": {
+          "httpApplicationRouting": {
+            "config": null,
+            "enabled": false
+          }
+        },
+        "servicePrincipalProfile": {
+          "clientId": "***********************"
+        },
+        "agentPoolProfiles": [
+          {
+            "osType": "Linux",
+            "maxPods": 110,
+            "storageProfile": "ManagedDisks",
+            "osDiskSizeGB": 100,
+            "vmSize": "Standard_B2s",
+            "count": 1,
+            "name": "agentpool"
+          }
+        ],
+        "fqdn": "preflight-test-dns-f2de96e5.hcp.uksouth.azmk8s.io",
+        "dnsPrefix": "preflight-test-dns",
+        "kubernetesVersion": "1.14.8",
+        "provisioningState": "Succeeded"
+      },
+      "type": "Microsoft.ContainerService/ManagedClusters",
+      "name": "preflight-test",
+      "location": "uksouth",
+      "id": "/subscriptions/*****************/resourcegroups/preflight/providers/Microsoft.ContainerService/managedClusters/preflight-test"
+    }
+  }
+}

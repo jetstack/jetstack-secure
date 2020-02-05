@@ -1,0 +1,144 @@
+{
+  "addonsConfig": {
+    "horizontalPodAutoscaling": {},
+    "httpLoadBalancing": {},
+    "istioConfig": {
+      "disabled": true
+    },
+    "kubernetesDashboard": {
+      "disabled": true
+    },
+    "networkPolicyConfig": {
+      "disabled": true
+    }
+  },
+  "authenticatorGroupsConfig": {},
+  "clusterIpv4Cidr": "10.4.0.0/14",
+  "clusterTelemetry": {
+    "type": "ENABLED"
+  },
+  "createTime": "2020-01-15T18:55:55+00:00",
+  "currentMasterVersion": "1.14.8-gke.12",
+  "currentNodeCount": 3,
+  "currentNodeVersion": "1.14.8-gke.12",
+  "databaseEncryption": {
+    "state": "DECRYPTED"
+  },
+  "defaultMaxPodsConstraint": {
+    "maxPodsPerNode": "110"
+  },
+  "endpoint": "104.155.177.255",
+  "initialClusterVersion": "1.14.8-gke.12",
+  "instanceGroupUrls": [
+    "https://www.googleapis.com/compute/v1/projects/jetstack-wil/zones/us-central1-a/instanceGroupManagers/gke-standard-cluster-2-default-pool-83d58bed-grp"
+  ],
+  "ipAllocationPolicy": {
+    "clusterIpv4Cidr": "10.4.0.0/14",
+    "clusterIpv4CidrBlock": "10.4.0.0/14",
+    "clusterSecondaryRangeName": "gke-standard-cluster-2-pods-fddd6f46",
+    "servicesIpv4Cidr": "10.70.0.0/20",
+    "servicesIpv4CidrBlock": "10.70.0.0/20",
+    "servicesSecondaryRangeName": "gke-standard-cluster-2-services-fddd6f46",
+    "useIpAliases": true
+  },
+  "labelFingerprint": "a9dc16a7",
+  "legacyAbac": {},
+  "location": "us-central1-a",
+  "locations": [
+    "us-central1-a"
+  ],
+  "loggingService": "logging.googleapis.com/kubernetes",
+  "maintenancePolicy": {
+    "resourceVersion": "e3b0c442"
+  },
+  "masterAuth": {
+    "clusterCaCertificate": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURERENDQWZTZ0F3SUJBZ0lSQUtQT2NXc0JGTzFiZTJrbWZxMFZZNzh3RFFZSktvWklodmNOQVFFTEJRQXcKTHpFdE1Dc0dBMVVFQXhNa1pXSmtPVGxqTlRNdE5XRTRZaTAwT1dRMUxUZzJOV1V0TUdVell6a3daakJsWldGaApNQjRYRFRJd01ERXhOVEUzTlRVMU5Wb1hEVEkxTURFeE16RTROVFUxTlZvd0x6RXRNQ3NHQTFVRUF4TWtaV0prCk9UbGpOVE10TldFNFlpMDBPV1ExTFRnMk5XVXRNR1V6WXprd1pqQmxaV0ZoTUlJQklqQU5CZ2txaGtpRzl3MEIKQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBM0xiSkJ0Vkoxa2gxNERXWmhKMlRZMkxtTzFXSk51NjNLZzhBazVEegpWb3hzTml4VXBZQkZwaUkxN0J1Qm12bXkvQmN1czIrcTFIWmxtLzZNc29wZ1JWaHFFaUdnaDhEanhsaHBhckkwCjNxekJjRTVkaXE1dGd3V3pGeDF0S20wRmdmUGt3ZzRUTHZ2d25VaERMU21ranhuS2RBRVdCbnR2WDZxNkJmZ3AKbEczazJtd0gyYUNiYVNMSm1kRXJUR3RNMVFWN1N0REVYR2N3TlVjOUZheDNQbzk1elFLNjQ4N1U3N291ZVExeQpTQU9JVWZ4aDU2MFpVU1E1OXRYdkVTTWN2SUdKaVUvSWNCVHAvZ1VIUm5xb0RRRitvQmVKRm1abENla2hPeWthCnVlK052a09GSnI1TW1Rdys0ck5uV2NvbTdlZzljRWh2cWhpSFBHYU1wem9xSndJREFRQUJveU13SVRBT0JnTlYKSFE4QkFmOEVCQU1DQWdRd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBTkJna3Foa2lHOXcwQkFRc0ZBQU9DQVFFQQoxRDJiT1p4b0lpMG9EOXVGQTY1WXowRFlyclMzWUo3K3lkWXNjVFR0VEg5Ry9PWkhZcU5sTTM1SXJmbE1SYUFaCmNFL3VBUThSaGorcWtuQ01OUHhLL3pqYVYyVGhxMzlYYzZlSTlqeWl5RDVRb3lmSHBPeWF1aGpFTXVoajU1L3oKVmlleHE2VGZ6cXhBakJhWTJhMmpQVk81c1ZyZVZqUnNzUFlncEh4YVk2a25WQlZ4Rzg0WHB6bWJiUFk2cjlBNwphZ2ROWldvQms4cUxtRmxxVnBoYVRsNnpoeXczS2dhL09VQUNlQkZZN0lXQzM2bTVkV2xOWlVXbHRWS3EvaE5NCkV1VlRKMXNUblhFVXplTlBnZ1FaRy9qbzA3bWI0SnFHWmZNaFBZTE9mZExhdUxPcTJhNjAwcnlkUTk4dFB5L0YKS2FSaG0xVWp3M1oxZTNZeno0cUQ4UT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"
+  },
+  "masterAuthorizedNetworksConfig": {},
+  "monitoringService": "monitoring.googleapis.com/kubernetes",
+  "name": "standard-cluster-2",
+  "network": "default",
+  "networkConfig": {
+    "network": "projects/jetstack-wil/global/networks/default",
+    "subnetwork": "projects/jetstack-wil/regions/us-central1/subnetworks/default"
+  },
+  "networkPolicy": {},
+  "nodeConfig": {
+    "diskSizeGb": 100,
+    "diskType": "pd-standard",
+    "imageType": "COS",
+    "machineType": "n1-standard-1",
+    "metadata": {
+      "disable-legacy-endpoints": "true"
+    },
+    "oauthScopes": [
+      "https://www.googleapis.com/auth/devstorage.read_only",
+      "https://www.googleapis.com/auth/logging.write",
+      "https://www.googleapis.com/auth/monitoring",
+      "https://www.googleapis.com/auth/servicecontrol",
+      "https://www.googleapis.com/auth/service.management.readonly",
+      "https://www.googleapis.com/auth/trace.append"
+    ],
+    "serviceAccount": "default",
+    "shieldedInstanceConfig": {
+      "enableIntegrityMonitoring": true
+    }
+  },
+  "nodePools": [
+    {
+      "autoscaling": {},
+      "config": {
+        "diskSizeGb": 100,
+        "diskType": "pd-standard",
+        "imageType": "COS",
+        "machineType": "n1-standard-1",
+        "metadata": {
+          "disable-legacy-endpoints": "true"
+        },
+        "oauthScopes": [
+          "https://www.googleapis.com/auth/devstorage.read_only",
+          "https://www.googleapis.com/auth/logging.write",
+          "https://www.googleapis.com/auth/monitoring",
+          "https://www.googleapis.com/auth/servicecontrol",
+          "https://www.googleapis.com/auth/service.management.readonly",
+          "https://www.googleapis.com/auth/trace.append"
+        ],
+        "serviceAccount": "default",
+        "shieldedInstanceConfig": {
+          "enableIntegrityMonitoring": true
+        }
+      },
+      "initialNodeCount": 3,
+      "instanceGroupUrls": [
+        "https://www.googleapis.com/compute/v1/projects/jetstack-wil/zones/us-central1-a/instanceGroupManagers/gke-standard-cluster-2-default-pool-83d58bed-grp"
+      ],
+      "locations": [
+        "us-central1-a"
+      ],
+      "management": {
+        "autoRepair": true,
+        "autoUpgrade": true
+      },
+      "maxPodsConstraint": {
+        "maxPodsPerNode": "110"
+      },
+      "name": "default-pool",
+      "podIpv4CidrSize": 24,
+      "selfLink": "https://container.googleapis.com/v1beta1/projects/jetstack-wil/zones/us-central1-a/clusters/standard-cluster-2/nodePools/default-pool",
+      "status": "RUNNING",
+      "version": "1.14.8-gke.12"
+    }
+  ],
+  "releaseChannel": {
+    "channel": "REGULAR"
+  },
+  "selfLink": "https://container.googleapis.com/v1beta1/projects/jetstack-wil/zones/us-central1-a/clusters/standard-cluster-2",
+  "servicesIpv4Cidr": "10.70.0.0/20",
+  "shieldedNodes": {},
+  "status": "RUNNING",
+  "subnetwork": "default",
+  "tierSettings": {
+    "tier": "STANDARD"
+  },
+  "zone": "us-central1-a"
+}
