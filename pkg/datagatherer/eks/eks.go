@@ -17,6 +17,7 @@ type EKSDataGatherer struct {
 
 type EKSDataGathererConfig struct {
 	ClusterName string
+	DataPath    string
 }
 
 // EKSInfo contains the data retrieved from EKS.

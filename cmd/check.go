@@ -95,7 +95,7 @@ func loadConfigFile() {
 
 	err := viper.Unmarshal(&config)
 	if err != nil {
-		log.Println("Unable to decode config", err)
+		log.Println("Unable to decode config:", err)
 		log.Println("Will now decode with legacy config format")
 		unmarshalLegacy()
 	}

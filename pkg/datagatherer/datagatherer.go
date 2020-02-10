@@ -30,22 +30,47 @@ func NewDataGatherers(ctx context.Context, config *DataGatherersConfig) map[stri
 	dataGatherers := make(map[string]DataGatherer, 0)
 	var dataGatherer DataGatherer
 	if config.GKE != nil {
-		dataGatherer = gke.NewGKEDataGatherer(ctx, config.GKE)
+		if config.GKE.DataPath != "" {
+			dataGatherer = local.NewLocalDataGatherer(ctx, &local.LocalDataGathererConfig{
+				DataPath: config.GKE.DataPath,
+			})
+		} else {
+			dataGatherer = gke.NewGKEDataGatherer(ctx, config.GKE)
+		}
 		dataGatherers["gke"] = dataGatherer
 	}
 	if config.AKS != nil {
-		dataGatherer, err := aks.NewAKSDataGatherer(ctx, config.AKS)
-		if err != nil {
-			log.Fatalf("Cannot instantiate AKS datagatherer: %v", err)
+		if config.AKS.DataPath != "" {
+			dataGatherer = local.NewLocalDataGatherer(ctx, &local.LocalDataGathererConfig{
+				DataPath: config.AKS.DataPath,
+			})
+		} else {
+			var err error
+			dataGatherer, err = aks.NewAKSDataGatherer(ctx, config.AKS)
+			if err != nil {
+				log.Fatalf("Cannot instantiate AKS datagatherer: %v", err)
+			}
 		}
 		dataGatherers["aks"] = dataGatherer
 	}
 	if config.EKS != nil {
-		dataGatherer = eks.NewEKSDataGatherer(ctx, config.EKS)
+		if config.EKS.DataPath != "" {
+			dataGatherer = local.NewLocalDataGatherer(ctx, &local.LocalDataGathererConfig{
+				DataPath: config.EKS.DataPath,
+			})
+		} else {
+			dataGatherer = eks.NewEKSDataGatherer(ctx, config.EKS)
+		}
 		dataGatherers["eks"] = dataGatherer
 	}
 	if config.Pods != nil {
-		dataGatherer = k8s.NewPodsDataGatherer(ctx, config.Pods)
+		if config.EKS.DataPath != "" {
+			dataGatherer = local.NewLocalDataGatherer(ctx, &local.LocalDataGathererConfig{
+				DataPath: config.EKS.DataPath,
+			})
+		} else {
+			dataGatherer = k8s.NewPodsDataGatherer(ctx, config.Pods)
+		}
 		dataGatherers["pods"] = dataGatherer
 	}
 	if config.Local != nil {
@@ -54,5 +79,3 @@ func NewDataGatherers(ctx context.Context, config *DataGatherersConfig) map[stri
 	}
 	return dataGatherers
 }
-
-// TODO stub in a local gatherer
