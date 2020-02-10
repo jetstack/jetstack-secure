@@ -8,7 +8,7 @@ type ClusterSummary struct {
 
 // ReportSet groups one or more reports of different packages with the same timestamp for the same cluster.
 type ReportSet struct {
-	Cluster      string           `json:"-"`
+	Cluster      string           `json:"cluster"`
 	Timestamp    Time             `json:"timestamp"`
 	FailureCount int              `json:"failureCount"`
 	SuccessCount int              `json:"successCount"`
