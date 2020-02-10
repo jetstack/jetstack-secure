@@ -69,7 +69,7 @@ func (o *Output) Write(ctx context.Context, policyManifest *packaging.PolicyMani
 }
 
 // WriteIndex exports clusterSummary data in the specified format
-func (o *Output) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) error {
+func (o *Output) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) (err error) {
 	buffer, err := o.exporter.ExportIndex(ctx, clusterSummary)
 	if err != nil {
 		return err
@@ -83,5 +83,6 @@ func (o *Output) WriteIndex(ctx context.Context, cluster string, timestamp time.
 		return err
 	}
 
-	return nil
+	// make sure we return err, so we cover the case of errors happening in the deferred closing.
+	return err
 }
