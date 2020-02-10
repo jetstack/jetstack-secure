@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"log"
-	"time"
+	"fmt"
 
+	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/spf13/cobra"
 )
 
@@ -12,14 +12,15 @@ var agentCmd = &cobra.Command{
 	Short: "start the preflight agent",
 	Long: `The agent will periodically gather data for the configured data
 	gatherers and send it to a remote backend for evaluation`,
-	Run: func(cmd *cobra.Command, args []string) {
-		for {
-			log.Printf("Running Agent... TODO")
-			time.Sleep(10 * time.Second)
-		}
-	},
+	Run: agent.Run,
 }
 
 func init() {
 	rootCmd.AddCommand(agentCmd)
+	agentCmd.PersistentFlags().StringVarP(
+		&agent.ConfigFilePath,
+		"agent-config-file",
+		"c",
+		"./agent.yaml",
+		fmt.Sprintf("Config file location, default is `agent.yaml` in the current working directory"))
 }

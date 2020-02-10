@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -23,6 +24,17 @@ type dataGatherer struct {
 	Kind string            `yaml:"kind"`
 	Name string            `yaml:"name"`
 	Data map[string]string `yaml:"data"`
+}
+
+// Dump generates a YAML string of the Config object
+func (c *Config) Dump() (string, error) {
+	d, err := yaml.Marshal(&c)
+
+	if err != nil {
+		return "", errors.Wrap(err, "failed to generate YAML dump of config")
+	}
+
+	return string(d), nil
 }
 
 func (c *Config) validate() error {
