@@ -391,6 +391,9 @@ func check() {
 		if err != nil {
 			log.Fatalf("Cannot generate report for results: %v", err)
 		}
+		// at the moment, we need to add Cluster and Timestamp here because of #1.
+		report.Cluster = clusterName
+		report.Timestamp = api.Time{Time: checkTime}
 		packageReports = append(packageReports, report)
 
 		for _, output := range outputs {
