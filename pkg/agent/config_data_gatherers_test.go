@@ -12,31 +12,12 @@ import (
 	"gopkg.in/d4l3k/messagediff.v1"
 )
 
-func TestInvalidDatagathererMissingKind(t *testing.T) {
-	ctx := context.Background()
-
-	config := map[string]string{
-		// e.g. "kind": "gke" is missing
-	}
-
-	_, err := LoadDataGatherer(ctx, config)
-	if err == nil {
-		t.Fatalf("Expected an error when missing kind, no error returned")
-	}
-
-	if err.Error() != "cannot load data gatherer, config is missing 'kind' attribute and so data gatherer kind cannot be determined" {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-}
-
 func TestUnknownDataGathererKind(t *testing.T) {
 	ctx := context.Background()
 
-	config := map[string]string{
-		"kind": "unknown",
-	}
+	config := map[string]string{}
 
-	_, err := LoadDataGatherer(ctx, config)
+	_, err := LoadDataGatherer(ctx, "unknown", config)
 	if err == nil {
 		t.Fatalf("Expected an error when unknown data gatherer kind, no error returned")
 	}
@@ -65,7 +46,7 @@ func TestValidGKEConfig(t *testing.T) {
 
 	expected := gke.NewGKEDataGatherer(ctx, &cluster, "path_to_creds")
 
-	dg, err := LoadDataGatherer(ctx, config)
+	dg, err := LoadDataGatherer(ctx, "gke", config)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -78,11 +59,9 @@ func TestValidGKEConfig(t *testing.T) {
 func TestInValidGKEConfig(t *testing.T) {
 	ctx := context.Background()
 
-	config := map[string]string{
-		"kind": "gke",
-	}
+	config := map[string]string{}
 
-	_, err := LoadDataGatherer(ctx, config)
+	_, err := LoadDataGatherer(ctx, "gke", config)
 	if err == nil {
 		t.Fatalf("Expected an error when given invalid config, no error returned")
 	}
@@ -109,11 +88,10 @@ func TestInValidK8sConfig(t *testing.T) {
 	ctx := context.Background()
 
 	config := map[string]string{
-		"kind": "k8s/pod",
 		// "kubeconfig": "missing",
 	}
 
-	_, err := LoadDataGatherer(ctx, config)
+	_, err := LoadDataGatherer(ctx, "k8s/pod", config)
 	if err == nil {
 		t.Fatalf("Expected error, got nil")
 	}
@@ -127,11 +105,10 @@ func TestInValidEKSConfig(t *testing.T) {
 	ctx := context.Background()
 
 	config := map[string]string{
-		"kind": "eks",
 		// "cluster": "missing",
 	}
 
-	_, err := LoadDataGatherer(ctx, config)
+	_, err := LoadDataGatherer(ctx, "eks", config)
 	if err == nil {
 		t.Fatalf("Expected error, got nil")
 	}
@@ -145,11 +122,10 @@ func TestInValidAKSConfig(t *testing.T) {
 	ctx := context.Background()
 
 	config := map[string]string{
-		"kind": "aks",
 		// "cluster": "missing",
 	}
 
-	_, err := LoadDataGatherer(ctx, config)
+	_, err := LoadDataGatherer(ctx, "aks", config)
 	if err == nil {
 		t.Fatalf("Expected error, got nil")
 	}
@@ -168,13 +144,12 @@ func TestValidLocalConfig(t *testing.T) {
 	ctx := context.Background()
 
 	config := map[string]string{
-		"kind":      "local",
 		"data-path": "dump.json",
 	}
 
 	expected := local.NewLocalDataGatherer("dump.json")
 
-	dg, err := LoadDataGatherer(ctx, config)
+	dg, err := LoadDataGatherer(ctx, "local", config)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -188,11 +163,10 @@ func TestInValidLocalConfig(t *testing.T) {
 	ctx := context.Background()
 
 	config := map[string]string{
-		"kind": "local",
 		// "data-path": "missing",
 	}
 
-	_, err := LoadDataGatherer(ctx, config)
+	_, err := LoadDataGatherer(ctx, "local", config)
 	if err == nil {
 		t.Fatalf("Expected error, got nil")
 	}

@@ -16,15 +16,9 @@ import (
 )
 
 //LoadDataGatherer takes key:value config for a datagatherer and loads it into a DataGatherer
-func LoadDataGatherer(ctx context.Context, config map[string]string) (datagatherer.DataGatherer, error) {
+func LoadDataGatherer(ctx context.Context, kind string, config map[string]string) (datagatherer.DataGatherer, error) {
 	// var err error
 	var dg datagatherer.DataGatherer
-
-	var kind string
-	kind, ok := config["kind"]
-	if !ok {
-		return dg, fmt.Errorf("cannot load data gatherer, config is missing 'kind' attribute and so data gatherer kind cannot be determined")
-	}
 
 	if kind == "gke" {
 		dg, err := loadGKEConfig(ctx, config)
