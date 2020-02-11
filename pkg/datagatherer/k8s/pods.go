@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/jetstack/preflight/pkg/homeutils"
+	"github.com/jetstack/preflight/pkg/pathutils"
 	"github.com/pkg/errors"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +25,7 @@ type PodsInfo *core.PodList
 
 // NewPodsDataGatherer creates a new PodsDataGatherer.
 func NewPodsDataGatherer(ctx context.Context, config *PodsDataGathererConfig) *PodsDataGatherer {
-	k8sClient, err := NewClient(homeutils.ExpandHome(config.KubeConfig))
+	k8sClient, err := NewClient(pathutils.ExpandHome(config.KubeConfig))
 	if err != nil {
 		log.Fatalf("Cannot create k8s client: %+v", err)
 	}

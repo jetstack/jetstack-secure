@@ -1,4 +1,4 @@
-package homeutils
+package pathutils
 
 import (
 	"os/user"
