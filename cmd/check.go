@@ -122,16 +122,19 @@ func unmarshalLegacy() {
 	if err != nil {
 		log.Fatal("Unable to decode legacy config:", err)
 	}
-	config := PreflightCheckConfig{
-		ClusterName:    legacyConfig.ClusterName,
-		DataGatherers:  legacyConfig.DataGatherers,
-		PackageSources: legacyConfig.PackageSources,
-		Outputs:        legacyConfig.Outputs,
-	}
+	enabledPackages := []*EnabledPackage{}
 	for _, enabledPackageID := range legacyConfig.EnabledPackages {
-		config.EnabledPackages = append(config.EnabledPackages, &EnabledPackage{
+		enabledPackage := &EnabledPackage{
 			ID: enabledPackageID,
-		})
+		}
+		enabledPackages = append(enabledPackages, enabledPackage)
+	}
+	config = PreflightCheckConfig{
+		ClusterName:     legacyConfig.ClusterName,
+		DataGatherers:   legacyConfig.DataGatherers,
+		PackageSources:  legacyConfig.PackageSources,
+		Outputs:         legacyConfig.Outputs,
+		EnabledPackages: enabledPackages,
 	}
 }
 
