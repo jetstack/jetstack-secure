@@ -268,7 +268,7 @@ func check() {
 
 func getPackageByID(packages []*packaging.Package, packageID string) *packaging.Package {
 	for _, pkg := range packages {
-		if pkg.PolicyManifest.ID == packageID {
+		if pkg.PolicyManifest.GlobalID() == packageID {
 			return pkg
 		}
 	}
