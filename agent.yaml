@@ -1,0 +1,10 @@
+schedule: "* * * *"
+token: "* * * *"
+endpoint:
+  protocol: http
+  host: "localhost:8080"
+  path: "/"
+data-gatherers:
+  - kind: "dummy"
+    name: "dummy"
+    data: {}

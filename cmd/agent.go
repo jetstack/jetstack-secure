@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/spf13/cobra"
 )
@@ -22,5 +20,6 @@ func init() {
 		"agent-config-file",
 		"c",
 		"./agent.yaml",
-		fmt.Sprintf("Config file location, default is `agent.yaml` in the current working directory"))
+		"Config file location, default is `agent.yaml` in the current working directory",
+	)
 }

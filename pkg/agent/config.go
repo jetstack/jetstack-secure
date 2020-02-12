@@ -2,24 +2,28 @@ package agent
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
-// Config wraps the options for a run of the agent
+// Config wraps the options for a run of the agent.
 type Config struct {
 	Schedule      string         `yaml:"schedule"`
 	Token         string         `yaml:"token"`
-	Endpoint      endpoint       `yaml:"endpoint"`
+	Endpoint      Endpoint       `yaml:"endpoint"`
 	DataGatherers []dataGatherer `yaml:"data-gatherers"`
 }
 
-type endpoint struct {
-	Host string `yaml:"host"`
-	Path string `yaml:"path"`
+// Endpoint is the configuration of the server where to post the data.
+type Endpoint struct {
+	Protocol string `yaml:"protocol"`
+	Host     string `yaml:"host"`
+	Path     string `yaml:"path"`
 }
+
 type dataGatherer struct {
 	Kind string            `yaml:"kind"`
 	Name string            `yaml:"name"`
@@ -54,6 +58,9 @@ func (c *Config) validate() error {
 
 	if c.Endpoint.Path == "" {
 		result = multierror.Append(result, fmt.Errorf("endpoint path is required"))
+	}
+	if !strings.HasPrefix(c.Endpoint.Path, "/") {
+		result = multierror.Append(result, fmt.Errorf("endpoint path must start with /"))
 	}
 
 	for i, v := range c.DataGatherers {
