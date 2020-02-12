@@ -13,7 +13,7 @@ func TestValidConfigLoad(t *testing.T) {
 	configFileContents := `
       endpoint:
         host: example.com
-        path: /api/v1/data
+        path: api/v1/data
       schedule: "* * * * *"
       token: "12345"
       data-gatherers:
@@ -35,9 +35,10 @@ func TestValidConfigLoad(t *testing.T) {
 	}
 
 	expected := Config{
-		Endpoint: endpoint{
-			Host: "example.com",
-			Path: "/api/v1/data",
+		Endpoint: Endpoint{
+			Protocol: "http",
+			Host:     "example.com",
+			Path:     "/api/v1/data",
 		},
 		Schedule: "* * * * *",
 		Token:    "12345",

@@ -48,8 +48,8 @@ func Run(cmd *cobra.Command, args []string) {
 	for {
 		log.Println("Running Agent...")
 		log.Println("Posting data to ", serverURL)
-		err = postData(serverURL, []*api.Reading{
-			&api.Reading{
+		err = postData(serverURL, []*api.DataReading{
+			&api.DataReading{
 				DataGatherer: "dummy",
 				Timestamp:    api.Time{Time: time.Now()},
 				Data: map[string]string{
@@ -67,7 +67,7 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 }
 
-func postData(serverURL *url.URL, readings []*api.Reading) error {
+func postData(serverURL *url.URL, readings []*api.DataReading) error {
 	data, err := json.Marshal(readings)
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func postData(serverURL *url.URL, readings []*api.Reading) error {
 		return fmt.Errorf("Received response with status code %d. Body: %s", code, string(body))
 	}
 
-	log.Println("Data send correctly. Server says: ", string(body))
+	log.Println("Data sent successfully. Server says: ", string(body))
 
 	return nil
 }

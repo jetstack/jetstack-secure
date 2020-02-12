@@ -46,7 +46,7 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var readings []*api.Reading
+	var readings []*api.DataReading
 
 	err := json.NewDecoder(r.Body).Decode(&readings)
 	if err != nil {
@@ -60,7 +60,7 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("-----")
 
-	fmt.Fprintf(w, "{}")
+	fmt.Fprintf(w, `{ "status": "ok" }`)
 	w.Header().Set("Content-Type", "application/json")
 }
 

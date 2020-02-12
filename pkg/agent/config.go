@@ -59,9 +59,6 @@ func (c *Config) validate() error {
 	if c.Endpoint.Path == "" {
 		result = multierror.Append(result, fmt.Errorf("endpoint path is required"))
 	}
-	if !strings.HasPrefix(c.Endpoint.Path, "/") {
-		result = multierror.Append(result, fmt.Errorf("endpoint path must start with /"))
-	}
 
 	for i, v := range c.DataGatherers {
 		if v.Kind == "" {
@@ -84,5 +81,17 @@ func ParseConfig(data []byte) (Config, error) {
 		return config, err
 	}
 
-	return config, config.validate()
+	if config.Endpoint.Protocol == "" {
+		config.Endpoint.Protocol = "http"
+	}
+
+	if err = config.validate(); err != nil {
+		return config, err
+	}
+
+	if !strings.HasPrefix(config.Endpoint.Path, "/") {
+		config.Endpoint.Path = fmt.Sprintf("/%s", config.Endpoint.Path)
+	}
+
+	return config, nil
 }
