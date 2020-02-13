@@ -2,24 +2,28 @@ package agent
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
-// Config wraps the options for a run of the agent
+// Config wraps the options for a run of the agent.
 type Config struct {
 	Schedule      string         `yaml:"schedule"`
 	Token         string         `yaml:"token"`
-	Endpoint      endpoint       `yaml:"endpoint"`
+	Endpoint      Endpoint       `yaml:"endpoint"`
 	DataGatherers []dataGatherer `yaml:"data-gatherers"`
 }
 
-type endpoint struct {
-	Host string `yaml:"host"`
-	Path string `yaml:"path"`
+// Endpoint is the configuration of the server where to post the data.
+type Endpoint struct {
+	Protocol string `yaml:"protocol"`
+	Host     string `yaml:"host"`
+	Path     string `yaml:"path"`
 }
+
 type dataGatherer struct {
 	Kind string            `yaml:"kind"`
 	Name string            `yaml:"name"`
@@ -77,5 +81,17 @@ func ParseConfig(data []byte) (Config, error) {
 		return config, err
 	}
 
-	return config, config.validate()
+	if config.Endpoint.Protocol == "" {
+		config.Endpoint.Protocol = "http"
+	}
+
+	if err = config.validate(); err != nil {
+		return config, err
+	}
+
+	if !strings.HasPrefix(config.Endpoint.Path, "/") {
+		config.Endpoint.Path = fmt.Sprintf("/%s", config.Endpoint.Path)
+	}
+
+	return config, nil
 }
