@@ -14,7 +14,6 @@ require (
 	github.com/google/go-cmp v0.3.0
 	github.com/gookit/color v1.2.0
 	github.com/hashicorp/go-multierror v1.0.0
-	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
 	github.com/juju/errors v0.0.0-20190930114154-d42613fe1ab9
 	github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8 // indirect
 	github.com/juju/testing v0.0.0-20191001232224-ce9dec17d28b // indirect
@@ -24,7 +23,6 @@ require (
 	github.com/open-policy-agent/opa v0.16.0
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/cobra v0.0.5
-	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.5.0
 	github.com/yudai/gojsondiff v1.0.0
 	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa // indirect
@@ -33,9 +31,9 @@ require (
 	google.golang.org/api v0.15.0
 	gopkg.in/d4l3k/messagediff.v1 v1.2.1
 	gopkg.in/yaml.v2 v2.2.7
-	k8s.io/api v0.17.0
 	k8s.io/apimachinery v0.17.0
 	k8s.io/client-go v10.0.0+incompatible
+	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f
 )
 
 // This is needed because otherwise k8s.io/client-go is forced
