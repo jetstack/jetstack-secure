@@ -17,7 +17,7 @@ func getObject(version, kind, name, namespace string) *unstructured.Unstructured
 			"apiVersion": version,
 			"kind":       kind,
 			"metadata": map[string]interface{}{
-				"name": name,
+				"name":      name,
 				"namespace": namespace,
 			},
 		},
@@ -41,12 +41,12 @@ func asUnstructuredList(items ...*unstructured.Unstructured) *unstructured.Unstr
 
 func TestGenericGatherer_Fetch(t *testing.T) {
 	emptyScheme := runtime.NewScheme()
-	tests := map[string]struct{
-		gvr schema.GroupVersionResource
+	tests := map[string]struct {
+		gvr       schema.GroupVersionResource
 		namespace string
-		objects []runtime.Object
-		expected interface{}
-		err bool
+		objects   []runtime.Object
+		expected  interface{}
+		err       bool
 	}{
 		"an error should be returned if 'resource' is missing": {
 			err: true,
@@ -64,7 +64,7 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 			),
 		},
 		"only Foos in the specified namespace should be returned": {
-			gvr: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			gvr:       schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 			namespace: "testns",
 			objects: []runtime.Object{
 				getObject("foobar/v1", "Foo", "testfoo", "testns"),
@@ -90,9 +90,9 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cl := fake.NewSimpleDynamicClient(emptyScheme, test.objects...)
 			g := genericGatherer{
-				cl: cl,
+				cl:                   cl,
 				groupVersionResource: test.gvr,
-				namespace: test.namespace,
+				namespace:            test.namespace,
 			}
 
 			res, err := g.Fetch()

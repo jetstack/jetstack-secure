@@ -27,6 +27,15 @@ type genericGatherer struct {
 	namespace string
 }
 
+// NewGenericGatherer constructs a new instance of the generic Kubernetes data
+// gatherer for the provided GroupVersionResource.
+func NewGenericGatherer(cl dynamic.Interface, gvr schema.GroupVersionResource) *genericGatherer {
+	return &genericGatherer{
+		cl:                   cl,
+		groupVersionResource: gvr,
+	}
+}
+
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
 func (g *genericGatherer) Fetch() (interface{}, error) {

@@ -8,7 +8,13 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
@@ -24,11 +30,6 @@ import (
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/reports"
 	"github.com/jetstack/preflight/pkg/results"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 var cfgFile string
@@ -220,7 +221,39 @@ func check() {
 				if err != nil {
 					log.Fatalf("Cannot create k8s client: %+v", err)
 				}
-				dg = k8s.NewPodsDataGatherer(k8sClient)
+				dg = k8s.NewGenericGatherer(k8sClient, schema.GroupVersionResource{
+					Group:    "",
+					Version:  "v1",
+					Resource: "pods",
+				})
+			} else if strings.HasPrefix(name, "k8s/") {
+				trimmed := strings.TrimPrefix(name, "k8s/")
+				nameOnDots := strings.SplitN(trimmed, ".", 3)
+				// if a user has used for example `k8s/pods.v1`, we should
+				// handle this case and set the group name to empty.
+				if len(nameOnDots) == 2 {
+					nameOnDots = append(nameOnDots, "")
+				}
+				if len(nameOnDots) != 3 {
+					log.Fatal("Failed to parse generic k8s plugin configuration. Expected data gatherer name of the form k8s/{resource-name}.{api-version}.{api-group}")
+				}
+				config, ok := config.(map[string]interface{})
+				if !ok {
+					log.Fatalf("cannot parse 'data-gatherers.%s' in config.", name)
+				}
+				kubeconfigPath, ok := config["kubeconfig"].(string)
+				if !ok {
+					log.Printf("Didn't find 'kubeconfig' in 'data-gatherers.%s' configuration. Assuming it runs in-cluster.", name)
+				}
+				k8sClient, err := k8s.NewDynamicClient(expandHome(kubeconfigPath))
+				if err != nil {
+					log.Fatalf("Cannot create k8s client: %+v", err)
+				}
+				dg = k8s.NewGenericGatherer(k8sClient, schema.GroupVersionResource{
+					Resource: nameOnDots[0],
+					Version:  nameOnDots[1],
+					Group:    nameOnDots[2],
+				})
 			} else if name == "local" {
 				localConfig, ok := config.(map[string]interface{})
 				if !ok {
