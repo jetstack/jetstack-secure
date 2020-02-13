@@ -216,7 +216,7 @@ func check() {
 				if !ok {
 					log.Println("Didn't find 'kubeconfig' in 'data-gatherers.k8s/pods' configuration. Assuming it runs in-cluster.")
 				}
-				k8sClient, err := k8s.NewClient(expandHome(kubeconfigPath))
+				k8sClient, err := k8s.NewDynamicClient(expandHome(kubeconfigPath))
 				if err != nil {
 					log.Fatalf("Cannot create k8s client: %+v", err)
 				}
