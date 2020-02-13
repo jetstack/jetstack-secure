@@ -2,19 +2,26 @@ package local
 
 import "io/ioutil"
 
-type LocalDataGatherer struct {
+// Config is the configuration for a local DataGatherer.
+type Config struct {
+	// DataPath is the path to file containing the data to load.
+	DataPath string
+}
+
+// DataGatherer is a data-gatherer that loads data from a local file.
+type DataGatherer struct {
 	dataPath string
 }
 
-// NewLocalDataGatherer returns a LocalDatagatherer with the dataPath provided.
-func NewLocalDataGatherer(dataPath string) *LocalDataGatherer {
-	return &LocalDataGatherer{
-		dataPath: dataPath,
+// NewDataGatherer returns a new DataGatherer.
+func NewDataGatherer(cfg *Config) *DataGatherer {
+	return &DataGatherer{
+		dataPath: cfg.DataPath,
 	}
 }
 
 // Fetch loads and returns the data from the LocalDatagatherer's dataPath
-func (g *LocalDataGatherer) Fetch() (interface{}, error) {
+func (g *DataGatherer) Fetch() (interface{}, error) {
 	dataBytes, err := ioutil.ReadFile(g.dataPath)
 	if err != nil {
 		return nil, err

@@ -11,38 +11,49 @@ import (
 	"google.golang.org/api/option"
 )
 
-// GKEDataGatherer is a DataGatherer for GKE.
-type GKEDataGatherer struct {
+// Config is the configuration for a GKE DataGatherer.
+type Config struct {
+	// Cluster contains the details about to identify the cluster to gather information from.
+	Cluster *Cluster
+	// CredentialsPath is the path to the JSON file containing the credentials to authenticate against the GKE API.
+	CredentialsPath string
+}
+
+// Cluster holds details about the cluster required to query it using the API.
+type Cluster struct {
+	// Project is the Google Cloud Platform project the cluster belongs to.
+	Project string
+	// Deprecated: Zone of the cluster. Use Location instead.
+	Zone string
+	// Name is the identifier of the cluster.
+	Name string
+	// Location is the location of the cluster.
+	Location string
+}
+
+// DataGatherer is a DataGatherer for GKE.
+type DataGatherer struct {
 	ctx             context.Context
 	cluster         *Cluster
 	credentialsPath string
 }
 
-// GKEInfo contains the data retrieved from GKE.
-type GKEInfo struct {
+// Info contains the data retrieved from GKE.
+type Info struct {
 	Cluster *container.Cluster
 }
 
-// Cluster holds details about the cluster required to query it using the API.
-type Cluster struct {
-	Project string
-	// Zone is deprecated, since now Location works for both Zones and regions
-	Zone     string
-	Name     string
-	Location string
-}
-
-// NewGKEDataGatherer creates a new GKEDataGatherer for a cluster.
-func NewGKEDataGatherer(ctx context.Context, cluster *Cluster, credsPath string) *GKEDataGatherer {
-	return &GKEDataGatherer{
+// NewDataGatherer creates a new DataGatherer for a cluster.
+func NewDataGatherer(ctx context.Context, cfg *Config) *DataGatherer {
+	return &DataGatherer{
 		ctx:             ctx,
-		cluster:         cluster,
-		credentialsPath: credsPath,
+		cluster:         cfg.Cluster,
+		credentialsPath: cfg.CredentialsPath,
 	}
 }
 
 // Fetch retrieves cluster information from GKE.
-func (g *GKEDataGatherer) Fetch() (interface{}, error) {
+func (g *DataGatherer) Fetch() (interface{}, error) {
 	var credsOpt option.ClientOption
 	if len(g.credentialsPath) == 0 {
 		log.Println("Credentials path for GKE was not provided. Attempting to use GCP Workload Identity.")
@@ -75,7 +86,7 @@ func (g *GKEDataGatherer) Fetch() (interface{}, error) {
 		}
 	}
 
-	return &GKEInfo{
+	return &Info{
 		Cluster: cluster,
 	}, nil
 }
