@@ -132,6 +132,7 @@ func check() {
 		for name, config := range gatherersConfig {
 			// TODO: create gatherer from config in a more clever way. We need to read gatherer config from here and its schema depends on the gatherer itself.
 			var dg datagatherer.DataGatherer
+			var err error
 			dataGathererConfig, ok := config.(map[string]interface{})
 			if !ok {
 				log.Fatalf("Cannot parse %s data gatherer config.", name)
@@ -141,7 +142,10 @@ func check() {
 			// the name of the data gatherer it is impersonating so it can
 			// provide stubbed data.
 			if dataPath, ok := dataGathererConfig["data-path"].(string); ok && dataPath != "" {
-				dg = localdatagatherer.NewLocalDataGatherer(dataPath)
+				dg, err = localdatagatherer.NewDataGatherer(&localdatagatherer.Config{DataPath: dataPath})
+				if err != nil {
+					log.Fatalf("Cannot instantiate Local datagatherer impersonating %s: %v", name, err)
+				}
 				gatherers[name] = dg
 				continue
 			}
@@ -150,61 +154,53 @@ func check() {
 				if !ok {
 					log.Fatal("Cannot parse 'data-gatherers.eks' in config.")
 				}
-				if clusterName, ok := eksConfig["cluster"].(string); ok && clusterName != "" {
-					dg = eks.NewEKSDataGatherer(clusterName)
-				} else {
-					log.Fatal("'data-gatherers.eks.cluster' should be a non empty string.")
+
+				clusterName, _ := eksConfig["cluster"].(string)
+				dg, err = eks.NewDataGatherer(&eks.Config{
+					ClusterID: clusterName,
+				})
+				if err != nil {
+					log.Fatalf("Cannot instantiate EKS datagatherer: %v", err)
 				}
 			} else if name == "gke" {
 				gkeConfig, ok := config.(map[string]interface{})
 				if !ok {
 					log.Fatal("Cannot parse 'data-gatherers.gke' in config.")
 				}
-				var project, zone, cluster, location, credentialsPath string
-				msg := "'data-gatherers.gke.%s' should be a non empty string."
-				if project, ok = gkeConfig["project"].(string); !ok {
-					log.Fatalf(msg, "project")
+
+				project, _ := gkeConfig["project"].(string)
+				zone, _ := gkeConfig["zone"].(string)
+				location, _ := gkeConfig["location"].(string)
+				cluster, _ := gkeConfig["cluster"].(string)
+				credentialsPath, _ := gkeConfig["credentials"].(string)
+
+				dg, err = gke.NewDataGatherer(ctx, &gke.Config{
+					Cluster: &gke.Cluster{
+						Project:  project,
+						Zone:     zone,
+						Location: location,
+						Name:     cluster,
+					},
+					CredentialsPath: credentialsPath,
+				})
+				if err != nil {
+					log.Fatalf("Cannot instantiate GKE datagatherer: %v", err)
 				}
-				if zone, ok = gkeConfig["zone"].(string); ok {
-					log.Println("'data-gatherers.gke.zone' is deprecated and will be deleted soon. Please use 'data-gatherers.gke.location' instead.")
-				}
-				if location, ok = gkeConfig["location"].(string); !ok {
-					if len(zone) == 0 {
-						log.Fatalf(msg, "location")
-					}
-				}
-				if len(location) > 0 && len(zone) > 0 {
-					log.Fatal("'data-gatherers.gke.zone' and 'data-gatherers.gke.location' cannot be used at the same time.")
-				}
-				if cluster, ok = gkeConfig["cluster"].(string); !ok {
-					log.Fatalf(msg, "cluster")
-				}
-				// credentialsPath empty or not-present is also valid
-				credentialsPath, _ = gkeConfig["credentials"].(string)
-				dg = gke.NewGKEDataGatherer(ctx, &gke.Cluster{
-					Project:  project,
-					Zone:     zone,
-					Location: location,
-					Name:     cluster,
-				}, credentialsPath)
 			} else if name == "aks" {
 				aksConfig, ok := config.(map[string]interface{})
 				if !ok {
 					log.Fatal("Cannot parse 'data-gatherers.aks' in config.")
 				}
-				msg := "'data-gatherers.aks.%s' should be a non empty string."
-				var resourceGroup, clusterName, credentialsPath string
-				if resourceGroup, ok = aksConfig["resource-group"].(string); !ok {
-					log.Fatalf(msg, "resource-group")
-				}
-				if clusterName, ok = aksConfig["cluster"].(string); !ok {
-					log.Fatalf(msg, "cluster")
-				}
-				if credentialsPath, ok = aksConfig["credentials"].(string); !ok {
-					log.Fatalf(msg, "credentials")
-				}
+
+				clusterName, _ := aksConfig["cluster"].(string)
+				resourceGroup, _ := aksConfig["resource-group"].(string)
+				credentialsPath, _ := aksConfig["credentials"].(string)
 				var err error
-				dg, err = aks.NewAKSDataGatherer(ctx, resourceGroup, clusterName, credentialsPath)
+				dg, err = aks.NewDataGatherer(&aks.Config{
+					ClusterID:       clusterName,
+					ResourceGroup:   resourceGroup,
+					CredentialsPath: credentialsPath,
+				})
 				if err != nil {
 					log.Fatalf("Cannot instantiate AKS datagatherer: %v", err)
 				}
@@ -260,7 +256,10 @@ func check() {
 					log.Fatal("Cannot parse 'data-gatherers.local' in config.")
 				}
 				dataPath, ok := localConfig["data-path"].(string)
-				dg = localdatagatherer.NewLocalDataGatherer(dataPath)
+				dg, err = localdatagatherer.NewDataGatherer(&localdatagatherer.Config{DataPath: dataPath})
+				if err != nil {
+					log.Fatalf("Cannot instantiate Local datagatherer: %v", err)
+				}
 			} else {
 				log.Fatalf("Found unsupported data-gatherer %q in config.", name)
 			}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	aks "github.com/Azure/aks-engine/pkg/api/agentPoolOnlyApi/v20180331"
 )
@@ -13,15 +14,40 @@ import (
 // Config is the configuration for an AKS DataGatherer.
 type Config struct {
 	// ClusterID is the ID of the cluster in AKS.
-	ClusterID string `mapstructure:"cluster-id"`
+	ClusterID string
 	// ResourceGroup is the resource group the cluster belongs to.
-	ResourceGroup string `mapstructure:"resource-group"`
+	ResourceGroup string
 	// CredentialsPath is the path to the json file containing the credentials to access Azure APIs.
-	CredentialsPath string `mapstructure:"credentials-path"`
+	CredentialsPath string
 }
 
-// NewDataGatherer creates a new AKS DataGatherer.
+// Validate checks if a Config is valid.
+func (c *Config) Validate() error {
+	errs := []string{}
+
+	msg := "%s should be a non empty string."
+	if c.ClusterID == "" {
+		errs = append(errs, fmt.Sprintf(msg, "ClusterID"))
+	}
+	if c.ResourceGroup == "" {
+		errs = append(errs, fmt.Sprintf(msg, "ResourceGroup"))
+	}
+	if c.CredentialsPath == "" {
+		errs = append(errs, fmt.Sprintf(msg, "CredentialsPath"))
+	}
+
+	if len(errs) == 0 {
+		return nil
+	}
+	return fmt.Errorf("invalid configuration: %s", strings.Join(errs, ";"))
+}
+
+// NewDataGatherer creates a new AKS DataGatherer. It performs a config validation.
 func NewDataGatherer(cfg *Config) (*DataGatherer, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	credentials, err := readCredentials(cfg.CredentialsPath)
 	if err != nil {
 		return nil, err

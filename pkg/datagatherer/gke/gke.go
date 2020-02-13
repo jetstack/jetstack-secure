@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"golang.org/x/oauth2/google"
 	container "google.golang.org/api/container/v1"
@@ -17,6 +18,33 @@ type Config struct {
 	Cluster *Cluster
 	// CredentialsPath is the path to the JSON file containing the credentials to authenticate against the GKE API.
 	CredentialsPath string
+}
+
+// Validate validates the configuration.
+func (c *Config) Validate() error {
+	errs := []string{}
+	emptyMsg := "%s should be a non empty string"
+
+	if c.Cluster.Project == "" {
+		errs = append(errs, fmt.Sprintf(emptyMsg, "Cluster.Project"))
+	}
+	if c.Cluster.Name == "" {
+		errs = append(errs, fmt.Sprintf(emptyMsg, "Cluster.Name"))
+	}
+	if c.Cluster.Zone != "" {
+		if c.Cluster.Location != "" {
+			errs = append(errs, "Cluster.Location and Cluster.Zone cannot be used at the same time, use only Location")
+		}
+		errs = append(errs, "Cluster.Zone is deprecated and will be deleted soon. Please use Cluster.Location instead")
+	} else if c.Cluster.Location == "" {
+		errs = append(errs, fmt.Sprintf(emptyMsg, "Cluster.Location"))
+	}
+
+	if len(errs) == 0 {
+		return nil
+	}
+
+	return fmt.Errorf("invalid configuration: %s", strings.Join(errs, ";"))
 }
 
 // Cluster holds details about the cluster required to query it using the API.
@@ -44,12 +72,16 @@ type Info struct {
 }
 
 // NewDataGatherer creates a new DataGatherer for a cluster.
-func NewDataGatherer(ctx context.Context, cfg *Config) *DataGatherer {
+func NewDataGatherer(ctx context.Context, cfg *Config) (*DataGatherer, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	return &DataGatherer{
 		ctx:             ctx,
 		cluster:         cfg.Cluster,
 		credentialsPath: cfg.CredentialsPath,
-	}
+	}, nil
 }
 
 // Fetch retrieves cluster information from GKE.
