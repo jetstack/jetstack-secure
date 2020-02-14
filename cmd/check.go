@@ -157,7 +157,7 @@ func check() {
 
 				clusterName, _ := eksConfig["cluster"].(string)
 				dg, err = eks.NewDataGatherer(&eks.Config{
-					ClusterID: clusterName,
+					ClusterName: clusterName,
 				})
 				if err != nil {
 					log.Fatalf("Cannot instantiate EKS datagatherer: %v", err)
@@ -197,7 +197,7 @@ func check() {
 				credentialsPath, _ := aksConfig["credentials"].(string)
 				var err error
 				dg, err = aks.NewDataGatherer(&aks.Config{
-					ClusterID:       clusterName,
+					ClusterName:     clusterName,
 					ResourceGroup:   resourceGroup,
 					CredentialsPath: credentialsPath,
 				})

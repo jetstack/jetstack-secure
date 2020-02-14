@@ -13,8 +13,8 @@ import (
 
 // Config is the configuration for an AKS DataGatherer.
 type Config struct {
-	// ClusterID is the ID of the cluster in AKS.
-	ClusterID string
+	// ClusterName is the name of the cluster in AKS.
+	ClusterName string
 	// ResourceGroup is the resource group the cluster belongs to.
 	ResourceGroup string
 	// CredentialsPath is the path to the json file containing the credentials to access Azure APIs.
@@ -26,8 +26,8 @@ func (c *Config) Validate() error {
 	errs := []string{}
 
 	msg := "%s should be a non empty string."
-	if c.ClusterID == "" {
-		errs = append(errs, fmt.Sprintf(msg, "ClusterID"))
+	if c.ClusterName == "" {
+		errs = append(errs, fmt.Sprintf(msg, "ClusterName"))
 	}
 	if c.ResourceGroup == "" {
 		errs = append(errs, fmt.Sprintf(msg, "ResourceGroup"))
@@ -55,7 +55,7 @@ func NewDataGatherer(cfg *Config) (*DataGatherer, error) {
 
 	return &DataGatherer{
 		resourceGroup: cfg.ResourceGroup,
-		clusterID:     cfg.ClusterID,
+		clusterName:   cfg.ClusterName,
 		credentials:   credentials,
 	}, nil
 }
@@ -94,7 +94,7 @@ func readCredentials(path string) (*AzureCredentials, error) {
 // DataGatherer is a data-gatherer for AKS.
 type DataGatherer struct {
 	resourceGroup string
-	clusterID     string
+	clusterName   string
 	credentials   *AzureCredentials
 }
 
@@ -108,7 +108,7 @@ type Info struct {
 func (g *DataGatherer) Fetch() (interface{}, error) {
 	client := &http.Client{}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://management.azure.com/subscriptions/%s/resourceGroups/%s/providers/Microsoft.ContainerService/managedClusters/%s?api-version=2019-08-01", g.credentials.Subscription, g.resourceGroup, g.clusterID), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://management.azure.com/subscriptions/%s/resourceGroups/%s/providers/Microsoft.ContainerService/managedClusters/%s?api-version=2019-08-01", g.credentials.Subscription, g.resourceGroup, g.clusterName), nil)
 	if err != nil {
 		return nil, err
 	}

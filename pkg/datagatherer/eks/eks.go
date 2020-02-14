@@ -11,14 +11,14 @@ import (
 
 // Config is the configuration for an EKS DataGatherer.
 type Config struct {
-	// ClusterID is the ID of the cluster in EKS.
-	ClusterID string
+	// ClusterName is the ID of the cluster in EKS.
+	ClusterName string
 }
 
 // Validate validates the configuration.
 func (c *Config) Validate() error {
-	if c.ClusterID == "" {
-		return fmt.Errorf("invalid configuration: ClusterID cannot be empty")
+	if c.ClusterName == "" {
+		return fmt.Errorf("invalid configuration: ClusterName cannot be empty")
 	}
 	return nil
 }
@@ -30,15 +30,15 @@ func NewDataGatherer(cfg *Config) (*DataGatherer, error) {
 	}
 
 	return &DataGatherer{
-		client:    eks.New(session.New()),
-		clusterID: cfg.ClusterID,
+		client:      eks.New(session.New()),
+		clustername: cfg.ClusterName,
 	}, nil
 }
 
 // DataGatherer is a data-gatherer for EKS.
 type DataGatherer struct {
-	client    *eks.EKS
-	clusterID string
+	client      *eks.EKS
+	clustername string
 }
 
 // Info contains the data retrieved from EKS.
@@ -50,7 +50,7 @@ type Info struct {
 // Fetch retrieves cluster information from EKS.
 func (g *DataGatherer) Fetch() (interface{}, error) {
 	input := &eks.DescribeClusterInput{
-		Name: aws.String(g.clusterID),
+		Name: aws.String(g.clustername),
 	}
 
 	result, err := g.client.DescribeCluster(input)
