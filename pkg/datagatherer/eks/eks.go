@@ -1,36 +1,56 @@
-// Package eks provides a datagatherer for EKS.
+// Package eks provides a datagatherer for AWS EKS.
 package eks
 
 import (
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
 )
 
-// EKSDataGatherer is a DataGatherer for EKS.
-type EKSDataGatherer struct {
-	client      *eks.EKS
-	clusterName string
+// Config is the configuration for an EKS DataGatherer.
+type Config struct {
+	// ClusterName is the ID of the cluster in EKS.
+	ClusterName string
 }
 
-// EKSInfo contains the data retrieved from EKS.
-type EKSInfo struct {
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/eks/#Cluster
+// Validate validates the configuration.
+func (c *Config) Validate() error {
+	if c.ClusterName == "" {
+		return fmt.Errorf("invalid configuration: ClusterName cannot be empty")
+	}
+	return nil
+}
+
+// NewDataGatherer creates a new EKS DataGatherer.
+func NewDataGatherer(cfg *Config) (*DataGatherer, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	return &DataGatherer{
+		client:      eks.New(session.New()),
+		clustername: cfg.ClusterName,
+	}, nil
+}
+
+// DataGatherer is a data-gatherer for EKS.
+type DataGatherer struct {
+	client      *eks.EKS
+	clustername string
+}
+
+// Info contains the data retrieved from EKS.
+type Info struct {
+	// Cluster represents an EKS cluster: https://docs.aws.amazon.com/sdk-for-go/api/service/eks/#Cluster
 	Cluster *eks.Cluster
 }
 
-// NewEKSDataGatherer creates a new EKSDataGatherer for a cluster.
-func NewEKSDataGatherer(clusterName string) *EKSDataGatherer {
-	return &EKSDataGatherer{
-		client:      eks.New(session.New()),
-		clusterName: clusterName,
-	}
-}
-
 // Fetch retrieves cluster information from EKS.
-func (g *EKSDataGatherer) Fetch() (interface{}, error) {
+func (g *DataGatherer) Fetch() (interface{}, error) {
 	input := &eks.DescribeClusterInput{
-		Name: aws.String(g.clusterName),
+		Name: aws.String(g.clustername),
 	}
 
 	result, err := g.client.DescribeCluster(input)
@@ -38,7 +58,7 @@ func (g *EKSDataGatherer) Fetch() (interface{}, error) {
 		return nil, err
 	}
 
-	return &EKSInfo{
+	return &Info{
 		Cluster: result.Cluster,
 	}, nil
 }

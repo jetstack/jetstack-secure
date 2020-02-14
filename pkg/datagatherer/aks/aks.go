@@ -2,28 +2,65 @@
 package aks
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	aks "github.com/Azure/aks-engine/pkg/api/agentPoolOnlyApi/v20180331"
 )
 
-// AKSDataGatherer is a DataGatherer for AKS.
-type AKSDataGatherer struct {
-	ctx           context.Context
-	resourceGroup string
-	clusterName   string
-	credentials   *AzureCredentials
+// Config is the configuration for an AKS DataGatherer.
+type Config struct {
+	// ClusterName is the name of the cluster in AKS.
+	ClusterName string
+	// ResourceGroup is the resource group the cluster belongs to.
+	ResourceGroup string
+	// CredentialsPath is the path to the json file containing the credentials to access Azure APIs.
+	CredentialsPath string
 }
 
-// AKSInfo contains the data retrieved from AKS.
-type AKSInfo struct {
-	Cluster *aks.ManagedCluster
+// Validate checks if a Config is valid.
+func (c *Config) Validate() error {
+	errs := []string{}
+
+	msg := "%s should be a non empty string."
+	if c.ClusterName == "" {
+		errs = append(errs, fmt.Sprintf(msg, "ClusterName"))
+	}
+	if c.ResourceGroup == "" {
+		errs = append(errs, fmt.Sprintf(msg, "ResourceGroup"))
+	}
+	if c.CredentialsPath == "" {
+		errs = append(errs, fmt.Sprintf(msg, "CredentialsPath"))
+	}
+
+	if len(errs) == 0 {
+		return nil
+	}
+	return fmt.Errorf("invalid configuration: %s", strings.Join(errs, ";"))
 }
 
+// NewDataGatherer creates a new AKS DataGatherer. It performs a config validation.
+func NewDataGatherer(cfg *Config) (*DataGatherer, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	credentials, err := readCredentials(cfg.CredentialsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DataGatherer{
+		resourceGroup: cfg.ResourceGroup,
+		clusterName:   cfg.ClusterName,
+		credentials:   credentials,
+	}, nil
+}
+
+// AzureCredentials contains credentials needed to authenticate against Azure APIs.
 type AzureCredentials struct {
 	AccessToken  string `json:"accessToken"`
 	ExpiresOn    string `json:"expiresOn"`
@@ -54,23 +91,21 @@ func readCredentials(path string) (*AzureCredentials, error) {
 	return &creds, nil
 }
 
-// NewAKSDataGatherer creates a new AKSDataGatherer for a cluster.
-func NewAKSDataGatherer(ctx context.Context, resourceGroup, clusterName, credentialsPath string) (*AKSDataGatherer, error) {
-	credentials, err := readCredentials(credentialsPath)
-	if err != nil {
-		return nil, err
-	}
+// DataGatherer is a data-gatherer for AKS.
+type DataGatherer struct {
+	resourceGroup string
+	clusterName   string
+	credentials   *AzureCredentials
+}
 
-	return &AKSDataGatherer{
-		ctx:           ctx,
-		resourceGroup: resourceGroup,
-		clusterName:   clusterName,
-		credentials:   credentials,
-	}, nil
+// Info contains the data retrieved from AKS.
+type Info struct {
+	// Cluster represents an AKS cluster.
+	Cluster *aks.ManagedCluster
 }
 
 // Fetch retrieves cluster information from AKS.
-func (g *AKSDataGatherer) Fetch() (interface{}, error) {
+func (g *DataGatherer) Fetch() (interface{}, error) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://management.azure.com/subscriptions/%s/resourceGroups/%s/providers/Microsoft.ContainerService/managedClusters/%s?api-version=2019-08-01", g.credentials.Subscription, g.resourceGroup, g.clusterName), nil)
@@ -101,7 +136,7 @@ func (g *AKSDataGatherer) Fetch() (interface{}, error) {
 		return nil, err
 	}
 
-	return &AKSInfo{
+	return &Info{
 		Cluster: &cluster,
 	}, nil
 }

@@ -9,13 +9,48 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
-// The generic gatherer knows how to request a list of generic resources from
-// the Kubernetes apiserver.
+// Config contains the configuration for the data-gatherer.
+type Config struct {
+	// KubeConfigPath is the path to the kubeconfig file. If empty, will assume it runs in-cluster.
+	KubeConfigPath string
+	// GroupVersionResource identifies the resource type to gather.
+	GroupVersionResource schema.GroupVersionResource
+}
+
+// Validate validates the configuration.
+func (c *Config) Validate() error {
+	if c.GroupVersionResource.Resource == "" {
+		return fmt.Errorf("invalid configuration: GroupVersionResource.Resource cannot be empty")
+	}
+
+	return nil
+}
+
+// NewDataGatherer constructs a new instance of the generic K8s data-gatherer for the provided
+// GroupVersionResource.
+func NewDataGatherer(cfg *Config) (*DataGatherer, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	cl, err := NewDynamicClient(cfg.KubeConfigPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DataGatherer{
+		cl:                   cl,
+		groupVersionResource: cfg.GroupVersionResource,
+	}, nil
+}
+
+// DataGatherer is a generic gatherer for Kubernetes. It knows how to request
+// a list of generic resources from the Kubernetes apiserver.
 // It does not deserialize the objects into structured data, instead utilising
 // the Kubernetes `Unstructured` type for data handling.
 // This is to allow us to support arbitrary CRDs and resources that Preflight
 // does not have registered as part of its `runtime.Scheme`.
-type genericGatherer struct {
+type DataGatherer struct {
 	// The 'dynamic' client used for fetching data.
 	cl dynamic.Interface
 	// groupVersionResource is the name of the API group, version and resource
@@ -27,18 +62,9 @@ type genericGatherer struct {
 	namespace string
 }
 
-// NewGenericGatherer constructs a new instance of the generic Kubernetes data
-// gatherer for the provided GroupVersionResource.
-func NewGenericGatherer(cl dynamic.Interface, gvr schema.GroupVersionResource) *genericGatherer {
-	return &genericGatherer{
-		cl:                   cl,
-		groupVersionResource: gvr,
-	}
-}
-
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
-func (g *genericGatherer) Fetch() (interface{}, error) {
+func (g *DataGatherer) Fetch() (interface{}, error) {
 	if g.groupVersionResource.Resource == "" {
 		return nil, fmt.Errorf("resource type must be specified")
 	}
