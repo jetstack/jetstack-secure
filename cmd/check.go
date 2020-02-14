@@ -213,15 +213,17 @@ func check() {
 				if !ok {
 					log.Println("Didn't find 'kubeconfig' in 'data-gatherers.k8s/pods' configuration. Assuming it runs in-cluster.")
 				}
-				k8sClient, err := k8s.NewDynamicClient(expandHome(kubeconfigPath))
+				dg, err = k8s.NewDataGatherer(&k8s.Config{
+					KubeConfigPath: expandHome(kubeconfigPath),
+					GroupVersionResource: schema.GroupVersionResource{
+						Group:    "",
+						Version:  "v1",
+						Resource: "pods",
+					},
+				})
 				if err != nil {
 					log.Fatalf("Cannot create k8s client: %+v", err)
 				}
-				dg = k8s.NewGenericGatherer(k8sClient, schema.GroupVersionResource{
-					Group:    "",
-					Version:  "v1",
-					Resource: "pods",
-				})
 			} else if strings.HasPrefix(name, "k8s/") {
 				trimmed := strings.TrimPrefix(name, "k8s/")
 				nameOnDots := strings.SplitN(trimmed, ".", 3)
@@ -241,15 +243,17 @@ func check() {
 				if !ok {
 					log.Printf("Didn't find 'kubeconfig' in 'data-gatherers.%s' configuration. Assuming it runs in-cluster.", name)
 				}
-				k8sClient, err := k8s.NewDynamicClient(expandHome(kubeconfigPath))
+				dg, err = k8s.NewDataGatherer(&k8s.Config{
+					KubeConfigPath: expandHome(kubeconfigPath),
+					GroupVersionResource: schema.GroupVersionResource{
+						Resource: nameOnDots[0],
+						Version:  nameOnDots[1],
+						Group:    nameOnDots[2],
+					},
+				})
 				if err != nil {
 					log.Fatalf("Cannot create k8s client: %+v", err)
 				}
-				dg = k8s.NewGenericGatherer(k8sClient, schema.GroupVersionResource{
-					Resource: nameOnDots[0],
-					Version:  nameOnDots[1],
-					Group:    nameOnDots[2],
-				})
 			} else if name == "local" {
 				localConfig, ok := config.(map[string]interface{})
 				if !ok {

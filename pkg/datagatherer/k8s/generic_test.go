@@ -89,7 +89,7 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			cl := fake.NewSimpleDynamicClient(emptyScheme, test.objects...)
-			g := genericGatherer{
+			g := DataGatherer{
 				cl:                   cl,
 				groupVersionResource: test.gvr,
 				namespace:            test.namespace,
