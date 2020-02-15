@@ -95,28 +95,49 @@ func check() {
 	checkTime := time.Now()
 
 	// Load Preflight Packages
-	var packages = make(map[string]packaging.Package)
+	var packages = make(map[string]*packaging.Package)
 
-	packageSources, ok := viper.Get("package-sources").([]interface{})
+	packageSourcesCfg, ok := viper.Get("package-sources").([]interface{})
 	if !ok {
 		log.Fatalf("No package sources provided")
 	}
-	for _, packageSource := range packageSources {
-		ps := packageSource.(map[interface{}]interface{})
-		sourceType := ps["type"].(string)
-		// TODO Support source types that are not "local"
-		// TODO Replace this awful if-else chain with something nicer
-		if sourceType == "local" {
-			dir := ps["dir"].(string)
-			loadedPackages, err := local.LoadLocalPackages(dir)
-			if err != nil {
-				log.Fatalf("Failed to load package(s) from local source: %s", err)
-			}
-			for _, loadedPackage := range loadedPackages {
-				packages[loadedPackage.PolicyManifest().GlobalID()] = loadedPackage
-			}
-		} else {
-			log.Fatalf("Can't understand package source of type %s", sourceType)
+	for idx, packageSourceCfg := range packageSourcesCfg {
+		cfg, ok := packageSourceCfg.(map[interface{}]interface{})
+		if !ok {
+			log.Fatalf("Cannot parse configuration from package source #%d", idx)
+		}
+
+		// TODO: we need to do this to keep b/c with existing config files
+		// for cmd/check, pkg/packagesources is designed to work with
+		// another type of configuration (cmd/agent).
+		t, ok := cfg["type"].(string)
+		if !ok {
+			log.Fatalf("Cannot read 'type' in package source #%d", idx)
+		}
+		dir, ok := cfg["dir"].(string)
+		if !ok {
+			log.Fatalf("Cannot read 'dir' in package source #%d", idx)
+		}
+
+		if t != "local" {
+			log.Fatalf("Unsupported package source, type %q is unknown.", t)
+		}
+		parsedCfg := &local.Config{
+			Dir: dir,
+		}
+
+		pkgSrc, err := parsedCfg.NewPackageSource()
+		if err != nil {
+			log.Fatalf("Failed to instantiate package source #%d: %+v", idx, err)
+		}
+
+		pkgs, err := pkgSrc.Load()
+		if err != nil {
+			log.Fatalf("Failed to load packages with package source #%d: %+v", idx, err)
+		}
+
+		for _, pkg := range pkgs {
+			packages[pkg.PolicyManifest.GlobalID()] = pkg
 		}
 	}
 
@@ -391,11 +412,11 @@ func check() {
 			log.Fatalf("Package with ID %q was specified in configuration but it wasn't found.", enabledPackage.ID)
 		}
 
-		manifest := pkg.PolicyManifest()
+		manifest := pkg.PolicyManifest
 		// Make sure we loaded the DataGatherers.
 		for _, g := range manifest.DataGatherers {
 			if gatherers[g] == nil {
-				log.Fatalf("Package with ID %q requires DataGatherer %q, but it is not configured.", pkg.PolicyManifest().ID, g)
+				log.Fatalf("Package with ID %q requires DataGatherer %q, but it is not configured.", pkg.PolicyManifest.ID, g)
 			}
 		}
 
