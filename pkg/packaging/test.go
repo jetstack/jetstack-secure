@@ -12,10 +12,10 @@ import (
 )
 
 // TestPackage executes the test for a package
-func TestPackage(ctx context.Context, pkg Package, verbose bool, timeout time.Duration) (int, int, error) {
+func TestPackage(ctx context.Context, pkg *Package, verbose bool, timeout time.Duration) (int, int, error) {
 	modules := make(map[string]*ast.Module)
 
-	for name, content := range pkg.RegoText() {
+	for name, content := range pkg.Rego {
 		parsed, err := ast.ParseModule(name, content)
 		if err != nil {
 			return 0, 0, fmt.Errorf("Error parsing %s: %v", name, err)
@@ -23,7 +23,7 @@ func TestPackage(ctx context.Context, pkg Package, verbose bool, timeout time.Du
 		modules[name] = parsed
 	}
 
-	for name, content := range pkg.RegoTestsText() {
+	for name, content := range pkg.RegoTests {
 		parsed, err := ast.ParseModule(name, content)
 		if err != nil {
 			return 0, 0, fmt.Errorf("Error parsing %s: %v", name, err)

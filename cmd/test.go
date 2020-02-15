@@ -30,10 +30,16 @@ It only works with local packages.
 			// Fail if given no input
 			log.Fatal("No packages provided for linting")
 		} else {
-			loadedPackages := make([]packaging.Package, 0)
+			loadedPackages := make([]*packaging.Package, 0)
 
 			for _, packagePath := range args {
-				pkgs, err := local.LoadLocalPackages(packagePath)
+				cfg := &local.Config{Dir: packagePath}
+				pkgSource, err := cfg.NewPackageSource()
+				if err != nil {
+					log.Fatalf("Error instantiating package source: %v", err)
+				}
+
+				pkgs, err := pkgSource.Load()
 				if err != nil {
 					log.Fatalf("Error loading packages from %s: %v", packagePath, err)
 				}
@@ -48,15 +54,15 @@ It only works with local packages.
 			defer cancel()
 
 			for _, pkg := range loadedPackages {
-				log.Printf("Testing package %s", pkg.PolicyManifest().GlobalID())
+				log.Printf("Testing package %s", pkg.PolicyManifest.GlobalID())
 				numFailures, numTotal, err := packaging.TestPackage(ctx, pkg, testParams.verbose, testParams.timeout)
 
 				if err != nil {
-					log.Fatalf("Error testing package %s: %v", pkg.PolicyManifest().GlobalID(), err)
+					log.Fatalf("Error testing package %s: %v", pkg.PolicyManifest.GlobalID(), err)
 				}
 
 				if numFailures != 0 {
-					packagesWithErrors[pkg.PolicyManifest().GlobalID()] = []int{numFailures, numTotal}
+					packagesWithErrors[pkg.PolicyManifest.GlobalID()] = []int{numFailures, numTotal}
 				}
 			}
 
