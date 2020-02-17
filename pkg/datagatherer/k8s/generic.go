@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -29,7 +30,7 @@ func (c *Config) validate() error {
 
 // NewDataGatherer constructs a new instance of the generic K8s data-gatherer for the provided
 // GroupVersionResource.
-func (c *Config) NewDataGatherer(ctx context.Context) (*DataGatherer, error) {
+func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
 	}
