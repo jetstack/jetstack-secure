@@ -371,7 +371,12 @@ func check() {
 			if len(accountName) == 0 || len(accountKey) == 0 {
 				log.Fatal("Either the AZURE_STORAGE_ACCOUNT or AZURE_STORAGE_ACCESS_KEY environment variable is not set.")
 			}
-			op, err = azblob.NewOutput(ctx, outputFormat, outputContainer, accountName, accountKey)
+			op, err = (&azblob.Config{
+				Format:        outputFormat,
+				ContainerName: outputContainer,
+				AccountName:   accountName,
+				AccountKey:    accountKey,
+			}).NewOutput(ctx)
 		} else {
 			log.Fatalf("Output type not recognised: %s", outputType)
 		}

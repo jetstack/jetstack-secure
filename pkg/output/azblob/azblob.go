@@ -9,33 +9,35 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/exporter"
+	"github.com/jetstack/preflight/pkg/output"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
 )
 
-// Output writes to an Azure Blob Storage bucket
-type Output struct {
-	credential azblob.Credential
-	container  url.URL
-	exporter   exporter.Exporter
+// Config is the configuration for the AZBlob output.
+type Config struct {
+	Format        string
+	ContainerName string
+	AccountName   string
+	AccountKey    string
 }
 
-// NewOutput creates a new Output
-func NewOutput(ctx context.Context, format, containerName, accountName, accountKey string) (*Output, error) {
-	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
+// NewOutput creates a new AZBlobOutput
+func (c *Config) NewOutput(ctx context.Context) (output.Output, error) {
+	credential, err := azblob.NewSharedKeyCredential(c.AccountName, c.AccountKey)
 	if err != nil {
 		return nil, err
 	}
 
-	container, err := url.Parse(fmt.Sprintf("https://%s.blob.core.windows.net/%s", accountName, containerName))
+	container, err := url.Parse(fmt.Sprintf("https://%s.blob.core.windows.net/%s", c.AccountName, c.ContainerName))
 	if err != nil {
 		return nil, err
 	}
 
 	var e exporter.Exporter
-	switch format {
+	switch c.Format {
 	case exporter.FormatJSON:
 		e = exporter.NewJSONExporter()
 	case exporter.FormatRaw:
@@ -47,7 +49,7 @@ func NewOutput(ctx context.Context, format, containerName, accountName, accountK
 	case exporter.FormatIntermediate:
 		e = exporter.NewIntermediateExporter()
 	default:
-		return nil, fmt.Errorf("format %q not supported", format)
+		return nil, fmt.Errorf("format %q not supported", c.Format)
 	}
 
 	return &Output{
@@ -55,6 +57,13 @@ func NewOutput(ctx context.Context, format, containerName, accountName, accountK
 		container:  *container,
 		exporter:   e,
 	}, nil
+}
+
+// Output writes to an Azure Blob Storage bucket
+type Output struct {
+	credential azblob.Credential
+	container  url.URL
+	exporter   exporter.Exporter
 }
 
 // Write exports data in the specified format and writes it to the speficied bucket
