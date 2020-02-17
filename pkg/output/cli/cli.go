@@ -1,4 +1,4 @@
-package output
+package cli
 
 import (
 	"context"
@@ -8,22 +8,23 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/exporter"
+	"github.com/jetstack/preflight/pkg/output"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
 )
 
-// CLIOutput writes to stdout
-type CLIOutput struct {
-	exporter exporter.Exporter
+// Config is the configuration for the CLI output.
+type Config struct {
+	Format string
 }
 
-// NewCLIOutput creates a new CLIOutput
-func NewCLIOutput(format string) (*CLIOutput, error) {
-	if format == "" {
-		format = "cli"
-	}
+// NewOutput creates a new CLIOutput
+func (c *Config) NewOutput() (output.Output, error) {
 	var e exporter.Exporter
-	switch format {
+	switch c.Format {
+	case "":
+		// If no format is specified default to CLI format
+		e = exporter.NewCLIExporter()
 	case exporter.FormatCLI:
 		e = exporter.NewCLIExporter()
 	case exporter.FormatJSON:
@@ -37,13 +38,18 @@ func NewCLIOutput(format string) (*CLIOutput, error) {
 	case exporter.FormatIntermediate:
 		e = exporter.NewIntermediateExporter()
 	default:
-		return nil, fmt.Errorf("format %q not supported", format)
+		return nil, fmt.Errorf("format %q not supported", c.Format)
 	}
 
 	o := &CLIOutput{
 		exporter: e,
 	}
 	return o, nil
+}
+
+// CLIOutput writes to stdout
+type CLIOutput struct {
+	exporter exporter.Exporter
 }
 
 // Write exports data in the specified format, or CLI format by default, and writes it to stdout

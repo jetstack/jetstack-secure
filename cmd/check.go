@@ -23,6 +23,7 @@ import (
 	localdatagatherer "github.com/jetstack/preflight/pkg/datagatherer/local"
 	"github.com/jetstack/preflight/pkg/output"
 	"github.com/jetstack/preflight/pkg/output/azblob"
+	"github.com/jetstack/preflight/pkg/output/cli"
 	"github.com/jetstack/preflight/pkg/output/gcs"
 	localoutput "github.com/jetstack/preflight/pkg/output/local"
 	"github.com/jetstack/preflight/pkg/packagesources/local"
@@ -323,7 +324,9 @@ func check() {
 			} else {
 				outputFormat = ""
 			}
-			op, err = output.NewCLIOutput(outputFormat)
+			op, err = (&cli.Config{
+				Format: outputFormat,
+			}).NewOutput()
 		} else if outputType == "local" {
 			outputFormat, ok := outputDefinition["format"].(string)
 			if !ok {
@@ -377,7 +380,7 @@ func check() {
 	if len(outputs) == 0 {
 		// Default to CLI output
 		log.Printf("No outputs specified, will default to CLI")
-		op, err := output.NewCLIOutput("")
+		op, err := (&cli.Config{}).NewOutput()
 		if err != nil {
 			log.Fatalf("Could not create cli output: %s", err)
 		}
