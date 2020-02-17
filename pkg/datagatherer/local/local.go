@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+
+	"github.com/jetstack/preflight/pkg/datagatherer"
 )
 
 // Config is the configuration for a local DataGatherer.
@@ -26,7 +28,7 @@ type DataGatherer struct {
 }
 
 // NewDataGatherer returns a new DataGatherer.
-func (c *Config) NewDataGatherer(ctx context.Context) (*DataGatherer, error) {
+func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
 	}

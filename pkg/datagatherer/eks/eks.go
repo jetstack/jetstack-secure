@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/jetstack/preflight/pkg/datagatherer"
 )
 
 // Config is the configuration for an EKS DataGatherer.
@@ -25,7 +26,7 @@ func (c *Config) validate() error {
 }
 
 // NewDataGatherer creates a new EKS DataGatherer. It performs a config validation.
-func (c *Config) NewDataGatherer(ctx context.Context) (*DataGatherer, error) {
+func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
 	}

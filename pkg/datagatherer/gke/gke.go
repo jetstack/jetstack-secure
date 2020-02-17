@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/jetstack/preflight/pkg/datagatherer"
 	"golang.org/x/oauth2/google"
 	container "google.golang.org/api/container/v1"
 	"google.golang.org/api/option"
@@ -72,7 +73,7 @@ type Info struct {
 }
 
 // NewDataGatherer creates a new DataGatherer for a cluster.
-func (c *Config) NewDataGatherer(ctx context.Context) (*DataGatherer, error) {
+func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
 	}

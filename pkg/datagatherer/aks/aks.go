@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	aks "github.com/Azure/aks-engine/pkg/api/agentPoolOnlyApi/v20180331"
+	"github.com/jetstack/preflight/pkg/datagatherer"
 )
 
 // Config is the configuration for an AKS DataGatherer.
@@ -44,7 +45,7 @@ func (c *Config) validate() error {
 }
 
 // NewDataGatherer creates a new AKS DataGatherer. It performs a config validation.
-func (c *Config) NewDataGatherer(ctx context.Context) (*DataGatherer, error) {
+func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
 	}
