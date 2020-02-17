@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/user"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,6 +26,7 @@ import (
 	"github.com/jetstack/preflight/pkg/output/gcs"
 	"github.com/jetstack/preflight/pkg/packagesources/local"
 	"github.com/jetstack/preflight/pkg/packaging"
+	"github.com/jetstack/preflight/pkg/pathutils"
 	"github.com/jetstack/preflight/pkg/reports"
 	"github.com/jetstack/preflight/pkg/results"
 )
@@ -214,7 +213,7 @@ func check() {
 					log.Println("Didn't find 'kubeconfig' in 'data-gatherers.k8s/pods' configuration. Assuming it runs in-cluster.")
 				}
 				dg, err = k8s.NewDataGatherer(&k8s.Config{
-					KubeConfigPath: expandHome(kubeconfigPath),
+					KubeConfigPath: pathutils.ExpandHome(kubeconfigPath),
 					GroupVersionResource: schema.GroupVersionResource{
 						Group:    "",
 						Version:  "v1",
@@ -244,7 +243,7 @@ func check() {
 					log.Printf("Didn't find 'kubeconfig' in 'data-gatherers.%s' configuration. Assuming it runs in-cluster.", name)
 				}
 				dg, err = k8s.NewDataGatherer(&k8s.Config{
-					KubeConfigPath: expandHome(kubeconfigPath),
+					KubeConfigPath: pathutils.ExpandHome(kubeconfigPath),
 					GroupVersionResource: schema.GroupVersionResource{
 						Resource: nameOnDots[0],
 						Version:  nameOnDots[1],
@@ -312,7 +311,7 @@ func check() {
 			if !ok {
 				log.Fatal("Missing 'path' property in local output configuration.")
 			}
-			op, err = output.NewLocalOutput(outputFormat, expandHome(outputPath))
+			op, err = output.NewLocalOutput(outputFormat, pathutils.ExpandHome(outputPath))
 		} else if outputType == "gcs" {
 			outputFormat, ok := outputDefinition["format"].(string)
 			if !ok {
@@ -458,23 +457,4 @@ func check() {
 	}
 
 	log.Printf("Done.")
-}
-
-func homeDir() string {
-	usr, err := user.Current()
-	if err != nil {
-		return ""
-	}
-	return usr.HomeDir
-}
-
-func expandHome(path string) string {
-	if len(path) == 0 {
-		return ""
-	}
-
-	if path[:2] == "~/" {
-		return filepath.Join(homeDir(), path[2:])
-	}
-	return path
 }
