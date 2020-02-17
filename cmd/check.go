@@ -41,6 +41,10 @@ var configPath string
 // executable in Docker containers.
 const globalConfigDirectory = "/etc/preflight/"
 
+type Config struct {
+	PackageSources []packagesources.PackageSource
+}
+
 // checkCmd represents the check command
 var checkCmd = &cobra.Command{
 	Use:   "check",
@@ -96,14 +100,14 @@ func check() {
 	clusterName := viper.GetString("cluster-name")
 	checkTime := time.Now()
 
-	// Load Preflight package sources
-	var packageSources []packagesources.PackageSource
-	packageSourcesCfg, ok := viper.Get("package-sources").([]interface{})
+	// Decode Preflight package sources config
+	var packageSourcesConfig []*packagesources.TypedConfig
+	packageSourcesConfigFromFile, ok := viper.Get("package-sources").([]interface{})
 	if !ok {
 		log.Fatalf("No package sources provided")
 	}
-	for idx, packageSourceCfg := range packageSourcesCfg {
-		cfg, ok := packageSourceCfg.(map[interface{}]interface{})
+	for idx, packageSourceConfigFromFile := range packageSourcesConfigFromFile {
+		cfg, ok := packageSourceConfigFromFile.(map[interface{}]interface{})
 		if !ok {
 			log.Fatalf("Cannot parse configuration from package source #%d", idx)
 		}
@@ -123,11 +127,19 @@ func check() {
 		if t != "local" {
 			log.Fatalf("Unsupported package source, type %q is unknown.", t)
 		}
-		parsedCfg := &local.Config{
-			Dir: dir,
+		parsedCfg := &packagesources.TypedConfig{
+			Type: "local",
+			Config: &local.Config{
+				Dir: dir,
+			},
 		}
+		packageSourcesConfig = append(packageSourcesConfig, parsedCfg)
+	}
 
-		pkgSrc, err := parsedCfg.NewPackageSource()
+	// Load Preflight package sources
+	var packageSources []packagesources.PackageSource
+	for idx, packageSourceConfig := range packageSourcesConfig {
+		pkgSrc, err := packageSourceConfig.NewPackageSource()
 		if err != nil {
 			log.Fatalf("Failed to instantiate package source #%d: %+v", idx, err)
 		}
