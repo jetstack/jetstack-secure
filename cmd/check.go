@@ -24,6 +24,7 @@ import (
 	"github.com/jetstack/preflight/pkg/output"
 	"github.com/jetstack/preflight/pkg/output/azblob"
 	"github.com/jetstack/preflight/pkg/output/gcs"
+	localoutput "github.com/jetstack/preflight/pkg/output/local"
 	"github.com/jetstack/preflight/pkg/packagesources/local"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/pathutils"
@@ -332,7 +333,10 @@ func check() {
 			if !ok {
 				log.Fatal("Missing 'path' property in local output configuration.")
 			}
-			op, err = output.NewLocalOutput(outputFormat, pathutils.ExpandHome(outputPath))
+			op, err = (&localoutput.Config{
+				Format: outputFormat,
+				Path:   pathutils.ExpandHome(outputPath),
+			}).NewOutput()
 		} else if outputType == "gcs" {
 			outputFormat, ok := outputDefinition["format"].(string)
 			if !ok {

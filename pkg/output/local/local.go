@@ -1,4 +1,4 @@
-package output
+package local
 
 import (
 	"bytes"
@@ -11,20 +11,21 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/exporter"
+	"github.com/jetstack/preflight/pkg/output"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
 )
 
-// LocalOutput writes to a local file
-type LocalOutput struct {
-	path     string
-	exporter exporter.Exporter
+// Config is the configuration for the local output.
+type Config struct {
+	Format string
+	Path   string
 }
 
-// NewLocalOutput creates a new LocalOutput
-func NewLocalOutput(format, path string) (*LocalOutput, error) {
+// NewOutput creates a new LocalOutput.
+func (c *Config) NewOutput() (output.Output, error) {
 	var e exporter.Exporter
-	switch format {
+	switch c.Format {
 	case exporter.FormatJSON:
 		e = exporter.NewJSONExporter()
 	case exporter.FormatRaw:
@@ -36,18 +37,24 @@ func NewLocalOutput(format, path string) (*LocalOutput, error) {
 	case exporter.FormatIntermediate:
 		e = exporter.NewIntermediateExporter()
 	default:
-		return nil, fmt.Errorf("format %q not supported", format)
+		return nil, fmt.Errorf("format %q not supported", c.Format)
 	}
 
-	o := &LocalOutput{
-		path:     path,
+	o := &Output{
+		path:     c.Path,
 		exporter: e,
 	}
 	return o, nil
 }
 
+// Output writes to a local file
+type Output struct {
+	path     string
+	exporter exporter.Exporter
+}
+
 // Write exports data in the specified format and writes it to the specified local file
-func (o *LocalOutput) Write(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, rc *results.ResultCollection, cluster string, timestamp time.Time) error {
+func (o *Output) Write(ctx context.Context, policyManifest *packaging.PolicyManifest, intermediateJSON []byte, rc *results.ResultCollection, cluster string, timestamp time.Time) error {
 	buffer, err := o.exporter.Export(ctx, policyManifest, intermediateJSON, rc)
 	if err != nil {
 		return err
@@ -68,7 +75,7 @@ func (o *LocalOutput) Write(ctx context.Context, policyManifest *packaging.Polic
 }
 
 // WriteIndex exports clusterSummary data in the specified format
-func (o *LocalOutput) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) error {
+func (o *Output) WriteIndex(ctx context.Context, cluster string, timestamp time.Time, clusterSummary *api.ClusterSummary) error {
 	buffer, err := o.exporter.ExportIndex(ctx, clusterSummary)
 	if err != nil {
 		return err
