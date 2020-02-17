@@ -23,7 +23,9 @@ import (
 	localdatagatherer "github.com/jetstack/preflight/pkg/datagatherer/local"
 	"github.com/jetstack/preflight/pkg/output"
 	"github.com/jetstack/preflight/pkg/output/azblob"
+	"github.com/jetstack/preflight/pkg/output/cli"
 	"github.com/jetstack/preflight/pkg/output/gcs"
+	localoutput "github.com/jetstack/preflight/pkg/output/local"
 	"github.com/jetstack/preflight/pkg/packagesources/local"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/pathutils"
@@ -322,7 +324,9 @@ func check() {
 			} else {
 				outputFormat = ""
 			}
-			op, err = output.NewCLIOutput(outputFormat)
+			op, err = (&cli.Config{
+				Format: outputFormat,
+			}).NewOutput(ctx)
 		} else if outputType == "local" {
 			outputFormat, ok := outputDefinition["format"].(string)
 			if !ok {
@@ -332,7 +336,10 @@ func check() {
 			if !ok {
 				log.Fatal("Missing 'path' property in local output configuration.")
 			}
-			op, err = output.NewLocalOutput(outputFormat, pathutils.ExpandHome(outputPath))
+			op, err = (&localoutput.Config{
+				Format: outputFormat,
+				Path:   pathutils.ExpandHome(outputPath),
+			}).NewOutput(ctx)
 		} else if outputType == "gcs" {
 			outputFormat, ok := outputDefinition["format"].(string)
 			if !ok {
@@ -346,7 +353,11 @@ func check() {
 			if !ok {
 				log.Fatal("Missing 'credentials-path' property in gcs output configuration.")
 			}
-			op, err = gcs.NewOutput(ctx, outputFormat, outputBucketName, outputCredentialsPath)
+			op, err = (&gcs.Config{
+				Format:          outputFormat,
+				BucketName:      outputBucketName,
+				CredentialsPath: outputCredentialsPath,
+			}).NewOutput(ctx)
 		} else if outputType == "azblob" {
 			outputFormat, ok := outputDefinition["format"].(string)
 			if !ok {
@@ -360,7 +371,12 @@ func check() {
 			if len(accountName) == 0 || len(accountKey) == 0 {
 				log.Fatal("Either the AZURE_STORAGE_ACCOUNT or AZURE_STORAGE_ACCESS_KEY environment variable is not set.")
 			}
-			op, err = azblob.NewOutput(ctx, outputFormat, outputContainer, accountName, accountKey)
+			op, err = (&azblob.Config{
+				Format:        outputFormat,
+				ContainerName: outputContainer,
+				AccountName:   accountName,
+				AccountKey:    accountKey,
+			}).NewOutput(ctx)
 		} else {
 			log.Fatalf("Output type not recognised: %s", outputType)
 		}
@@ -373,7 +389,7 @@ func check() {
 	if len(outputs) == 0 {
 		// Default to CLI output
 		log.Printf("No outputs specified, will default to CLI")
-		op, err := output.NewCLIOutput("")
+		op, err := (&cli.Config{}).NewOutput(ctx)
 		if err != nil {
 			log.Fatalf("Could not create cli output: %s", err)
 		}
