@@ -283,67 +283,64 @@ func check() {
 		information[k] = i
 	}
 
-	// Load Output config
-	var outputs = make([]output.Output, 0)
-	outputDefinitions, ok := viper.Get("outputs").([]interface{})
+	// Decode output config
+	var outputsConfig []*output.TypedConfig
+	outputsConfigFromFile, ok := viper.Get("outputs").([]interface{})
 	if !ok {
 		log.Fatalf("No outputs provided")
 	}
-	for _, o := range outputDefinitions {
-		outputDefinition := o.(map[interface{}]interface{})
-		outputType := outputDefinition["type"].(string)
-		var (
-			op  output.Output
-			err error
-		)
+	for _, outputConfigFromFile := range outputsConfigFromFile {
+		outputConfigMap := outputConfigFromFile.(map[interface{}]interface{})
+		outputType := outputConfigMap["type"].(string)
+		var outputConfig output.Config
 		if outputType == "cli" {
 			var outputFormat string
 			// Format is optional for CLI, will be defaulted to CLI format
-			if outputDefinition["format"] != nil {
-				outputFormat = outputDefinition["format"].(string)
+			if outputConfigMap["format"] != nil {
+				outputFormat = outputConfigMap["format"].(string)
 			} else {
 				outputFormat = ""
 			}
-			op, err = (&cli.Config{
+			outputConfig = &cli.Config{
 				Format: outputFormat,
-			}).NewOutput(ctx)
+			}
 		} else if outputType == "local" {
-			outputFormat, ok := outputDefinition["format"].(string)
+			outputFormat, ok := outputConfigMap["format"].(string)
 			if !ok {
 				log.Fatal("Missing 'format' property in local output configuration.")
 			}
-			outputPath, ok := outputDefinition["path"].(string)
+			outputPath, ok := outputConfigMap["path"].(string)
 			if !ok {
 				log.Fatal("Missing 'path' property in local output configuration.")
 			}
-			op, err = (&localoutput.Config{
+			outputConfig = &localoutput.Config{
 				Format: outputFormat,
 				Path:   pathutils.ExpandHome(outputPath),
-			}).NewOutput(ctx)
+			}
 		} else if outputType == "gcs" {
-			outputFormat, ok := outputDefinition["format"].(string)
+			outputFormat, ok := outputConfigMap["format"].(string)
 			if !ok {
 				log.Fatal("Missing 'format' property in gcs output configuration.")
 			}
-			outputBucketName, ok := outputDefinition["bucket-name"].(string)
+			outputBucketName, ok := outputConfigMap["bucket-name"].(string)
 			if !ok {
 				log.Fatal("Missing 'bucket-name' property in gcs output configuration.")
 			}
-			outputCredentialsPath, ok := outputDefinition["credentials-path"].(string)
+			outputCredentialsPath, ok := outputConfigMap["credentials-path"].(string)
 			if !ok {
 				log.Fatal("Missing 'credentials-path' property in gcs output configuration.")
 			}
-			op, err = (&gcs.Config{
+			outputConfig = &gcs.Config{
 				Format:          outputFormat,
 				BucketName:      outputBucketName,
 				CredentialsPath: outputCredentialsPath,
-			}).NewOutput(ctx)
+			}
 		} else if outputType == "azblob" {
-			outputFormat, ok := outputDefinition["format"].(string)
+			outputFormat, ok := outputConfigMap["format"].(string)
 			if !ok {
 				log.Fatal("Missing 'format' property in azblob output configuration.")
 			}
-			outputContainer, ok := outputDefinition["container"].(string)
+			outputContainer, ok := outputConfigMap["container"].(string)
 			if !ok {
 				log.Fatal("Missing 'container' property in azblob output configuration.")
 			}
@@ -351,21 +348,30 @@ func check() {
 			if len(accountName) == 0 || len(accountKey) == 0 {
 				log.Fatal("Either the AZURE_STORAGE_ACCOUNT or AZURE_STORAGE_ACCESS_KEY environment variable is not set.")
 			}
-			op, err = (&azblob.Config{
+			outputConfig = &azblob.Config{
 				Format:        outputFormat,
 				ContainerName: outputContainer,
 				AccountName:   accountName,
 				AccountKey:    accountKey,
-			}).NewOutput(ctx)
+			}
 		} else {
 			log.Fatalf("Output type not recognised: %s", outputType)
 		}
-		if err != nil {
-			log.Fatalf("Could not create %s output: %s", outputType, err)
-		}
-		outputs = append(outputs, op)
+		outputsConfig = append(outputsConfig, &output.TypedConfig{
+			Type:   outputType,
+			Config: outputConfig,
+		})
 	}
 
+	// Load Outputs
+	var outputs = make([]output.Output, 0)
+	for _, outputConfig := range outputsConfig {
+		output, err := outputConfig.NewOutput(ctx)
+		if err != nil {
+			log.Fatalf("Could not create %s output: %s", outputConfig.Type, err)
+		}
+		outputs = append(outputs, output)
+	}
 	if len(outputs) == 0 {
 		// Default to CLI output
 		log.Printf("No outputs specified, will default to CLI")
