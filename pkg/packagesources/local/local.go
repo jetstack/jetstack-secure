@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jetstack/preflight/pkg/packagesources"
 	"github.com/jetstack/preflight/pkg/packaging"
 
 	"gopkg.in/yaml.v2"
@@ -32,7 +33,7 @@ func (c *Config) validate() error {
 
 // NewPackageSource creates a new PackageSource from configuration.
 // It validates the configuration.
-func (c *Config) NewPackageSource() (*PackageSource, error) {
+func (c *Config) NewPackageSource() (packagesources.PackageSource, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
 	}
