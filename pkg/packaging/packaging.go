@@ -4,20 +4,17 @@ import (
 	"fmt"
 )
 
-// A Package is an interface that Package Sources should implement to
-// provide details about a package in an agnostic way.
-type Package interface {
-	// PolicyManifest returns the manifest data about the policy
-	// in struct format.
-	PolicyManifest() *PolicyManifest
-
-	// Return any rego files, with their names as the keys and
+// Package is a stuct to represent a Preflight package. Packages are loaded from
+// PackageSources.
+type Package struct {
+	// PolicyManifest is the manifest data about the policy in struct format.
+	PolicyManifest *PolicyManifest
+	// Rego is any rego files, with their names as the keys and their
+	// content as strings.
+	Rego map[string]string
+	// RegoTests is any rego test files, with their names as the keys and
 	// their content as strings.
-	RegoText() map[string]string
-
-	// Return any rego test files, with their names as the keys and
-	// their content as strings.
-	RegoTestsText() map[string]string
+	RegoTests map[string]string
 }
 
 // PolicyManifest contains all the information about the policy manifest of the package.
