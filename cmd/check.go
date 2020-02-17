@@ -353,7 +353,11 @@ func check() {
 			if !ok {
 				log.Fatal("Missing 'credentials-path' property in gcs output configuration.")
 			}
-			op, err = gcs.NewOutput(ctx, outputFormat, outputBucketName, outputCredentialsPath)
+			op, err = (&gcs.Config{
+				Format:          outputFormat,
+				BucketName:      outputBucketName,
+				CredentialsPath: outputCredentialsPath,
+			}).NewOutput(ctx)
 		} else if outputType == "azblob" {
 			outputFormat, ok := outputDefinition["format"].(string)
 			if !ok {

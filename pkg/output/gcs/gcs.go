@@ -9,26 +9,28 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/exporter"
+	"github.com/jetstack/preflight/pkg/output"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/results"
 	"google.golang.org/api/option"
 )
 
-// Output writes to a Google Cloud Storage bucket
-type Output struct {
-	bucket   *storage.BucketHandle
-	exporter exporter.Exporter
+// Config is the configuration for the GCS output.
+type Config struct {
+	Format          string
+	BucketName      string
+	CredentialsPath string
 }
 
-// NewOutput creates a new Output
-func NewOutput(ctx context.Context, format, bucketName, credentialsPath string) (*Output, error) {
-	c, err := storage.NewClient(ctx, option.WithCredentialsFile(credentialsPath))
+// NewOutput creates a new GCSOutput
+func (c *Config) NewOutput(ctx context.Context) (output.Output, error) {
+	client, err := storage.NewClient(ctx, option.WithCredentialsFile(c.CredentialsPath))
 	if err != nil {
 		log.Fatalf("Failed to open Google Cloud Storage connection: %s", err)
 	}
-	s := c.Bucket(bucketName)
+	bucket := client.Bucket(c.BucketName)
 	var e exporter.Exporter
-	switch format {
+	switch c.Format {
 	case exporter.FormatJSON:
 		e = exporter.NewJSONExporter()
 	case exporter.FormatRaw:
@@ -40,14 +42,20 @@ func NewOutput(ctx context.Context, format, bucketName, credentialsPath string) 
 	case exporter.FormatIntermediate:
 		e = exporter.NewIntermediateExporter()
 	default:
-		return nil, fmt.Errorf("format %q not supported", format)
+		return nil, fmt.Errorf("format %q not supported", c.Format)
 	}
 
 	o := &Output{
-		bucket:   s,
+		bucket:   bucket,
 		exporter: e,
 	}
 	return o, nil
+}
+
+// Output writes to a Google Cloud Storage bucket
+type Output struct {
+	bucket   *storage.BucketHandle
+	exporter exporter.Exporter
 }
 
 // Write exports data in the specified format and writes it to the specified GCS bucket
