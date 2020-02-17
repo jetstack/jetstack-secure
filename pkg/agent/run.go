@@ -51,18 +51,18 @@ func Run(cmd *cobra.Command, args []string) {
 
 	dataGatherers := make(map[string]datagatherer.DataGatherer)
 
-	for _, dataGatherer := range config.DataGatherers {
-		kind := dataGatherer.Kind
-		if dataGatherer.Data["data-path"] != "" {
+	for _, dgConfig := range config.DataGatherers {
+		kind := dgConfig.Kind
+		if dgConfig.DataPath != "" {
 			kind = "local"
-			log.Printf("Running data gatherer %s of type %s as Local, data-path override present", dataGatherer.Name, dataGatherer.Kind)
+			log.Printf("Running data gatherer %s of type %s as Local, data-path override present", dgConfig.Name, dgConfig.Kind)
 		}
 
-		dg, err := LoadDataGatherer(ctx, kind, dataGatherer.Data)
+		dg, err := LoadDataGatherer(ctx, kind, dgConfig.Config)
 		if err != nil {
 			log.Fatalf("Failed to load data gatherer: %s", err)
 		}
-		dataGatherers[dataGatherer.Name] = dg
+		dataGatherers[dgConfig.Name] = dg
 	}
 
 	// Fetch from all datagatherers

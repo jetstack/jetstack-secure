@@ -16,11 +16,11 @@ import (
 // Config is the configuration for an AKS DataGatherer.
 type Config struct {
 	// ClusterName is the name of the cluster in AKS.
-	ClusterName string
+	ClusterName string `yaml:"cluster-name"`
 	// ResourceGroup is the resource group the cluster belongs to.
-	ResourceGroup string
+	ResourceGroup string `yaml:"resource-group"`
 	// CredentialsPath is the path to the json file containing the credentials to access Azure APIs.
-	CredentialsPath string
+	CredentialsPath string `yaml:"credentials-path"`
 }
 
 // validate checks if a Config is valid.

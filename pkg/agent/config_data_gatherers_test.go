@@ -2,20 +2,14 @@ package agent
 
 import (
 	"context"
-	"fmt"
-	"strings"
+	"reflect"
 	"testing"
-
-	"github.com/jetstack/preflight/pkg/datagatherer/gke"
-	"github.com/jetstack/preflight/pkg/datagatherer/local"
-	"github.com/kylelemons/godebug/diff"
-	"gopkg.in/d4l3k/messagediff.v1"
 )
 
 func TestUnknownDataGathererKind(t *testing.T) {
 	ctx := context.Background()
 
-	config := map[string]string{}
+	config := []byte{}
 
 	_, err := LoadDataGatherer(ctx, "unknown", config)
 	if err == nil {
@@ -27,151 +21,26 @@ func TestUnknownDataGathererKind(t *testing.T) {
 	}
 }
 
-func TestValidGKEConfig(t *testing.T) {
+func TestValidLoadDataGatherer(t *testing.T) {
 	ctx := context.Background()
 
-	config := map[string]string{
-		"kind":        "gke",
-		"project":     "example-project",
-		"location":    "us-east1-b",
-		"cluster":     "main",
-		"credentials": "path_to_creds",
-	}
+	config := []byte(`param-1: "bar"`)
 
-	cluster := gke.Cluster{
-		Project:  "example-project",
-		Name:     "main",
-		Location: "us-east1-b",
-	}
-
-	expected := gke.NewGKEDataGatherer(ctx, &cluster, "path_to_creds")
-
-	dg, err := LoadDataGatherer(ctx, "gke", config)
+	dg, err := LoadDataGatherer(ctx, "dummy", config)
 	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if diff, equal := messagediff.PrettyDiff(dg, expected); !equal {
-		fmt.Printf("got %v\n", dg)
-		t.Fatalf("Diff %s", diff)
-	}
-}
-
-func TestInValidGKEConfig(t *testing.T) {
-	ctx := context.Background()
-
-	config := map[string]string{}
-
-	_, err := LoadDataGatherer(ctx, "gke", config)
-	if err == nil {
-		t.Fatalf("Expected an error when given invalid config, no error returned")
+		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	expectedErrorLines := []string{
-		"failed to load GKE DataGatherer: 4 errors occurred:",
-		"\t* project is required",
-		"\t* cluster is required",
-		"\t* location is required",
-		"\t* credentials is required",
-		"\n",
+	if got, want := reflect.TypeOf(dg), reflect.TypeOf((*dummyDataGatherer)(nil)); got != want {
+		t.Fatalf("DataGatherer type does not match: got=%v, want=%v", got, want)
 	}
 
-	expectedError := strings.Join(expectedErrorLines, "\n")
-
-	gotError := err.Error()
-
-	if gotError != expectedError {
-		t.Fatalf("\ngot=\n%v\nwant=\n%s\ndiff=\n%s", gotError, expectedError, diff.Diff(gotError, expectedError))
-	}
-}
-
-func TestInValidK8sConfig(t *testing.T) {
-	ctx := context.Background()
-
-	config := map[string]string{
-		// "kubeconfig": "missing",
+	dummyDG, ok := dg.(*dummyDataGatherer)
+	if !ok {
+		t.Fatalf("got a DataGatherer that is not a dummyDataGatherer")
 	}
 
-	_, err := LoadDataGatherer(ctx, "k8s/pod", config)
-	if err == nil {
-		t.Fatalf("Expected error, got nil")
-	}
-
-	if err.Error() != "failed to load K8s DataGatherer: kubeconfig path is required" {
-		t.Fatalf("Unxpected error, %s", err.Error())
-	}
-}
-
-func TestInValidEKSConfig(t *testing.T) {
-	ctx := context.Background()
-
-	config := map[string]string{
-		// "cluster": "missing",
-	}
-
-	_, err := LoadDataGatherer(ctx, "eks", config)
-	if err == nil {
-		t.Fatalf("Expected error, got nil")
-	}
-
-	if err.Error() != "failed to load EKS DataGatherer: cluster is required" {
-		t.Fatalf("Unxpected error, %s", err.Error())
-	}
-}
-
-func TestInValidAKSConfig(t *testing.T) {
-	ctx := context.Background()
-
-	config := map[string]string{
-		// "cluster": "missing",
-	}
-
-	_, err := LoadDataGatherer(ctx, "aks", config)
-	if err == nil {
-		t.Fatalf("Expected error, got nil")
-	}
-
-	expectedError := "failed to load AKS DataGatherer: 3 errors occurred:\n" +
-		"\t* project is required\n" +
-		"\t* cluster is required\n" +
-		"\t* location is required\n\n"
-
-	if err.Error() != expectedError {
-		t.Fatalf("\ngot=\n%v\nwant=\n%s\ndiff=\n%s", err.Error(), expectedError, diff.Diff(err.Error(), expectedError))
-	}
-}
-
-func TestValidLocalConfig(t *testing.T) {
-	ctx := context.Background()
-
-	config := map[string]string{
-		"data-path": "dump.json",
-	}
-
-	expected := local.NewLocalDataGatherer("dump.json")
-
-	dg, err := LoadDataGatherer(ctx, "local", config)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if diff, equal := messagediff.PrettyDiff(dg, expected); !equal {
-		fmt.Printf("got %v\n", dg)
-		t.Fatalf("Diff %s", diff)
-	}
-}
-
-func TestInValidLocalConfig(t *testing.T) {
-	ctx := context.Background()
-
-	config := map[string]string{
-		// "data-path": "missing",
-	}
-
-	_, err := LoadDataGatherer(ctx, "local", config)
-	if err == nil {
-		t.Fatalf("Expected error, got nil")
-	}
-
-	if err.Error() != "failed to load Local DataGatherer: data-path is required" {
-		t.Fatalf("Unxpected error, %s", err.Error())
+	if got, want := dummyDG.Param1, "bar"; got != want {
+		t.Fatalf("DataGatherer does not contain the expected properties: got Param1=%v, want Param1=%v", got, want)
 	}
 }

@@ -7,4 +7,4 @@ endpoint:
 data-gatherers:
   - kind: "dummy"
     name: "dummy"
-    data: {}
+    config: {}

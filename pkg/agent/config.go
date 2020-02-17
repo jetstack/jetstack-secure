@@ -25,9 +25,10 @@ type Endpoint struct {
 }
 
 type dataGatherer struct {
-	Kind string            `yaml:"kind"`
-	Name string            `yaml:"name"`
-	Data map[string]string `yaml:"data"`
+	Kind     string `yaml:"kind"`
+	Name     string `yaml:"name"`
+	DataPath string `yaml:"data-path,omitempty"`
+	Config   []byte `yaml:"config"`
 }
 
 // Dump generates a YAML string of the Config object

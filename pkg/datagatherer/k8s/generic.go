@@ -14,7 +14,7 @@ import (
 // Config contains the configuration for the data-gatherer.
 type Config struct {
 	// KubeConfigPath is the path to the kubeconfig file. If empty, will assume it runs in-cluster.
-	KubeConfigPath string
+	KubeConfigPath string `yaml:"kubeconfig"`
 	// GroupVersionResource identifies the resource type to gather.
 	GroupVersionResource schema.GroupVersionResource
 }
