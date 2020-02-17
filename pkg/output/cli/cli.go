@@ -19,7 +19,7 @@ type Config struct {
 }
 
 // NewOutput creates a new CLIOutput
-func (c *Config) NewOutput() (output.Output, error) {
+func (c *Config) NewOutput(ctx context.Context) (output.Output, error) {
 	var e exporter.Exporter
 	switch c.Format {
 	case "":

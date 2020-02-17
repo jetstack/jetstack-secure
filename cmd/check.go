@@ -326,7 +326,7 @@ func check() {
 			}
 			op, err = (&cli.Config{
 				Format: outputFormat,
-			}).NewOutput()
+			}).NewOutput(ctx)
 		} else if outputType == "local" {
 			outputFormat, ok := outputDefinition["format"].(string)
 			if !ok {
@@ -339,7 +339,7 @@ func check() {
 			op, err = (&localoutput.Config{
 				Format: outputFormat,
 				Path:   pathutils.ExpandHome(outputPath),
-			}).NewOutput()
+			}).NewOutput(ctx)
 		} else if outputType == "gcs" {
 			outputFormat, ok := outputDefinition["format"].(string)
 			if !ok {
@@ -389,7 +389,7 @@ func check() {
 	if len(outputs) == 0 {
 		// Default to CLI output
 		log.Printf("No outputs specified, will default to CLI")
-		op, err := (&cli.Config{}).NewOutput()
+		op, err := (&cli.Config{}).NewOutput(ctx)
 		if err != nil {
 			log.Fatalf("Could not create cli output: %s", err)
 		}
