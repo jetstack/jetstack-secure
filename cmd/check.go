@@ -26,6 +26,7 @@ import (
 	"github.com/jetstack/preflight/pkg/output/cli"
 	"github.com/jetstack/preflight/pkg/output/gcs"
 	localoutput "github.com/jetstack/preflight/pkg/output/local"
+	"github.com/jetstack/preflight/pkg/packagesources"
 	"github.com/jetstack/preflight/pkg/packagesources/local"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/pathutils"
@@ -95,9 +96,8 @@ func check() {
 	clusterName := viper.GetString("cluster-name")
 	checkTime := time.Now()
 
-	// Load Preflight Packages
-	var packages = make(map[string]*packaging.Package)
-
+	// Load Preflight package sources
+	var packageSources []packagesources.PackageSource
 	packageSourcesCfg, ok := viper.Get("package-sources").([]interface{})
 	if !ok {
 		log.Fatalf("No package sources provided")
@@ -131,7 +131,12 @@ func check() {
 		if err != nil {
 			log.Fatalf("Failed to instantiate package source #%d: %+v", idx, err)
 		}
+		packageSources = append(packageSources, pkgSrc)
+	}
 
+	// Load Preflight Packages
+	var packages = make(map[string]*packaging.Package)
+	for idx, pkgSrc := range packageSources {
 		pkgs, err := pkgSrc.Load()
 		if err != nil {
 			log.Fatalf("Failed to load packages with package source #%d: %+v", idx, err)
@@ -141,7 +146,6 @@ func check() {
 			packages[pkg.PolicyManifest.GlobalID()] = pkg
 		}
 	}
-
 	if len(packages) == 0 {
 		log.Fatalf("No Packages loaded")
 	}
