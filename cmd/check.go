@@ -162,7 +162,7 @@ func check() {
 			// the name of the data gatherer it is impersonating so it can
 			// provide stubbed data.
 			if dataPath, ok := dataGathererConfig["data-path"].(string); ok && dataPath != "" {
-				dg, err = localdatagatherer.NewDataGatherer(&localdatagatherer.Config{DataPath: dataPath})
+				dg, err = (&localdatagatherer.Config{DataPath: dataPath}).NewDataGatherer(ctx)
 				if err != nil {
 					log.Fatalf("Cannot instantiate Local datagatherer impersonating %s: %v", name, err)
 				}
@@ -176,9 +176,9 @@ func check() {
 				}
 
 				clusterName, _ := eksConfig["cluster"].(string)
-				dg, err = eks.NewDataGatherer(&eks.Config{
+				dg, err = (&eks.Config{
 					ClusterName: clusterName,
-				})
+				}).NewDataGatherer(ctx)
 				if err != nil {
 					log.Fatalf("Cannot instantiate EKS datagatherer: %v", err)
 				}
@@ -194,7 +194,7 @@ func check() {
 				cluster, _ := gkeConfig["cluster"].(string)
 				credentialsPath, _ := gkeConfig["credentials"].(string)
 
-				dg, err = gke.NewDataGatherer(ctx, &gke.Config{
+				dg, err = (&gke.Config{
 					Cluster: &gke.Cluster{
 						Project:  project,
 						Zone:     zone,
@@ -202,7 +202,7 @@ func check() {
 						Name:     cluster,
 					},
 					CredentialsPath: credentialsPath,
-				})
+				}).NewDataGatherer(ctx)
 				if err != nil {
 					log.Fatalf("Cannot instantiate GKE datagatherer: %v", err)
 				}
@@ -216,11 +216,11 @@ func check() {
 				resourceGroup, _ := aksConfig["resource-group"].(string)
 				credentialsPath, _ := aksConfig["credentials"].(string)
 				var err error
-				dg, err = aks.NewDataGatherer(&aks.Config{
+				dg, err = (&aks.Config{
 					ClusterName:     clusterName,
 					ResourceGroup:   resourceGroup,
 					CredentialsPath: credentialsPath,
-				})
+				}).NewDataGatherer(ctx)
 				if err != nil {
 					log.Fatalf("Cannot instantiate AKS datagatherer: %v", err)
 				}
@@ -233,14 +233,14 @@ func check() {
 				if !ok {
 					log.Println("Didn't find 'kubeconfig' in 'data-gatherers.k8s/pods' configuration. Assuming it runs in-cluster.")
 				}
-				dg, err = k8s.NewDataGatherer(&k8s.Config{
+				dg, err = (&k8s.Config{
 					KubeConfigPath: pathutils.ExpandHome(kubeconfigPath),
 					GroupVersionResource: schema.GroupVersionResource{
 						Group:    "",
 						Version:  "v1",
 						Resource: "pods",
 					},
-				})
+				}).NewDataGatherer(ctx)
 				if err != nil {
 					log.Fatalf("Cannot create k8s client: %+v", err)
 				}
@@ -263,14 +263,14 @@ func check() {
 				if !ok {
 					log.Printf("Didn't find 'kubeconfig' in 'data-gatherers.%s' configuration. Assuming it runs in-cluster.", name)
 				}
-				dg, err = k8s.NewDataGatherer(&k8s.Config{
+				dg, err = (&k8s.Config{
 					KubeConfigPath: pathutils.ExpandHome(kubeconfigPath),
 					GroupVersionResource: schema.GroupVersionResource{
 						Resource: nameOnDots[0],
 						Version:  nameOnDots[1],
 						Group:    nameOnDots[2],
 					},
-				})
+				}).NewDataGatherer(ctx)
 				if err != nil {
 					log.Fatalf("Cannot create k8s client: %+v", err)
 				}
@@ -280,7 +280,7 @@ func check() {
 					log.Fatal("Cannot parse 'data-gatherers.local' in config.")
 				}
 				dataPath, ok := localConfig["data-path"].(string)
-				dg, err = localdatagatherer.NewDataGatherer(&localdatagatherer.Config{DataPath: dataPath})
+				dg, err = (&localdatagatherer.Config{DataPath: dataPath}).NewDataGatherer(ctx)
 				if err != nil {
 					log.Fatalf("Cannot instantiate Local datagatherer: %v", err)
 				}

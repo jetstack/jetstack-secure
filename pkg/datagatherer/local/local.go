@@ -1,6 +1,7 @@
 package local
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 )
@@ -11,8 +12,8 @@ type Config struct {
 	DataPath string
 }
 
-// Validate validates the configuration.
-func (c *Config) Validate() error {
+// validate validates the configuration.
+func (c *Config) validate() error {
 	if c.DataPath == "" {
 		return fmt.Errorf("invalid configuration: DataPath cannot be empty")
 	}
@@ -25,13 +26,13 @@ type DataGatherer struct {
 }
 
 // NewDataGatherer returns a new DataGatherer.
-func NewDataGatherer(cfg *Config) (*DataGatherer, error) {
-	if err := cfg.Validate(); err != nil {
+func (c *Config) NewDataGatherer(ctx context.Context) (*DataGatherer, error) {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
 	return &DataGatherer{
-		dataPath: cfg.DataPath,
+		dataPath: c.DataPath,
 	}, nil
 }
 

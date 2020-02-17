@@ -2,6 +2,7 @@
 package aks
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -21,8 +22,8 @@ type Config struct {
 	CredentialsPath string
 }
 
-// Validate checks if a Config is valid.
-func (c *Config) Validate() error {
+// validate checks if a Config is valid.
+func (c *Config) validate() error {
 	errs := []string{}
 
 	msg := "%s should be a non empty string."
@@ -43,19 +44,19 @@ func (c *Config) Validate() error {
 }
 
 // NewDataGatherer creates a new AKS DataGatherer. It performs a config validation.
-func NewDataGatherer(cfg *Config) (*DataGatherer, error) {
-	if err := cfg.Validate(); err != nil {
+func (c *Config) NewDataGatherer(ctx context.Context) (*DataGatherer, error) {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
-	credentials, err := readCredentials(cfg.CredentialsPath)
+	credentials, err := readCredentials(c.CredentialsPath)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DataGatherer{
-		resourceGroup: cfg.ResourceGroup,
-		clusterName:   cfg.ClusterName,
+		resourceGroup: c.ResourceGroup,
+		clusterName:   c.ClusterName,
 		credentials:   credentials,
 	}, nil
 }
