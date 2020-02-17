@@ -2,6 +2,7 @@
 package eks
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -15,23 +16,23 @@ type Config struct {
 	ClusterName string
 }
 
-// Validate validates the configuration.
-func (c *Config) Validate() error {
+// validate validates the configuration.
+func (c *Config) validate() error {
 	if c.ClusterName == "" {
 		return fmt.Errorf("invalid configuration: ClusterName cannot be empty")
 	}
 	return nil
 }
 
-// NewDataGatherer creates a new EKS DataGatherer.
-func NewDataGatherer(cfg *Config) (*DataGatherer, error) {
-	if err := cfg.Validate(); err != nil {
+// NewDataGatherer creates a new EKS DataGatherer. It performs a config validation.
+func (c *Config) NewDataGatherer(ctx context.Context) (*DataGatherer, error) {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
 	return &DataGatherer{
 		client:      eks.New(session.New()),
-		clustername: cfg.ClusterName,
+		clustername: c.ClusterName,
 	}, nil
 }
 

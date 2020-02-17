@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -17,8 +18,8 @@ type Config struct {
 	GroupVersionResource schema.GroupVersionResource
 }
 
-// Validate validates the configuration.
-func (c *Config) Validate() error {
+// validate validates the configuration.
+func (c *Config) validate() error {
 	if c.GroupVersionResource.Resource == "" {
 		return fmt.Errorf("invalid configuration: GroupVersionResource.Resource cannot be empty")
 	}
@@ -28,19 +29,19 @@ func (c *Config) Validate() error {
 
 // NewDataGatherer constructs a new instance of the generic K8s data-gatherer for the provided
 // GroupVersionResource.
-func NewDataGatherer(cfg *Config) (*DataGatherer, error) {
-	if err := cfg.Validate(); err != nil {
+func (c *Config) NewDataGatherer(ctx context.Context) (*DataGatherer, error) {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
-	cl, err := NewDynamicClient(cfg.KubeConfigPath)
+	cl, err := NewDynamicClient(c.KubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DataGatherer{
 		cl:                   cl,
-		groupVersionResource: cfg.GroupVersionResource,
+		groupVersionResource: c.GroupVersionResource,
 	}, nil
 }
 

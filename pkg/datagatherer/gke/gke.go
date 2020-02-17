@@ -20,8 +20,8 @@ type Config struct {
 	CredentialsPath string
 }
 
-// Validate validates the configuration.
-func (c *Config) Validate() error {
+// validate validates the configuration.
+func (c *Config) validate() error {
 	errs := []string{}
 	emptyMsg := "%s should be a non empty string"
 
@@ -72,15 +72,15 @@ type Info struct {
 }
 
 // NewDataGatherer creates a new DataGatherer for a cluster.
-func NewDataGatherer(ctx context.Context, cfg *Config) (*DataGatherer, error) {
-	if err := cfg.Validate(); err != nil {
+func (c *Config) NewDataGatherer(ctx context.Context) (*DataGatherer, error) {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
 	return &DataGatherer{
 		ctx:             ctx,
-		cluster:         cfg.Cluster,
-		credentialsPath: cfg.CredentialsPath,
+		cluster:         c.Cluster,
+		credentialsPath: c.CredentialsPath,
 	}, nil
 }
 
