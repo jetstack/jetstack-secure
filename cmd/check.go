@@ -34,7 +34,7 @@ import (
 	"github.com/jetstack/preflight/pkg/results"
 )
 
-var cfgFile string
+var configPath string
 
 // GlobalConfigDirectory is a static path where configuration
 // may be loaded from. This is designed to support this
@@ -59,7 +59,7 @@ This command will never modify external resources, and is safe to run idempotent
 func init() {
 	rootCmd.AddCommand(checkCmd)
 	checkCmd.PersistentFlags().StringVarP(
-		&cfgFile,
+		&configPath,
 		"config-file",
 		"c",
 		"",
@@ -67,8 +67,8 @@ func init() {
 }
 
 func loadConfigFile() {
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
+	if configPath != "" {
+		viper.SetConfigFile(configPath)
 	} else {
 		currentWorkingDirectory, err := os.Getwd()
 		// Ignore any errors silently, but only search the
