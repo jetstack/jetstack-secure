@@ -52,7 +52,10 @@ func check() {
 	ctx := context.Background()
 
 	// Load config from file
-	config, _ := checkconfig.LoadConfig(configPath)
+	config, err := checkconfig.LoadConfig(configPath)
+	if err != nil {
+		log.Fatalf("Error loading check config: %+v", err)
+	}
 
 	checkTime := time.Now()
 

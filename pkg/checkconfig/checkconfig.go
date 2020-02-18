@@ -1,6 +1,8 @@
 package checkconfig
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -79,12 +81,12 @@ func LoadConfig(configPath string) (*Config, error) {
 	// Decode Preflight package sources config
 	packageSourcesConfigFromFile, ok := viper.Get("package-sources").([]interface{})
 	if !ok {
-		log.Fatalf("No package sources provided")
+		return nil, errors.New("No package sources provided")
 	}
 	for idx, packageSourceConfigFromFile := range packageSourcesConfigFromFile {
 		cfg, ok := packageSourceConfigFromFile.(map[interface{}]interface{})
 		if !ok {
-			log.Fatalf("Cannot parse configuration from package source #%d", idx)
+			return nil, fmt.Errorf("Cannot parse configuration from package source #%d", idx)
 		}
 
 		// TODO: we need to do this to keep b/c with existing config files
@@ -92,15 +94,15 @@ func LoadConfig(configPath string) (*Config, error) {
 		// another type of configuration (cmd/agent).
 		t, ok := cfg["type"].(string)
 		if !ok {
-			log.Fatalf("Cannot read 'type' in package source #%d", idx)
+			return nil, fmt.Errorf("Cannot read 'type' in package source #%d", idx)
 		}
 		dir, ok := cfg["dir"].(string)
 		if !ok {
-			log.Fatalf("Cannot read 'dir' in package source #%d", idx)
+			return nil, fmt.Errorf("Cannot read 'dir' in package source #%d", idx)
 		}
 
 		if t != "local" {
-			log.Fatalf("Unsupported package source, type %q is unknown.", t)
+			return nil, fmt.Errorf("Unsupported package source, type %q is unknown", t)
 		}
 		parsedCfg := &packagesources.TypedConfig{
 			Type: "local",
@@ -121,7 +123,7 @@ func LoadConfig(configPath string) (*Config, error) {
 			// We need to read gatherer config from here and its schema depends on the gatherer itself.
 			dataGathererConfigMap, ok := dataGathererConfigFromFile.(map[string]interface{})
 			if !ok {
-				log.Fatalf("Cannot parse %s data gatherer config.", name)
+				return nil, fmt.Errorf("Cannot parse %s data gatherer config.", name)
 			}
 			var dataGathererConfig datagatherer.Config
 			// Check if this data gatherer's config specifies a data-path.
@@ -183,7 +185,7 @@ func LoadConfig(configPath string) (*Config, error) {
 					nameOnDots = append(nameOnDots, "")
 				}
 				if len(nameOnDots) != 3 {
-					log.Fatal("Failed to parse generic k8s plugin configuration. Expected data gatherer name of the form k8s/{resource-name}.{api-version}.{api-group}")
+					return nil, fmt.Errorf("Failed to parse generic k8s plugin configuration. Expected data gatherer name of the form k8s/{resource-name}.{api-version}.{api-group}")
 				}
 				kubeconfigPath, ok := dataGathererConfigMap["kubeconfig"].(string)
 				if !ok {
@@ -200,13 +202,13 @@ func LoadConfig(configPath string) (*Config, error) {
 			} else if name == "local" {
 				dataPath, ok := dataGathererConfigMap["data-path"].(string)
 				if !ok {
-					log.Fatalf("Didn't find 'data-path' in 'data-gatherers.%s' configuration.", name)
+					return nil, fmt.Errorf("Didn't find 'data-path' in 'data-gatherers.%s' configuration", name)
 				}
 				dataGathererConfig = &localdatagatherer.Config{
 					DataPath: dataPath,
 				}
 			} else {
-				log.Fatalf("Found unsupported data-gatherer %q in config.", name)
+				return nil, fmt.Errorf("Found unsupported data-gatherer %q in config", name)
 			}
 			config.DataGatherers[name] = dataGathererConfig
 		}
@@ -215,7 +217,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	// Decode output config
 	outputsConfigFromFile, ok := viper.Get("outputs").([]interface{})
 	if !ok {
-		log.Fatalf("No outputs provided")
+		return nil, fmt.Errorf("No outputs provided")
 	}
 	for _, outputConfigFromFile := range outputsConfigFromFile {
 		outputConfigMap := outputConfigFromFile.(map[interface{}]interface{})
@@ -235,11 +237,11 @@ func LoadConfig(configPath string) (*Config, error) {
 		} else if outputType == "local" {
 			outputFormat, ok := outputConfigMap["format"].(string)
 			if !ok {
-				log.Fatal("Missing 'format' property in local output configuration.")
+				return nil, errors.New("Missing 'format' property in local output configuration")
 			}
 			outputPath, ok := outputConfigMap["path"].(string)
 			if !ok {
-				log.Fatal("Missing 'path' property in local output configuration.")
+				return nil, errors.New("Missing 'path' property in local output configuration")
 			}
 			outputConfig = &localoutput.Config{
 				Format: outputFormat,
@@ -248,15 +250,15 @@ func LoadConfig(configPath string) (*Config, error) {
 		} else if outputType == "gcs" {
 			outputFormat, ok := outputConfigMap["format"].(string)
 			if !ok {
-				log.Fatal("Missing 'format' property in gcs output configuration.")
+				return nil, errors.New("Missing 'format' property in gcs output configuration")
 			}
 			outputBucketName, ok := outputConfigMap["bucket-name"].(string)
 			if !ok {
-				log.Fatal("Missing 'bucket-name' property in gcs output configuration.")
+				return nil, errors.New("Missing 'bucket-name' property in gcs output configuration")
 			}
 			outputCredentialsPath, ok := outputConfigMap["credentials-path"].(string)
 			if !ok {
-				log.Fatal("Missing 'credentials-path' property in gcs output configuration.")
+				return nil, errors.New("Missing 'credentials-path' property in gcs output configuration")
 			}
 			outputConfig = &gcs.Config{
 				Format:          outputFormat,
@@ -266,15 +268,15 @@ func LoadConfig(configPath string) (*Config, error) {
 		} else if outputType == "azblob" {
 			outputFormat, ok := outputConfigMap["format"].(string)
 			if !ok {
-				log.Fatal("Missing 'format' property in azblob output configuration.")
+				return nil, errors.New("Missing 'format' property in azblob output configuration")
 			}
 			outputContainer, ok := outputConfigMap["container"].(string)
 			if !ok {
-				log.Fatal("Missing 'container' property in azblob output configuration.")
+				return nil, errors.New("Missing 'container' property in azblob output configuration")
 			}
 			accountName, accountKey := os.Getenv("AZURE_STORAGE_ACCOUNT"), os.Getenv("AZURE_STORAGE_ACCESS_KEY")
 			if len(accountName) == 0 || len(accountKey) == 0 {
-				log.Fatal("Either the AZURE_STORAGE_ACCOUNT or AZURE_STORAGE_ACCESS_KEY environment variable is not set.")
+				return nil, fmt.Errorf("Either the AZURE_STORAGE_ACCOUNT or AZURE_STORAGE_ACCESS_KEY environment variable is not set")
 			}
 			outputConfig = &azblob.Config{
 				Format:        outputFormat,
@@ -283,7 +285,7 @@ func LoadConfig(configPath string) (*Config, error) {
 				AccountKey:    accountKey,
 			}
 		} else {
-			log.Fatalf("Output type not recognised: %s", outputType)
+			return nil, fmt.Errorf("Output type not recognised: %s", outputType)
 		}
 		config.Outputs = append(config.Outputs, &output.TypedConfig{
 			Type:   outputType,
@@ -307,7 +309,7 @@ func LoadConfig(configPath string) (*Config, error) {
 		}
 	}
 	if len(config.EnabledPackages) == 0 {
-		log.Fatal("No packages were enabled. Use 'enables-packages' option in configuration to enable the packages you want to use.")
+		return nil, errors.New("No packages were enabled. Use 'enables-packages' option in configuration to enable the packages you want to use")
 	}
 
 	return config, nil
