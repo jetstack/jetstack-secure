@@ -80,7 +80,7 @@ func Run(cmd *cobra.Command, args []string) {
 	for {
 		log.Println("Running Agent...")
 		log.Println("Posting data to ", serverURL)
-		err = postData(serverURL, []*api.DataReading{
+		err = postData(serverURL, config.Token, []*api.DataReading{
 			&api.DataReading{
 				DataGatherer: "dummy",
 				Timestamp:    api.Time{Time: time.Now()},
@@ -99,33 +99,29 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 }
 
-func postData(serverURL *url.URL, readings []*api.DataReading) error {
+func postData(serverURL *url.URL, token string, readings []*api.DataReading) error {
 	data, err := json.Marshal(readings)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest("ASDF", serverURL.String(), bytes.NewBuffer(data))
+	req, err := http.NewRequest(http.MethodPost, serverURL.String(), bytes.NewBuffer(data))
 	req.Header.Set("Content-Type", "application/json")
 
-	ss := serverURL.String()
-	fmt.Println(ss)
-	resp, err := http.Post(ss, "application/json", bytes.NewBuffer(data))
+	if len(token) > 0 {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
-
-	// client := &http.Client{}
-	// resp, err := client.Do(req)
-	// if err != nil {
-	// 	return err
-	// }
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	// resp.Body.Close()
 
 	if code := resp.StatusCode; code < 200 || code >= 300 {
 		return fmt.Errorf("Received response with status code %d. Body: %s", code, string(body))

@@ -1,5 +1,5 @@
 schedule: "* * * *"
-token: "* * * *"
+token: dGhpcyBpcyBhIHRva2VuCg==
 endpoint:
   protocol: http
   host: "localhost:8080"
@@ -7,4 +7,3 @@ endpoint:
 data-gatherers:
   - kind: "dummy"
     name: "dummy"
-    config: {}
