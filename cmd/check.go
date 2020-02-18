@@ -41,10 +41,6 @@ var configPath string
 // executable in Docker containers.
 const globalConfigDirectory = "/etc/preflight/"
 
-type Config struct {
-	PackageSources []packagesources.PackageSource
-}
-
 // checkCmd represents the check command
 var checkCmd = &cobra.Command{
 	Use:   "check",
