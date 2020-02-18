@@ -11,12 +11,13 @@ assignees: ''
 
 **What happened?**
 
-<What is the current bug behavior?, describe whatever unexpected situation happened. Give all the context you can, provide relevant logs and/or screenshots.>
+What is the current bug behavior?
+Give all the context you can, provide relevant logs and/or screenshots.
 
 **What should had happened?**
 
-<Describe what you expected to happen.>
+Describe what you expected to happen.
 
 **Possible fixes**
 
-<This section is optional and should not be taken as an actual description of what to do but only as possible solutions to explore and discuss.>
+This section is optional and should include possible solutions to explore and discuss further.
