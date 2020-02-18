@@ -26,6 +26,7 @@ import (
 	"github.com/jetstack/preflight/pkg/output/cli"
 	"github.com/jetstack/preflight/pkg/output/gcs"
 	localoutput "github.com/jetstack/preflight/pkg/output/local"
+	"github.com/jetstack/preflight/pkg/packagesources"
 	"github.com/jetstack/preflight/pkg/packagesources/local"
 	"github.com/jetstack/preflight/pkg/packaging"
 	"github.com/jetstack/preflight/pkg/pathutils"
@@ -33,12 +34,16 @@ import (
 	"github.com/jetstack/preflight/pkg/results"
 )
 
-var cfgFile string
+var configPath string
 
 // GlobalConfigDirectory is a static path where configuration
 // may be loaded from. This is designed to support this
 // executable in Docker containers.
 const globalConfigDirectory = "/etc/preflight/"
+
+type Config struct {
+	PackageSources []packagesources.PackageSource
+}
 
 // checkCmd represents the check command
 var checkCmd = &cobra.Command{
@@ -58,7 +63,7 @@ This command will never modify external resources, and is safe to run idempotent
 func init() {
 	rootCmd.AddCommand(checkCmd)
 	checkCmd.PersistentFlags().StringVarP(
-		&cfgFile,
+		&configPath,
 		"config-file",
 		"c",
 		"",
@@ -66,8 +71,8 @@ func init() {
 }
 
 func loadConfigFile() {
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
+	if configPath != "" {
+		viper.SetConfigFile(configPath)
 	} else {
 		currentWorkingDirectory, err := os.Getwd()
 		// Ignore any errors silently, but only search the
@@ -95,15 +100,14 @@ func check() {
 	clusterName := viper.GetString("cluster-name")
 	checkTime := time.Now()
 
-	// Load Preflight Packages
-	var packages = make(map[string]*packaging.Package)
-
-	packageSourcesCfg, ok := viper.Get("package-sources").([]interface{})
+	// Decode Preflight package sources config
+	var packageSourcesConfig []*packagesources.TypedConfig
+	packageSourcesConfigFromFile, ok := viper.Get("package-sources").([]interface{})
 	if !ok {
 		log.Fatalf("No package sources provided")
 	}
-	for idx, packageSourceCfg := range packageSourcesCfg {
-		cfg, ok := packageSourceCfg.(map[interface{}]interface{})
+	for idx, packageSourceConfigFromFile := range packageSourcesConfigFromFile {
+		cfg, ok := packageSourceConfigFromFile.(map[interface{}]interface{})
 		if !ok {
 			log.Fatalf("Cannot parse configuration from package source #%d", idx)
 		}
@@ -123,15 +127,28 @@ func check() {
 		if t != "local" {
 			log.Fatalf("Unsupported package source, type %q is unknown.", t)
 		}
-		parsedCfg := &local.Config{
-			Dir: dir,
+		parsedCfg := &packagesources.TypedConfig{
+			Type: "local",
+			Config: &local.Config{
+				Dir: dir,
+			},
 		}
+		packageSourcesConfig = append(packageSourcesConfig, parsedCfg)
+	}
 
-		pkgSrc, err := parsedCfg.NewPackageSource()
+	// Load Preflight package sources
+	var packageSources []packagesources.PackageSource
+	for idx, packageSourceConfig := range packageSourcesConfig {
+		pkgSrc, err := packageSourceConfig.NewPackageSource()
 		if err != nil {
 			log.Fatalf("Failed to instantiate package source #%d: %+v", idx, err)
 		}
+		packageSources = append(packageSources, pkgSrc)
+	}
 
+	// Load Preflight Packages
+	var packages = make(map[string]*packaging.Package)
+	for idx, pkgSrc := range packageSources {
 		pkgs, err := pkgSrc.Load()
 		if err != nil {
 			log.Fatalf("Failed to load packages with package source #%d: %+v", idx, err)
@@ -141,62 +158,43 @@ func check() {
 			packages[pkg.PolicyManifest.GlobalID()] = pkg
 		}
 	}
-
 	if len(packages) == 0 {
 		log.Fatalf("No Packages loaded")
 	}
 
-	// Load datagatherers
-	gatherers := make(map[string]datagatherer.DataGatherer)
-	gatherersConfig, ok := viper.Get("data-gatherers").(map[string]interface{})
+	// Decode data gatherer config
+	var dataGatherersConfig map[string]datagatherer.Config
+	dataGatherersConfigFromFile, ok := viper.Get("data-gatherers").(map[string]interface{})
 	// we don't error if no data-gatherers to keep backwards compatibility
 	if ok {
-		for name, config := range gatherersConfig {
-			// TODO: create gatherer from config in a more clever way. We need to read gatherer config from here and its schema depends on the gatherer itself.
-			var dg datagatherer.DataGatherer
-			var err error
-			dataGathererConfig, ok := config.(map[string]interface{})
+		for name, dataGathererConfigFromFile := range dataGatherersConfigFromFile {
+			// TODO: create gatherer from config in a more clever way.
+			// We need to read gatherer config from here and its schema depends on the gatherer itself.
+			dataGathererConfigMap, ok := dataGathererConfigFromFile.(map[string]interface{})
 			if !ok {
 				log.Fatalf("Cannot parse %s data gatherer config.", name)
 			}
+			var dataGathererConfig datagatherer.Config
 			// Check if this data gatherer's config specifies a data-path.
 			// If it does create a LocalDataGatherer to load this data but keep
 			// the name of the data gatherer it is impersonating so it can
 			// provide stubbed data.
-			if dataPath, ok := dataGathererConfig["data-path"].(string); ok && dataPath != "" {
-				dg, err = (&localdatagatherer.Config{DataPath: dataPath}).NewDataGatherer(ctx)
-				if err != nil {
-					log.Fatalf("Cannot instantiate Local datagatherer impersonating %s: %v", name, err)
+			if dataPath, ok := dataGathererConfigMap["data-path"].(string); ok && dataPath != "" {
+				dataGathererConfig = &localdatagatherer.Config{
+					DataPath: dataPath,
 				}
-				gatherers[name] = dg
-				continue
-			}
-			if name == "eks" {
-				eksConfig, ok := config.(map[string]interface{})
-				if !ok {
-					log.Fatal("Cannot parse 'data-gatherers.eks' in config.")
-				}
-
-				clusterName, _ := eksConfig["cluster"].(string)
-				dg, err = (&eks.Config{
+			} else if name == "eks" {
+				clusterName, _ := dataGathererConfigMap["cluster"].(string)
+				dataGathererConfig = &eks.Config{
 					ClusterName: clusterName,
-				}).NewDataGatherer(ctx)
-				if err != nil {
-					log.Fatalf("Cannot instantiate EKS datagatherer: %v", err)
 				}
 			} else if name == "gke" {
-				gkeConfig, ok := config.(map[string]interface{})
-				if !ok {
-					log.Fatal("Cannot parse 'data-gatherers.gke' in config.")
-				}
-
-				project, _ := gkeConfig["project"].(string)
-				zone, _ := gkeConfig["zone"].(string)
-				location, _ := gkeConfig["location"].(string)
-				cluster, _ := gkeConfig["cluster"].(string)
-				credentialsPath, _ := gkeConfig["credentials"].(string)
-
-				dg, err = (&gke.Config{
+				project, _ := dataGathererConfigMap["project"].(string)
+				zone, _ := dataGathererConfigMap["zone"].(string)
+				location, _ := dataGathererConfigMap["location"].(string)
+				cluster, _ := dataGathererConfigMap["cluster"].(string)
+				credentialsPath, _ := dataGathererConfigMap["credentials"].(string)
+				dataGathererConfig = &gke.Config{
 					Cluster: &gke.Cluster{
 						Project:  project,
 						Zone:     zone,
@@ -204,47 +202,28 @@ func check() {
 						Name:     cluster,
 					},
 					CredentialsPath: credentialsPath,
-				}).NewDataGatherer(ctx)
-				if err != nil {
-					log.Fatalf("Cannot instantiate GKE datagatherer: %v", err)
 				}
 			} else if name == "aks" {
-				aksConfig, ok := config.(map[string]interface{})
-				if !ok {
-					log.Fatal("Cannot parse 'data-gatherers.aks' in config.")
-				}
-
-				clusterName, _ := aksConfig["cluster"].(string)
-				resourceGroup, _ := aksConfig["resource-group"].(string)
-				credentialsPath, _ := aksConfig["credentials"].(string)
-				var err error
-				dg, err = (&aks.Config{
+				clusterName, _ := dataGathererConfigMap["cluster"].(string)
+				resourceGroup, _ := dataGathererConfigMap["resource-group"].(string)
+				credentialsPath, _ := dataGathererConfigMap["credentials"].(string)
+				dataGathererConfig = &aks.Config{
 					ClusterName:     clusterName,
 					ResourceGroup:   resourceGroup,
 					CredentialsPath: credentialsPath,
-				}).NewDataGatherer(ctx)
-				if err != nil {
-					log.Fatalf("Cannot instantiate AKS datagatherer: %v", err)
 				}
 			} else if name == "k8s/pods" {
-				podsConfig, ok := config.(map[string]interface{})
-				if !ok {
-					log.Fatal("Cannot parse 'data-gatherers.k8s/pods' in config.")
-				}
-				kubeconfigPath, ok := podsConfig["kubeconfig"].(string)
+				kubeconfigPath, ok := dataGathererConfigMap["kubeconfig"].(string)
 				if !ok {
 					log.Println("Didn't find 'kubeconfig' in 'data-gatherers.k8s/pods' configuration. Assuming it runs in-cluster.")
 				}
-				dg, err = (&k8s.Config{
+				dataGathererConfig = &k8s.Config{
 					KubeConfigPath: pathutils.ExpandHome(kubeconfigPath),
 					GroupVersionResource: schema.GroupVersionResource{
 						Group:    "",
 						Version:  "v1",
 						Resource: "pods",
 					},
-				}).NewDataGatherer(ctx)
-				if err != nil {
-					log.Fatalf("Cannot create k8s client: %+v", err)
 				}
 			} else if strings.HasPrefix(name, "k8s/") {
 				trimmed := strings.TrimPrefix(name, "k8s/")
@@ -257,45 +236,46 @@ func check() {
 				if len(nameOnDots) != 3 {
 					log.Fatal("Failed to parse generic k8s plugin configuration. Expected data gatherer name of the form k8s/{resource-name}.{api-version}.{api-group}")
 				}
-				config, ok := config.(map[string]interface{})
-				if !ok {
-					log.Fatalf("cannot parse 'data-gatherers.%s' in config.", name)
-				}
-				kubeconfigPath, ok := config["kubeconfig"].(string)
+				kubeconfigPath, ok := dataGathererConfigMap["kubeconfig"].(string)
 				if !ok {
 					log.Printf("Didn't find 'kubeconfig' in 'data-gatherers.%s' configuration. Assuming it runs in-cluster.", name)
 				}
-				dg, err = (&k8s.Config{
+				dataGathererConfig = &k8s.Config{
 					KubeConfigPath: pathutils.ExpandHome(kubeconfigPath),
 					GroupVersionResource: schema.GroupVersionResource{
 						Resource: nameOnDots[0],
 						Version:  nameOnDots[1],
 						Group:    nameOnDots[2],
 					},
-				}).NewDataGatherer(ctx)
-				if err != nil {
-					log.Fatalf("Cannot create k8s client: %+v", err)
 				}
 			} else if name == "local" {
-				localConfig, ok := config.(map[string]interface{})
+				dataPath, ok := dataGathererConfigMap["data-path"].(string)
 				if !ok {
-					log.Fatal("Cannot parse 'data-gatherers.local' in config.")
+					log.Fatalf("Didn't find 'data-path' in 'data-gatherers.%s' configuration.", name)
 				}
-				dataPath, ok := localConfig["data-path"].(string)
-				dg, err = (&localdatagatherer.Config{DataPath: dataPath}).NewDataGatherer(ctx)
-				if err != nil {
-					log.Fatalf("Cannot instantiate Local datagatherer: %v", err)
+				dataGathererConfig = &localdatagatherer.Config{
+					DataPath: dataPath,
 				}
 			} else {
 				log.Fatalf("Found unsupported data-gatherer %q in config.", name)
 			}
-			gatherers[name] = dg
+			dataGatherersConfig[name] = dataGathererConfig
 		}
+	}
+
+	// Load data gatherers
+	dataGatherers := make(map[string]datagatherer.DataGatherer)
+	for name, config := range dataGatherersConfig {
+		dg, err := config.NewDataGatherer(ctx)
+		if err != nil {
+			log.Fatalf("Cannot instantiate %s datagatherer: %v", name, err)
+		}
+		dataGatherers[name] = dg
 	}
 
 	// Fetch from all datagatherers
 	information := make(map[string]interface{})
-	for k, g := range gatherers {
+	for k, g := range dataGatherers {
 		i, err := g.Fetch()
 		if err != nil {
 			log.Fatalf("Error fetching with DataGatherer %q: %s", k, err)
@@ -303,67 +283,64 @@ func check() {
 		information[k] = i
 	}
 
-	// Load Output config
-	var outputs = make([]output.Output, 0)
-	outputDefinitions, ok := viper.Get("outputs").([]interface{})
+	// Decode output config
+	var outputsConfig []*output.TypedConfig
+	outputsConfigFromFile, ok := viper.Get("outputs").([]interface{})
 	if !ok {
 		log.Fatalf("No outputs provided")
 	}
-	for _, o := range outputDefinitions {
-		outputDefinition := o.(map[interface{}]interface{})
-		outputType := outputDefinition["type"].(string)
-		var (
-			op  output.Output
-			err error
-		)
+	for _, outputConfigFromFile := range outputsConfigFromFile {
+		outputConfigMap := outputConfigFromFile.(map[interface{}]interface{})
+		outputType := outputConfigMap["type"].(string)
+		var outputConfig output.Config
 		if outputType == "cli" {
 			var outputFormat string
 			// Format is optional for CLI, will be defaulted to CLI format
-			if outputDefinition["format"] != nil {
-				outputFormat = outputDefinition["format"].(string)
+			if outputConfigMap["format"] != nil {
+				outputFormat = outputConfigMap["format"].(string)
 			} else {
 				outputFormat = ""
 			}
-			op, err = (&cli.Config{
+			outputConfig = &cli.Config{
 				Format: outputFormat,
-			}).NewOutput(ctx)
+			}
 		} else if outputType == "local" {
-			outputFormat, ok := outputDefinition["format"].(string)
+			outputFormat, ok := outputConfigMap["format"].(string)
 			if !ok {
 				log.Fatal("Missing 'format' property in local output configuration.")
 			}
-			outputPath, ok := outputDefinition["path"].(string)
+			outputPath, ok := outputConfigMap["path"].(string)
 			if !ok {
 				log.Fatal("Missing 'path' property in local output configuration.")
 			}
-			op, err = (&localoutput.Config{
+			outputConfig = &localoutput.Config{
 				Format: outputFormat,
 				Path:   pathutils.ExpandHome(outputPath),
-			}).NewOutput(ctx)
+			}
 		} else if outputType == "gcs" {
-			outputFormat, ok := outputDefinition["format"].(string)
+			outputFormat, ok := outputConfigMap["format"].(string)
 			if !ok {
 				log.Fatal("Missing 'format' property in gcs output configuration.")
 			}
-			outputBucketName, ok := outputDefinition["bucket-name"].(string)
+			outputBucketName, ok := outputConfigMap["bucket-name"].(string)
 			if !ok {
 				log.Fatal("Missing 'bucket-name' property in gcs output configuration.")
 			}
-			outputCredentialsPath, ok := outputDefinition["credentials-path"].(string)
+			outputCredentialsPath, ok := outputConfigMap["credentials-path"].(string)
 			if !ok {
 				log.Fatal("Missing 'credentials-path' property in gcs output configuration.")
 			}
-			op, err = (&gcs.Config{
+			outputConfig = &gcs.Config{
 				Format:          outputFormat,
 				BucketName:      outputBucketName,
 				CredentialsPath: outputCredentialsPath,
-			}).NewOutput(ctx)
+			}
 		} else if outputType == "azblob" {
-			outputFormat, ok := outputDefinition["format"].(string)
+			outputFormat, ok := outputConfigMap["format"].(string)
 			if !ok {
 				log.Fatal("Missing 'format' property in azblob output configuration.")
 			}
-			outputContainer, ok := outputDefinition["container"].(string)
+			outputContainer, ok := outputConfigMap["container"].(string)
 			if !ok {
 				log.Fatal("Missing 'container' property in azblob output configuration.")
 			}
@@ -371,21 +348,30 @@ func check() {
 			if len(accountName) == 0 || len(accountKey) == 0 {
 				log.Fatal("Either the AZURE_STORAGE_ACCOUNT or AZURE_STORAGE_ACCESS_KEY environment variable is not set.")
 			}
-			op, err = (&azblob.Config{
+			outputConfig = &azblob.Config{
 				Format:        outputFormat,
 				ContainerName: outputContainer,
 				AccountName:   accountName,
 				AccountKey:    accountKey,
-			}).NewOutput(ctx)
+			}
 		} else {
 			log.Fatalf("Output type not recognised: %s", outputType)
 		}
-		if err != nil {
-			log.Fatalf("Could not create %s output: %s", outputType, err)
-		}
-		outputs = append(outputs, op)
+		outputsConfig = append(outputsConfig, &output.TypedConfig{
+			Type:   outputType,
+			Config: outputConfig,
+		})
 	}
 
+	// Load Outputs
+	var outputs = make([]output.Output, 0)
+	for _, outputConfig := range outputsConfig {
+		output, err := outputConfig.NewOutput(ctx)
+		if err != nil {
+			log.Fatalf("Could not create %s output: %s", outputConfig.Type, err)
+		}
+		outputs = append(outputs, output)
+	}
 	if len(outputs) == 0 {
 		// Default to CLI output
 		log.Printf("No outputs specified, will default to CLI")
@@ -430,7 +416,7 @@ func check() {
 		manifest := pkg.PolicyManifest
 		// Make sure we loaded the DataGatherers.
 		for _, g := range manifest.DataGatherers {
-			if gatherers[g] == nil {
+			if dataGatherers[g] == nil {
 				log.Fatalf("Package with ID %q requires DataGatherer %q, but it is not configured.", pkg.PolicyManifest.ID, g)
 			}
 		}
