@@ -9,8 +9,9 @@ assignees: ''
 
 **Documentation and Research**
 
-If this is work is being done in an external file, please link to it here
-(Notion, or Google Docs). Otherwise, use the issue to share your notes.
+If you are using an external file (Notion or Google Docs) for your reasearch/documentation, please provide a link here. Otherwise, use the issue template to share your notes.
+
+Please consider any associated risks, assumptions, and dependencies.
 
 **Review**
 
