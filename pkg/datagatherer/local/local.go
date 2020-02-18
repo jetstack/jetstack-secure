@@ -11,7 +11,7 @@ import (
 // Config is the configuration for a local DataGatherer.
 type Config struct {
 	// DataPath is the path to file containing the data to load.
-	DataPath string
+	DataPath string `yaml:"data-path"`
 }
 
 // validate validates the configuration.

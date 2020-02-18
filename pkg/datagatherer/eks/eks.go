@@ -14,7 +14,7 @@ import (
 // Config is the configuration for an EKS DataGatherer.
 type Config struct {
 	// ClusterName is the ID of the cluster in EKS.
-	ClusterName string
+	ClusterName string `yaml:"cluster-name"`
 }
 
 // validate validates the configuration.

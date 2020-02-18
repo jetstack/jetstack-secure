@@ -16,9 +16,9 @@ import (
 // Config is the configuration for a GKE DataGatherer.
 type Config struct {
 	// Cluster contains the details about to identify the cluster to gather information from.
-	Cluster *Cluster
+	Cluster *Cluster `yaml:"cluster"`
 	// CredentialsPath is the path to the JSON file containing the credentials to authenticate against the GKE API.
-	CredentialsPath string
+	CredentialsPath string `yaml:"credentials-path"`
 }
 
 // validate validates the configuration.
@@ -51,13 +51,13 @@ func (c *Config) validate() error {
 // Cluster holds details about the cluster required to query it using the API.
 type Cluster struct {
 	// Project is the Google Cloud Platform project the cluster belongs to.
-	Project string
+	Project string `yaml:"project"`
 	// Deprecated: Zone of the cluster. Use Location instead.
-	Zone string
+	Zone string `yaml:"zone"`
 	// Name is the identifier of the cluster.
-	Name string
+	Name string `yaml:"name"`
 	// Location is the location of the cluster.
-	Location string
+	Location string `yaml:"location"`
 }
 
 // DataGatherer is a DataGatherer for GKE.

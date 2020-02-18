@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +22,8 @@ var ConfigFilePath string
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
+	ctx := context.Background()
+
 	file, err := os.Open(ConfigFilePath)
 	if err != nil {
 		log.Fatalf("Failed to load config file for agent from: %s", ConfigFilePath)
@@ -44,6 +48,34 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 
 	log.Printf("Loaded config: \n%s", dump)
+
+	dataGatherers := make(map[string]datagatherer.DataGatherer)
+
+	for _, dgConfig := range config.DataGatherers {
+		kind := dgConfig.Kind
+		if dgConfig.DataPath != "" {
+			kind = "local"
+			log.Printf("Running data gatherer %s of type %s as Local, data-path override present", dgConfig.Name, dgConfig.Kind)
+		}
+
+		dg, err := LoadDataGatherer(ctx, kind, dgConfig.Config)
+		if err != nil {
+			log.Fatalf("Failed to load data gatherer: %s", err)
+		}
+		dataGatherers[dgConfig.Name] = dg
+	}
+
+	// Fetch from all datagatherers
+	var information []interface{}
+	for k, dg := range dataGatherers {
+		i, err := dg.Fetch()
+		if err != nil {
+			log.Fatalf("Error fetching with DataGatherer %q: %s", k, err)
+		}
+		information = append(information, i)
+	}
+
+	fmt.Printf("Gathered Data:\n%+v\n", information)
 
 	for {
 		log.Println("Running Agent...")

@@ -19,14 +19,9 @@ func TestValidConfigLoad(t *testing.T) {
       data-gatherers:
       - name: my-gke-cluster
         kind: gke
-        data:
-          project: my-gcp-project
-          location: us-central1-a
-          cluster: my-gke-cluster
       - name: my-pods
-        kind: k8s/pods
-        data:
-          kubeconfig: "~/.kube/config"`
+        kind: k8s
+`
 
 	loadedConfig, err := ParseConfig([]byte(configFileContents))
 
@@ -46,18 +41,10 @@ func TestValidConfigLoad(t *testing.T) {
 			dataGatherer{
 				Name: "my-gke-cluster",
 				Kind: "gke",
-				Data: map[string]string{
-					"project":  "my-gcp-project",
-					"location": "us-central1-a",
-					"cluster":  "my-gke-cluster",
-				},
 			},
 			dataGatherer{
 				Name: "my-pods",
-				Kind: "k8s/pods",
-				Data: map[string]string{
-					"kubeconfig": "~/.kube/config",
-				},
+				Kind: "k8s",
 			},
 		},
 	}
