@@ -163,7 +163,7 @@ func check() {
 	}
 
 	// Decode data gatherer config
-	var dataGatherersConfig map[string]datagatherer.Config
+	dataGatherersConfig := map[string]datagatherer.Config{}
 	dataGatherersConfigFromFile, ok := viper.Get("data-gatherers").(map[string]interface{})
 	// we don't error if no data-gatherers to keep backwards compatibility
 	if ok {
