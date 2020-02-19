@@ -11,7 +11,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/jetstack/preflight/api"
-	"github.com/jetstack/preflight/pkg/checkconfig"
+	"github.com/jetstack/preflight/internal/checkconfig"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/output"
 	"github.com/jetstack/preflight/pkg/output/cli"
