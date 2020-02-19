@@ -45,6 +45,18 @@ func (r *Report) Summarize() ReportSummary {
 	}
 }
 
+// GetReportMetadata returns the ReportMetadata for the Report.
+func (r *Report) GetReportMetadata() *ReportMetadata {
+	return &ReportMetadata{
+		ID:                 r.ID,
+		Timestamp:          r.Timestamp,
+		Cluster:            r.Cluster,
+		Package:            r.Package,
+		PackageInformation: r.PackageInformation,
+		PreflightVersion:   r.PreflightVersion,
+	}
+}
+
 // PackageInformation contains all the details to identify a package.
 type PackageInformation struct {
 	// Namespace the package belongs to.
@@ -101,7 +113,7 @@ type ReportMetadata struct {
 	Timestamp Time `json:"timestamp"`
 	// Cluster indicates which was the target of the report.
 	Cluster string `json:"cluster"`
-	// Package indicates which package was used for the report. (deprecated)
+	// Deprecated: Package indicates which package was used for the report.
 	Package string `json:"package"`
 	// PackageInformation contains all the information about the package that was used to generate the report.
 	PackageInformation PackageInformation `json:"package-information"`
