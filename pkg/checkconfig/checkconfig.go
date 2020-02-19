@@ -1,3 +1,5 @@
+// Package checkconfig provides all the necessary components for the `check`
+// command to load its configuration.
 package checkconfig
 
 import (
