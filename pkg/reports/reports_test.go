@@ -14,17 +14,19 @@ import (
 )
 
 var fixtureReport1 = api.Report{
-	ID:               "fixtureReport1",
-	PreflightVersion: "version.PreflightVersion",
-	Package:          "examplePackage.ID",
-	PackageInformation: api.PackageInformation{
-		Namespace: "examplePackage.Namespace",
-		ID:        "examplePackage.ID",
-		Version:   "examplePackage.PackageVersion",
+	ReportMetadata: api.ReportMetadata{
+		ID:               "fixtureReport1",
+		PreflightVersion: "version.PreflightVersion",
+		Package:          "examplePackage.ID",
+		PackageInformation: api.PackageInformation{
+			Namespace: "examplePackage.Namespace",
+			ID:        "examplePackage.ID",
+			Version:   "examplePackage.PackageVersion",
+		},
+		Cluster: "exampleCluster",
 	},
 	Name:        "examplePackage.Name",
 	Description: "examplePackage.Description",
-	Cluster:     "exampleCluster",
 	Sections: []api.ReportSection{
 		api.ReportSection{
 			ID:   "a_section",
@@ -63,17 +65,19 @@ var fixtureReport1 = api.Report{
 }
 
 var fixtureReport2 = api.Report{
-	ID:               "fixtureReport2",
-	PreflightVersion: "version.PreflightVersion",
-	Package:          "examplePackage.ID",
-	PackageInformation: api.PackageInformation{
-		Namespace: "examplePackage.Namespace",
-		ID:        "examplePackage.ID",
-		Version:   "examplePackage.PackageVersion",
+	ReportMetadata: api.ReportMetadata{
+		ID:               "fixtureReport2",
+		PreflightVersion: "version.PreflightVersion",
+		Package:          "examplePackage.ID",
+		PackageInformation: api.PackageInformation{
+			Namespace: "examplePackage.Namespace",
+			ID:        "examplePackage.ID",
+			Version:   "examplePackage.PackageVersion",
+		},
+		Cluster: "exampleCluster",
 	},
 	Name:        "examplePackage.Name",
 	Description: "examplePackage.Description",
-	Cluster:     "exampleCluster",
 	Sections: []api.ReportSection{
 		api.ReportSection{
 			ID:   "a_section",
@@ -267,13 +271,15 @@ func TestNewReport(t *testing.T) {
 		}
 
 		want := api.Report{
-			PreflightVersion: version.PreflightVersion,
-			Package:          examplePackage.ID,
-			PackageInformation: api.PackageInformation{
-				Namespace:     examplePackage.Namespace,
-				ID:            examplePackage.ID,
-				Version:       examplePackage.PackageVersion,
-				SchemaVersion: examplePackage.SchemaVersion,
+			ReportMetadata: api.ReportMetadata{
+				PreflightVersion: version.PreflightVersion,
+				Package:          examplePackage.ID,
+				PackageInformation: api.PackageInformation{
+					Namespace:     examplePackage.Namespace,
+					ID:            examplePackage.ID,
+					Version:       examplePackage.PackageVersion,
+					SchemaVersion: examplePackage.SchemaVersion,
+				},
 			},
 			Name:        examplePackage.Name,
 			Description: examplePackage.Description,
@@ -330,13 +336,15 @@ func TestNewReport(t *testing.T) {
 		}
 
 		want := api.Report{
-			PreflightVersion: version.PreflightVersion,
-			Package:          examplePackage.ID,
-			PackageInformation: api.PackageInformation{
-				Namespace:     examplePackage.Namespace,
-				ID:            examplePackage.ID,
-				Version:       examplePackage.PackageVersion,
-				SchemaVersion: examplePackage.SchemaVersion,
+			ReportMetadata: api.ReportMetadata{
+				PreflightVersion: version.PreflightVersion,
+				Package:          examplePackage.ID,
+				PackageInformation: api.PackageInformation{
+					Namespace:     examplePackage.Namespace,
+					ID:            examplePackage.ID,
+					Version:       examplePackage.PackageVersion,
+					SchemaVersion: examplePackage.SchemaVersion,
+				},
 			},
 			Name:        examplePackage.Name,
 			Description: examplePackage.Description,

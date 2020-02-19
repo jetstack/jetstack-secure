@@ -2,19 +2,8 @@ package api
 
 // Report contains the fields of a Preflight report
 type Report struct {
-	// Unique ID of the report.
-	ID string `json:"id"`
-	// PreflightVersion indicates the version of preflight this report was generated with.
-	PreflightVersion string `json:"preflight-version"`
-	// Timestamp indicates when the report was generated.
-	Timestamp Time `json:"timestamp"`
-	// Cluster indicates which was the target of the report.
-	Cluster string `json:"cluster"`
-	// Package indicates which package was used for the report. (deprecated)
-	Package string `json:"package"`
-	// PackageInformation contains all the information about the package that was used to generate the report.
-	PackageInformation PackageInformation `json:"package-information"`
-	// Name is the name of the package that was used for this report.
+	ReportMetadata
+	// Deprecated: Name is the name of the package that was used for this report.
 	Name string `json:"name"`
 	// Description is the description of the package that was used for this report.
 	Description string `json:"description,omitempty"`
@@ -43,6 +32,11 @@ func (r *Report) Summarize() ReportSummary {
 		FailureCount: failures,
 		SuccessCount: successes,
 	}
+}
+
+// GetMetadata gets the metadata of the report
+func (r *Report) GetMetadata() *ReportMetadata {
+	return &r.ReportMetadata
 }
 
 // PackageInformation contains all the details to identify a package.
@@ -101,7 +95,7 @@ type ReportMetadata struct {
 	Timestamp Time `json:"timestamp"`
 	// Cluster indicates which was the target of the report.
 	Cluster string `json:"cluster"`
-	// Package indicates which package was used for the report. (deprecated)
+	// Deprecated: Package indicates which package was used for the report.
 	Package string `json:"package"`
 	// PackageInformation contains all the information about the package that was used to generate the report.
 	PackageInformation PackageInformation `json:"package-information"`
