@@ -17,14 +17,13 @@ func TestValidConfigLoad(t *testing.T) {
       schedule: "* * * * *"
       token: "12345"
       data-gatherers:
-      - name: my-gke-cluster
-        kind: gke
-      - name: my-pods
-        kind: k8s
+      - name: d1
+        kind: dummy
+        config:
+          param-1: "bar"
 `
 
 	loadedConfig, err := ParseConfig([]byte(configFileContents))
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -39,12 +38,11 @@ func TestValidConfigLoad(t *testing.T) {
 		Token:    "12345",
 		DataGatherers: []dataGatherer{
 			dataGatherer{
-				Name: "my-gke-cluster",
-				Kind: "gke",
-			},
-			dataGatherer{
-				Name: "my-pods",
-				Kind: "k8s",
+				Name: "d1",
+				Kind: "dummy",
+				Config: &dummyConfig{
+					Param1: "bar",
+				},
 			},
 		},
 	}
@@ -99,15 +97,14 @@ func TestPartialMissingConfigError(t *testing.T) {
       schedule: "* * * * *"
       token: "12345"
       data-gatherers:
-        - foo: bar`))
+        - kind: dummy`))
 
 	if parseError == nil {
 		t.Fatalf("expected error, got nil")
 	}
 
 	expectedErrorLines := []string{
-		"2 errors occurred:",
-		"\t* datagatherer 1/1 is missing a kind",
+		"1 error occurred:",
 		"\t* datagatherer 1/1 is missing a name",
 		"\n",
 	}
@@ -118,5 +115,24 @@ func TestPartialMissingConfigError(t *testing.T) {
 
 	if gotError != expectedError {
 		t.Errorf("\ngot=\n%v\nwant=\n%s\ndiff=\n%s", gotError, expectedError, diff.Diff(gotError, expectedError))
+	}
+}
+
+func TestInvalidDataGathered(t *testing.T) {
+	_, parseError := ParseConfig([]byte(`
+      endpoint:
+        host: example.com
+        path: /api/v1/data
+      schedule: "* * * * *"
+      token: "12345"
+      data-gatherers:
+        - kind: "foo"`))
+
+	if parseError == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	if got, want := parseError.Error(), `cannot parse data-gatherer configuration, kind "foo" is not supported`; got != want {
+		t.Errorf("\ngot=\n%v\nwant=\n%s\ndiff=\n%s", got, want, diff.Diff(got, want))
 	}
 }

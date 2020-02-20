@@ -7,3 +7,5 @@ endpoint:
 data-gatherers:
   - kind: "dummy"
     name: "dummy"
+    config:
+      param-1: "bar"

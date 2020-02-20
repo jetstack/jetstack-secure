@@ -5,6 +5,12 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/datagatherer/aks"
+	"github.com/jetstack/preflight/pkg/datagatherer/eks"
+	"github.com/jetstack/preflight/pkg/datagatherer/gke"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
+	"github.com/jetstack/preflight/pkg/datagatherer/local"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
@@ -25,10 +31,76 @@ type Endpoint struct {
 }
 
 type dataGatherer struct {
-	Kind     string `yaml:"kind"`
-	Name     string `yaml:"name"`
-	DataPath string `yaml:"data-path,omitempty"`
-	Config   []byte `yaml:"config"`
+	Kind     string
+	Name     string
+	DataPath string
+	Config   datagatherer.Config
+}
+
+// UnmarshalYAML unmarshals a dataGatherer resolving the type according to Kind.
+func (dg *dataGatherer) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	aux := struct {
+		Kind      string      `yaml:"kind"`
+		Name      string      `yaml:"name"`
+		DataPath  string      `yaml:"data-path,omitempty"`
+		RawConfig interface{} `yaml:"config"`
+	}{}
+	err := unmarshal(&aux)
+	if err != nil {
+		return err
+	}
+
+	dg.Kind = aux.Kind
+	dg.Name = aux.Name
+	dg.DataPath = aux.DataPath
+
+	switch dg.Kind {
+	case "gke":
+		cfg := struct {
+			Config *gke.Config `yaml:"config"`
+		}{}
+		err = unmarshal(&cfg)
+		dg.Config = cfg.Config
+	case "eks":
+		cfg := struct {
+			Config *eks.Config `yaml:"config"`
+		}{}
+		err = unmarshal(&cfg)
+		dg.Config = cfg.Config
+	case "aks":
+		cfg := struct {
+			Config *aks.Config `yaml:"config"`
+		}{}
+		err = unmarshal(&cfg)
+		dg.Config = cfg.Config
+	case "k8s":
+		cfg := struct {
+			Config *k8s.Config `yaml:"config"`
+		}{}
+		err = unmarshal(&cfg)
+		dg.Config = cfg.Config
+	case "local":
+		cfg := struct {
+			Config *local.Config `yaml:"config"`
+		}{}
+		err = unmarshal(&cfg)
+		dg.Config = cfg.Config
+	// dummy dataGatherer is just used for testing
+	case "dummy":
+		cfg := struct {
+			Config *dummyConfig `yaml:"config"`
+		}{}
+		err = unmarshal(&cfg)
+		dg.Config = cfg.Config
+	default:
+		return fmt.Errorf("cannot parse data-gatherer configuration, kind %q is not supported", dg.Kind)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Dump generates a YAML string of the Config object
