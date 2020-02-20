@@ -33,7 +33,7 @@ configuration checks using [Open Policy Agent (OPA)](https://www.openpolicyagent
 
 Preflight was originally designed to automate Jetstack's production readiness assessments.
 These are consulting sessions in which a Jetstack engineer inspects a customer's
-cluster to suggest improvements and identify configuration issues. 
+cluster to suggest improvements and identify configuration issues.
 The product of this assessment is a report
 which describes any problems and offers remediation advice.
 
@@ -70,7 +70,7 @@ A Preflight package consists of a *Policy Manifest* and a
 [Rego](https://www.openpolicyagent.org/docs/latest/#rego) package.
 
 The *Policy Manifest* is a YAML file that specifies a package's rules.
-It gives descriptions of the rules and remeditation advice,
+It gives descriptions of the rules and remediation advice,
 so the tool can display useful information when a rule doesn't pass.
 
 Rego is OPA's high-level declarative language for specifying rules.
@@ -112,7 +112,7 @@ preflight check
 You can try the Pods example
 [`./examples/pods.preflight.yaml`](./examples/pods.preflight.yaml)
 without having to change a line,
-if you have your *kubeconfig* is located at `~/.kube/config` and
+if your *kubeconfig* is located at `~/.kube/config` and
 is pointing to a working cluster.
 
 ```
