@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -107,4 +108,35 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUnmarshalConfig(t *testing.T) {
+	textCfg := `
+kubeconfig: "/home/someone/.kube/config"
+resource-type:
+  group: "g"
+  version: "v"
+  resource: "r"
+`
+
+	expectedGVR := schema.GroupVersionResource{
+		Group:    "g",
+		Version:  "v",
+		Resource: "r",
+	}
+
+	cfg := Config{}
+	err := yaml.Unmarshal([]byte(textCfg), &cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+
+	if got, want := cfg.KubeConfigPath, "/home/someone/.kube/config"; got != want {
+		t.Errorf("KubeConfigPath does not match: got=%q; want=%q", got, want)
+	}
+
+	if got, want := cfg.GroupVersionResource, expectedGVR; !reflect.DeepEqual(got, want) {
+		t.Errorf("GroupVersionResource does not match: got=%+v want=%+v", got, want)
+	}
+
 }
