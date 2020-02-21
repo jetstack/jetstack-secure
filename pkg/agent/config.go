@@ -37,6 +37,20 @@ type dataGatherer struct {
 	Config   datagatherer.Config
 }
 
+func reMarshal(rawConfig interface{}, config datagatherer.Config) error {
+	bb, err := yaml.Marshal(rawConfig)
+	if err != nil {
+		return nil
+	}
+
+	err = yaml.Unmarshal(bb, config)
+	if err != nil {
+		return nil
+	}
+
+	return nil
+}
+
 // UnmarshalYAML unmarshals a dataGatherer resolving the type according to Kind.
 func (dg *dataGatherer) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	aux := struct {
@@ -54,51 +68,33 @@ func (dg *dataGatherer) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	dg.Name = aux.Name
 	dg.DataPath = aux.DataPath
 
+	var cfg datagatherer.Config
+
 	switch dg.Kind {
 	case "gke":
-		cfg := struct {
-			Config *gke.Config `yaml:"config"`
-		}{}
-		err = unmarshal(&cfg)
-		dg.Config = cfg.Config
+		cfg = &gke.Config{}
 	case "eks":
-		cfg := struct {
-			Config *eks.Config `yaml:"config"`
-		}{}
-		err = unmarshal(&cfg)
-		dg.Config = cfg.Config
+		cfg = &eks.Config{}
 	case "aks":
-		cfg := struct {
-			Config *aks.Config `yaml:"config"`
-		}{}
-		err = unmarshal(&cfg)
-		dg.Config = cfg.Config
+		cfg = &aks.Config{}
 	case "k8s":
-		cfg := struct {
-			Config *k8s.Config `yaml:"config"`
-		}{}
-		err = unmarshal(&cfg)
-		dg.Config = cfg.Config
+		cfg = &k8s.Config{}
 	case "local":
-		cfg := struct {
-			Config *local.Config `yaml:"config"`
-		}{}
-		err = unmarshal(&cfg)
-		dg.Config = cfg.Config
+		cfg = &local.Config{}
 	// dummy dataGatherer is just used for testing
 	case "dummy":
-		cfg := struct {
-			Config *dummyConfig `yaml:"config"`
-		}{}
-		err = unmarshal(&cfg)
-		dg.Config = cfg.Config
+		cfg = &dummyConfig{}
 	default:
 		return fmt.Errorf("cannot parse data-gatherer configuration, kind %q is not supported", dg.Kind)
 	}
 
+	// we encode aux.RawConfig, which is just a map of reflect.Values, into yaml and decode it again to the right type.
+	err = reMarshal(aux.RawConfig, cfg)
 	if err != nil {
 		return err
 	}
+
+	dg.Config = cfg
 
 	return nil
 }
