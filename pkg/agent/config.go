@@ -5,6 +5,12 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/datagatherer/aks"
+	"github.com/jetstack/preflight/pkg/datagatherer/eks"
+	"github.com/jetstack/preflight/pkg/datagatherer/gke"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
+	"github.com/jetstack/preflight/pkg/datagatherer/local"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
@@ -25,10 +31,72 @@ type Endpoint struct {
 }
 
 type dataGatherer struct {
-	Kind     string `yaml:"kind"`
-	Name     string `yaml:"name"`
-	DataPath string `yaml:"data-path,omitempty"`
-	Config   []byte `yaml:"config"`
+	Kind     string
+	Name     string
+	DataPath string
+	Config   datagatherer.Config
+}
+
+func reMarshal(rawConfig interface{}, config datagatherer.Config) error {
+	bb, err := yaml.Marshal(rawConfig)
+	if err != nil {
+		return nil
+	}
+
+	err = yaml.Unmarshal(bb, config)
+	if err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+// UnmarshalYAML unmarshals a dataGatherer resolving the type according to Kind.
+func (dg *dataGatherer) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	aux := struct {
+		Kind      string      `yaml:"kind"`
+		Name      string      `yaml:"name"`
+		DataPath  string      `yaml:"data-path,omitempty"`
+		RawConfig interface{} `yaml:"config"`
+	}{}
+	err := unmarshal(&aux)
+	if err != nil {
+		return err
+	}
+
+	dg.Kind = aux.Kind
+	dg.Name = aux.Name
+	dg.DataPath = aux.DataPath
+
+	var cfg datagatherer.Config
+
+	switch dg.Kind {
+	case "gke":
+		cfg = &gke.Config{}
+	case "eks":
+		cfg = &eks.Config{}
+	case "aks":
+		cfg = &aks.Config{}
+	case "k8s":
+		cfg = &k8s.Config{}
+	case "local":
+		cfg = &local.Config{}
+	// dummy dataGatherer is just used for testing
+	case "dummy":
+		cfg = &dummyConfig{}
+	default:
+		return fmt.Errorf("cannot parse data-gatherer configuration, kind %q is not supported", dg.Kind)
+	}
+
+	// we encode aux.RawConfig, which is just a map of reflect.Values, into yaml and decode it again to the right type.
+	err = reMarshal(aux.RawConfig, cfg)
+	if err != nil {
+		return err
+	}
+
+	dg.Config = cfg
+
+	return nil
 }
 
 // Dump generates a YAML string of the Config object

@@ -58,39 +58,36 @@ func Run(cmd *cobra.Command, args []string) {
 			log.Printf("Running data gatherer %s of type %s as Local, data-path override present", dgConfig.Name, dgConfig.Kind)
 		}
 
-		dg, err := LoadDataGatherer(ctx, kind, dgConfig.Config)
+		dg, err := dgConfig.Config.NewDataGatherer(ctx)
 		if err != nil {
-			log.Fatalf("Failed to load data gatherer: %s", err)
+			log.Fatalf("failed to instantiate %s DataGatherer: %v", kind, err)
 		}
+
 		dataGatherers[dgConfig.Name] = dg
 	}
 
 	// Fetch from all datagatherers
-	var information []interface{}
+	now := time.Now()
+	readings := []*api.DataReading{}
 	for k, dg := range dataGatherers {
 		i, err := dg.Fetch()
 		if err != nil {
 			log.Fatalf("Error fetching with DataGatherer %q: %s", k, err)
 		}
-		information = append(information, i)
-	}
 
-	fmt.Printf("Gathered Data:\n%+v\n", information)
+		log.Printf("Gathered data for %q:\n", k)
+
+		readings = append(readings, &api.DataReading{
+			DataGatherer: k,
+			Timestamp:    api.Time{Time: now},
+			Data:         i,
+		})
+	}
 
 	for {
 		log.Println("Running Agent...")
 		log.Println("Posting data to ", serverURL)
-		err = postData(serverURL, config.Token, []*api.DataReading{
-			&api.DataReading{
-				DataGatherer: "dummy",
-				Timestamp:    api.Time{Time: time.Now()},
-				Data: map[string]string{
-					"field1": "data1",
-					"field2": "data2",
-					"field3": "data3",
-				},
-			},
-		})
+		err = postData(serverURL, config.Token, readings)
 		// TODO: handle errors gracefully: e.g. handle retries when it is possible
 		if err != nil {
 			log.Fatalf("Post to server failed: %+v", err)
