@@ -19,6 +19,29 @@ type Config struct {
 	GroupVersionResource schema.GroupVersionResource
 }
 
+// UnmarshalYAML unmarshals the Config resolving GroupVersionResource.
+func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	aux := struct {
+		KubeConfigPath string `yaml:"kubeconfig"`
+		ResourceType   struct {
+			Group    string `yaml:"group"`
+			Version  string `yaml:"version"`
+			Resource string `yaml:"resource"`
+		} `yaml:"resource-type"`
+	}{}
+	err := unmarshal(&aux)
+	if err != nil {
+		return err
+	}
+
+	c.KubeConfigPath = aux.KubeConfigPath
+	c.GroupVersionResource.Group = aux.ResourceType.Group
+	c.GroupVersionResource.Version = aux.ResourceType.Version
+	c.GroupVersionResource.Resource = aux.ResourceType.Resource
+
+	return nil
+}
+
 // validate validates the configuration.
 func (c *Config) validate() error {
 	if c.GroupVersionResource.Resource == "" {
