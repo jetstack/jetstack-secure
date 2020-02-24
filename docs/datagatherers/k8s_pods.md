@@ -28,7 +28,7 @@ An example configuration can be found at
 
 # Permissions
 
-The user or service account used by the *kubeconfig* to authenticate with 
+The user or service account used by the *kubeconfig* to authenticate with
 the Kubernetes API must have permission to perform `list` and `get`
 on `Pod` resources.
 
@@ -39,7 +39,7 @@ If the cluster is on GKE the user or service account used to access the
 Kubernetes API will require the `container.pods.get`
 and `container.pods.list` IAM permissions.
 These can be given with the _Kubernetes Engine Viewer_ role
-(`roles/container.viewer`), which also includes the 
+(`roles/container.viewer`), which also includes the
 `container.clusters.get` permission required to use the
 [GKE *data gatherer*](./docs/datagatherers/gke.md).
 Alternatively a custom role can be defined with only the permissions named here.

@@ -1,6 +1,6 @@
 # GKE Data Gatherer
 
-The GKE *data gatherer* fetches information about a cluster 
+The GKE *data gatherer* fetches information about a cluster
 from the Google Kubernetes Engine API.
 
 ## Data
@@ -20,8 +20,8 @@ The gathered data looks like this:
 
 ## Configuration
 
-To use the GKE *data gatherer* add a `gke` section to the 
-`data-gatherers` configuration. 
+To use the GKE *data gatherer* add a `gke` section to the
+`data-gatherers` configuration.
 For example:
 
 ```
@@ -42,7 +42,7 @@ The `gke` configuration contains the following fields:
 - `location`: The compute zone or region where your cluster is running.
 - `cluster`: The name of your GKE cluster.
 - `credentials`: *optional* The path to a file containing credentials for your cluster.
-  
+
 An example configuration can be found at
 [`./examples/gke.preflight.yaml`](./examples/gke.preflight.yaml).
 
