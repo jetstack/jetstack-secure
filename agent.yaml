@@ -5,7 +5,7 @@ endpoint:
   host: "localhost:8080"
   path: "/"
 data-gatherers:
-  - kind: "dummy"
-    name: "dummy"
-    config:
-      param-1: "bar"
+- kind: "dummy"
+  name: "dummy"
+  config:
+    param-1: "bar"
