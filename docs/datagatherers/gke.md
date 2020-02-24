@@ -12,7 +12,7 @@ and the [Go Docs](https://godoc.org/google.golang.org/api/container/v1#Cluster).
 It's comparable to the output from:
 
 ```bash
-gcloud container clusters describe main --format=json
+gcloud container clusters describe my-cluster --format=json
 ```
 
 ## Configuration
