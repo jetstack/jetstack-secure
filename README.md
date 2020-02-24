@@ -12,7 +12,8 @@
 Preflight is a tool to automatically perform Kubernetes cluster configuration
 checks using [Open Policy Agent (OPA)](https://www.openpolicyagent.org/).
 
-<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
+<!-- markdown-toc start - Don't edit this section. Run M-x
+markdown-toc-refresh-toc -->
 
 **Table of Contents**
 
@@ -46,16 +47,32 @@ The automation also allows the checks to be run repeatedly, meaning they can be
 deployed in-cluster to provide continuous configuration checking. This enables
 new interesting use cases as policy compliance audits.
 
-## Preflight Application
+## Agent
 
-The Preflight application uses *data gatherers* to collect required data in JSON
-format. Preflight then checks the gathered data against rules specified in
-*Preflight packages* and outputs rule violations with relevant information.
+The Preflight Agent uses *data gatherers* to collect required data from Kubernetes and cloud provider APIs before
+formatting it as JSON for analysis. Once data has been collected, it is sent to the configured backend.
 
-Preflight is designed to run both locally for one-off checking, and in-cluster
-to for continuous checking.
+To run the Agent locally you can run:
 
-## Preflight Packages
+```bash
+preflight agent --agent-config-file ./path/to/agent/config/file.yaml
+```
+
+To run a version from master:
+
+```bash
+go run main.go agent --agent-config-file ./path/to/agent.yaml
+```
+
+You can find the example agent file [here](https://github.com/jetstack/preflight/blob/master/agent.yaml).
+
+You might also want to run a local echo server to monitor requests the agent sends:
+
+```bash
+go run main.go echo
+```
+
+## Packages
 
 Policies for cluster configuration are encoded into *Preflight packages*. You
 can find some examples in [./preflight-packages](./preflight-packages).
