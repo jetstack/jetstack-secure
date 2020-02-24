@@ -1,7 +1,7 @@
 # EKS Data Gatherer
 
 The EKS *data gatherer* fetches information about a cluster from the AWS
-Kubernetes Service API.
+Elastic Kubernetes Service API.
 
 ## Data
 
