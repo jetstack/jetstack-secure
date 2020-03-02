@@ -30,6 +30,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			Version  string `yaml:"version"`
 			Resource string `yaml:"resource"`
 		} `yaml:"resource-type"`
+		ExcludeNamespaces []string `yaml:"exclude-namespaces"`
 	}{}
 	err := unmarshal(&aux)
 	if err != nil {
@@ -40,6 +41,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	c.GroupVersionResource.Group = aux.ResourceType.Group
 	c.GroupVersionResource.Version = aux.ResourceType.Version
 	c.GroupVersionResource.Resource = aux.ResourceType.Resource
+	c.ExcludeNamespaces = aux.ExcludeNamespaces
 
 	return nil
 }
