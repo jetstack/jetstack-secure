@@ -18,7 +18,7 @@ type Config struct {
 	// GroupVersionResource identifies the resource type to gather.
 	GroupVersionResource schema.GroupVersionResource
 	// ExcludeNamespaces is a list of namespaces to exclude.
-	ExcludeNamespaces []string
+	ExcludeNamespaces []string `yaml:"exclude-namespaces"`
 }
 
 // UnmarshalYAML unmarshals the Config resolving GroupVersionResource.
