@@ -154,3 +154,37 @@ exclude-namespaces:
 		t.Errorf("ExcludeNamespaces does not match: got=%+v want=%+v", got, want)
 	}
 }
+
+func TestGenerateFieldSelector(t *testing.T) {
+	tests := []struct {
+		ExcludeNamespaces     []string
+		ExpectedFieldSelector string
+	}{
+		{
+			ExcludeNamespaces: []string{
+				"",
+			},
+			ExpectedFieldSelector: "",
+		},
+		{
+			ExcludeNamespaces: []string{
+				"kube-system",
+			},
+			ExpectedFieldSelector: "metadata.namespace!=kube-system,",
+		},
+		{
+			ExcludeNamespaces: []string{
+				"kube-system",
+				"my-namespace",
+			},
+			ExpectedFieldSelector: "metadata.namespace!=kube-system,metadata.namespace!=my-namespace,",
+		},
+	}
+
+	for _, test := range tests {
+		fieldSelector := generateFieldSelector(test.ExcludeNamespaces)
+		if fieldSelector != test.ExpectedFieldSelector {
+			t.Errorf("ExpectedFieldSelector does not match: got=%+v want=%+v", fieldSelector, test.ExpectedFieldSelector)
+		}
+	}
+}
