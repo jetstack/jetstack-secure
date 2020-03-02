@@ -86,6 +86,9 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 				getObject("foobar/v1", "Foo", "testfoo", "nottestns"),
 			),
 		},
+		// Note that we can't test use of fieldSelector to exclude namespaces
+		// here as the as the fake client does not implement it.
+		// See go/pkg/mod/k8s.io/client-go@v0.17.0/dynamic/fake/simple.go:291
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
