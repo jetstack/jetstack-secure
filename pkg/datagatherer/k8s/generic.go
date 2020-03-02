@@ -17,6 +17,8 @@ type Config struct {
 	KubeConfigPath string `yaml:"kubeconfig"`
 	// GroupVersionResource identifies the resource type to gather.
 	GroupVersionResource schema.GroupVersionResource
+	// ExcludeNamespaces is a list of namespaces to exclude.
+	ExcludeNamespaces []string
 }
 
 // UnmarshalYAML unmarshals the Config resolving GroupVersionResource.
@@ -66,6 +68,7 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	return &DataGatherer{
 		cl:                   cl,
 		groupVersionResource: c.GroupVersionResource,
+		fieldSelector:        generateFieldSelector(c.ExcludeNamespaces),
 	}, nil
 }
 
@@ -85,6 +88,10 @@ type DataGatherer struct {
 	// This field *must* be omitted when the groupVersionResource refers to a
 	// non-namespaced resource.
 	namespace string
+	// fieldSelector is a field selector string used to filter resources
+	// returned by the Kubernetes API.
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/
+	fieldSelector string
 }
 
 // Fetch will fetch the requested data from the apiserver, or return an error
@@ -94,7 +101,9 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 		return nil, fmt.Errorf("resource type must be specified")
 	}
 	resourceInterface := namespaceResourceInterface(g.cl.Resource(g.groupVersionResource), g.namespace)
-	list, err := resourceInterface.List(metav1.ListOptions{})
+	list, err := resourceInterface.List(metav1.ListOptions{
+		FieldSelector: g.fieldSelector,
+	})
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -109,4 +118,14 @@ func namespaceResourceInterface(iface dynamic.NamespaceableResourceInterface, na
 		return iface
 	}
 	return iface.Namespace(namespace)
+}
+
+// generateFieldSelector creates a field selector string from a list of
+// namespaces to exclude.
+func generateFieldSelector(excludeNamespaces []string) string {
+	var fieldSelector string
+	for _, excludeNamespace := range excludeNamespaces {
+		fieldSelector = fmt.Sprintf("%smetadata.namespace!=%s,", fieldSelector, excludeNamespace)
+	}
+	return fieldSelector
 }
