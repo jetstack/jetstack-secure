@@ -170,7 +170,16 @@ func LoadConfig(configPath string) (*Config, error) {
 				if !ok {
 					log.Println("Didn't find 'kubeconfig' in 'data-gatherers.k8s/pods' configuration. Assuming it runs in-cluster.")
 				}
-				excludedNamespaces := dataGathererConfigMap["excluded-namespaces"].([]string)
+				excludedNamespaces := []string{}
+				excludedNamespacesFromFile, ok := dataGathererConfigMap["exclude-namespaces"].([]interface{})
+				if ok {
+					for _, excludedNamespaceFromFile := range excludedNamespacesFromFile {
+						excludedNamespace := excludedNamespaceFromFile.(string)
+						if ok {
+							excludedNamespaces = append(excludedNamespaces, excludedNamespace)
+						}
+					}
+				}
 				dataGathererConfig = &k8s.Config{
 					KubeConfigPath: pathutils.ExpandHome(kubeconfigPath),
 					GroupVersionResource: schema.GroupVersionResource{
