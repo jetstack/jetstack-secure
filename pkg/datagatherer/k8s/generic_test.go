@@ -117,12 +117,20 @@ resource-type:
   group: "g"
   version: "v"
   resource: "r"
+exclude-namespaces:
+- kube-system
+- my-namespace
 `
 
 	expectedGVR := schema.GroupVersionResource{
 		Group:    "g",
 		Version:  "v",
 		Resource: "r",
+	}
+
+	expectedExcludeNamespaces := []string{
+		"kube-system",
+		"my-namespace",
 	}
 
 	cfg := Config{}
@@ -139,4 +147,7 @@ resource-type:
 		t.Errorf("GroupVersionResource does not match: got=%+v want=%+v", got, want)
 	}
 
+	if got, want := cfg.ExcludeNamespaces, expectedExcludeNamespaces; !reflect.DeepEqual(got, want) {
+		t.Errorf("ExcludeNamespaces does not match: got=%+v want=%+v", got, want)
+	}
 }
