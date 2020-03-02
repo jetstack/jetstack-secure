@@ -127,6 +127,9 @@ func namespaceResourceInterface(iface dynamic.NamespaceableResourceInterface, na
 func generateFieldSelector(excludeNamespaces []string) string {
 	var fieldSelector string
 	for _, excludeNamespace := range excludeNamespaces {
+		if excludeNamespace == "" {
+			continue
+		}
 		fieldSelector = fmt.Sprintf("%smetadata.namespace!=%s,", fieldSelector, excludeNamespace)
 	}
 	return fieldSelector
