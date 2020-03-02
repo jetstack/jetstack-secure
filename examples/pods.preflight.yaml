@@ -3,6 +3,9 @@ cluster-name: my-cluster
 data-gatherers:
   k8s/pods:
     kubeconfig: ~/.kube/config
+    exclude-namespaces:
+    # Don't check Pods in the kube-system namespace
+    - kube-system
 
 package-sources:
 - type: local
