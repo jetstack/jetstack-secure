@@ -7,6 +7,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 )
@@ -125,12 +126,12 @@ func namespaceResourceInterface(iface dynamic.NamespaceableResourceInterface, na
 // generateFieldSelector creates a field selector string from a list of
 // namespaces to exclude.
 func generateFieldSelector(excludeNamespaces []string) string {
-	var fieldSelector string
+	fieldSelector := fields.Nothing()
 	for _, excludeNamespace := range excludeNamespaces {
 		if excludeNamespace == "" {
 			continue
 		}
-		fieldSelector = fmt.Sprintf("%smetadata.namespace!=%s,", fieldSelector, excludeNamespace)
+		fieldSelector = fields.AndSelectors(fields.OneTermNotEqualSelector("metadata.namespace", excludeNamespace), fieldSelector)
 	}
-	return fieldSelector
+	return fieldSelector.String()
 }

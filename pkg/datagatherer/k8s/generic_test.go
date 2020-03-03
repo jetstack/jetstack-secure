@@ -177,7 +177,7 @@ func TestGenerateFieldSelector(t *testing.T) {
 				"kube-system",
 				"my-namespace",
 			},
-			ExpectedFieldSelector: "metadata.namespace!=kube-system,metadata.namespace!=my-namespace,",
+			ExpectedFieldSelector: "metadata.namespace!=my-namespace,metadata.namespace!=kube-system,",
 		},
 	}
 
