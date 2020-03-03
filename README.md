@@ -78,6 +78,15 @@ You might also want to run a local echo server to monitor requests the agent sen
 go run main.go echo
 ```
 
+## Check
+
+The Preflight _check_ tool also uses _data gatherers_ to collect required data,
+but unlike the _agent_ it evaluates this data and produces a report locally.
+
+**This functionality is now deprecated in favour of the _agent_.** Previous
+versions of the _check_ tool can still be downloaded and used, however it is no
+longer being maintained and will be removed from this repository.
+
 ## Packages
 
 Policies for cluster configuration are encoded into *Preflight packages*. You
