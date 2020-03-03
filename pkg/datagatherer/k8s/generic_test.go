@@ -89,6 +89,7 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 		// Note that we can't test use of fieldSelector to exclude namespaces
 		// here as the as the fake client does not implement it.
 		// See go/pkg/mod/k8s.io/client-go@v0.17.0/dynamic/fake/simple.go:291
+		// TODO: Add a custom reactor to allow testing of fieldSelector.
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
