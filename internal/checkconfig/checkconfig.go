@@ -165,10 +165,24 @@ func LoadConfig(configPath string) (*Config, error) {
 					ResourceGroup:   resourceGroup,
 					CredentialsPath: credentialsPath,
 				}
-			} else if name == "k8s/pods" {
+			} else if strings.HasPrefix(name, "k8s/") {
+				trimmed := strings.TrimPrefix(name, "k8s/")
+				// Default "k8s/pods" to "k8s/pods.v1" for legacy support.
+				if trimmed == "pods" {
+					trimmed = "pods.v1"
+				}
+				nameOnDots := strings.SplitN(trimmed, ".", 3)
+				// if a user has used for example `k8s/pods.v1`, we should
+				// handle this case and set the group name to empty.
+				if len(nameOnDots) == 2 {
+					nameOnDots = append(nameOnDots, "")
+				}
+				if len(nameOnDots) != 3 {
+					return nil, fmt.Errorf("Failed to parse generic k8s plugin configuration. Expected data gatherer name of the form k8s/{resource-name}.{api-version}.{api-group}")
+				}
 				kubeconfigPath, ok := dataGathererConfigMap["kubeconfig"].(string)
 				if !ok {
-					log.Println("Didn't find 'kubeconfig' in 'data-gatherers.k8s/pods' configuration. Assuming it runs in-cluster.")
+					log.Printf("Didn't find 'kubeconfig' in 'data-gatherers.%s' configuration. Assuming it runs in-cluster.", name)
 				}
 				excludeNamespaces := []string{}
 				// The exclude-namespaces field is optional, only try to decode it if present.
@@ -190,34 +204,11 @@ func LoadConfig(configPath string) (*Config, error) {
 				dataGathererConfig = &k8s.Config{
 					KubeConfigPath: pathutils.ExpandHome(kubeconfigPath),
 					GroupVersionResource: schema.GroupVersionResource{
-						Group:    "",
-						Version:  "v1",
-						Resource: "pods",
-					},
-					ExcludeNamespaces: excludeNamespaces,
-				}
-			} else if strings.HasPrefix(name, "k8s/") {
-				trimmed := strings.TrimPrefix(name, "k8s/")
-				nameOnDots := strings.SplitN(trimmed, ".", 3)
-				// if a user has used for example `k8s/pods.v1`, we should
-				// handle this case and set the group name to empty.
-				if len(nameOnDots) == 2 {
-					nameOnDots = append(nameOnDots, "")
-				}
-				if len(nameOnDots) != 3 {
-					return nil, fmt.Errorf("Failed to parse generic k8s plugin configuration. Expected data gatherer name of the form k8s/{resource-name}.{api-version}.{api-group}")
-				}
-				kubeconfigPath, ok := dataGathererConfigMap["kubeconfig"].(string)
-				if !ok {
-					log.Printf("Didn't find 'kubeconfig' in 'data-gatherers.%s' configuration. Assuming it runs in-cluster.", name)
-				}
-				dataGathererConfig = &k8s.Config{
-					KubeConfigPath: pathutils.ExpandHome(kubeconfigPath),
-					GroupVersionResource: schema.GroupVersionResource{
 						Resource: nameOnDots[0],
 						Version:  nameOnDots[1],
 						Group:    nameOnDots[2],
 					},
+					ExcludeNamespaces: excludeNamespaces,
 				}
 			} else if name == "local" {
 				dataPath, ok := dataGathererConfigMap["data-path"].(string)
