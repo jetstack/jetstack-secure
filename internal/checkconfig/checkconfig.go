@@ -170,14 +170,21 @@ func LoadConfig(configPath string) (*Config, error) {
 				if !ok {
 					log.Println("Didn't find 'kubeconfig' in 'data-gatherers.k8s/pods' configuration. Assuming it runs in-cluster.")
 				}
-				excludedNamespaces := []string{}
-				excludedNamespacesFromFile, ok := dataGathererConfigMap["exclude-namespaces"].([]interface{})
-				if ok {
-					for _, excludedNamespaceFromFile := range excludedNamespacesFromFile {
-						excludedNamespace := excludedNamespaceFromFile.(string)
-						if ok {
-							excludedNamespaces = append(excludedNamespaces, excludedNamespace)
+				excludeNamespaces := []string{}
+				// The exclude-namespaces field is optional, only try to decode it if present.
+				if excludeNamespacesFromFile, ok := dataGathererConfigMap["exclude-namespaces"]; ok {
+					// Cast to a list of interfaces.
+					excludeNamespacesListFromFile, ok := excludeNamespacesFromFile.([]interface{})
+					if !ok {
+						return nil, fmt.Errorf("Could not parse exclude-namespaces list from configuration: %+v", excludeNamespacesFromFile)
+					}
+					// Cast each value in the list to a string.
+					for _, excludeNamespaceFromFile := range excludeNamespacesListFromFile {
+						excludeNamespace, ok := excludeNamespaceFromFile.(string)
+						if !ok {
+							return nil, fmt.Errorf("Could not parse exclude-namespaces value from configuration: %+v", excludeNamespaceFromFile)
 						}
+						excludeNamespaces = append(excludeNamespaces, excludeNamespace)
 					}
 				}
 				dataGathererConfig = &k8s.Config{
@@ -187,7 +194,7 @@ func LoadConfig(configPath string) (*Config, error) {
 						Version:  "v1",
 						Resource: "pods",
 					},
-					ExcludeNamespaces: excludedNamespaces,
+					ExcludeNamespaces: excludeNamespaces,
 				}
 			} else if strings.HasPrefix(name, "k8s/") {
 				trimmed := strings.TrimPrefix(name, "k8s/")
