@@ -27,8 +27,9 @@ markdown-toc-refresh-toc -->
 
 - [Jetstack Preflight](#jetstack-preflight)
 	- [Background](#background)
-	- [Preflight Application](#preflight-application)
-	- [Preflight Packages](#preflight-packages)
+	- [Agent](#agent)
+	- [Check](#check)
+	- [Packages](#packages)
 	- [Get Preflight](#get-preflight)
 		- [Download](#download)
 		- [Build](#build)
