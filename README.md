@@ -42,7 +42,8 @@ markdown-toc-refresh-toc -->
 
 ## Background
 
-Preflight was originally designed to automate Jetstack's production readiness assessments.
+Preflight was originally designed to automate Jetstack's production readiness
+assessments.
 These are consulting sessions in which a Jetstack engineer inspects a customer's
 cluster to suggest improvements and identify configuration issues.
 The product of this assessment is a report
@@ -58,8 +59,9 @@ new interesting use cases as policy compliance audits.
 
 ## Agent
 
-The Preflight Agent uses *data gatherers* to collect required data from Kubernetes and cloud provider APIs before
-formatting it as JSON for analysis. Once data has been collected, it is sent to the configured backend.
+The Preflight _agent_ uses _data gatherers_ to collect required data from 
+Kubernetes and cloud provider APIs before formatting it as JSON for analysis.
+Once data has been collected, it is sent to the configured backend.
 
 To run the Agent locally you can run:
 
@@ -73,9 +75,11 @@ To run a version from master:
 go run main.go agent --agent-config-file ./path/to/agent.yaml
 ```
 
-You can find the example agent file [here](https://github.com/jetstack/preflight/blob/master/agent.yaml).
+You can find the example agent file
+[here](https://github.com/jetstack/preflight/blob/master/agent.yaml).
 
-You might also want to run a local echo server to monitor requests the agent sends:
+You might also want to run a local echo server to monitor requests the agent
+sends:
 
 ```bash
 go run main.go echo
@@ -164,7 +168,8 @@ If you want to visualise the report in your browser, you can access the
 server.** **Everything happens in your browser.**
 
 You can give it a try without even running the tool, since we provide some
-report examples, [gke.json](./examples/reports/gke.json), and[pods.json](./examples/reports/pods.json), ready to be loaded into the
+report examples, [gke.json](./examples/reports/gke.json),
+and[pods.json](./examples/reports/pods.json), ready to be loaded into the
 [*Preflight Web UI*](https://preflight.jetstack.io/).
 
 ### Use Preflight In-Cluster
