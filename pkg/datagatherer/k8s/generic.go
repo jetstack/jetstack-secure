@@ -7,6 +7,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 )
@@ -17,6 +18,8 @@ type Config struct {
 	KubeConfigPath string `yaml:"kubeconfig"`
 	// GroupVersionResource identifies the resource type to gather.
 	GroupVersionResource schema.GroupVersionResource
+	// ExcludeNamespaces is a list of namespaces to exclude.
+	ExcludeNamespaces []string `yaml:"exclude-namespaces"`
 }
 
 // UnmarshalYAML unmarshals the Config resolving GroupVersionResource.
@@ -28,6 +31,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			Version  string `yaml:"version"`
 			Resource string `yaml:"resource"`
 		} `yaml:"resource-type"`
+		ExcludeNamespaces []string `yaml:"exclude-namespaces"`
 	}{}
 	err := unmarshal(&aux)
 	if err != nil {
@@ -38,6 +42,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	c.GroupVersionResource.Group = aux.ResourceType.Group
 	c.GroupVersionResource.Version = aux.ResourceType.Version
 	c.GroupVersionResource.Resource = aux.ResourceType.Resource
+	c.ExcludeNamespaces = aux.ExcludeNamespaces
 
 	return nil
 }
@@ -66,6 +71,7 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	return &DataGatherer{
 		cl:                   cl,
 		groupVersionResource: c.GroupVersionResource,
+		fieldSelector:        generateFieldSelector(c.ExcludeNamespaces),
 	}, nil
 }
 
@@ -85,6 +91,10 @@ type DataGatherer struct {
 	// This field *must* be omitted when the groupVersionResource refers to a
 	// non-namespaced resource.
 	namespace string
+	// fieldSelector is a field selector string used to filter resources
+	// returned by the Kubernetes API.
+	// https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/
+	fieldSelector string
 }
 
 // Fetch will fetch the requested data from the apiserver, or return an error
@@ -94,7 +104,9 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 		return nil, fmt.Errorf("resource type must be specified")
 	}
 	resourceInterface := namespaceResourceInterface(g.cl.Resource(g.groupVersionResource), g.namespace)
-	list, err := resourceInterface.List(metav1.ListOptions{})
+	list, err := resourceInterface.List(metav1.ListOptions{
+		FieldSelector: g.fieldSelector,
+	})
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -109,4 +121,17 @@ func namespaceResourceInterface(iface dynamic.NamespaceableResourceInterface, na
 		return iface
 	}
 	return iface.Namespace(namespace)
+}
+
+// generateFieldSelector creates a field selector string from a list of
+// namespaces to exclude.
+func generateFieldSelector(excludeNamespaces []string) string {
+	fieldSelector := fields.Nothing()
+	for _, excludeNamespace := range excludeNamespaces {
+		if excludeNamespace == "" {
+			continue
+		}
+		fieldSelector = fields.AndSelectors(fields.OneTermNotEqualSelector("metadata.namespace", excludeNamespace), fieldSelector)
+	}
+	return fieldSelector.String()
 }

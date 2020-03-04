@@ -86,6 +86,10 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 				getObject("foobar/v1", "Foo", "testfoo", "nottestns"),
 			),
 		},
+		// Note that we can't test use of fieldSelector to exclude namespaces
+		// here as the as the fake client does not implement it.
+		// See go/pkg/mod/k8s.io/client-go@v0.17.0/dynamic/fake/simple.go:291
+		// TODO: Add a custom reactor to allow testing of fieldSelector.
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -117,12 +121,20 @@ resource-type:
   group: "g"
   version: "v"
   resource: "r"
+exclude-namespaces:
+- kube-system
+- my-namespace
 `
 
 	expectedGVR := schema.GroupVersionResource{
 		Group:    "g",
 		Version:  "v",
 		Resource: "r",
+	}
+
+	expectedExcludeNamespaces := []string{
+		"kube-system",
+		"my-namespace",
 	}
 
 	cfg := Config{}
@@ -139,4 +151,41 @@ resource-type:
 		t.Errorf("GroupVersionResource does not match: got=%+v want=%+v", got, want)
 	}
 
+	if got, want := cfg.ExcludeNamespaces, expectedExcludeNamespaces; !reflect.DeepEqual(got, want) {
+		t.Errorf("ExcludeNamespaces does not match: got=%+v want=%+v", got, want)
+	}
+}
+
+func TestGenerateFieldSelector(t *testing.T) {
+	tests := []struct {
+		ExcludeNamespaces     []string
+		ExpectedFieldSelector string
+	}{
+		{
+			ExcludeNamespaces: []string{
+				"",
+			},
+			ExpectedFieldSelector: "",
+		},
+		{
+			ExcludeNamespaces: []string{
+				"kube-system",
+			},
+			ExpectedFieldSelector: "metadata.namespace!=kube-system,",
+		},
+		{
+			ExcludeNamespaces: []string{
+				"kube-system",
+				"my-namespace",
+			},
+			ExpectedFieldSelector: "metadata.namespace!=my-namespace,metadata.namespace!=kube-system,",
+		},
+	}
+
+	for _, test := range tests {
+		fieldSelector := generateFieldSelector(test.ExcludeNamespaces)
+		if fieldSelector != test.ExpectedFieldSelector {
+			t.Errorf("ExpectedFieldSelector does not match: got=%+v want=%+v", fieldSelector, test.ExpectedFieldSelector)
+		}
+	}
 }

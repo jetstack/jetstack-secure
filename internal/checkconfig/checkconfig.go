@@ -165,21 +165,12 @@ func LoadConfig(configPath string) (*Config, error) {
 					ResourceGroup:   resourceGroup,
 					CredentialsPath: credentialsPath,
 				}
-			} else if name == "k8s/pods" {
-				kubeconfigPath, ok := dataGathererConfigMap["kubeconfig"].(string)
-				if !ok {
-					log.Println("Didn't find 'kubeconfig' in 'data-gatherers.k8s/pods' configuration. Assuming it runs in-cluster.")
-				}
-				dataGathererConfig = &k8s.Config{
-					KubeConfigPath: pathutils.ExpandHome(kubeconfigPath),
-					GroupVersionResource: schema.GroupVersionResource{
-						Group:    "",
-						Version:  "v1",
-						Resource: "pods",
-					},
-				}
 			} else if strings.HasPrefix(name, "k8s/") {
 				trimmed := strings.TrimPrefix(name, "k8s/")
+				// Default "k8s/pods" to "k8s/pods.v1" for legacy support.
+				if trimmed == "pods" {
+					trimmed = "pods.v1"
+				}
 				nameOnDots := strings.SplitN(trimmed, ".", 3)
 				// if a user has used for example `k8s/pods.v1`, we should
 				// handle this case and set the group name to empty.
@@ -193,6 +184,23 @@ func LoadConfig(configPath string) (*Config, error) {
 				if !ok {
 					log.Printf("Didn't find 'kubeconfig' in 'data-gatherers.%s' configuration. Assuming it runs in-cluster.", name)
 				}
+				excludeNamespaces := []string{}
+				// The exclude-namespaces field is optional, only try to decode it if present.
+				if excludeNamespacesFromFile, ok := dataGathererConfigMap["exclude-namespaces"]; ok {
+					// Cast to a list of interfaces.
+					excludeNamespacesListFromFile, ok := excludeNamespacesFromFile.([]interface{})
+					if !ok {
+						return nil, fmt.Errorf("Could not parse exclude-namespaces list from configuration: %+v", excludeNamespacesFromFile)
+					}
+					// Cast each value in the list to a string.
+					for _, excludeNamespaceFromFile := range excludeNamespacesListFromFile {
+						excludeNamespace, ok := excludeNamespaceFromFile.(string)
+						if !ok {
+							return nil, fmt.Errorf("Could not parse exclude-namespaces value from configuration: %+v", excludeNamespaceFromFile)
+						}
+						excludeNamespaces = append(excludeNamespaces, excludeNamespace)
+					}
+				}
 				dataGathererConfig = &k8s.Config{
 					KubeConfigPath: pathutils.ExpandHome(kubeconfigPath),
 					GroupVersionResource: schema.GroupVersionResource{
@@ -200,6 +208,7 @@ func LoadConfig(configPath string) (*Config, error) {
 						Version:  nameOnDots[1],
 						Group:    nameOnDots[2],
 					},
+					ExcludeNamespaces: excludeNamespaces,
 				}
 			} else if name == "local" {
 				dataPath, ok := dataGathererConfigMap["data-path"].(string)
