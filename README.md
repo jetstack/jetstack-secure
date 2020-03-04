@@ -12,6 +12,14 @@
 Preflight is a tool to automatically perform Kubernetes cluster configuration
 checks using [Open Policy Agent (OPA)](https://www.openpolicyagent.org/).
 
+:warning: :construction:
+**We're currently in the process of deprecating the**
+**[Preflight _check_](#check) tool in favour of the**
+**[Preflight _agent_](#agent).**
+While this is happening the docs may be inconsistent and the repo structure may
+change.
+:warning: :construction:
+
 <!-- markdown-toc start - Don't edit this section. Run M-x
 markdown-toc-refresh-toc -->
 
@@ -19,8 +27,9 @@ markdown-toc-refresh-toc -->
 
 - [Jetstack Preflight](#jetstack-preflight)
 	- [Background](#background)
-	- [Preflight Application](#preflight-application)
-	- [Preflight Packages](#preflight-packages)
+	- [Agent](#agent)
+	- [Check](#check)
+	- [Packages](#packages)
 	- [Get Preflight](#get-preflight)
 		- [Download](#download)
 		- [Build](#build)
@@ -33,7 +42,8 @@ markdown-toc-refresh-toc -->
 
 ## Background
 
-Preflight was originally designed to automate Jetstack's production readiness assessments.
+Preflight was originally designed to automate Jetstack's production readiness
+assessments.
 These are consulting sessions in which a Jetstack engineer inspects a customer's
 cluster to suggest improvements and identify configuration issues.
 The product of this assessment is a report
@@ -49,8 +59,9 @@ new interesting use cases as policy compliance audits.
 
 ## Agent
 
-The Preflight Agent uses *data gatherers* to collect required data from Kubernetes and cloud provider APIs before
-formatting it as JSON for analysis. Once data has been collected, it is sent to the configured backend.
+The Preflight _agent_ uses _data gatherers_ to collect required data from 
+Kubernetes and cloud provider APIs before formatting it as JSON for analysis.
+Once data has been collected, it is sent to the configured backend.
 
 To run the Agent locally you can run:
 
@@ -64,13 +75,24 @@ To run a version from master:
 go run main.go agent --agent-config-file ./path/to/agent.yaml
 ```
 
-You can find the example agent file [here](https://github.com/jetstack/preflight/blob/master/agent.yaml).
+You can find the example agent file
+[here](https://github.com/jetstack/preflight/blob/master/agent.yaml).
 
-You might also want to run a local echo server to monitor requests the agent sends:
+You might also want to run a local echo server to monitor requests the agent
+sends:
 
 ```bash
 go run main.go echo
 ```
+
+## Check
+
+The Preflight _check_ tool also uses _data gatherers_ to collect required data,
+but unlike the _agent_ it evaluates this data and produces a report locally.
+
+**This functionality is now deprecated in favour of the _agent_.** Previous
+versions of the _check_ tool can still be downloaded and used, however it is no
+longer being maintained and will be removed from this repository.
 
 ## Packages
 
@@ -146,7 +168,8 @@ If you want to visualise the report in your browser, you can access the
 server.** **Everything happens in your browser.**
 
 You can give it a try without even running the tool, since we provide some
-report examples, [gke.json](./examples/reports/gke.json), and[pods.json](./examples/reports/pods.json), ready to be loaded into the
+report examples, [gke.json](./examples/reports/gke.json),
+and[pods.json](./examples/reports/pods.json), ready to be loaded into the
 [*Preflight Web UI*](https://preflight.jetstack.io/).
 
 ### Use Preflight In-Cluster
