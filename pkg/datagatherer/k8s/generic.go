@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/pkg/errors"
@@ -109,6 +110,12 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 	})
 	if err != nil {
 		return nil, errors.WithStack(err)
+	}
+	// Redact Secret data
+	if strings.ToLower(g.groupVersionResource.Resource) == "secret" {
+		for i := range list.Items {
+			list.Items[i].Object["data"] = map[string]interface{}{}
+		}
 	}
 	return list, nil
 }
