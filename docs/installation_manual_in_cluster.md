@@ -1,3 +1,11 @@
+:warning: :construction:
+**We're currently in the process of deprecating the**
+**[Preflight _check_](#check) tool in favour of the**
+**[Preflight _agent_](#agent).**
+While this is happening the docs may be inconsistent and the repo structure may
+change.
+:warning: :construction:
+
 # Installation Manual: Preflight In-Cluster
 
 This doc explains how to run Preflight inside a GKE cluster, and get periodic reports in a Google Cloud Storage Bucket.

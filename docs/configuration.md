@@ -1,3 +1,11 @@
+:warning: :construction:
+**We're currently in the process of deprecating the**
+**[Preflight _check_](#check) tool in favour of the**
+**[Preflight _agent_](#agent).**
+While this is happening the docs may be inconsistent and the repo structure may
+change.
+:warning: :construction:
+
 # Preflight Configuration
 
 Configuration is provided to the Preflight application using a YAML file.
