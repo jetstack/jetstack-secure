@@ -40,7 +40,7 @@ markdown-toc-refresh-toc -->
 
 <!-- markdown-toc end -->
 
-## Background
+## Project Background
 
 Preflight was originally designed to automate Jetstack's production readiness
 assessments.
@@ -57,9 +57,14 @@ The automation also allows the checks to be run repeatedly, meaning they can be
 deployed in-cluster to provide continuous configuration checking. This enables
 new interesting use cases as policy compliance audits.
 
-## Agent
+## Components
 
-The Preflight _agent_ uses _data gatherers_ to collect required data from 
+This section outlines the approximate components of the tool and how they fit
+together.
+
+### Agent
+
+The Preflight _agent_ uses _data gatherers_ to collect required data from
 Kubernetes and cloud provider APIs before formatting it as JSON for analysis.
 Once data has been collected, it is sent to the configured backend.
 
@@ -69,10 +74,10 @@ To run the Agent locally you can run:
 preflight agent --agent-config-file ./path/to/agent/config/file.yaml
 ```
 
-To run a version from master:
+Or, to build and run a version from master:
 
 ```bash
-go run main.go agent --agent-config-file ./path/to/agent.yaml
+go run main.go agent --agent-config-file ./path/to/agent/config/file.yaml
 ```
 
 You can find the example agent file
@@ -85,7 +90,7 @@ sends:
 go run main.go echo
 ```
 
-## Check
+### Check
 
 The Preflight _check_ tool also uses _data gatherers_ to collect required data,
 but unlike the _agent_ it evaluates this data and produces a report locally.
@@ -94,7 +99,7 @@ but unlike the _agent_ it evaluates this data and produces a report locally.
 versions of the _check_ tool can still be downloaded and used, however it is no
 longer being maintained and will be removed from this repository.
 
-## Packages
+### Packages
 
 Policies for cluster configuration are encoded into *Preflight packages*. You
 can find some examples in [./preflight-packages](./preflight-packages).
@@ -121,26 +126,36 @@ packages](./docs/how_to_write_packages.md).
 
 ![Preflight package structure diagram](./docs/images/preflight_package.png)
 
-## Get Preflight
+## Installation
 
-### Download
+This section outlines how to install Preflight.
+
+### Agent
+
+TODO
+
+### Preflight V1 (check)
+
+**This section is deprecated with the introduction of the agent**
+
+#### Download
 
 Preflight binaries and *bundles*, which include a binary and all the *packages*
 in this repo, can be downloaded from the [releases
 page](https://github.com/jetstack/preflight/releases).
 
-### Build
+#### Build
 
 You can compile Preflight by running `make build`. It will create the binary in
 `builds/preflight`.
 
-## Use Preflight
+### Use Preflight V1 (check)
 
 Create your `preflight.yaml` configuration file. There is full [configuration
 documentation](./docs/configuration.md) available, as well as several example
 files in [`./examples`](./examples).
 
-### Use Preflight Locally
+#### Use Preflight Locally
 
 By default Preflight looks for a configuration at `./preflight.yaml`. Once this
 is set up, run a Preflight check like so:
@@ -160,7 +175,7 @@ preflight check --config-file=./examples/pods.preflight.yaml
 You will see a CLI formatted report if everything goes well. Also, you will get
 a JSON report in `./output`.
 
-### Use Preflight Web UI
+#### Use Preflight Web UI
 
 If you want to visualise the report in your browser, you can access the
 [*Preflight Web UI*](https://preflight.jetstack.io/) and load the JSON report.
@@ -172,7 +187,7 @@ report examples, [gke.json](./examples/reports/gke.json),
 and[pods.json](./examples/reports/pods.json), ready to be loaded into the
 [*Preflight Web UI*](https://preflight.jetstack.io/).
 
-### Use Preflight In-Cluster
+#### Use Preflight In-Cluster
 
 Preflight can be installed in-cluster to run continuous checks. See the
 [Installation Manual: Preflight
