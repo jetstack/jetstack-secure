@@ -18,6 +18,7 @@ checks using [Open Policy Agent (OPA)](https://www.openpolicyagent.org/).
 **[Preflight _agent_](#agent).**
 While this is happening the docs may be inconsistent and the repo structure may
 change.
+[Docs for this component can still be found here](./docs/installation_manual_in_cluster.md).
 :warning: :construction:
 
 <!-- markdown-toc start - Don't edit this section. Run M-x
@@ -28,7 +29,6 @@ markdown-toc-refresh-toc -->
 - [Jetstack Preflight](#jetstack-preflight)
 	- [Background](#background)
 	- [Agent](#agent)
-	- [Check](#check)
 	- [Packages](#packages)
 	- [Get Preflight](#get-preflight)
 		- [Download](#download)
@@ -57,12 +57,7 @@ The automation also allows the checks to be run repeatedly, meaning they can be
 deployed in-cluster to provide continuous configuration checking. This enables
 new interesting use cases as policy compliance audits.
 
-## Components
-
-This section outlines the approximate components of the tool and how they fit
-together.
-
-### Agent
+## Agent
 
 The Preflight _agent_ uses _data gatherers_ to collect required data from
 Kubernetes and cloud provider APIs before formatting it as JSON for analysis.
@@ -90,47 +85,7 @@ sends:
 go run main.go echo
 ```
 
-### Check
-
-The Preflight _check_ tool also uses _data gatherers_ to collect required data,
-but unlike the _agent_ it evaluates this data and produces a report locally.
-
-**This functionality is now deprecated in favour of the _agent_.** Previous
-versions of the _check_ tool can still be downloaded and used, however it is no
-longer being maintained and will be removed from this repository.
-
-### Packages
-
-Policies for cluster configuration are encoded into *Preflight packages*. You
-can find some examples in [./preflight-packages](./preflight-packages).
-
-Each package focuses on a different aspect of the cluster. For example, the
-[`gke_basic`](preflight-packages/examples.jetstack.io/gke_basic) package
-provides rules for the configuration of a GKE cluster, and the
-[`pods`](preflight-packages/jetstack.io/pods) package provides rules for the
-configuration of Kubernetes Pods.
-
-A Preflight package consists of a *Policy Manifest* and a
-[Rego](https://www.openpolicyagent.org/docs/latest/#rego) package.
-
-The *Policy Manifest* is a YAML file that specifies a package's rules.
-It gives descriptions of the rules and remediation advice,
-so the tool can display useful information when a rule doesn't pass.
-
-Rego is OPA's high-level declarative language for specifying rules. Rego rules
-can be defined in multiples files grouped into logical Rego packages.
-
-Anyone can create new Preflight packages to perform their own checks. The
-Preflight docs include a guide on [how to write
-packages](./docs/how_to_write_packages.md).
-
-![Preflight package structure diagram](./docs/images/preflight_package.png)
-
 ## Installation
-
-This section outlines how to install Preflight.
-
-### Agent
 
 The following instructions walk through the installation of the Preflight agent
 to gather data about cluster pods and send them to the backend for analysis.
@@ -239,62 +194,3 @@ spec:
             memory: "200Mi"
             cpu: "200m"
 ```
-
-### Preflight V1 (check)
-
-**This section is deprecated with the introduction of the agent**
-
-#### Download
-
-Preflight binaries and *bundles*, which include a binary and all the *packages*
-in this repo, can be downloaded from the [releases
-page](https://github.com/jetstack/preflight/releases).
-
-#### Build
-
-You can compile Preflight by running `make build`. It will create the binary in
-`builds/preflight`.
-
-### Use Preflight V1 (check)
-
-Create your `preflight.yaml` configuration file. There is full [configuration
-documentation](./docs/configuration.md) available, as well as several example
-files in [`./examples`](./examples).
-
-#### Use Preflight Locally
-
-By default Preflight looks for a configuration at `./preflight.yaml`. Once this
-is set up, run a Preflight check like so:
-
-``` preflight check ```
-
-You can try the Pods example
-[`./examples/pods.preflight.yaml`](./examples/pods.preflight.yaml)
-without having to change a line,
-if your *kubeconfig* is located at `~/.kube/config` and
-is pointing to a working cluster.
-
-```
-preflight check --config-file=./examples/pods.preflight.yaml
-```
-
-You will see a CLI formatted report if everything goes well. Also, you will get
-a JSON report in `./output`.
-
-#### Use Preflight Web UI
-
-If you want to visualise the report in your browser, you can access the
-[*Preflight Web UI*](https://preflight.jetstack.io/) and load the JSON report.
-**This is a static website.** **Your report is not being uploaded to any
-server.** **Everything happens in your browser.**
-
-You can give it a try without even running the tool, since we provide some
-report examples, [gke.json](./examples/reports/gke.json),
-and[pods.json](./examples/reports/pods.json), ready to be loaded into the
-[*Preflight Web UI*](https://preflight.jetstack.io/).
-
-#### Use Preflight In-Cluster
-
-Preflight can be installed in-cluster to run continuous checks. See the
-[Installation Manual: Preflight
-In-Cluster](./docs/installation_manual_in_cluster.md).
