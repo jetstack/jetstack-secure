@@ -93,7 +93,7 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 			),
 		},
 		"Secret resources should have data removed": {
-			gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "Secret"},
+			gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
 			objects: []runtime.Object{
 				getSecret("testsecret", "testns", map[string]interface{}{
 					"secretKey": "secretValue",

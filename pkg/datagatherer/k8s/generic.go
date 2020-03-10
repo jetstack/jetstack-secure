@@ -112,7 +112,7 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 		return nil, errors.WithStack(err)
 	}
 	// Redact Secret data
-	if strings.ToLower(g.groupVersionResource.Resource) == "secret" {
+	if strings.ToLower(g.groupVersionResource.Resource) == "secrets" {
 		for i := range list.Items {
 			list.Items[i].Object["data"] = map[string]interface{}{}
 		}
