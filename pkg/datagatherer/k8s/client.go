@@ -26,13 +26,12 @@ func NewDynamicClient(kubeconfigPath string) (dynamic.Interface, error) {
 func loadRESTConfig(path string) (*rest.Config, error) {
 	switch path {
 	// If the kubeconfig path is not provided, use the default loading rules
-	// so we read the regular KUBECONFIG variable.
+	// so we read the regular KUBECONFIG variable or create a non-interactive
+	// client for agents running in cluster
 	case "":
-		apicfg, err := clientcmd.NewDefaultClientConfigLoadingRules().Load()
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		cfg, err := clientcmd.NewDefaultClientConfig(*apicfg, &clientcmd.ConfigOverrides{}).ClientConfig()
+		loadingrules := clientcmd.NewDefaultClientConfigLoadingRules()
+		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			loadingrules, &clientcmd.ConfigOverrides{}).ClientConfig()
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
