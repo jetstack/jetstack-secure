@@ -29,6 +29,7 @@ markdown-toc-refresh-toc -->
 * [Jetstack Preflight](#jetstack-preflight)
    * [Project Background](#project-background)
    * [Agent](#agent)
+   * [Packages](#packages)
    * [Installation](#installation)
 
 <!-- markdown-toc end -->
@@ -77,6 +78,16 @@ sends:
 ```bash
 go run main.go echo
 ```
+
+## Packages
+
+Policies for cluster configuration are encoded into *Preflight packages*.  Each
+package focuses on a different infrastructure component, for example the `gke`
+package provides rules for the configuration of a GKE cluster.
+
+Preflight packages are implemented using
+[Open Policy Agent](https://www.openpolicyagent.org) with evaluation
+taking place in the SaaS backend.
 
 ## Installation
 
