@@ -127,7 +127,7 @@ func redactList(list *unstructured.UnstructuredList) error {
 	// Iterate over the items in the list.
 	for i := range list.Items {
 		// Determine the kind of items in case this is a generic 'mixed' list.
-		gvks, _, err := scheme.Scheme.ObjectKinds(list.Items[i].DeepCopyObject())
+		gvks, _, err := scheme.Scheme.ObjectKinds(&list.Items[i])
 		if err != nil {
 			return errors.WithStack(err)
 		}
