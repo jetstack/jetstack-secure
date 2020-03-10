@@ -7,9 +7,11 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 // Config contains the configuration for the data-gatherer.
@@ -110,7 +112,35 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+	// Redact Secret data
+	err = redactList(list)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
 	return list, nil
+}
+
+func redactList(list *unstructured.UnstructuredList) error {
+	// In principal we could only redact the list if it's kind is SecretList or
+	// a generic mixed List, however the test suite does not set the list kind
+	// and it is safer to always check for Secrets.
+	// Iterate over the items in the list.
+	for i := range list.Items {
+		// Determine the kind of items in case this is a generic 'mixed' list.
+		gvks, _, err := scheme.Scheme.ObjectKinds(&list.Items[i])
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		for _, gvk := range gvks {
+			// If this item is a Secret then we need to redact it.
+			if gvk.Kind == "Secret" && (gvk.Group == "Core" || gvk.Group == "") {
+				// Redact the Secret by overwriting its data.
+				list.Items[i].Object["data"] = map[string]interface{}{}
+				break
+			}
+		}
+	}
+	return nil
 }
 
 // namespaceResourceInterface will 'namespace' a NamespaceableResourceInterface

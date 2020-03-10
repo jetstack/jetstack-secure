@@ -25,6 +25,12 @@ func getObject(version, kind, name, namespace string) *unstructured.Unstructured
 	}
 }
 
+func getSecret(name, namespace string, data map[string]interface{}) *unstructured.Unstructured {
+	object := getObject("v1", "Secret", name, namespace)
+	object.Object["data"] = data
+	return object
+}
+
 func asUnstructuredList(items ...*unstructured.Unstructured) *unstructured.UnstructuredList {
 	itemsNonPtr := make([]unstructured.Unstructured, len(items))
 	for i, u := range items {
@@ -84,6 +90,21 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 			expected: asUnstructuredList(
 				getObject("foobar/v1", "Foo", "testfoo", "testns"),
 				getObject("foobar/v1", "Foo", "testfoo", "nottestns"),
+			),
+		},
+		"Secret resources should have data removed": {
+			gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+			objects: []runtime.Object{
+				getSecret("testsecret", "testns", map[string]interface{}{
+					"secretKey": "secretValue",
+				}),
+				getSecret("anothertestsecret", "differentns", map[string]interface{}{
+					"secretNumber": "12345",
+				}),
+			},
+			expected: asUnstructuredList(
+				getSecret("testsecret", "testns", map[string]interface{}{}),
+				getSecret("anothertestsecret", "differentns", map[string]interface{}{}),
 			),
 		},
 		// Note that we can't test use of fieldSelector to exclude namespaces
