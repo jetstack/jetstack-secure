@@ -3,7 +3,6 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/pkg/errors"
@@ -11,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 // Config contains the configuration for the data-gatherer.
@@ -112,9 +112,19 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 		return nil, errors.WithStack(err)
 	}
 	// Redact Secret data
-	if strings.ToLower(g.groupVersionResource.Resource) == "secrets" {
-		for i := range list.Items {
-			list.Items[i].Object["data"] = map[string]interface{}{}
+	for i := range list.Items {
+		gvks, _, err := scheme.Scheme.ObjectKinds(list.Items[i].DeepCopyObject())
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		for _, gvk := range gvks {
+			redact := false
+			if gvk.Kind == "Secret" {
+				redact = true
+			}
+			if redact {
+				list.Items[i].Object["data"] = map[string]interface{}{}
+			}
 		}
 	}
 	return list, nil
