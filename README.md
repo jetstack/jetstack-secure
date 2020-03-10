@@ -18,7 +18,7 @@ checks using [Open Policy Agent (OPA)](https://www.openpolicyagent.org/).
 **[Preflight _agent_](#agent).**
 While this is happening the docs may be inconsistent and the repo structure may
 change.
-[Docs for this component can still be found here](./docs/installation_manual_in_cluster.md).
+[Docs for the check command can still be found here](./docs/check.md).
 :warning: :construction:
 
 <!-- markdown-toc start - Don't edit this section. Run M-x
