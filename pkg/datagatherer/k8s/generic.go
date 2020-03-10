@@ -117,14 +117,15 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
+		redact := false
 		for _, gvk := range gvks {
-			redact := false
 			if gvk.Kind == "Secret" {
 				redact = true
+				break
 			}
-			if redact {
-				list.Items[i].Object["data"] = map[string]interface{}{}
-			}
+		}
+		if redact {
+			list.Items[i].Object["data"] = map[string]interface{}{}
 		}
 	}
 	return list, nil
