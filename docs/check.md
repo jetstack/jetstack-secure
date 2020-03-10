@@ -62,7 +62,9 @@ files in [`./examples`](./examples).
 By default Preflight looks for a configuration at `./preflight.yaml`. Once this
 is set up, run a Preflight check like so:
 
-``` preflight check ```
+```
+preflight check
+```
 
 You can try the Pods example
 [`./examples/pods.preflight.yaml`](./examples/pods.preflight.yaml)
@@ -109,6 +111,7 @@ In case you want to add your own packages, you can create your own Docker image 
 
 - Add your packages to the `preflight-packages` directory.
 - Execute:
+
 ```
 export DOCKER_IMAGE='myrepo/myimage'
 make build-docker-image
@@ -122,6 +125,7 @@ make push-docker-image
 Now we need to create a bucket where to store the reports. We are using `preflight-results` as the name for the bucket here, but you will need to choose a different name.
 
 Execute
+
 ```
 cd ./deployment/terraform/results-bucket
 terraform init
@@ -143,6 +147,7 @@ The following terraform module creates a GSA with the enough permissions to be u
 **Create the service account**
 
 Execute:
+
 ```
 cd ./deployment/terraform/gke-datagatherer
 terraform init
@@ -199,6 +204,7 @@ In case you want to add your own packages, you can create your own Docker image 
 
 - Add your packages to the `preflight-packages` directory.
 - Execute:
+
 ```
 export DOCKER_IMAGE='myrepo/myimage'
 make build-docker-image
@@ -212,6 +218,7 @@ make push-docker-image
 Now we need to create a bucket where to store the reports. We are using `preflight-results` as the name for the bucket here, but you will need to choose a different name.
 
 Execute
+
 ```
 cd ./deployment/terraform/results-bucket
 terraform init
@@ -233,6 +240,7 @@ The following terraform module creates a GSA with the enough permissions to be u
 **Create the service account**
 
 Execute:
+
 ```
 cd ./deployment/terraform/gke-datagatherer
 terraform init
@@ -269,7 +277,6 @@ By default it runs every 30 minutes (you can change that by editing `deployment/
 #### Results
 
 If Preflight runs correctly, some results will appear in the bucket, ordered by cluster name and timestamp: `<cluster-name>/<timestamp>/<package-name>.json`
-
 
 ## Configuration
 
