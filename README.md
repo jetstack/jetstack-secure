@@ -26,17 +26,10 @@ markdown-toc-refresh-toc -->
 
 **Table of Contents**
 
-- [Jetstack Preflight](#jetstack-preflight)
-	- [Background](#background)
-	- [Agent](#agent)
-	- [Packages](#packages)
-	- [Get Preflight](#get-preflight)
-		- [Download](#download)
-		- [Build](#build)
-	- [Use Preflight](#use-preflight)
-		- [Use Preflight Locally](#use-preflight-locally)
-		- [Use Preflight Web UI](#use-preflight-web-ui)
-		- [Use Preflight In-Cluster](#use-preflight-in-cluster)
+* [Jetstack Preflight](#jetstack-preflight)
+   * [Project Background](#project-background)
+   * [Agent](#agent)
+   * [Installation](#installation)
 
 <!-- markdown-toc end -->
 
