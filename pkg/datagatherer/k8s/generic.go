@@ -121,27 +121,9 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 }
 
 func redactList(list *unstructured.UnstructuredList) error {
-	// Determine the kind of list.
-	gvks, unversioned, err := scheme.Scheme.ObjectKinds(list.DeepCopyObject())
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	redactList := false
-	if unversioned {
-		redactList = true
-	} else {
-		for _, gvk := range gvks {
-			// If this is SecretList or a generic list then it will need to be redacted.
-			if gvk.Kind == "SecretList" || gvk.Kind == "List" {
-				redactList = true
-				break
-			}
-		}
-	}
-	// Stop here if we don't need to redact this type of list.
-	if !redactList {
-		return nil
-	}
+	// In principal we could only redact the list if it's kind is SecretList or
+	// a generic mixed List, however the test suite does not set the list kind
+	// and it is safer to always check for Secrets.
 	// Iterate over the items in the list.
 	for i := range list.Items {
 		// Determine the kind of items in case this is a generic 'mixed' list.
