@@ -7,6 +7,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -112,23 +113,56 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 		return nil, errors.WithStack(err)
 	}
 	// Redact Secret data
-	for i := range list.Items {
-		gvks, _, err := scheme.Scheme.ObjectKinds(list.Items[i].DeepCopyObject())
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		redact := false
+	err = redactList(list)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return list, nil
+}
+
+func redactList(list *unstructured.UnstructuredList) error {
+	// Determine the kind of list.
+	gvks, unversioned, err := scheme.Scheme.ObjectKinds(list.DeepCopyObject())
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	redactList := false
+	if unversioned {
+		redactList = true
+	} else {
 		for _, gvk := range gvks {
-			if gvk.Kind == "Secret" {
-				redact = true
+			// If this is SecretList or a generic list then it will need to be redacted.
+			if gvk.Kind == "SecretList" || gvk.Kind == "List" {
+				redactList = true
 				break
 			}
 		}
-		if redact {
+	}
+	// Stop here if we don't need to redact this type of list.
+	if !redactList {
+		return nil
+	}
+	// Iterate over the items in the list.
+	for i := range list.Items {
+		// Determine the kind of items in case this is a generic 'mixed' list.
+		gvks, _, err := scheme.Scheme.ObjectKinds(list.Items[i].DeepCopyObject())
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		redactItem := false
+		for _, gvk := range gvks {
+			// If this item is a Secret then we need to redact it.
+			if gvk.Kind == "Secret" {
+				redactItem = true
+				break
+			}
+		}
+		// Redcat the Secret by overwriting its data.
+		if redactItem {
 			list.Items[i].Object["data"] = map[string]interface{}{}
 		}
 	}
-	return list, nil
+	return nil
 }
 
 // namespaceResourceInterface will 'namespace' a NamespaceableResourceInterface
