@@ -133,7 +133,7 @@ func redactList(list *unstructured.UnstructuredList) error {
 		}
 		for _, gvk := range gvks {
 			// If this item is a Secret then we need to redact it.
-			if gvk.Kind == "Secret" && (gvk.Group == "Core" || gvk.Group == "") {
+			if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
 				// Redact the Secret by overwriting its data.
 				list.Items[i].Object["data"] = map[string]interface{}{}
 				break
