@@ -132,7 +132,113 @@ This section outlines how to install Preflight.
 
 ### Agent
 
-TODO
+The following instructions walk through the installation of the Preflight agent
+to gather data about cluster pods and send them to the backend for analysis.
+
+**To complete the secret manifest below, you will need to have a Preflight
+token.**
+
+First create a namespace for the preflight components:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: preflight
+```
+
+Next create a secret like the following, substituting your token:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: agent-config
+  namespace: preflight
+type: Opaque
+stringData:
+  config.yaml: |
+    schedule: "* * * * *"
+    token: # enter your token here
+    endpoint:
+      protocol: https
+      host: preflight.jetstack.io
+      path: /api/v1/datareadings
+    data-gatherers:
+    - name: "pods"
+      kind: "k8s"
+      config:
+        resource-type:
+          resource: pods
+          version: v1
+```
+
+Now create a service account with permissions to read cluster resources:
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent
+  namespace: preflight
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: preflight-agent-cluster-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  # will be able to view all resources, but not rbac and secrets
+  name: view
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: preflight
+```
+
+Finally deploy the agent:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent
+  namespace: preflight
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agent
+    spec:
+      serviceAccountName: agent
+      volumes:
+      - name: config
+        secret:
+          secretName: agent-config
+      containers:
+      - name: agent
+        image: quay.io/jetstack/preflight:7d4fa467258b7592d68fd660f1fd1d42e7332231
+        args:
+        - "agent"
+        - "-c"
+        - "/etc/secrets/preflight/agent/config.yaml"
+        volumeMounts:
+        - name: config
+          mountPath: "/etc/secrets/preflight/agent"
+          readOnly: true
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "200m"
+          limits:
+            memory: "200Mi"
+            cpu: "200m"
+```
 
 ### Preflight V1 (check)
 
