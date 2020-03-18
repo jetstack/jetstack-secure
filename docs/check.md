@@ -55,7 +55,7 @@ You can compile Preflight by running `make build`. It will create the binary in
 
 Create your `preflight.yaml` configuration file. There is full [configuration
 documentation](./docs/configuration.md) available, as well as several example
-files in [`./examples`](./examples).
+files in [`./deprecated-check-examples`](./deprecated-check-examples).
 
 ### Locally
 
@@ -67,13 +67,13 @@ preflight check
 ```
 
 You can try the Pods example
-[`./examples/pods.preflight.yaml`](./examples/pods.preflight.yaml)
+[`./deprecated-check-examples/pods.preflight.yaml`](./deprecated-check-examples/pods.preflight.yaml)
 without having to change a line,
 if your *kubeconfig* is located at `~/.kube/config` and
 is pointing to a working cluster.
 
 ```
-preflight check --config-file=./examples/pods.preflight.yaml
+preflight check --config-file=./deprecated-check-examples/pods.preflight.yaml
 ```
 
 You will see a CLI formatted report if everything goes well. Also, you will get
@@ -87,8 +87,8 @@ If you want to visualise the report in your browser, you can access the
 server.** **Everything happens in your browser.**
 
 You can give it a try without even running the tool, since we provide some
-report examples, [gke.json](./examples/reports/gke.json),
-and[pods.json](./examples/reports/pods.json), ready to be loaded into the
+report examples, [gke.json](./deprecated-check-examples/reports/gke.json),
+and[pods.json](./deprecated-check-examples/reports/pods.json), ready to be loaded into the
 [*Preflight Web UI*](https://preflight.jetstack.io/).
 
 ### In-Cluster
@@ -284,7 +284,8 @@ Configuration is provided to the Preflight application using a YAML file.
 This specifies what packages to use, how data gatherers are configured,
 and what outputs to produce.
 
-Several example configuration files can be found in [`examples`](./examples).
+Several example configuration files can be found in
+[`examples`](./deprecated-check-examples).
 
 ### Cluster Name
 
