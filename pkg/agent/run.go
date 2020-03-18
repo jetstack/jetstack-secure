@@ -20,6 +20,9 @@ import (
 // ConfigFilePath is where the agent will try to load the configuration from
 var ConfigFilePath string
 
+// AuthToken is the authorization token that will be used for API calls
+var AuthToken string
+
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
@@ -35,6 +38,17 @@ func Run(cmd *cobra.Command, args []string) {
 	config, err := ParseConfig(b)
 	if err != nil {
 		log.Fatalf("Failed to parse config file: %s", err)
+	}
+
+	// AuthToken flag takes preference over token in configuration file.
+	if AuthToken == "" {
+		AuthToken = config.Token
+	} else {
+		log.Printf("Using authorization token from flag.")
+	}
+
+	if config.Token != "" {
+		config.Token = "(redacted)"
 	}
 
 	serverURL, err := url.Parse(fmt.Sprintf("%s://%s%s", config.Endpoint.Protocol, config.Endpoint.Host, config.Endpoint.Path))
@@ -87,7 +101,7 @@ func Run(cmd *cobra.Command, args []string) {
 	for {
 		log.Println("Running Agent...")
 		log.Println("Posting data to ", serverURL)
-		err = postData(serverURL, config.Token, readings)
+		err = postData(serverURL, AuthToken, readings)
 		// TODO: handle errors gracefully: e.g. handle retries when it is possible
 		if err != nil {
 			log.Fatalf("Post to server failed: %+v", err)
