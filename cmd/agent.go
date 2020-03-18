@@ -20,6 +20,13 @@ func init() {
 		"agent-config-file",
 		"c",
 		"./agent.yaml",
-		"Config file location, default is `agent.yaml` in the current working directory",
+		"Config file location, default is `agent.yaml` in the current working directory.",
+	)
+	agentCmd.PersistentFlags().StringVarP(
+		&agent.AuthToken,
+		"auth-token",
+		"t",
+		"",
+		"Authorization token. If used, it will override the authorization token in the configuration file.",
 	)
 }
