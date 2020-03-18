@@ -51,6 +51,10 @@ func Run(cmd *cobra.Command, args []string) {
 		config.Token = "(redacted)"
 	}
 
+	if AuthToken == "" {
+		log.Fatalf("Missing authorization token. Cannot continue.")
+	}
+
 	serverURL, err := url.Parse(fmt.Sprintf("%s://%s%s", config.Endpoint.Protocol, config.Endpoint.Host, config.Endpoint.Path))
 	if err != nil {
 		log.Fatalf("Failed to build URL: %s", err)
