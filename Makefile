@@ -58,8 +58,8 @@ build-all-platforms:
 ./bundles/preflight-bundle-$(GOOS)-$(GOARCH).tgz: ./builds/preflight-$(GOOS)-$(GOARCH)
 	cd $(ROOT_DIR) && \
 	mkdir -p ./bundles && \
-	tar --transform "s/assets\/packages/preflight-packages/" -cvf $@.tmp ./preflight-packages/ && \
-	tar --transform "s/deprecated-check-examples\/pods.preflight.yaml/preflight.yaml/" -rvf $@.tmp examples/pods.preflight.yaml && \
+	tar -cvf $@.tmp ./preflight-packages/ && \
+	tar --transform "s/deprecated-check-examples\/pods.preflight.yaml/preflight.yaml/" -rvf $@.tmp deprecated-check-examples/pods.preflight.yaml && \
 	tar --transform "s/builds\/preflight-$(GOOS)-$(GOARCH)/preflight/" -rvf $@.tmp $< && \
 	gzip < $@.tmp > $@ && \
 	rm $@.tmp
