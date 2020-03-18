@@ -19,7 +19,7 @@ RUN make install
 FROM gcr.io/distroless/base:nonroot
 COPY --from=builder /go/bin/preflight /bin/preflight
 ADD ./preflight-packages /preflight-packages
-# load in an example preflight.yaml
-ADD ./examples/pods.preflight.yaml /etc/preflight/preflight.yaml
+# load in an example config file
+ADD ./agent.yaml /etc/preflight/agent.yaml
 ENTRYPOINT ["preflight"]
-CMD ["check", "--config-file", "/etc/preflight/preflight.yaml"]
+CMD ["agent", "-c", "/etc/preflight/agent.yaml"]
