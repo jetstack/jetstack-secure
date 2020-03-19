@@ -29,4 +29,11 @@ func init() {
 		"",
 		"Authorization token. If used, it will override the authorization token in the configuration file.",
 	)
+	agentCmd.PersistentFlags().UintVarP(
+		&agent.Period,
+		"period",
+		"p",
+		3600,
+		"Time between scans, in seconds.",
+	)
 }
