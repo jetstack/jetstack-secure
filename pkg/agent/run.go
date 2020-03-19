@@ -23,6 +23,9 @@ var ConfigFilePath string
 // AuthToken is the authorization token that will be used for API calls
 var AuthToken string
 
+// Period is the number of seconds between scans
+var Period uint
+
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
@@ -110,7 +113,7 @@ func Run(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatalf("Post to server failed: %+v", err)
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Duration(Period) * time.Second)
 	}
 }
 
