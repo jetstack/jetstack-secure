@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -25,9 +26,22 @@ func getObject(version, kind, name, namespace string) *unstructured.Unstructured
 	}
 }
 
-func getSecret(name, namespace string, data map[string]interface{}) *unstructured.Unstructured {
+func getSecret(name, namespace string, data map[string]interface{}, withLastApplied bool) *unstructured.Unstructured {
 	object := getObject("v1", "Secret", name, namespace)
 	object.Object["data"] = data
+
+	// if we're creating a 'raw' secret as scraped that was applied by kubectl
+	if withLastApplied {
+		jsonData, _ := json.Marshal(data)
+		object.Object["annotations"] = map[string]interface{}{
+			"kubectl.kubernetes.io/last-applied-configuration": string(jsonData),
+		}
+	} else { // generate an expected redacted secret
+		object.Object["annotations"] = map[string]interface{}{
+			"kubectl.kubernetes.io/last-applied-configuration": "redacted",
+		}
+	}
+
 	return object
 }
 
@@ -97,14 +111,14 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 			objects: []runtime.Object{
 				getSecret("testsecret", "testns", map[string]interface{}{
 					"secretKey": "secretValue",
-				}),
+				}, true),
 				getSecret("anothertestsecret", "differentns", map[string]interface{}{
 					"secretNumber": "12345",
-				}),
+				}, true),
 			},
 			expected: asUnstructuredList(
-				getSecret("testsecret", "testns", map[string]interface{}{}),
-				getSecret("anothertestsecret", "differentns", map[string]interface{}{}),
+				getSecret("testsecret", "testns", map[string]interface{}{}, false),
+				getSecret("anothertestsecret", "differentns", map[string]interface{}{}, false),
 			),
 		},
 		// Note that we can't test use of fieldSelector to exclude namespaces
