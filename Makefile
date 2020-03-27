@@ -59,7 +59,6 @@ build-all-platforms:
 	cd $(ROOT_DIR) && \
 	mkdir -p ./bundles && \
 	tar -cvf $@.tmp ./preflight-packages/ && \
-	tar --transform "s/deprecated-check-examples\/pods.preflight.yaml/preflight.yaml/" -rvf $@.tmp deprecated-check-examples/pods.preflight.yaml && \
 	tar --transform "s/builds\/preflight-$(GOOS)-$(GOARCH)/preflight/" -rvf $@.tmp $< && \
 	gzip < $@.tmp > $@ && \
 	rm $@.tmp
