@@ -134,8 +134,18 @@ func redactList(list *unstructured.UnstructuredList) error {
 		for _, gvk := range gvks {
 			// If this item is a Secret then we need to redact it.
 			if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
-				// Redact the Secret by overwriting its data.
+				// Redact secret data
 				list.Items[i].Object["data"] = map[string]interface{}{}
+
+				// Redact last-applied-configuration annotation if set
+				annotations, present := list.Items[i].Object["annotations"].(map[string]interface{})
+				if present {
+					_, annotationPresent := annotations["kubectl.kubernetes.io/last-applied-configuration"]
+					if annotationPresent {
+						annotations["kubectl.kubernetes.io/last-applied-configuration"] = "redacted"
+					}
+					list.Items[i].Object["annotations"] = annotations
+				}
 				break
 			}
 		}
