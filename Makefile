@@ -59,7 +59,6 @@ build-all-platforms:
 	cd $(ROOT_DIR) && \
 	mkdir -p ./bundles && \
 	tar -cvf $@.tmp ./preflight-packages/ && \
-	tar --transform "s/deprecated-check-examples\/pods.preflight.yaml/preflight.yaml/" -rvf $@.tmp deprecated-check-examples/pods.preflight.yaml && \
 	tar --transform "s/builds\/preflight-$(GOOS)-$(GOARCH)/preflight/" -rvf $@.tmp $< && \
 	gzip < $@.tmp > $@ && \
 	rm $@.tmp
@@ -68,18 +67,6 @@ bundle-all-platforms:
 	$(MAKE) GOOS=linux   GOARCH=amd64 ./bundles/preflight-bundle-linux-amd64.tgz
 	$(MAKE) GOOS=darwin  GOARCH=amd64 ./bundles/preflight-bundle-darwin-amd64.tgz
 	$(MAKE) GOOS=windows GOARCH=amd64 ./bundles/preflight-bundle-windows-amd64.tgz
-
-# Packages
-
-packages-lint:
-	cd $(ROOT_DIR) && \
-	go run . package lint $(ROOT_DIR)/preflight-packages/jetstack.io/pods && \
-	go run . package lint $(ROOT_DIR)/preflight-packages/examples.jetstack.io/aks_basic && \
-	go run . package lint $(ROOT_DIR)/preflight-packages/examples.jetstack.io/gke_basic
-
-packages-test:
-	cd $(ROOT_DIR) && \
-	go run . package test $(ROOT_DIR)/preflight-packages/examples.jetstack.io
 
 # Docker image
 
@@ -103,7 +90,7 @@ export PATH:=$(GOPATH)/bin:$(PATH)
 ci-deps:
 	go install golang.org/x/lint/golint
 
-ci-test: ci-deps test lint packages-test packages-lint
+ci-test: ci-deps test lint
 
 ci-build: ci-test build build-docker-image build-all-platforms bundle-all-platforms push-docker-image-canary
 

@@ -12,15 +12,6 @@
 Preflight is a tool to automatically perform Kubernetes cluster configuration
 checks using [Open Policy Agent (OPA)](https://www.openpolicyagent.org/).
 
-:warning: :construction:
-**We're currently in the process of deprecating the**
-**[Preflight _check_](#check) tool in favour of the**
-**[Preflight _agent_](#agent).**
-While this is happening the docs may be inconsistent and the repo structure may
-change.
-[Docs for the check command can still be found here](./docs/check.md).
-:warning: :construction:
-
 <!-- markdown-toc start - Don't edit this section. Run M-x
 markdown-toc-refresh-toc -->
 
