@@ -18,7 +18,6 @@ RUN make install
 # Use a distroless nonroot base image for just our executable
 FROM gcr.io/distroless/base:nonroot
 COPY --from=builder /go/bin/preflight /bin/preflight
-ADD ./preflight-packages /preflight-packages
 # load in an example config file
 ADD ./agent.yaml /etc/preflight/agent.yaml
 ENTRYPOINT ["preflight"]
