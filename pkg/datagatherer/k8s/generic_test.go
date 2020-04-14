@@ -191,6 +191,31 @@ exclude-namespaces:
 	}
 }
 
+func TestConfigValidate(t *testing.T) {
+	tests := []struct {
+		Config        Config
+		ExpectedError string
+	}{
+		{
+			Config: Config{
+				GroupVersionResource: schema.GroupVersionResource{
+					Group:    "",
+					Version:  "",
+					Resource: "",
+				},
+			},
+			ExpectedError: "invalid configuration: GroupVersionResource.Resource cannot be empty",
+		},
+	}
+
+	for _, test := range tests {
+		err := test.Config.validate()
+		if err.Error() != test.ExpectedError {
+			t.Errorf("expected %s, got %s", test.ExpectedError, err.Error())
+		}
+	}
+}
+
 func TestGenerateFieldSelector(t *testing.T) {
 	tests := []struct {
 		ExcludeNamespaces     []string
