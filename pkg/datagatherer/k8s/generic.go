@@ -73,12 +73,16 @@ func (c *Config) validate() error {
 // NewDataGatherer constructs a new instance of the generic K8s data-gatherer for the provided
 // GroupVersionResource.
 func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
-	if err := c.validate(); err != nil {
+	cl, err := NewDynamicClient(c.KubeConfigPath)
+	if err != nil {
 		return nil, err
 	}
 
-	cl, err := NewDynamicClient(c.KubeConfigPath)
-	if err != nil {
+	return c.newDataGathererWithClient(cl)
+}
+
+func (c *Config) newDataGathererWithClient(cl dynamic.Interface) (datagatherer.DataGatherer, error) {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
@@ -86,7 +90,7 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 		cl:                   cl,
 		groupVersionResource: c.GroupVersionResource,
 		fieldSelector:        generateFieldSelector(c.ExcludeNamespaces),
-		namespaces:           []string{},
+		namespaces:           c.IncludeNamespaces,
 	}, nil
 }
 

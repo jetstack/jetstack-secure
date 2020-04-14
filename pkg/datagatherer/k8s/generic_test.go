@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -59,6 +58,31 @@ func asUnstructuredList(items ...*unstructured.Unstructured) *unstructured.Unstr
 			},
 		},
 		Items: itemsNonPtr,
+	}
+}
+
+func TestNewDataGathererWithClient(t *testing.T) {
+	config := Config{
+		IncludeNamespaces:    []string{"a"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+	}
+	cl := fake.NewSimpleDynamicClient(runtime.NewScheme())
+	dg, err := config.newDataGathererWithClient(cl)
+
+	if err != nil {
+		t.Errorf("expected no error but got: %v", err)
+	}
+
+	expected := &DataGatherer{
+		cl:                   cl,
+		groupVersionResource: config.GroupVersionResource,
+		// it's important that the namespaces are set as the IncludeNamespaces
+		// during initialization
+		namespaces: config.IncludeNamespaces,
+	}
+
+	if !reflect.DeepEqual(dg, expected) {
+		t.Errorf("unexpected difference: %v", diff.ObjectDiff(dg, expected))
 	}
 }
 
@@ -123,7 +147,7 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 				getSecret("anothertestsecret", "differentns", map[string]interface{}{}, false),
 			),
 		},
-		"Foos in different namespaces should be returned if they are in include-namespaces": {
+		"Foos in different namespaces should be returned if they are in the namespace list for the gatherer": {
 			gvr:        schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 			namespaces: []string{"testns", "testns2"},
 			objects: []runtime.Object{
@@ -160,9 +184,6 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 				t.Errorf("expected to get an error but didn't get one")
 			}
 			if !reflect.DeepEqual(res, test.expected) {
-				fmt.Printf("%+v\n", res)
-				fmt.Printf("%+v\n", test.expected)
-				fmt.Printf("---\n")
 				t.Errorf("unexpected difference: %v", diff.ObjectDiff(res, test.expected))
 			}
 		})
