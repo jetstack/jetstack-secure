@@ -86,6 +86,7 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 		cl:                   cl,
 		groupVersionResource: c.GroupVersionResource,
 		fieldSelector:        generateFieldSelector(c.ExcludeNamespaces),
+		namespaces:           []string{},
 	}, nil
 }
 
@@ -104,7 +105,7 @@ type DataGatherer struct {
 	// namespace, if specified, limits the namespace of the resources returned.
 	// This field *must* be omitted when the groupVersionResource refers to a
 	// non-namespaced resource.
-	namespace string
+	namespaces []string
 	// fieldSelector is a field selector string used to filter resources
 	// returned by the Kubernetes API.
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/
@@ -117,19 +118,28 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 	if g.groupVersionResource.Resource == "" {
 		return nil, fmt.Errorf("resource type must be specified")
 	}
-	resourceInterface := namespaceResourceInterface(g.cl.Resource(g.groupVersionResource), g.namespace)
-	list, err := resourceInterface.List(metav1.ListOptions{
-		FieldSelector: g.fieldSelector,
-	})
-	if err != nil {
-		return nil, errors.WithStack(err)
+
+	var list unstructured.UnstructuredList
+
+	for _, namespace := range g.namespaces {
+		resourceInterface := namespaceResourceInterface(g.cl.Resource(g.groupVersionResource), namespace)
+		namespaceList, err := resourceInterface.List(metav1.ListOptions{
+			FieldSelector: g.fieldSelector,
+		})
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		list.Object = namespaceList.Object
+		list.Items = append(list.Items, namespaceList.Items...)
 	}
+
 	// Redact Secret data
-	err = redactList(list)
+	err := redactList(&list)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return list, nil
+
+	return &list, nil
 }
 
 func redactList(list *unstructured.UnstructuredList) error {

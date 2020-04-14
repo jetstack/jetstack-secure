@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -133,7 +134,7 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 			g := DataGatherer{
 				cl:                   cl,
 				groupVersionResource: test.gvr,
-				namespace:            test.namespace,
+				namespaces:           []string{test.namespace},
 			}
 
 			res, err := g.Fetch()
@@ -144,6 +145,9 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 				t.Errorf("expected to get an error but didn't get one")
 			}
 			if !reflect.DeepEqual(res, test.expected) {
+				fmt.Printf("%+v\n", res)
+				fmt.Printf("%+v\n", test.expected)
+				fmt.Printf("---\n")
 				t.Errorf("unexpected difference: %v", diff.ObjectDiff(res, test.expected))
 			}
 		})
