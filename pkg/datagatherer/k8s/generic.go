@@ -121,7 +121,13 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 
 	var list unstructured.UnstructuredList
 
-	for _, namespace := range g.namespaces {
+	fetchNamespaces := g.namespaces
+	if len(fetchNamespaces) == 0 {
+		// then they must have been looking for all namespaces
+		fetchNamespaces = []string{""}
+	}
+
+	for _, namespace := range fetchNamespaces {
 		resourceInterface := namespaceResourceInterface(g.cl.Resource(g.groupVersionResource), namespace)
 		namespaceList, err := resourceInterface.List(metav1.ListOptions{
 			FieldSelector: g.fieldSelector,

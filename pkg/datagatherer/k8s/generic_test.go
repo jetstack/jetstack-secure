@@ -65,11 +65,11 @@ func asUnstructuredList(items ...*unstructured.Unstructured) *unstructured.Unstr
 func TestGenericGatherer_Fetch(t *testing.T) {
 	emptyScheme := runtime.NewScheme()
 	tests := map[string]struct {
-		gvr       schema.GroupVersionResource
-		namespace string
-		objects   []runtime.Object
-		expected  interface{}
-		err       bool
+		gvr        schema.GroupVersionResource
+		namespaces []string
+		objects    []runtime.Object
+		expected   interface{}
+		err        bool
 	}{
 		"an error should be returned if 'resource' is missing": {
 			err: true,
@@ -87,8 +87,8 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 			),
 		},
 		"only Foos in the specified namespace should be returned": {
-			gvr:       schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
-			namespace: "testns",
+			gvr:        schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			namespaces: []string{"testns"},
 			objects: []runtime.Object{
 				getObject("foobar/v1", "Foo", "testfoo", "testns"),
 				getObject("foobar/v1", "Foo", "testfoo", "nottestns"),
@@ -123,6 +123,19 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 				getSecret("anothertestsecret", "differentns", map[string]interface{}{}, false),
 			),
 		},
+		"Foos in different namespaces should be returned if they are in include-namespaces": {
+			gvr:        schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			namespaces: []string{"testns", "testns2"},
+			objects: []runtime.Object{
+				getObject("foobar/v1", "Foo", "testfoo", "testns"),
+				getObject("foobar/v1", "Foo", "testfoo2", "testns2"),
+				getObject("foobar/v1", "Foo", "testfoo3", "nottestns"),
+			},
+			expected: asUnstructuredList(
+				getObject("foobar/v1", "Foo", "testfoo", "testns"),
+				getObject("foobar/v1", "Foo", "testfoo2", "testns2"),
+			),
+		},
 		// Note that we can't test use of fieldSelector to exclude namespaces
 		// here as the as the fake client does not implement it.
 		// See go/pkg/mod/k8s.io/client-go@v0.17.0/dynamic/fake/simple.go:291
@@ -134,7 +147,9 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 			g := DataGatherer{
 				cl:                   cl,
 				groupVersionResource: test.gvr,
-				namespaces:           []string{test.namespace},
+				// if empty, namespaces will default to []string{""} during
+				// fetch to get all ns
+				namespaces: test.namespaces,
 			}
 
 			res, err := g.Fetch()
