@@ -3,6 +3,7 @@ package k8s
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v2"
@@ -206,11 +207,18 @@ func TestConfigValidate(t *testing.T) {
 			},
 			ExpectedError: "invalid configuration: GroupVersionResource.Resource cannot be empty",
 		},
+		{
+			Config: Config{
+				IncludeNamespaces: []string{"a"},
+				ExcludeNamespaces: []string{"b"},
+			},
+			ExpectedError: "cannot set excluded an included namespaces",
+		},
 	}
 
 	for _, test := range tests {
 		err := test.Config.validate()
-		if err.Error() != test.ExpectedError {
+		if !strings.Contains(err.Error(), test.ExpectedError) {
 			t.Errorf("expected %s, got %s", test.ExpectedError, err.Error())
 		}
 	}

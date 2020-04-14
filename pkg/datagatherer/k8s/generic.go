@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/pkg/errors"
@@ -22,6 +23,8 @@ type Config struct {
 	GroupVersionResource schema.GroupVersionResource
 	// ExcludeNamespaces is a list of namespaces to exclude.
 	ExcludeNamespaces []string `yaml:"exclude-namespaces"`
+	// IncludeNamespaces is a list of namespaces to include.
+	IncludeNamespaces []string `yaml:"include-namespaces"`
 }
 
 // UnmarshalYAML unmarshals the Config resolving GroupVersionResource.
@@ -51,8 +54,17 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // validate validates the configuration.
 func (c *Config) validate() error {
+	var errors []string
+	if len(c.ExcludeNamespaces) > 0 && len(c.IncludeNamespaces) > 0 {
+		errors = append(errors, "cannot set excluded an included namespaces")
+	}
+
 	if c.GroupVersionResource.Resource == "" {
-		return fmt.Errorf("invalid configuration: GroupVersionResource.Resource cannot be empty")
+		errors = append(errors, "invalid configuration: GroupVersionResource.Resource cannot be empty")
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf(strings.Join(errors, ", "))
 	}
 
 	return nil
