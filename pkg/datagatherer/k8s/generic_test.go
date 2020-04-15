@@ -252,7 +252,7 @@ func TestConfigValidate(t *testing.T) {
 				IncludeNamespaces: []string{"a"},
 				ExcludeNamespaces: []string{"b"},
 			},
-			ExpectedError: "cannot set excluded an included namespaces",
+			ExpectedError: "cannot set excluded and included namespaces",
 		},
 	}
 

@@ -56,7 +56,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 func (c *Config) validate() error {
 	var errors []string
 	if len(c.ExcludeNamespaces) > 0 && len(c.IncludeNamespaces) > 0 {
-		errors = append(errors, "cannot set excluded an included namespaces")
+		errors = append(errors, "cannot set excluded and included namespaces")
 	}
 
 	if c.GroupVersionResource.Resource == "" {
