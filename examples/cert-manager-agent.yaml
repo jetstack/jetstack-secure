@@ -1,0 +1,34 @@
+schedule: "* * * *"
+token: xxxx
+endpoint:
+  protocol: https
+  host: "preflight.jetstack.io"
+  path: "/api/v1/datareadings"
+data-gatherers:
+- kind: "k8s"
+  name: "k8s/secrets.v1"
+  config:
+    resource-type:
+      version: v1
+      resource: secrets
+- kind: "k8s"
+  name: "k8s/certificates.v1alpha2.cert-manager.io"
+  config:
+    resource-type:
+      group: cert-manager.io
+      version: v1alpha2
+      resource: certificates
+- kind: "k8s"
+  name: "k8s/ingresses.v1beta1.networking.k8s.io"
+  config:
+    resource-type:
+      group: networking.k8s.io
+      version: v1beta1
+      resource: ingresses
+- kind: "k8s"
+  name: "k8s/certificaterequests.v1alpha2.cert-manager.io"
+  config:
+    resource-type:
+      group: cert-manager.io
+      version: v1alpha2
+      resource: certificaterequests
