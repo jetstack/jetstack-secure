@@ -3,6 +3,7 @@ package k8s
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v2"
@@ -60,14 +61,39 @@ func asUnstructuredList(items ...*unstructured.Unstructured) *unstructured.Unstr
 	}
 }
 
+func TestNewDataGathererWithClient(t *testing.T) {
+	config := Config{
+		IncludeNamespaces:    []string{"a"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+	}
+	cl := fake.NewSimpleDynamicClient(runtime.NewScheme())
+	dg, err := config.newDataGathererWithClient(cl)
+
+	if err != nil {
+		t.Errorf("expected no error but got: %v", err)
+	}
+
+	expected := &DataGatherer{
+		cl:                   cl,
+		groupVersionResource: config.GroupVersionResource,
+		// it's important that the namespaces are set as the IncludeNamespaces
+		// during initialization
+		namespaces: config.IncludeNamespaces,
+	}
+
+	if !reflect.DeepEqual(dg, expected) {
+		t.Errorf("unexpected difference: %v", diff.ObjectDiff(dg, expected))
+	}
+}
+
 func TestGenericGatherer_Fetch(t *testing.T) {
 	emptyScheme := runtime.NewScheme()
 	tests := map[string]struct {
-		gvr       schema.GroupVersionResource
-		namespace string
-		objects   []runtime.Object
-		expected  interface{}
-		err       bool
+		gvr        schema.GroupVersionResource
+		namespaces []string
+		objects    []runtime.Object
+		expected   interface{}
+		err        bool
 	}{
 		"an error should be returned if 'resource' is missing": {
 			err: true,
@@ -85,8 +111,8 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 			),
 		},
 		"only Foos in the specified namespace should be returned": {
-			gvr:       schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
-			namespace: "testns",
+			gvr:        schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			namespaces: []string{"testns"},
 			objects: []runtime.Object{
 				getObject("foobar/v1", "Foo", "testfoo", "testns"),
 				getObject("foobar/v1", "Foo", "testfoo", "nottestns"),
@@ -121,6 +147,19 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 				getSecret("anothertestsecret", "differentns", map[string]interface{}{}, false),
 			),
 		},
+		"Foos in different namespaces should be returned if they are in the namespace list for the gatherer": {
+			gvr:        schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			namespaces: []string{"testns", "testns2"},
+			objects: []runtime.Object{
+				getObject("foobar/v1", "Foo", "testfoo", "testns"),
+				getObject("foobar/v1", "Foo", "testfoo2", "testns2"),
+				getObject("foobar/v1", "Foo", "testfoo3", "nottestns"),
+			},
+			expected: asUnstructuredList(
+				getObject("foobar/v1", "Foo", "testfoo", "testns"),
+				getObject("foobar/v1", "Foo", "testfoo2", "testns2"),
+			),
+		},
 		// Note that we can't test use of fieldSelector to exclude namespaces
 		// here as the as the fake client does not implement it.
 		// See go/pkg/mod/k8s.io/client-go@v0.17.0/dynamic/fake/simple.go:291
@@ -132,7 +171,9 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 			g := DataGatherer{
 				cl:                   cl,
 				groupVersionResource: test.gvr,
-				namespace:            test.namespace,
+				// if empty, namespaces will default to []string{""} during
+				// fetch to get all ns
+				namespaces: test.namespaces,
 			}
 
 			res, err := g.Fetch()
@@ -188,6 +229,38 @@ exclude-namespaces:
 
 	if got, want := cfg.ExcludeNamespaces, expectedExcludeNamespaces; !reflect.DeepEqual(got, want) {
 		t.Errorf("ExcludeNamespaces does not match: got=%+v want=%+v", got, want)
+	}
+}
+
+func TestConfigValidate(t *testing.T) {
+	tests := []struct {
+		Config        Config
+		ExpectedError string
+	}{
+		{
+			Config: Config{
+				GroupVersionResource: schema.GroupVersionResource{
+					Group:    "",
+					Version:  "",
+					Resource: "",
+				},
+			},
+			ExpectedError: "invalid configuration: GroupVersionResource.Resource cannot be empty",
+		},
+		{
+			Config: Config{
+				IncludeNamespaces: []string{"a"},
+				ExcludeNamespaces: []string{"b"},
+			},
+			ExpectedError: "cannot set excluded and included namespaces",
+		},
+	}
+
+	for _, test := range tests {
+		err := test.Config.validate()
+		if !strings.Contains(err.Error(), test.ExpectedError) {
+			t.Errorf("expected %s, got %s", test.ExpectedError, err.Error())
+		}
 	}
 }
 

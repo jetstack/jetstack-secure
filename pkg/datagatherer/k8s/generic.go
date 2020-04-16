@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/pkg/errors"
@@ -22,6 +23,8 @@ type Config struct {
 	GroupVersionResource schema.GroupVersionResource
 	// ExcludeNamespaces is a list of namespaces to exclude.
 	ExcludeNamespaces []string `yaml:"exclude-namespaces"`
+	// IncludeNamespaces is a list of namespaces to include.
+	IncludeNamespaces []string `yaml:"include-namespaces"`
 }
 
 // UnmarshalYAML unmarshals the Config resolving GroupVersionResource.
@@ -51,8 +54,17 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // validate validates the configuration.
 func (c *Config) validate() error {
+	var errors []string
+	if len(c.ExcludeNamespaces) > 0 && len(c.IncludeNamespaces) > 0 {
+		errors = append(errors, "cannot set excluded and included namespaces")
+	}
+
 	if c.GroupVersionResource.Resource == "" {
-		return fmt.Errorf("invalid configuration: GroupVersionResource.Resource cannot be empty")
+		errors = append(errors, "invalid configuration: GroupVersionResource.Resource cannot be empty")
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf(strings.Join(errors, ", "))
 	}
 
 	return nil
@@ -61,12 +73,16 @@ func (c *Config) validate() error {
 // NewDataGatherer constructs a new instance of the generic K8s data-gatherer for the provided
 // GroupVersionResource.
 func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
-	if err := c.validate(); err != nil {
+	cl, err := NewDynamicClient(c.KubeConfigPath)
+	if err != nil {
 		return nil, err
 	}
 
-	cl, err := NewDynamicClient(c.KubeConfigPath)
-	if err != nil {
+	return c.newDataGathererWithClient(cl)
+}
+
+func (c *Config) newDataGathererWithClient(cl dynamic.Interface) (datagatherer.DataGatherer, error) {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
@@ -74,6 +90,7 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 		cl:                   cl,
 		groupVersionResource: c.GroupVersionResource,
 		fieldSelector:        generateFieldSelector(c.ExcludeNamespaces),
+		namespaces:           c.IncludeNamespaces,
 	}, nil
 }
 
@@ -92,7 +109,7 @@ type DataGatherer struct {
 	// namespace, if specified, limits the namespace of the resources returned.
 	// This field *must* be omitted when the groupVersionResource refers to a
 	// non-namespaced resource.
-	namespace string
+	namespaces []string
 	// fieldSelector is a field selector string used to filter resources
 	// returned by the Kubernetes API.
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/
@@ -105,19 +122,34 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 	if g.groupVersionResource.Resource == "" {
 		return nil, fmt.Errorf("resource type must be specified")
 	}
-	resourceInterface := namespaceResourceInterface(g.cl.Resource(g.groupVersionResource), g.namespace)
-	list, err := resourceInterface.List(metav1.ListOptions{
-		FieldSelector: g.fieldSelector,
-	})
-	if err != nil {
-		return nil, errors.WithStack(err)
+
+	var list unstructured.UnstructuredList
+
+	fetchNamespaces := g.namespaces
+	if len(fetchNamespaces) == 0 {
+		// then they must have been looking for all namespaces
+		fetchNamespaces = []string{""}
 	}
+
+	for _, namespace := range fetchNamespaces {
+		resourceInterface := namespaceResourceInterface(g.cl.Resource(g.groupVersionResource), namespace)
+		namespaceList, err := resourceInterface.List(metav1.ListOptions{
+			FieldSelector: g.fieldSelector,
+		})
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		list.Object = namespaceList.Object
+		list.Items = append(list.Items, namespaceList.Items...)
+	}
+
 	// Redact Secret data
-	err = redactList(list)
+	err := redactList(&list)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return list, nil
+
+	return &list, nil
 }
 
 func redactList(list *unstructured.UnstructuredList) error {
