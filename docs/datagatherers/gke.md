@@ -59,8 +59,48 @@ Specifically it must have the `container.clusters.get` permission. This can be
 given with the _Kubernetes Engine Cluster Viewer_ role
 (`roles/container.clusterViewer`).
 
-A sample Terraform project can be found at
-[`./deployment/terraform/gke-datagatherer/`](deployment/terraform/gke-datagatherer).
-This can be used to create a GCP service account called `preflight` which
-is then bound to a custom role of the same name
-with the minimum required permissions.
+### Sample Terraform Configuration
+
+This can be used to create a GCP service account called `preflight` which is
+then bound to a custom role of the same name with the minimum required
+permissions.
+
+
+```hcl
+terraform {
+  required_version = "~> 0.12"
+}
+
+variable "project_id" {
+  type        = string
+  description = "The ID of the project where the cluster Preflight is going to check is."
+}
+
+# https://www.terraform.io/docs/providers/google/index.html
+provider "google" {
+  version = "2.5.1"
+  project = var.project_id
+}
+
+# https://www.terraform.io/docs/providers/google/r/google_service_account.html
+resource "google_service_account" "preflight_agent_service_account" {
+  project = var.project_id
+  account_id   = "preflight-agent"
+  display_name = "Service account for Preflight Agent"
+}
+
+# https://www.terraform.io/docs/providers/google/r/google_project_iam_custom_role.html
+resource "google_project_iam_member" "preflight_agent_cluster_viewer" {
+  project = var.project_id
+  role    = "roles/container.clusterViewer" # allows getting of credentials, all other permissions handled in k8s RBAC
+  member  = "serviceAccount:${google_service_account.preflight_agent_service_account.email}"
+}
+
+# if using workload identity in GKE, use the following binding to allow the
+# agent to use the service account
+resource "google_project_iam_binding" "preflight_agent_workload_identity" {
+  project = var.project_id
+  role    = "roles/iam.workloadIdentityUser"
+  members = "serviceAccount:${var.project_id}.svc.id.goog[preflight/default]"
+}
+```
