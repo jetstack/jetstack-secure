@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: preflight
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: agent-config
+  namespace: preflight
+type: Opaque
+stringData:
+  config.yaml: |-
+    schedule: "* * * * *"
+    token: "###AUTH_TOKEN###"
+    endpoint:
+      protocol: https
+      host: preflight.jetstack.io
+      path: /api/v1/datareadings
+    data-gatherers:
+    - name: "k8s/pods"
+      kind: "k8s"
+      config:
+        resource-type:
+          resource: pods
+          version: v1
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent
+  namespace: preflight
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: preflight-agent-cluster-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  # will be able to view all resources, but not rbac and secrets
+  name: view
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: preflight
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent
+  namespace: preflight
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agent
+    spec:
+      serviceAccountName: agent
+      volumes:
+      - name: config
+        secret:
+          secretName: agent-config
+      containers:
+      - name: agent
+        image: quay.io/jetstack/preflight:feddcea0eea94a3dc451287c851591b72917ddf6
+        args:
+        - "agent"
+        - "-c"
+        - "/etc/secrets/preflight/agent/config.yaml"
+        env:
+        - name: PREFLIGHT_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: agent-token
+              key: token
+        volumeMounts:
+        - name: config
+          mountPath: "/etc/secrets/preflight/agent"
+          readOnly: true
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "200m"
+          limits:
+            memory: "200Mi"
+            cpu: "200m"
