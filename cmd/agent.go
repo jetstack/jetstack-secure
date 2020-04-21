@@ -39,7 +39,7 @@ func init() {
 	agentCmd.PersistentFlags().StringVarP(
 		&agent.CredentialsPath,
 		"credentials-file",
-		"cr",
+		"k",
 		"",
 		"(Experimental) Location of the credentials file. For OAuth2 based authentication.",
 	)
