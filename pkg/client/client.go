@@ -10,7 +10,7 @@ import (
 	"github.com/jetstack/preflight/api"
 )
 
-// This variables are injected at build time.
+// These variables are injected at build time.
 
 var clientID string
 var clientSecret string
