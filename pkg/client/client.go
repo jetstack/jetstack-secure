@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/jetstack/preflight/api"
 )
@@ -20,8 +19,8 @@ var authServer string
 // PreflightClient can be used to talk to the Preflight backend.
 type PreflightClient struct {
 	// OAuth2
-	userKey       string
-	userKeySecret string
+	userID     string
+	userSecret string
 	// accessToken is the current OAuth access token.
 	accessToken *accessToken
 
@@ -32,7 +31,7 @@ type PreflightClient struct {
 	// readingsEndpoint is the endpoint where the readings will be sent to.
 	readingsEndpoint string
 
-	// basicAuthToken will be used instead of using OAuth2 based authentication if userKey is not set.
+	// basicAuthToken will be used instead of using OAuth2 based authentication if userID is not set.
 	// It can be empty, meaning that no authentication will be used.
 	basicAuthToken string
 }
@@ -50,18 +49,12 @@ func NewWithBasicAuth(authToken, readingsEndpoint string) (*PreflightClient, err
 }
 
 // New creates a new client that uses OAuth2.
-func New(userKey, userKeySecret, preflightServer, readingsEndpoint string) (*PreflightClient, error) {
-	if userKey == "" || userKeySecret == "" {
-		return nil, fmt.Errorf("cannot create PreflightClient: neither userKey or userKeySecret can be empty")
+func New(userID, userSecret, readingsEndpoint string) (*PreflightClient, error) {
+	if userID == "" || userSecret == "" {
+		return nil, fmt.Errorf("cannot create PreflightClient: neither userID or userSecret can be empty")
 	}
 	if readingsEndpoint == "" {
 		return nil, fmt.Errorf("cannot create PreflightClient: readingsEndpoint cannot be empty")
-	}
-
-	// TODO: at some point this constructor will drop the readingsEndpoint
-	// parameter as it will create endpoints dynamically depending on the method.
-	if !strings.HasPrefix(readingsEndpoint, preflightServer) {
-		return nil, fmt.Errorf("cannot create PreflightClient: configured endpoint is not in the server that that is present in the credentials")
 	}
 
 	if clientID == "" || clientSecret == "" || authServer == "" {
@@ -69,14 +62,15 @@ func New(userKey, userKeySecret, preflightServer, readingsEndpoint string) (*Pre
 	}
 
 	return &PreflightClient{
-		userKey:          userKey,
-		userKeySecret:    userKeySecret,
+		userID:           userID,
+		userSecret:       userSecret,
 		readingsEndpoint: readingsEndpoint,
+		accessToken:      &accessToken{},
 	}, nil
 }
 
 func (c *PreflightClient) usingOAuth2() bool {
-	return c.userKey != ""
+	return c.userID != ""
 }
 
 // PostDataReadings sends a slice of readings to Preflight.

@@ -27,7 +27,7 @@ func (c *PreflightClient) getValidAccessToken() (*accessToken, error) {
 	if c.accessToken.needsRenew() {
 		err := c.renewAccessToken()
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 	}
 
@@ -36,9 +36,9 @@ func (c *PreflightClient) getValidAccessToken() (*accessToken, error) {
 
 func (c *PreflightClient) renewAccessToken() error {
 	url := fmt.Sprintf("https://%s/oauth/token", authServer)
-	// TODO: this will be dynamic in the future, but at the moment this client only sends readings.
+	// TODO: audience will be dynamic in the future, but at the moment this client only sends readings.
 	audience := "https://preflight.jetstack.io/api/v1/datareading"
-	payload := fmt.Sprintf("grant_type=password&client_id=%s&client_secret=%s&audience=%s&username=%s&password=%s", clientID, clientSecret, audience, c.userKey, c.userKeySecret)
+	payload := fmt.Sprintf("grant_type=password&client_id=%s&client_secret=%s&audience=%s&username=%s&password=%s", clientID, clientSecret, audience, c.userID, c.userSecret)
 	req, err := http.NewRequest("POST", url, strings.NewReader(payload))
 	if err != nil {
 		return errors.Trace(err)

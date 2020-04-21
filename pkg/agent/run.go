@@ -79,7 +79,7 @@ func Run(cmd *cobra.Command, args []string) {
 	var preflightClient *client.PreflightClient
 	if credentials != nil {
 		log.Printf("A credentials file was specified. Using OAuth2 authentication...")
-		preflightClient, err = client.New(credentials.UserKey, credentials.UserKeySecret, credentials.Server, serverURL.String())
+		preflightClient, err = client.New(credentials.UserID, credentials.UserSecret, serverURL.String())
 		if err != nil {
 			log.Fatalf("Error creating preflight client: %+v", err)
 		}
