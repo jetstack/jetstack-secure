@@ -36,4 +36,11 @@ func init() {
 		3600,
 		"Time between scans, in seconds.",
 	)
+	agentCmd.PersistentFlags().StringVarP(
+		&agent.CredentialsPath,
+		"credentials-file",
+		"k",
+		"",
+		"(Experimental) Location of the credentials file. For OAuth2 based authentication.",
+	)
 }

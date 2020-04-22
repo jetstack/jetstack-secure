@@ -1,18 +1,16 @@
 package agent
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"net/url"
 	"os"
 	"time"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/spf13/cobra"
 )
@@ -25,6 +23,9 @@ var AuthToken string
 
 // Period is the number of seconds between scans
 var Period uint
+
+// CredentialsPath is where the agent will try to loads the credentials. (Experimental)
+var CredentialsPath string
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
@@ -43,19 +44,8 @@ func Run(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to parse config file: %s", err)
 	}
 
-	// AuthToken flag takes preference over token in configuration file.
-	if AuthToken == "" {
-		AuthToken = config.Token
-	} else {
-		log.Printf("Using authorization token from flag.")
-	}
-
 	if config.Token != "" {
 		config.Token = "(redacted)"
-	}
-
-	if AuthToken == "" {
-		log.Fatalf("Missing authorization token. Cannot continue.")
 	}
 
 	serverURL, err := url.Parse(fmt.Sprintf("%s://%s%s", config.Endpoint.Protocol, config.Endpoint.Host, config.Endpoint.Path))
@@ -69,6 +59,47 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 
 	log.Printf("Loaded config: \n%s", dump)
+
+	var credentials *Credentials
+	if CredentialsPath != "" {
+		file, err = os.Open(CredentialsPath)
+		if err != nil {
+			log.Fatalf("Failed to load credentials from file %s", CredentialsPath)
+		}
+		defer file.Close()
+
+		b, err = ioutil.ReadAll(file)
+
+		credentials, err = ParseCredentials(b)
+		if err != nil {
+			log.Fatalf("Failed to parse credentials file: %s", err)
+		}
+	}
+
+	var preflightClient *client.PreflightClient
+	if credentials != nil {
+		log.Printf("A credentials file was specified. Using OAuth2 authentication...")
+		preflightClient, err = client.New(credentials.UserID, credentials.UserSecret, serverURL.String())
+		if err != nil {
+			log.Fatalf("Error creating preflight client: %+v", err)
+		}
+	} else {
+		// AuthToken flag takes preference over token in configuration file.
+		if AuthToken == "" {
+			AuthToken = config.Token
+		} else {
+			log.Printf("Using authorization token from flag.")
+		}
+
+		if AuthToken == "" {
+			log.Fatalf("Missing authorization token. Cannot continue.")
+		}
+
+		preflightClient, err = client.NewWithBasicAuth(AuthToken, serverURL.String())
+		if err != nil {
+			log.Fatalf("Error creating preflight client: %+v", err)
+		}
+	}
 
 	dataGatherers := make(map[string]datagatherer.DataGatherer)
 
@@ -108,44 +139,13 @@ func Run(cmd *cobra.Command, args []string) {
 	for {
 		log.Println("Running Agent...")
 		log.Println("Posting data to ", serverURL)
-		err = postData(serverURL, AuthToken, readings)
+		err = preflightClient.PostDataReadings(readings)
 		// TODO: handle errors gracefully: e.g. handle retries when it is possible
 		if err != nil {
 			log.Fatalf("Post to server failed: %+v", err)
+		} else {
+			log.Println("Data sent successfully.")
 		}
 		time.Sleep(time.Duration(Period) * time.Second)
 	}
-}
-
-func postData(serverURL *url.URL, token string, readings []*api.DataReading) error {
-	data, err := json.Marshal(readings)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, serverURL.String(), bytes.NewBuffer(data))
-	req.Header.Set("Content-Type", "application/json")
-
-	if len(token) > 0 {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if code := resp.StatusCode; code < 200 || code >= 300 {
-		return fmt.Errorf("Received response with status code %d. Body: %s", code, string(body))
-	}
-
-	log.Println("Data sent successfully. Server says: ", string(body))
-
-	return nil
 }

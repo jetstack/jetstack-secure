@@ -15,7 +15,10 @@ define LDFLAGS
 -X "github.com/jetstack/preflight/pkg/version.Platform=$(GOOS)/$(GOARCH)" \
 -X "github.com/jetstack/preflight/pkg/version.Commit=$(COMMIT)" \
 -X "github.com/jetstack/preflight/pkg/version.BuildDate=$(DATE)" \
--X "github.com/jetstack/preflight/pkg/version.GoVersion=$(GOVERSION)"
+-X "github.com/jetstack/preflight/pkg/version.GoVersion=$(GOVERSION)" \
+-X "github.com/jetstack/preflight/pkg/client.clientID=$(OAUTH_CLIENT_ID)" \
+-X "github.com/jetstack/preflight/pkg/client.clientSecret=$(OAUTH_CLIENT_SECRET)" \
+-X "github.com/jetstack/preflight/pkg/client.authServer=$(OAUTH_AUTH_SERVER)"
 endef
 
 GO_BUILD:=go build -ldflags '$(LDFLAGS)'
