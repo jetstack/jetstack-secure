@@ -1,7 +1,9 @@
 package agent
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -12,6 +14,7 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/version"
 	"github.com/spf13/cobra"
 )
 
@@ -55,9 +58,14 @@ func Run(cmd *cobra.Command, args []string) {
 		config.Token = "(redacted)"
 	}
 
-	serverURL, err := url.Parse(fmt.Sprintf("%s://%s%s", config.Endpoint.Protocol, config.Endpoint.Host, config.Endpoint.Path))
-	if err != nil {
-		log.Fatalf("Failed to build URL: %s", err)
+	baseURL := config.Server
+	if baseURL == "" {
+		log.Printf("Using deprecated Endpoint configuration. User Server instead.")
+		baseURL = fmt.Sprintf("%s://%s", config.Endpoint.Protocol, config.Endpoint.Host)
+		_, err = url.Parse(baseURL)
+		if err != nil {
+			log.Fatalf("Failed to build URL: %s", err)
+		}
 	}
 
 	dump, err := config.Dump()
@@ -83,10 +91,13 @@ func Run(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	agentMetadata := &api.AgentMetadata{
+		Version: version.PreflightVersion,
+	}
 	var preflightClient *client.PreflightClient
 	if credentials != nil {
 		log.Printf("A credentials file was specified. Using OAuth2 authentication...")
-		preflightClient, err = client.New(credentials.UserID, credentials.UserSecret, serverURL.String())
+		preflightClient, err = client.New(agentMetadata, credentials.UserID, credentials.UserSecret, baseURL)
 		if err != nil {
 			log.Fatalf("Error creating preflight client: %+v", err)
 		}
@@ -95,7 +106,7 @@ func Run(cmd *cobra.Command, args []string) {
 			log.Fatalf("Missing authorization token. Cannot continue.")
 		}
 
-		preflightClient, err = client.NewWithBasicAuth(AuthToken, serverURL.String())
+		preflightClient, err = client.NewWithBasicAuth(agentMetadata, AuthToken, baseURL)
 		if err != nil {
 			log.Fatalf("Error creating preflight client: %+v", err)
 		}
@@ -130,6 +141,7 @@ func Run(cmd *cobra.Command, args []string) {
 		log.Printf("Gathered data for %q:\n", k)
 
 		readings = append(readings, &api.DataReading{
+			ClusterID:    config.ClusterID,
 			DataGatherer: k,
 			Timestamp:    api.Time{Time: now},
 			Data:         i,
@@ -138,14 +150,35 @@ func Run(cmd *cobra.Command, args []string) {
 
 	for {
 		log.Println("Running Agent...")
-		log.Println("Posting data to ", serverURL)
-		err = preflightClient.PostDataReadings(readings)
-		// TODO: handle errors gracefully: e.g. handle retries when it is possible
-		if err != nil {
-			log.Fatalf("Post to server failed: %+v", err)
+		log.Println("Posting data to ", baseURL)
+		if config.OrganizationID == "" {
+			data, err := json.Marshal(readings)
+			if err != nil {
+				log.Fatalf("Cannot marshal readings: %+v", err)
+			}
+			path := config.Endpoint.Path
+			if path == "" {
+				path = "/api/v1/datareadings"
+			}
+			res, err := preflightClient.Post(path, bytes.NewBuffer(data))
+			if code := res.StatusCode; code < 200 || code >= 300 {
+				errorContent := ""
+				body, _ := ioutil.ReadAll(res.Body)
+				if err == nil {
+					errorContent = string(body)
+				}
+				defer res.Body.Close()
+
+				log.Fatalf("Received response with status code %d. Body: %s", code, errorContent)
+			}
 		} else {
-			log.Println("Data sent successfully.")
+			err = preflightClient.PostDataReadings(config.OrganizationID, readings)
+			// TODO: handle errors gracefully: e.g. handle retries when it is possible
+			if err != nil {
+				log.Fatalf("Post to server failed: %+v", err)
+			}
 		}
+		log.Println("Data sent successfully.")
 		time.Sleep(time.Duration(Period) * time.Second)
 	}
 }

@@ -2,7 +2,7 @@ package agent
 
 import (
 	"fmt"
-	"strings"
+	"net/url"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/jetstack/preflight/pkg/datagatherer"
@@ -17,13 +17,22 @@ import (
 
 // Config wraps the options for a run of the agent.
 type Config struct {
-	Schedule      string         `yaml:"schedule"`
-	Token         string         `yaml:"token"`
-	Endpoint      Endpoint       `yaml:"endpoint"`
+	Schedule string `yaml:"schedule"`
+	// Token is the agent token if using basic authentication.
+	// If not provided it will assume OAuth2 authentication.
+	Token string `yaml:"token"`
+	// Deprecated: Endpoint is being replaced with Server.
+	Endpoint Endpoint `yaml:"endpoint"`
+	// Server is the base url for the Preflight server.
+	// It defaults to https://preflight.jetstack.io.
+	Server string `yaml:"server"`
+	// OrganizationID within Preflight that will receive the data.
+	OrganizationID string `yaml:"organization_id"`
+	// ClusterID is the cluster that the agent is scanning.
+	ClusterID     string         `yaml:"cluster_id"`
 	DataGatherers []dataGatherer `yaml:"data-gatherers"`
 }
 
-// Endpoint is the configuration of the server where to post the data.
 type Endpoint struct {
 	Protocol string `yaml:"protocol"`
 	Host     string `yaml:"host"`
@@ -114,19 +123,18 @@ func (c *Config) validate() error {
 	var result *multierror.Error
 
 	if c.Token == "" {
-		result = multierror.Append(result, fmt.Errorf("token is required"))
+		if c.OrganizationID == "" {
+			result = multierror.Append(result, fmt.Errorf("organization_id is required"))
+		}
+		if c.ClusterID == "" {
+			result = multierror.Append(result, fmt.Errorf("cluster_id is required"))
+		}
 	}
 
-	if c.Schedule == "" {
-		result = multierror.Append(result, fmt.Errorf("schedule is required"))
-	}
-
-	if c.Endpoint.Host == "" {
-		result = multierror.Append(result, fmt.Errorf("endpoint host is required"))
-	}
-
-	if c.Endpoint.Path == "" {
-		result = multierror.Append(result, fmt.Errorf("endpoint path is required"))
+	if c.Server != "" {
+		if url, err := url.Parse(c.Server); err != nil || url.Hostname() == "" {
+			result = multierror.Append(result, fmt.Errorf("server is not a valid URL"))
+		}
 	}
 
 	for i, v := range c.DataGatherers {
@@ -150,16 +158,16 @@ func ParseConfig(data []byte) (Config, error) {
 		return config, err
 	}
 
-	if config.Endpoint.Protocol == "" {
+	if config.Server == "" && config.Endpoint.Host == "" && config.Endpoint.Path == "" {
+		config.Server = "https://preflight.jetstack.io"
+	}
+
+	if config.Endpoint.Protocol == "" && config.Server == "" {
 		config.Endpoint.Protocol = "http"
 	}
 
 	if err = config.validate(); err != nil {
 		return config, err
-	}
-
-	if !strings.HasPrefix(config.Endpoint.Path, "/") {
-		config.Endpoint.Path = fmt.Sprintf("/%s", config.Endpoint.Path)
 	}
 
 	return config, nil

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
+	"path/filepath"
 
 	"github.com/jetstack/preflight/api"
 )
@@ -24,37 +24,35 @@ type PreflightClient struct {
 	// accessToken is the current OAuth access token.
 	accessToken *accessToken
 
-	// TODO: in the future, PreflightClient will be configured with the server
-	// base URL, organization and cluster ID and it will calculate the readings
-	// endpoint and others.
-
-	// readingsEndpoint is the endpoint where the readings will be sent to.
-	readingsEndpoint string
+	baseURL string
 
 	// basicAuthToken will be used instead of using OAuth2 based authentication if userID is not set.
 	// It can be empty, meaning that no authentication will be used.
 	basicAuthToken string
+
+	agentMetadata *api.AgentMetadata
 }
 
 // NewWithBasicAuth creates a new client with basic authentication.
-func NewWithBasicAuth(authToken, readingsEndpoint string) (*PreflightClient, error) {
-	if readingsEndpoint == "" {
-		return nil, fmt.Errorf("cannot create PreflightClient: readingsEndpoint cannot be empty")
+func NewWithBasicAuth(agentMetadata *api.AgentMetadata, authToken, baseURL string) (*PreflightClient, error) {
+	if baseURL == "" {
+		return nil, fmt.Errorf("cannot create PreflightClient: baseURL cannot be empty")
 	}
 
 	return &PreflightClient{
-		basicAuthToken:   authToken,
-		readingsEndpoint: readingsEndpoint,
+		agentMetadata:  agentMetadata,
+		basicAuthToken: authToken,
+		baseURL:        baseURL,
 	}, nil
 }
 
 // New creates a new client that uses OAuth2.
-func New(userID, userSecret, readingsEndpoint string) (*PreflightClient, error) {
+func New(agentMetadata *api.AgentMetadata, userID, userSecret, baseURL string) (*PreflightClient, error) {
 	if userID == "" || userSecret == "" {
 		return nil, fmt.Errorf("cannot create PreflightClient: neither userID or userSecret can be empty")
 	}
-	if readingsEndpoint == "" {
-		return nil, fmt.Errorf("cannot create PreflightClient: readingsEndpoint cannot be empty")
+	if baseURL == "" {
+		return nil, fmt.Errorf("cannot create PreflightClient: baseURL cannot be empty")
 	}
 
 	if clientID == "" || clientSecret == "" || authServer == "" {
@@ -62,10 +60,11 @@ func New(userID, userSecret, readingsEndpoint string) (*PreflightClient, error) 
 	}
 
 	return &PreflightClient{
-		userID:           userID,
-		userSecret:       userSecret,
-		readingsEndpoint: readingsEndpoint,
-		accessToken:      &accessToken{},
+		agentMetadata: agentMetadata,
+		userID:        userID,
+		userSecret:    userSecret,
+		baseURL:       baseURL,
+		accessToken:   &accessToken{},
 	}, nil
 }
 
@@ -74,48 +73,30 @@ func (c *PreflightClient) usingOAuth2() bool {
 }
 
 // PostDataReadings sends a slice of readings to Preflight.
-func (c *PreflightClient) PostDataReadings(readings []*api.DataReading) error {
-	var bearer string
-	if !c.usingOAuth2() {
-		bearer = c.basicAuthToken
-	} else {
-		token, err := c.getValidAccessToken()
-		if err != nil {
-			return err
-		}
-		bearer = token.bearer
+func (c *PreflightClient) PostDataReadings(orgID string, readings []*api.DataReading) error {
+	payload := api.DataReadingsPost{
+		AgentMetadata: c.agentMetadata,
+		DataReadings:  readings,
 	}
-
-	data, err := json.Marshal(readings)
+	data, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.readingsEndpoint, bytes.NewBuffer(data))
+	res, err := c.Post(filepath.Join("/api/v1/org", orgID, "datareadings"), bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	if len(bearer) > 0 {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", bearer))
-	}
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-
-	defer res.Body.Close()
 
 	if code := res.StatusCode; code < 200 || code >= 300 {
-		return fmt.Errorf("Received response with status code %d. Body: %s", code, string(body))
+		errorContent := ""
+		body, err := ioutil.ReadAll(res.Body)
+		if err == nil {
+			errorContent = string(body)
+		}
+		defer res.Body.Close()
+
+		return fmt.Errorf("Received response with status code %d. Body: %s", code, errorContent)
 	}
 
 	return nil

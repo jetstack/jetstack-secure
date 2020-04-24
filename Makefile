@@ -26,13 +26,12 @@ GO_INSTALL:=go install -ldflags '$(LDFLAGS)'
 
 export GO111MODULE=on
 
-.PHONY: build
-
 clean:
 	cd $(ROOT_DIR) && rm -rf ./builds ./bundles
 
 # Golang cli
 
+.PHONY: build
 build:
 	cd $(ROOT_DIR) && $(GO_BUILD) -o builds/preflight .
 
@@ -48,6 +47,7 @@ vet:
 lint: vet
 	cd $(ROOT_DIR) && golint
 
+.PHONY: ./builds/preflight-$(GOOS)-$(GOARCH)
 ./builds/preflight-$(GOOS)-$(GOARCH):
 	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO_BUILD) -o ./builds/preflight-$(GOOS)-$(GOARCH) .
 
