@@ -25,9 +25,10 @@ data-gatherers:
 - kind: "gke"
   name: "gke"
   config:
-    project: my-gcp-project
-    location: us-central1-a
-    cluster: my-gke-cluster
+    cluster:
+      project: my-gcp-project
+      location: us-central1-a
+      name: my-gke-cluster
     # Path to a file containing the credentials. If empty, it will try to use
     # the SDK defaults
     # credentials: /tmp/credentials.json
