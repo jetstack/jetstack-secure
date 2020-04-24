@@ -44,6 +44,13 @@ func Run(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to parse config file: %s", err)
 	}
 
+	// AuthToken flag takes preference over token in configuration file.
+	if AuthToken == "" {
+		AuthToken = config.Token
+	} else {
+		log.Printf("Using authorization token from flag.")
+	}
+
 	if config.Token != "" {
 		config.Token = "(redacted)"
 	}
@@ -84,13 +91,6 @@ func Run(cmd *cobra.Command, args []string) {
 			log.Fatalf("Error creating preflight client: %+v", err)
 		}
 	} else {
-		// AuthToken flag takes preference over token in configuration file.
-		if AuthToken == "" {
-			AuthToken = config.Token
-		} else {
-			log.Printf("Using authorization token from flag.")
-		}
-
 		if AuthToken == "" {
 			log.Fatalf("Missing authorization token. Cannot continue.")
 		}
