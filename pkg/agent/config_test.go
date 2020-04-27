@@ -11,6 +11,41 @@ import (
 
 func TestValidConfigLoad(t *testing.T) {
 	configFileContents := `
+      token: "12345"
+      server: "http://localhost:8080"
+      data-gatherers:
+      - name: d1
+        kind: dummy
+        config:
+          param-1: "bar"
+`
+
+	loadedConfig, err := ParseConfig([]byte(configFileContents))
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	expected := Config{
+		Token:  "12345",
+		Server: "http://localhost:8080",
+		DataGatherers: []dataGatherer{
+			dataGatherer{
+				Name: "d1",
+				Kind: "dummy",
+				Config: &dummyConfig{
+					Param1: "bar",
+				},
+			},
+		},
+	}
+
+	if diff, equal := messagediff.PrettyDiff(expected, loadedConfig); !equal {
+		t.Errorf("Diff %s", diff)
+	}
+}
+
+func TestValidConfigWithEndpointLoad(t *testing.T) {
+	configFileContents := `
       endpoint:
         host: example.com
         path: api/v1/data
@@ -32,7 +67,7 @@ func TestValidConfigLoad(t *testing.T) {
 		Endpoint: Endpoint{
 			Protocol: "http",
 			Host:     "example.com",
-			Path:     "/api/v1/data",
+			Path:     "api/v1/data",
 		},
 		Schedule: "* * * * *",
 		Token:    "12345",
@@ -72,11 +107,9 @@ func TestMissingConfigError(t *testing.T) {
 	}
 
 	expectedErrorLines := []string{
-		"4 errors occurred:",
-		"\t* token is required",
-		"\t* schedule is required",
-		"\t* endpoint host is required",
-		"\t* endpoint path is required",
+		"2 errors occurred:",
+		"\t* organization_id is required",
+		"\t* cluster_id is required",
 		"\n",
 	}
 
@@ -106,6 +139,34 @@ func TestPartialMissingConfigError(t *testing.T) {
 	expectedErrorLines := []string{
 		"1 error occurred:",
 		"\t* datagatherer 1/1 is missing a name",
+		"\n",
+	}
+
+	expectedError := strings.Join(expectedErrorLines, "\n")
+
+	gotError := parseError.Error()
+
+	if gotError != expectedError {
+		t.Errorf("\ngot=\n%v\nwant=\n%s\ndiff=\n%s", gotError, expectedError, diff.Diff(gotError, expectedError))
+	}
+}
+
+func TestInvalidServerError(t *testing.T) {
+	_, parseError := ParseConfig([]byte(`
+      server: "something not a URL"
+      organization_id: "my_org"
+      cluster_id: "my_cluster"
+      data-gatherers:
+        - kind: dummy
+          name: dummy`))
+
+	if parseError == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	expectedErrorLines := []string{
+		"1 error occurred:",
+		"\t* server is not a valid URL",
 		"\n",
 	}
 
