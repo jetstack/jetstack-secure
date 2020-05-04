@@ -178,6 +178,9 @@ func gatherAndPostData(ctx context.Context) {
 			path = "/api/v1/datareadings"
 		}
 		res, err := preflightClient.Post(path, bytes.NewBuffer(data))
+		if err != nil {
+			log.Fatalf("Failed to post data: %+v", err)
+		}
 		if code := res.StatusCode; code < 200 || code >= 300 {
 			errorContent := ""
 			body, _ := ioutil.ReadAll(res.Body)
