@@ -15,8 +15,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-// Config contains the configuration for the data-gatherer.
-type Config struct {
+// ConfigDynamic contains the configuration for the data-gatherer.
+type ConfigDynamic struct {
 	// KubeConfigPath is the path to the kubeconfig file. If empty, will assume it runs in-cluster.
 	KubeConfigPath string `yaml:"kubeconfig"`
 	// GroupVersionResource identifies the resource type to gather.
@@ -27,8 +27,8 @@ type Config struct {
 	IncludeNamespaces []string `yaml:"include-namespaces"`
 }
 
-// UnmarshalYAML unmarshals the Config resolving GroupVersionResource.
-func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
+// UnmarshalYAML unmarshals the ConfigDynamic resolving GroupVersionResource.
+func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	aux := struct {
 		KubeConfigPath string `yaml:"kubeconfig"`
 		ResourceType   struct {
@@ -53,7 +53,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // validate validates the configuration.
-func (c *Config) validate() error {
+func (c *ConfigDynamic) validate() error {
 	var errors []string
 	if len(c.ExcludeNamespaces) > 0 && len(c.IncludeNamespaces) > 0 {
 		errors = append(errors, "cannot set excluded and included namespaces")
@@ -72,7 +72,7 @@ func (c *Config) validate() error {
 
 // NewDataGatherer constructs a new instance of the generic K8s data-gatherer for the provided
 // GroupVersionResource.
-func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
+func (c *ConfigDynamic) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	cl, err := NewDynamicClient(c.KubeConfigPath)
 	if err != nil {
 		return nil, err
@@ -81,12 +81,12 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	return c.newDataGathererWithClient(cl)
 }
 
-func (c *Config) newDataGathererWithClient(cl dynamic.Interface) (datagatherer.DataGatherer, error) {
+func (c *ConfigDynamic) newDataGathererWithClient(cl dynamic.Interface) (datagatherer.DataGatherer, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
-	return &DataGatherer{
+	return &DataGathererDynamic{
 		cl:                   cl,
 		groupVersionResource: c.GroupVersionResource,
 		fieldSelector:        generateFieldSelector(c.ExcludeNamespaces),
@@ -94,13 +94,13 @@ func (c *Config) newDataGathererWithClient(cl dynamic.Interface) (datagatherer.D
 	}, nil
 }
 
-// DataGatherer is a generic gatherer for Kubernetes. It knows how to request
+// DataGathererDynamic is a generic gatherer for Kubernetes. It knows how to request
 // a list of generic resources from the Kubernetes apiserver.
 // It does not deserialize the objects into structured data, instead utilising
 // the Kubernetes `Unstructured` type for data handling.
 // This is to allow us to support arbitrary CRDs and resources that Preflight
 // does not have registered as part of its `runtime.Scheme`.
-type DataGatherer struct {
+type DataGathererDynamic struct {
 	// The 'dynamic' client used for fetching data.
 	cl dynamic.Interface
 	// groupVersionResource is the name of the API group, version and resource
@@ -118,7 +118,7 @@ type DataGatherer struct {
 
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
-func (g *DataGatherer) Fetch() (interface{}, error) {
+func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 	if g.groupVersionResource.Resource == "" {
 		return nil, fmt.Errorf("resource type must be specified")
 	}

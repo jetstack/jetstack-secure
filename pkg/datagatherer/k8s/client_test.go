@@ -34,6 +34,26 @@ func TestNewDynamicClient_InferredKubeconfig(t *testing.T) {
 	}
 }
 
+func TestNewDiscoveryClient_ExplicitKubeconfig(t *testing.T) {
+	kc := createValidTestConfig()
+	path := writeConfigToFile(t, kc)
+	_, err := NewDiscoveryClient(path)
+	if err != nil {
+		t.Error("failed to create client: ", err)
+	}
+}
+
+func TestNewDiscoveryClient_InferredKubeconfig(t *testing.T) {
+	kc := createValidTestConfig()
+	path := writeConfigToFile(t, kc)
+	cleanupFn := temporarilySetEnv("KUBECONFIG", path)
+	defer cleanupFn()
+	_, err := NewDiscoveryClient("")
+	if err != nil {
+		t.Error("failed to create client: ", err)
+	}
+}
+
 func writeConfigToFile(t *testing.T, cfg clientcmdapi.Config) string {
 	f, err := ioutil.TempFile("", "testcase-*")
 	if err != nil {

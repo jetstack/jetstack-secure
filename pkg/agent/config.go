@@ -87,7 +87,11 @@ func (dg *dataGatherer) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	case "aks":
 		cfg = &aks.Config{}
 	case "k8s":
-		cfg = &k8s.Config{}
+		cfg = &k8s.ConfigDynamic{}
+	case "k8s-dynamic":
+		cfg = &k8s.ConfigDynamic{}
+	case "k8s-discovery":
+		cfg = &k8s.ConfigDiscovery{}
 	case "local":
 		cfg = &local.Config{}
 	// dummy dataGatherer is just used for testing
