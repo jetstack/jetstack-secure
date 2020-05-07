@@ -46,8 +46,8 @@ func NewWithBasicAuth(agentMetadata *api.AgentMetadata, authToken, baseURL strin
 
 // New creates a new client that uses OAuth2.
 func New(agentMetadata *api.AgentMetadata, credentials *Credentials, baseURL string) (*PreflightClient, error) {
-	if credentials == nil || credentials.UserID == "" || credentials.UserSecret == "" {
-		return nil, fmt.Errorf("cannot create PreflightClient: neither userID or userSecret can be empty")
+	if err := credentials.validate(); err != nil {
+		return nil, fmt.Errorf("cannot create PreflightClient: %v", err)
 	}
 	if baseURL == "" {
 		return nil, fmt.Errorf("cannot create PreflightClient: baseURL cannot be empty")

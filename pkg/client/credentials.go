@@ -32,6 +32,10 @@ func (c *Credentials) IsClientSet() bool {
 func (c *Credentials) validate() error {
 	var result *multierror.Error
 
+	if c == nil {
+		return fmt.Errorf("credentials are nil")
+	}
+
 	if c.UserID == "" {
 		result = multierror.Append(result, fmt.Errorf("user_id cannot be empty"))
 	}
