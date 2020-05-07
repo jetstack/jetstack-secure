@@ -83,7 +83,7 @@ func gatherAndPostData(ctx context.Context) {
 
 	log.Printf("Loaded config: \n%s", dump)
 
-	var credentials *Credentials
+	var credentials *client.Credentials
 	if CredentialsPath != "" {
 		file, err = os.Open(CredentialsPath)
 		if err != nil {
@@ -93,7 +93,7 @@ func gatherAndPostData(ctx context.Context) {
 
 		b, err = ioutil.ReadAll(file)
 
-		credentials, err = ParseCredentials(b)
+		credentials, err = client.ParseCredentials(b)
 		if err != nil {
 			log.Fatalf("Failed to parse credentials file: %s", err)
 		}
@@ -105,7 +105,7 @@ func gatherAndPostData(ctx context.Context) {
 	var preflightClient *client.PreflightClient
 	if credentials != nil {
 		log.Printf("A credentials file was specified. Using OAuth2 authentication...")
-		preflightClient, err = client.New(agentMetadata, credentials.UserID, credentials.UserSecret, baseURL)
+		preflightClient, err = client.New(agentMetadata, credentials, baseURL)
 		if err != nil {
 			log.Fatalf("Error creating preflight client: %+v", err)
 		}

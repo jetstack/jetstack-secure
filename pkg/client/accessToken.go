@@ -35,10 +35,9 @@ func (c *PreflightClient) getValidAccessToken() (*accessToken, error) {
 }
 
 func (c *PreflightClient) renewAccessToken() error {
-	url := fmt.Sprintf("https://%s/oauth/token", authServer)
-	// TODO: audience will be dynamic in the future, but at the moment this client only sends readings.
-	audience := "https://preflight.jetstack.io/api/v1/datareading"
-	payload := fmt.Sprintf("grant_type=password&client_id=%s&client_secret=%s&audience=%s&username=%s&password=%s", clientID, clientSecret, audience, c.userID, c.userSecret)
+	url := fmt.Sprintf("https://%s/oauth/token", c.credentials.AuthServerDomain)
+	audience := "https://preflight.jetstack.io/api/v1"
+	payload := fmt.Sprintf("grant_type=password&client_id=%s&client_secret=%s&audience=%s&username=%s&password=%s", c.credentials.ClientID, c.credentials.ClientSecret, audience, c.credentials.UserID, c.credentials.UserSecret)
 	req, err := http.NewRequest("POST", url, strings.NewReader(payload))
 	if err != nil {
 		return errors.Trace(err)
@@ -57,6 +56,10 @@ func (c *PreflightClient) renewAccessToken() error {
 
 	defer res.Body.Close()
 
+	if status := res.StatusCode; status < 200 || status >= 300 {
+		return errors.Errorf("auth server did not provide an access token: (status %d) %s.", status, string(body))
+	}
+
 	response := struct {
 		Bearer    string `json:"access_token"`
 		ExpiresIn uint   `json:"expires_in"`
@@ -68,7 +71,7 @@ func (c *PreflightClient) renewAccessToken() error {
 	}
 
 	if response.ExpiresIn == 0 {
-		return fmt.Errorf("got wrong expiration for access token")
+		return errors.Errorf("got wrong expiration for access token")
 	}
 
 	c.accessToken.bearer = response.Bearer
