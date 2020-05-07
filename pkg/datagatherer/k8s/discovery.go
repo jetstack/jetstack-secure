@@ -54,6 +54,7 @@ func (g *DataGathererDiscovery) Fetch() (interface{}, error) {
 	}
 
 	response := map[string]interface{}{
+		// data has type Info: https://godoc.org/k8s.io/apimachinery/pkg/version#Info
 		"server_version": data,
 	}
 
