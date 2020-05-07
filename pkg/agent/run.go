@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jetstack/preflight/api"
@@ -34,6 +35,13 @@ var CredentialsPath string
 func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 
+	for {
+		gatherAndPostData(ctx)
+		time.Sleep(time.Duration(Period) * time.Second)
+	}
+}
+
+func gatherAndPostData(ctx context.Context) {
 	file, err := os.Open(ConfigFilePath)
 	if err != nil {
 		log.Fatalf("Failed to load config file for agent from: %s", ConfigFilePath)
@@ -132,10 +140,13 @@ func Run(cmd *cobra.Command, args []string) {
 	// Fetch from all datagatherers
 	now := time.Now()
 	readings := []*api.DataReading{}
+	failedDataGatherers := []string{}
 	for k, dg := range dataGatherers {
 		i, err := dg.Fetch()
 		if err != nil {
-			log.Fatalf("Error fetching with DataGatherer %q: %s", k, err)
+			log.Printf("Error fetching with DataGatherer %q: %s", k, err)
+			failedDataGatherers = append(failedDataGatherers, k)
+			continue
 		}
 
 		log.Printf("Gathered data for %q:\n", k)
@@ -148,37 +159,42 @@ func Run(cmd *cobra.Command, args []string) {
 		})
 	}
 
-	for {
-		log.Println("Running Agent...")
-		log.Println("Posting data to ", baseURL)
-		if config.OrganizationID == "" {
-			data, err := json.Marshal(readings)
-			if err != nil {
-				log.Fatalf("Cannot marshal readings: %+v", err)
-			}
-			path := config.Endpoint.Path
-			if path == "" {
-				path = "/api/v1/datareadings"
-			}
-			res, err := preflightClient.Post(path, bytes.NewBuffer(data))
-			if code := res.StatusCode; code < 200 || code >= 300 {
-				errorContent := ""
-				body, _ := ioutil.ReadAll(res.Body)
-				if err == nil {
-					errorContent = string(body)
-				}
-				defer res.Body.Close()
-
-				log.Fatalf("Received response with status code %d. Body: %s", code, errorContent)
-			}
-		} else {
-			err = preflightClient.PostDataReadings(config.OrganizationID, readings)
-			// TODO: handle errors gracefully: e.g. handle retries when it is possible
-			if err != nil {
-				log.Fatalf("Post to server failed: %+v", err)
-			}
-		}
-		log.Println("Data sent successfully.")
-		time.Sleep(time.Duration(Period) * time.Second)
+	if len(failedDataGatherers) > 0 {
+		log.Printf(
+			"Warning, the following DataGatherers failed, %s. Their data is not being sent.",
+			strings.Join(failedDataGatherers, ", "),
+		)
 	}
+
+	log.Println("Running Agent...")
+	log.Println("Posting data to ", baseURL)
+	if config.OrganizationID == "" {
+		data, err := json.Marshal(readings)
+		if err != nil {
+			log.Fatalf("Cannot marshal readings: %+v", err)
+		}
+		path := config.Endpoint.Path
+		if path == "" {
+			path = "/api/v1/datareadings"
+		}
+		res, err := preflightClient.Post(path, bytes.NewBuffer(data))
+		if code := res.StatusCode; code < 200 || code >= 300 {
+			errorContent := ""
+			body, _ := ioutil.ReadAll(res.Body)
+			if err == nil {
+				errorContent = string(body)
+			}
+			defer res.Body.Close()
+
+			log.Fatalf("Received response with status code %d. Body: %s", code, errorContent)
+		}
+	} else {
+		err = preflightClient.PostDataReadings(config.OrganizationID, readings)
+		// TODO: handle errors gracefully: e.g. handle retries when it is possible
+		if err != nil {
+			log.Fatalf("Post to server failed: %+v", err)
+		}
+	}
+
+	log.Println("Data sent successfully.")
 }
