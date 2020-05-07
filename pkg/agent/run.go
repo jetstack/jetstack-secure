@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jetstack/preflight/api"
@@ -132,10 +133,13 @@ func Run(cmd *cobra.Command, args []string) {
 	// Fetch from all datagatherers
 	now := time.Now()
 	readings := []*api.DataReading{}
+	failedDataGatherers := []string{}
 	for k, dg := range dataGatherers {
 		i, err := dg.Fetch()
 		if err != nil {
-			log.Fatalf("Error fetching with DataGatherer %q: %s", k, err)
+			log.Printf("Error fetching with DataGatherer %q: %s", k, err)
+			failedDataGatherers = append(failedDataGatherers, k)
+			continue
 		}
 
 		log.Printf("Gathered data for %q:\n", k)
@@ -146,6 +150,13 @@ func Run(cmd *cobra.Command, args []string) {
 			Timestamp:    api.Time{Time: now},
 			Data:         i,
 		})
+	}
+
+	if len(failedDataGatherers) > 0 {
+		log.Printf(
+			"Warning, the following DataGatherers failed, %s. Their data is not being sent.",
+			strings.Join(failedDataGatherers, ", "),
+		)
 	}
 
 	for {
