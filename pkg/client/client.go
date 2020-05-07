@@ -11,16 +11,14 @@ import (
 )
 
 // These variables are injected at build time.
-
-var clientID string
-var clientSecret string
-var authServer string
+var ClientID string
+var ClientSecret string
+var AuthServerDomain string
 
 // PreflightClient can be used to talk to the Preflight backend.
 type PreflightClient struct {
 	// OAuth2
-	userID     string
-	userSecret string
+	credentials *Credentials
 	// accessToken is the current OAuth access token.
 	accessToken *accessToken
 
@@ -47,29 +45,34 @@ func NewWithBasicAuth(agentMetadata *api.AgentMetadata, authToken, baseURL strin
 }
 
 // New creates a new client that uses OAuth2.
-func New(agentMetadata *api.AgentMetadata, userID, userSecret, baseURL string) (*PreflightClient, error) {
-	if userID == "" || userSecret == "" {
+func New(agentMetadata *api.AgentMetadata, credentials *Credentials, baseURL string) (*PreflightClient, error) {
+	if credentials == nil || credentials.UserID == "" || credentials.UserSecret == "" {
 		return nil, fmt.Errorf("cannot create PreflightClient: neither userID or userSecret can be empty")
 	}
 	if baseURL == "" {
 		return nil, fmt.Errorf("cannot create PreflightClient: baseURL cannot be empty")
 	}
 
-	if clientID == "" || clientSecret == "" || authServer == "" {
-		return nil, fmt.Errorf("cannot create PreflightClient: this build does not have a valid OAuth client configuration")
+	if !credentials.IsClientSet() {
+		credentials.ClientID = ClientID
+		credentials.ClientSecret = ClientSecret
+		credentials.AuthServerDomain = AuthServerDomain
+	}
+
+	if !credentials.IsClientSet() {
+		return nil, fmt.Errorf("cannot create PreflightClient: invalid OAuth2 client configuration")
 	}
 
 	return &PreflightClient{
 		agentMetadata: agentMetadata,
-		userID:        userID,
-		userSecret:    userSecret,
+		credentials:   credentials,
 		baseURL:       baseURL,
 		accessToken:   &accessToken{},
 	}, nil
 }
 
 func (c *PreflightClient) usingOAuth2() bool {
-	return c.userID != ""
+	return c.credentials.UserID != ""
 }
 
 // PostDataReadings sends a slice of readings to Preflight.
@@ -96,7 +99,7 @@ func (c *PreflightClient) PostDataReadings(orgID string, readings []*api.DataRea
 		}
 		defer res.Body.Close()
 
-		return fmt.Errorf("Received response with status code %d. Body: %s", code, errorContent)
+		return fmt.Errorf("received response with status code %d. Body: %s", code, errorContent)
 	}
 
 	return nil
