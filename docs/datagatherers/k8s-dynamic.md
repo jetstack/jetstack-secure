@@ -1,7 +1,7 @@
-# Kubernetes (k8s) Data Gatherer
+# Kubernetes Data Gatherer
 
-The Kubernetes data gatherer collects information about resources stored in
-the Kubernetes API.
+The Kubernetes dynamic data gatherer collects information about resources stored
+in the Kubernetes API.
 
 ## Data
 
@@ -28,16 +28,25 @@ below:
 ```yaml
 data-gatherers:
 # basic usage
-- kind: "k8s/pods.v1"
-  name: "pods"
+- kind: "k8s-dynamic"
+  name: "k8s/pods"
+  config:
+    resource-type:
+      resource: pods
+      version: v1
 
 # CRD usage
-- kind: "k8s/certificates.v1alpha2.cert-manager.io"
-  name: "certificates"
+- kind: "k8s-dynamic"
+  name: "k8s/certificates.v1alpha2.cert-manager.io"
+  config:
+    resource-type:
+      group: cert-manager.io
+      version: v1alpha2
+      resource: certificates
 
 # you might event want to gather resources from another cluster
-- kind: "k8s/pods.v1"
-  name: "pods-cluster-2"
+- kind: "k8s-dynamic"
+  name: "k8s/pods"
   config:
     kubeconfig: other_kube_config_path
 ```

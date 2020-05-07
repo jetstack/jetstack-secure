@@ -62,7 +62,7 @@ func asUnstructuredList(items ...*unstructured.Unstructured) *unstructured.Unstr
 }
 
 func TestNewDataGathererWithClient(t *testing.T) {
-	config := Config{
+	config := ConfigDynamic{
 		IncludeNamespaces:    []string{"a"},
 		GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 	}
@@ -73,7 +73,7 @@ func TestNewDataGathererWithClient(t *testing.T) {
 		t.Errorf("expected no error but got: %v", err)
 	}
 
-	expected := &DataGatherer{
+	expected := &DataGathererDynamic{
 		cl:                   cl,
 		groupVersionResource: config.GroupVersionResource,
 		// it's important that the namespaces are set as the IncludeNamespaces
@@ -168,7 +168,7 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			cl := fake.NewSimpleDynamicClient(emptyScheme, test.objects...)
-			g := DataGatherer{
+			g := DataGathererDynamic{
 				cl:                   cl,
 				groupVersionResource: test.gvr,
 				// if empty, namespaces will default to []string{""} during
@@ -190,7 +190,7 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 	}
 }
 
-func TestUnmarshalConfig(t *testing.T) {
+func TestUnmarshalGenericConfig(t *testing.T) {
 	textCfg := `
 kubeconfig: "/home/someone/.kube/config"
 resource-type:
@@ -213,7 +213,7 @@ exclude-namespaces:
 		"my-namespace",
 	}
 
-	cfg := Config{}
+	cfg := ConfigDynamic{}
 	err := yaml.Unmarshal([]byte(textCfg), &cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %+v", err)
@@ -232,13 +232,13 @@ exclude-namespaces:
 	}
 }
 
-func TestConfigValidate(t *testing.T) {
+func TestConfigDynamicValidate(t *testing.T) {
 	tests := []struct {
-		Config        Config
+		Config        ConfigDynamic
 		ExpectedError string
 	}{
 		{
-			Config: Config{
+			Config: ConfigDynamic{
 				GroupVersionResource: schema.GroupVersionResource{
 					Group:    "",
 					Version:  "",
@@ -248,7 +248,7 @@ func TestConfigValidate(t *testing.T) {
 			ExpectedError: "invalid configuration: GroupVersionResource.Resource cannot be empty",
 		},
 		{
-			Config: Config{
+			Config: ConfigDynamic{
 				IncludeNamespaces: []string{"a"},
 				ExcludeNamespaces: []string{"b"},
 			},
