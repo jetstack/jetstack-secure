@@ -12,7 +12,15 @@ RUN go mod download
 
 ## Bring in everything else and build an amd64 image
 COPY . .
-RUN make install
+
+ARG oauth_client_id
+ARG oauth_client_secret
+ARG oauth_auth_server_domain
+
+RUN make install \
+  OAUTH_CLIENT_ID=${oauth_client_id} \
+  OAUTH_CLIENT_SECRET=${oauth_client_secret} \
+  OAUTH_AUTH_SERVER_DOMAIN=${oauth_auth_server_domain}
 
 # STAGE 2
 # Use a distroless nonroot base image for just our executable

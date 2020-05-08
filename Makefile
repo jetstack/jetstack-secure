@@ -73,7 +73,11 @@ bundle-all-platforms:
 # Docker image
 
 build-docker-image:
-	docker build --tag $(DOCKER_IMAGE_TAG) .
+	docker build --tag $(DOCKER_IMAGE_TAG) \
+	--build-arg oauth_client_id=$(OAUTH_CLIENT_ID) \
+	--build-arg oauth_client_secret=$(OAUTH_CLIENT_SECRET) \
+	--build-arg oauth_auth_server_domain=$(OAUTH_AUTH_SERVER_DOMAIN) \
+	.
 
 push-docker-image:
 	docker tag $(DOCKER_IMAGE_TAG) $(DOCKER_IMAGE):latest
