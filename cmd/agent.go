@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/spf13/cobra"
 )
@@ -13,8 +15,20 @@ var agentCmd = &cobra.Command{
 	Run: agent.Run,
 }
 
+var agentInfoCmd = &cobra.Command{
+	Use:   "info",
+	Short: "print several internal parameters of the agent",
+	Long:  `Print several internal parameters of the agent, as the built-in OAuth2 client ID.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		printVersion(true)
+		fmt.Println()
+		printOAuth2Config()
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(agentCmd)
+	agentCmd.AddCommand(agentInfoCmd)
 	agentCmd.PersistentFlags().StringVarP(
 		&agent.ConfigFilePath,
 		"agent-config-file",
@@ -41,6 +55,6 @@ func init() {
 		"credentials-file",
 		"k",
 		"",
-		"(Experimental) Location of the credentials file. For OAuth2 based authentication.",
+		"Location of the credentials file. For OAuth2 based authentication.",
 	)
 }
