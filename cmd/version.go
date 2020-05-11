@@ -1,10 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
-	"github.com/jetstack/preflight/pkg/version"
-
 	"github.com/spf13/cobra"
 )
 
@@ -16,13 +12,7 @@ var versionCmd = &cobra.Command{
 	Long: `Display preflight version.
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Preflight version: ", version.PreflightVersion, version.Platform)
-		if verbose {
-			fmt.Println()
-			fmt.Println("Commit: ", version.Commit)
-			fmt.Println("Built: ", version.BuildDate)
-			fmt.Println("Go: ", version.GoVersion)
-		}
+		printVersion(verbose)
 	},
 }
 
