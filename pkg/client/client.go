@@ -72,6 +72,10 @@ func New(agentMetadata *api.AgentMetadata, credentials *Credentials, baseURL str
 }
 
 func (c *PreflightClient) usingOAuth2() bool {
+	if c.credentials == nil {
+		return false
+	}
+
 	return c.credentials.UserID != ""
 }
 
