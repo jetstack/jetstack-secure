@@ -42,6 +42,7 @@ func Run(cmd *cobra.Command, args []string) {
 }
 
 func gatherAndPostData(ctx context.Context) {
+	log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
 	file, err := os.Open(ConfigFilePath)
 	if err != nil {
 		log.Fatalf("Failed to load config file for agent from: %s", ConfigFilePath)
