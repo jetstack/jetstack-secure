@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -35,10 +36,16 @@ func (c *PreflightClient) getValidAccessToken() (*accessToken, error) {
 }
 
 func (c *PreflightClient) renewAccessToken() error {
-	url := fmt.Sprintf("https://%s/oauth/token", c.credentials.AuthServerDomain)
+	tokenURL := fmt.Sprintf("https://%s/oauth/token", c.credentials.AuthServerDomain)
 	audience := "https://preflight.jetstack.io/api/v1"
-	payload := fmt.Sprintf("grant_type=password&client_id=%s&client_secret=%s&audience=%s&username=%s&password=%s", c.credentials.ClientID, c.credentials.ClientSecret, audience, c.credentials.UserID, c.credentials.UserSecret)
-	req, err := http.NewRequest("POST", url, strings.NewReader(payload))
+	payload := url.Values{}
+	payload.Set("grant_type", "password")
+	payload.Set("client_id", c.credentials.ClientID)
+	payload.Set("client_secret", c.credentials.ClientSecret)
+	payload.Set("audience", audience)
+	payload.Set("username", c.credentials.UserID)
+	payload.Set("password", c.credentials.UserSecret)
+	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(payload.Encode()))
 	if err != nil {
 		return errors.Trace(err)
 	}
