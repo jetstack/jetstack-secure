@@ -12,6 +12,8 @@
 Preflight is a tool to automatically perform Kubernetes cluster configuration
 checks using [Open Policy Agent (OPA)](https://www.openpolicyagent.org/).
 
+This repository hosts the agent part of Preflight. It sends data to the [Preflight SaaS](https://preflight.jetstack.io) platform.
+
 <!-- markdown-toc start - Don't edit this section. Run M-x
 markdown-toc-refresh-toc -->
 
