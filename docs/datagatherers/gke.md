@@ -25,26 +25,27 @@ data-gatherers:
 - kind: "gke"
   name: "gke"
   config:
+  # Path to a file containing the credentials. If empty, it will try to use
+  # the SDK defaults (explained below)
+  # credentials-path: /tmp/credentials.json
     cluster:
       project: my-gcp-project
       location: us-central1-a
       name: my-gke-cluster
-    # Path to a file containing the credentials. If empty, it will try to use
-    # the SDK defaults
-    # credentials: /tmp/credentials.json
 ```
 
 The `gke` configuration contains the following fields:
 
-- `project`: The ID of your Google Cloud Platform project.
-- `location`: The compute zone or region where your cluster is running.
-- `cluster`: The name of your GKE cluster.
-- `credentials`: *optional* The path to a file containing credentials for your
-  cluster.
+- `credentials-path`: *optional* The path to a file containing credentials for
+  your cluster.
+- `cluster`
+  - `name`: The name of your GKE cluster.
+  - `project`: The ID of your Google Cloud Platform project.
+  - `location`: The compute zone or region where your cluster is running.
 
 ## Permissions
 
-If a `credentials` file is not specified, Preflight will attempt to use
+If a `credentials-path` file is not specified, Preflight will attempt to use
 Application Default Credentials or the metadata API (as per Google SDK default).
 
 If Preflight is running locally and the `gcloud` command is installed and
