@@ -86,7 +86,7 @@ func TestNewDataGathererWithClient(t *testing.T) {
 	}
 }
 
-func TestGenericGatherer_Fetch(t *testing.T) {
+func TestDynamicGatherer_Fetch(t *testing.T) {
 	emptyScheme := runtime.NewScheme()
 	tests := map[string]struct {
 		gvr        schema.GroupVersionResource
@@ -190,7 +190,7 @@ func TestGenericGatherer_Fetch(t *testing.T) {
 	}
 }
 
-func TestUnmarshalGenericConfig(t *testing.T) {
+func TestUnmarshalDynamicConfig(t *testing.T) {
 	textCfg := `
 kubeconfig: "/home/someone/.kube/config"
 resource-type:
@@ -200,6 +200,11 @@ resource-type:
 exclude-namespaces:
 - kube-system
 - my-namespace
+# this config is invalid, but the validation is tested elsewhere
+# include-namespaces is here just to ensure that they are loaded
+# from the config file
+include-namespaces:
+- default
 `
 
 	expectedGVR := schema.GroupVersionResource{
@@ -212,6 +217,8 @@ exclude-namespaces:
 		"kube-system",
 		"my-namespace",
 	}
+
+	expectedIncludeNamespaces := []string{"default"}
 
 	cfg := ConfigDynamic{}
 	err := yaml.Unmarshal([]byte(textCfg), &cfg)
@@ -229,6 +236,9 @@ exclude-namespaces:
 
 	if got, want := cfg.ExcludeNamespaces, expectedExcludeNamespaces; !reflect.DeepEqual(got, want) {
 		t.Errorf("ExcludeNamespaces does not match: got=%+v want=%+v", got, want)
+	}
+	if got, want := cfg.IncludeNamespaces, expectedIncludeNamespaces; !reflect.DeepEqual(got, want) {
+		t.Errorf("IncludeNamespaces does not match: got=%+v want=%+v", got, want)
 	}
 }
 

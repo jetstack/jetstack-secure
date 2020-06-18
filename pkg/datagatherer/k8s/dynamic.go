@@ -37,6 +37,7 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			Resource string `yaml:"resource"`
 		} `yaml:"resource-type"`
 		ExcludeNamespaces []string `yaml:"exclude-namespaces"`
+		IncludeNamespaces []string `yaml:"include-namespaces"`
 	}{}
 	err := unmarshal(&aux)
 	if err != nil {
@@ -48,6 +49,7 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	c.GroupVersionResource.Version = aux.ResourceType.Version
 	c.GroupVersionResource.Resource = aux.ResourceType.Resource
 	c.ExcludeNamespaces = aux.ExcludeNamespaces
+	c.IncludeNamespaces = aux.IncludeNamespaces
 
 	return nil
 }
