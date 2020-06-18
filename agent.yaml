@@ -1,5 +1,5 @@
 schedule: "* * * *"
-token: eyJjbHVzdGVyIjoibXkgY2x1c3RlciIsInRva2VuIjoidG9rZW4yYiJ9
+token: ewogICJjbHVzdGVyIjogIm15IGNsdXN0ZXIiLAogICJ0b2tlbiI6ICJleGFtcGxlIgp9Cg==
 endpoint:
   protocol: http
   host: "localhost:8080"
