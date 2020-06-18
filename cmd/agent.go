@@ -57,12 +57,12 @@ func init() {
 		"",
 		"Location of the credentials file. For OAuth2 based authentication.",
 	)
-	agentCmd.PersistentFlags().IntVarP(
-		&agent.NumberPeriods,
-		"number-periods",
-		"n",
-		-1,
-		"Number of interations for data collection. Default is '-1', runs perpetually.",
+	agentCmd.PersistentFlags().BoolVarP(
+		&agent.OneShot,
+		"one-shot",
+		"o",
+		false,
+		"Runs agent a single time if true, or continously if false",
 	)
 
 }

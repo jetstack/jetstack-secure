@@ -28,8 +28,8 @@ var AuthToken string
 // Period is the number of seconds between scans
 var Period uint
 
-// Number of times the agent will gather and post data
-var NumberPeriods int
+// Agent will run only once if OneShot is enabled
+var OneShot bool
 
 // CredentialsPath is where the agent will try to loads the credentials. (Experimental)
 var CredentialsPath string
@@ -38,20 +38,10 @@ var CredentialsPath string
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-
-	for i := 0; i != NumberPeriods; {
-		gatherAndPostData(ctx)
-		
-		if i == NumberPeriods - 1 {
-			break
-		}
-
+	gatherAndPostData(ctx)
+	for OneShot != true {
 		time.Sleep(time.Duration(Period) * time.Second)
-
-		// Progress loop if a positive number of periods is given
-		if NumberPeriods > 0 {
-			i++
-		}
+		gatherAndPostData(ctx)
 	}
 }
 
