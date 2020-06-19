@@ -60,7 +60,7 @@ func init() {
 	agentCmd.PersistentFlags().BoolVarP(
 		&agent.OneShot,
 		"one-shot",
-		"o",
+		"",
 		false,
 		"Runs agent a single time if true, or continously if false",
 	)

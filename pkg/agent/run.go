@@ -38,10 +38,12 @@ var CredentialsPath string
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
-	gatherAndPostData(ctx)
-	for OneShot != true {
-		time.Sleep(time.Duration(Period) * time.Second)
+	for {
 		gatherAndPostData(ctx)
+		if OneShot {
+			break
+		}
+		time.Sleep(time.Duration(Period) * time.Second)
 	}
 }
 
