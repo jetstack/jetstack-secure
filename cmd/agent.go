@@ -57,4 +57,12 @@ func init() {
 		"",
 		"Location of the credentials file. For OAuth2 based authentication.",
 	)
+	agentCmd.PersistentFlags().BoolVarP(
+		&agent.OneShot,
+		"one-shot",
+		"",
+		false,
+		"Runs agent a single time if true, or continously if false",
+	)
+
 }
