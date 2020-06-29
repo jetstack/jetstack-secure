@@ -64,5 +64,12 @@ func init() {
 		false,
 		"Runs agent a single time if true, or continously if false",
 	)
+	agentCmd.PersistentFlags().StringVarP(
+		&agent.DataFilePath,
+		"write-to-file",
+		"",
+		"",
+		"Data file path, if used will write data to a local file instead of posting",
+	)
 
 }

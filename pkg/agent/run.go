@@ -34,6 +34,8 @@ var OneShot bool
 // CredentialsPath is where the agent will try to loads the credentials. (Experimental)
 var CredentialsPath string
 
+// DataFilePath is where the agent will write data to locally if specified
+var DataFilePath string
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
@@ -176,7 +178,7 @@ func gatherAndPostData(ctx context.Context) {
 	log.Println("Running Agent...")
 	log.Println("Posting data to ", baseURL)
 	if config.OrganizationID == "" {
-		data, err := json.Marshal(readings)
+		data, err := json.MarshalIndent(readings, " ", " ")
 		if err != nil {
 			log.Fatalf("Cannot marshal readings: %+v", err)
 		}
@@ -184,19 +186,27 @@ func gatherAndPostData(ctx context.Context) {
 		if path == "" {
 			path = "/api/v1/datareadings"
 		}
-		res, err := preflightClient.Post(path, bytes.NewBuffer(data))
-		if err != nil {
-			log.Fatalf("Failed to post data: %+v", err)
-		}
-		if code := res.StatusCode; code < 200 || code >= 300 {
-			errorContent := ""
-			body, _ := ioutil.ReadAll(res.Body)
-			if err == nil {
-				errorContent = string(body)
+		if DataFilePath != "" {
+			err := ioutil.WriteFile(DataFilePath, data, 0644)
+			if err != nil {
+				log.Fatal(err)
 			}
-			defer res.Body.Close()
+		} else {
+			res, err := preflightClient.Post(path, bytes.NewBuffer(data))
 
-			log.Fatalf("Received response with status code %d. Body: %s", code, errorContent)
+			if err != nil {
+				log.Fatalf("Failed to post data: %+v", err)
+			}
+			if code := res.StatusCode; code < 200 || code >= 300 {
+				errorContent := ""
+				body, _ := ioutil.ReadAll(res.Body)
+				if err == nil {
+					errorContent = string(body)
+				}
+				defer res.Body.Close()
+
+				log.Fatalf("Received response with status code %d. Body: %s", code, errorContent)
+			}
 		}
 	} else {
 		err = preflightClient.PostDataReadings(config.OrganizationID, readings)
