@@ -34,8 +34,8 @@ var OneShot bool
 // CredentialsPath is where the agent will try to loads the credentials. (Experimental)
 var CredentialsPath string
 
-// DataFilePath is where the agent will write data to locally if specified
-var DataFilePath string
+// OutputPath is where the agent will write data to locally if specified
+var OutputPath string
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
@@ -50,6 +50,21 @@ func Run(cmd *cobra.Command, args []string) {
 }
 
 func gatherAndPostData(ctx context.Context) {
+	config, preflightClient, readings := gatherData(ctx)
+
+	if OutputPath != "" {
+		data, err := json.MarshalIndent(readings, " ", " ")
+		err = ioutil.WriteFile(OutputPath, data, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Data saved locally to", OutputPath)
+	} else {
+		postData(config, preflightClient, readings)
+	}
+}
+
+func gatherData(ctx context.Context) (Config, *client.PreflightClient, []*api.DataReading) {
 	log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
 	file, err := os.Open(ConfigFilePath)
 	if err != nil {
@@ -175,10 +190,16 @@ func gatherAndPostData(ctx context.Context) {
 		)
 	}
 
+	return config, preflightClient, readings
+}
+
+func postData(config Config, preflightClient *client.PreflightClient, readings []*api.DataReading) {
+	baseURL := config.Server
+
 	log.Println("Running Agent...")
 	log.Println("Posting data to ", baseURL)
 	if config.OrganizationID == "" {
-		data, err := json.MarshalIndent(readings, " ", " ")
+		data, err := json.Marshal(readings)
 		if err != nil {
 			log.Fatalf("Cannot marshal readings: %+v", err)
 		}
@@ -186,30 +207,23 @@ func gatherAndPostData(ctx context.Context) {
 		if path == "" {
 			path = "/api/v1/datareadings"
 		}
-		if DataFilePath != "" {
-			err := ioutil.WriteFile(DataFilePath, data, 0644)
-			if err != nil {
-				log.Fatal(err)
-			}
-		} else {
-			res, err := preflightClient.Post(path, bytes.NewBuffer(data))
+		res, err := preflightClient.Post(path, bytes.NewBuffer(data))
 
-			if err != nil {
-				log.Fatalf("Failed to post data: %+v", err)
+		if err != nil {
+			log.Fatalf("Failed to post data: %+v", err)
+		}
+		if code := res.StatusCode; code < 200 || code >= 300 {
+			errorContent := ""
+			body, _ := ioutil.ReadAll(res.Body)
+			if err == nil {
+				errorContent = string(body)
 			}
-			if code := res.StatusCode; code < 200 || code >= 300 {
-				errorContent := ""
-				body, _ := ioutil.ReadAll(res.Body)
-				if err == nil {
-					errorContent = string(body)
-				}
-				defer res.Body.Close()
+			defer res.Body.Close()
 
-				log.Fatalf("Received response with status code %d. Body: %s", code, errorContent)
-			}
+			log.Fatalf("Received response with status code %d. Body: %s", code, errorContent)
 		}
 	} else {
-		err = preflightClient.PostDataReadings(config.OrganizationID, readings)
+		err := preflightClient.PostDataReadings(config.OrganizationID, readings)
 		// TODO: handle errors gracefully: e.g. handle retries when it is possible
 		if err != nil {
 			log.Fatalf("Post to server failed: %+v", err)
