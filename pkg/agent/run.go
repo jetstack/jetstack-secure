@@ -41,7 +41,8 @@ var OutputPath string
 func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 	for {
-		gatherAndPostData(ctx)
+		config, preflightClient := getConfiguration(ctx)
+		gatherAndOutputData(ctx, config, preflightClient)
 		if OneShot {
 			break
 		}
@@ -49,22 +50,7 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 }
 
-func gatherAndPostData(ctx context.Context) {
-	config, preflightClient, readings := gatherData(ctx)
-
-	if OutputPath != "" {
-		data, err := json.MarshalIndent(readings, " ", " ")
-		err = ioutil.WriteFile(OutputPath, data, 0644)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Println("Data saved locally to", OutputPath)
-	} else {
-		postData(config, preflightClient, readings)
-	}
-}
-
-func gatherData(ctx context.Context) (Config, *client.PreflightClient, []*api.DataReading) {
+func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 	log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
 	file, err := os.Open(ConfigFilePath)
 	if err != nil {
@@ -144,6 +130,26 @@ func gatherData(ctx context.Context) (Config, *client.PreflightClient, []*api.Da
 		}
 	}
 
+	return config, preflightClient
+}
+
+func gatherAndOutputData(ctx context.Context, config Config, preflightClient *client.PreflightClient) {
+	readings := gatherData(ctx, config)
+
+	if OutputPath != "" {
+		data, err := json.MarshalIndent(readings, " ", " ")
+		err = ioutil.WriteFile(OutputPath, data, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Data saved locally to", OutputPath)
+	} else {
+		postData(config, preflightClient, readings)
+	}
+}
+
+func gatherData(ctx context.Context, config Config) []*api.DataReading {
+
 	dataGatherers := make(map[string]datagatherer.DataGatherer)
 
 	for _, dgConfig := range config.DataGatherers {
@@ -189,8 +195,7 @@ func gatherData(ctx context.Context) (Config, *client.PreflightClient, []*api.Da
 			strings.Join(failedDataGatherers, ", "),
 		)
 	}
-
-	return config, preflightClient, readings
+	return readings
 }
 
 func postData(config Config, preflightClient *client.PreflightClient, readings []*api.DataReading) {
