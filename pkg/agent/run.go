@@ -34,12 +34,15 @@ var OneShot bool
 // CredentialsPath is where the agent will try to loads the credentials. (Experimental)
 var CredentialsPath string
 
+// OutputPath is where the agent will write data to locally if specified
+var OutputPath string
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 	for {
-		gatherAndPostData(ctx)
+		config, preflightClient := getConfiguration(ctx)
+		gatherAndOutputData(ctx, config, preflightClient)
 		if OneShot {
 			break
 		}
@@ -47,7 +50,7 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 }
 
-func gatherAndPostData(ctx context.Context) {
+func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 	log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
 	file, err := os.Open(ConfigFilePath)
 	if err != nil {
@@ -127,6 +130,26 @@ func gatherAndPostData(ctx context.Context) {
 		}
 	}
 
+	return config, preflightClient
+}
+
+func gatherAndOutputData(ctx context.Context, config Config, preflightClient *client.PreflightClient) {
+	readings := gatherData(ctx, config)
+
+	if OutputPath != "" {
+		data, err := json.MarshalIndent(readings, " ", " ")
+		err = ioutil.WriteFile(OutputPath, data, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Data saved locally to", OutputPath)
+	} else {
+		postData(config, preflightClient, readings)
+	}
+}
+
+func gatherData(ctx context.Context, config Config) []*api.DataReading {
+
 	dataGatherers := make(map[string]datagatherer.DataGatherer)
 
 	for _, dgConfig := range config.DataGatherers {
@@ -172,6 +195,11 @@ func gatherAndPostData(ctx context.Context) {
 			strings.Join(failedDataGatherers, ", "),
 		)
 	}
+	return readings
+}
+
+func postData(config Config, preflightClient *client.PreflightClient, readings []*api.DataReading) {
+	baseURL := config.Server
 
 	log.Println("Running Agent...")
 	log.Println("Posting data to ", baseURL)
@@ -185,6 +213,7 @@ func gatherAndPostData(ctx context.Context) {
 			path = "/api/v1/datareadings"
 		}
 		res, err := preflightClient.Post(path, bytes.NewBuffer(data))
+
 		if err != nil {
 			log.Fatalf("Failed to post data: %+v", err)
 		}
@@ -199,7 +228,7 @@ func gatherAndPostData(ctx context.Context) {
 			log.Fatalf("Received response with status code %d. Body: %s", code, errorContent)
 		}
 	} else {
-		err = preflightClient.PostDataReadings(config.OrganizationID, readings)
+		err := preflightClient.PostDataReadings(config.OrganizationID, readings)
 		// TODO: handle errors gracefully: e.g. handle retries when it is possible
 		if err != nil {
 			log.Fatalf("Post to server failed: %+v", err)

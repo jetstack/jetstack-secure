@@ -64,5 +64,12 @@ func init() {
 		false,
 		"Runs agent a single time if true, or continously if false",
 	)
+	agentCmd.PersistentFlags().StringVarP(
+		&agent.OutputPath,
+		"output-path",
+		"",
+		"",
+		"Output file path, if used will write data to a local file instead of uploading to the preflight server",
+	)
 
 }
