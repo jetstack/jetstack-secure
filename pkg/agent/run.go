@@ -37,6 +37,9 @@ var CredentialsPath string
 // OutputPath is where the agent will write data to locally if specified
 var OutputPath string
 
+// InputPath is where the agent will read data from instead of gathering from clusters if specified
+var InputPath string
+
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
@@ -134,7 +137,21 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 }
 
 func gatherAndOutputData(ctx context.Context, config Config, preflightClient *client.PreflightClient) {
-	readings := gatherData(ctx, config)
+	var readings []*api.DataReading
+	if InputPath != "" {
+		log.Println("Reading data from", InputPath)
+		data, err := ioutil.ReadFile(InputPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = json.Unmarshal(data, &readings)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Data read successfully.")
+	} else {
+		readings = gatherData(ctx, config)
+	}
 
 	if OutputPath != "" {
 		data, err := json.MarshalIndent(readings, " ", " ")

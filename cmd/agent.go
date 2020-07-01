@@ -69,7 +69,14 @@ func init() {
 		"output-path",
 		"",
 		"",
-		"Output file path, if used will write data to a local file instead of uploading to the preflight server",
+		"Output file path, if used, it will write data to a local file instead of uploading to the preflight server",
+	)
+	agentCmd.PersistentFlags().StringVarP(
+		&agent.InputPath,
+		"input-path",
+		"",
+		"",
+		"Input file path, if used, it will read data from a local file instead of gathering data from clusters",
 	)
 
 }
