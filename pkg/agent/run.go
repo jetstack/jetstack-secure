@@ -28,7 +28,7 @@ var AuthToken string
 // Period is the number of seconds between scans
 var Period uint
 
-// Agent will run only once if OneShot is enabled
+// OneShot flag causes agent to run once
 var OneShot bool
 
 // CredentialsPath is where the agent will try to loads the credentials. (Experimental)
@@ -138,6 +138,15 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 
 func gatherAndOutputData(ctx context.Context, config Config, preflightClient *client.PreflightClient) {
 	var readings []*api.DataReading
+
+	// Input/OutputPath flag overwrites agent.yaml configuration
+	if InputPath == "" {
+		InputPath = config.InputPath
+	}
+	if OutputPath == "" {
+		OutputPath = config.OutputPath
+	}
+
 	if InputPath != "" {
 		log.Println("Reading data from", InputPath)
 		data, err := ioutil.ReadFile(InputPath)
