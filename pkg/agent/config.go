@@ -31,6 +31,10 @@ type Config struct {
 	// ClusterID is the cluster that the agent is scanning.
 	ClusterID     string         `yaml:"cluster_id"`
 	DataGatherers []dataGatherer `yaml:"data-gatherers"`
+	// InputPath replaces DataGatherers with input data file
+	InputPath string `yaml:"input-path"`
+	// OutputPath replaces Server with output data file
+	OutputPath string `yaml:"output-path"`
 }
 
 type Endpoint struct {

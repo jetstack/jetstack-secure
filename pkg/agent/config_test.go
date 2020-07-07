@@ -18,6 +18,8 @@ func TestValidConfigLoad(t *testing.T) {
         kind: dummy
         config:
           param-1: "bar"
+      input-path: "/home"
+      output-path: "/nothome"
 `
 
 	loadedConfig, err := ParseConfig([]byte(configFileContents))
@@ -37,6 +39,8 @@ func TestValidConfigLoad(t *testing.T) {
 				},
 			},
 		},
+		InputPath:  "/home",
+		OutputPath: "/nothome",
 	}
 
 	if diff, equal := messagediff.PrettyDiff(expected, loadedConfig); !equal {
