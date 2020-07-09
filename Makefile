@@ -26,8 +26,8 @@ define LDFLAGS
 -X "github.com/jetstack/preflight/pkg/client.AuthServerDomain=$(OAUTH_AUTH_SERVER_DOMAIN)"
 endef
 
-GO_BUILD:=go build -ldflags '$(LDFLAGS)'
-GO_INSTALL:=go install -ldflags '$(LDFLAGS)'
+GO_BUILD:=CGO_ENABLED=0 go build -ldflags '$(LDFLAGS)'
+GO_INSTALL:=CGO_ENABLED=0 go install -ldflags '$(LDFLAGS)'
 
 export GO111MODULE=on
 
