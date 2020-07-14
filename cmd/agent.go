@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/spf13/cobra"
@@ -43,12 +44,12 @@ func init() {
 		"",
 		"Authorization token. If used, it will override the authorization token in the configuration file.",
 	)
-	agentCmd.PersistentFlags().UintVarP(
+	agentCmd.PersistentFlags().DurationVarP(
 		&agent.Period,
 		"period",
 		"p",
-		3600,
-		"Time between scans, in seconds.",
+		time.Hour,
+		"Time between scans (given as XhYmZs).",
 	)
 	agentCmd.PersistentFlags().StringVarP(
 		&agent.CredentialsPath,
@@ -77,6 +78,13 @@ func init() {
 		"",
 		"",
 		"Input file path, if used, it will read data from a local file instead of gathering data from clusters",
+	)
+	agentCmd.PersistentFlags().DurationVarP(
+		&agent.BackoffMaxTime,
+		"backoff-max-time",
+		"",
+		5*time.Minute,
+		"Max time for retrying failed data gatherers (given as XhYmZs).",
 	)
 
 }

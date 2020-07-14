@@ -9,6 +9,7 @@ require (
 	github.com/Azure/azure-storage-blob-go v0.8.0
 	github.com/aws/aws-sdk-go v1.25.30
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/cenkalti/backoff v2.0.0+incompatible
 	github.com/d4l3k/messagediff v1.2.1 // indirect
 	github.com/gomarkdown/markdown v0.0.0-20191104174740-4d42851d4d5a
 	github.com/google/go-cmp v0.3.0
