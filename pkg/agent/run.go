@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cenkalti/backoff"
+	"github.com/hashicorp/go-multierror"
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
@@ -25,8 +27,8 @@ var ConfigFilePath string
 // AuthToken is the authorization token that will be used for API calls
 var AuthToken string
 
-// Period is the number of seconds between scans
-var Period uint
+// Period is the time waited between scans
+var Period time.Duration
 
 // OneShot flag causes agent to run once
 var OneShot bool
@@ -40,6 +42,9 @@ var OutputPath string
 // InputPath is where the agent will read data from instead of gathering from clusters if specified
 var InputPath string
 
+// BackoffMaxTime is the maximum time for which data gatherers will be retried
+var BackoffMaxTime time.Duration
+
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
@@ -49,7 +54,7 @@ func Run(cmd *cobra.Command, args []string) {
 		if OneShot {
 			break
 		}
-		time.Sleep(time.Duration(Period) * time.Second)
+		time.Sleep(Period)
 	}
 }
 
@@ -170,7 +175,16 @@ func gatherAndOutputData(ctx context.Context, config Config, preflightClient *cl
 		}
 		log.Println("Data saved locally to", OutputPath)
 	} else {
-		postData(config, preflightClient, readings)
+		backOff := backoff.NewExponentialBackOff()
+		backOff.MaxElapsedTime = BackoffMaxTime
+		post := func() error {
+			return postData(config, preflightClient, readings)
+		}
+		err := backoff.RetryNotify(post, backOff, notify)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+
 	}
 }
 
@@ -193,39 +207,67 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 		dataGatherers[dgConfig.Name] = dg
 	}
 
-	// Fetch from all datagatherers
-	now := time.Now()
+	//TODO Change backoff parameters to those desired
+	backOff := backoff.NewExponentialBackOff()
+	backOff.MaxElapsedTime = BackoffMaxTime
 	readings := []*api.DataReading{}
-	failedDataGatherers := []string{}
-	for k, dg := range dataGatherers {
-		i, err := dg.Fetch()
-		if err != nil {
-			log.Printf("Error fetching with DataGatherer %q: %s", k, err)
-			failedDataGatherers = append(failedDataGatherers, k)
-			continue
+	completedDataGatherers := make(map[string]bool, len(dataGatherers))
+
+	// Fetch from all datagatherers
+	getReadings := func() error {
+		var dgError *multierror.Error
+		for k, dg := range dataGatherers {
+			if completedDataGatherers[k] {
+				continue
+			}
+			dgData, err := dg.Fetch()
+			if err != nil {
+				err = fmt.Errorf("%s: %v", k, err)
+				dgError = multierror.Append(dgError, err)
+				continue
+			} else {
+				completedDataGatherers[k] = true
+
+				log.Printf("Successfully gathered data for %q", k)
+				now := time.Now()
+
+				readings = append(readings, &api.DataReading{
+					ClusterID:    config.ClusterID,
+					DataGatherer: k,
+					Timestamp:    api.Time{Time: now},
+					Data:         dgData,
+				})
+			}
 		}
-
-		log.Printf("Gathered data for %q:\n", k)
-
-		readings = append(readings, &api.DataReading{
-			ClusterID:    config.ClusterID,
-			DataGatherer: k,
-			Timestamp:    api.Time{Time: now},
-			Data:         i,
-		})
+		dgError.ErrorFormat = func(es []error) string {
+			points := make([]string, len(es))
+			for i, err := range es {
+				points[i] = fmt.Sprintf("* %s", err)
+			}
+			return fmt.Sprintf(
+				"The following %d data gatherer(s) have failed:\n\t%s",
+				len(es), strings.Join(points, "\n\t"))
+		}
+		return dgError
 	}
 
-	if len(failedDataGatherers) > 0 {
-		log.Printf(
-			"Warning, the following DataGatherers failed, %s. Their data is not being sent.",
-			strings.Join(failedDataGatherers, ", "),
-		)
+	err := backoff.RetryNotify(getReadings, backOff, notify)
+	if err != nil {
+		log.Println(err)
+		log.Printf("This will not be retried")
+	} else {
+		log.Printf("All data gatherers successfull")
 	}
 	return readings
 }
 
-func postData(config Config, preflightClient *client.PreflightClient, readings []*api.DataReading) {
+func notify(err error, t time.Duration) {
+	log.Println(err, "\nRetrying...")
+}
+
+func postData(config Config, preflightClient *client.PreflightClient, readings []*api.DataReading) error {
 	baseURL := config.Server
+	var err error
 
 	log.Println("Running Agent...")
 	log.Println("Posting data to ", baseURL)
@@ -241,7 +283,7 @@ func postData(config Config, preflightClient *client.PreflightClient, readings [
 		res, err := preflightClient.Post(path, bytes.NewBuffer(data))
 
 		if err != nil {
-			log.Fatalf("Failed to post data: %+v", err)
+			return fmt.Errorf("Failed to post data: %+v", err)
 		}
 		if code := res.StatusCode; code < 200 || code >= 300 {
 			errorContent := ""
@@ -251,15 +293,13 @@ func postData(config Config, preflightClient *client.PreflightClient, readings [
 			}
 			defer res.Body.Close()
 
-			log.Fatalf("Received response with status code %d. Body: %s", code, errorContent)
+			return fmt.Errorf("Received response with status code %d. Body: %s", code, errorContent)
 		}
 	} else {
 		err := preflightClient.PostDataReadings(config.OrganizationID, readings)
-		// TODO: handle errors gracefully: e.g. handle retries when it is possible
 		if err != nil {
-			log.Fatalf("Post to server failed: %+v", err)
+			return fmt.Errorf("Post to server failed: %+v", err)
 		}
 	}
-
-	log.Println("Data sent successfully.")
+	return err
 }

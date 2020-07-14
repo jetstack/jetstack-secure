@@ -8,7 +8,8 @@ import (
 )
 
 type dummyConfig struct {
-	Param1            string `yaml:"param-1"`
+	AlwaysFail        bool `yaml:"always-fail"`
+	FailedAttempts    int  `yaml:"failed-attempts"`
 	wantOnCreationErr bool
 }
 
@@ -17,14 +18,25 @@ func (c *dummyConfig) NewDataGatherer(ctx context.Context) (datagatherer.DataGat
 		return nil, fmt.Errorf("an error")
 	}
 	return &dummyDataGatherer{
-		Param1: c.Param1,
+		AlwaysFail:     c.AlwaysFail,
+		FailedAttempts: c.FailedAttempts,
 	}, nil
 }
 
 type dummyDataGatherer struct {
-	Param1 string
+	AlwaysFail     bool
+	attemptNumber  int
+	FailedAttempts int
 }
 
 func (c *dummyDataGatherer) Fetch() (interface{}, error) {
-	return nil, nil
+	var err error
+	if c.attemptNumber < c.FailedAttempts {
+		err = fmt.Errorf("First %d attempts will fail", c.FailedAttempts)
+	}
+	if c.AlwaysFail {
+		err = fmt.Errorf("This data gatherer will always fail")
+	}
+	c.attemptNumber++
+	return nil, err
 }

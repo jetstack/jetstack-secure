@@ -17,7 +17,7 @@ func TestValidConfigLoad(t *testing.T) {
       - name: d1
         kind: dummy
         config:
-          param-1: "bar"
+          always-fail: false
       input-path: "/home"
       output-path: "/nothome"
 `
@@ -35,7 +35,7 @@ func TestValidConfigLoad(t *testing.T) {
 				Name: "d1",
 				Kind: "dummy",
 				Config: &dummyConfig{
-					Param1: "bar",
+					AlwaysFail: false,
 				},
 			},
 		},
@@ -59,7 +59,7 @@ func TestValidConfigWithEndpointLoad(t *testing.T) {
       - name: d1
         kind: dummy
         config:
-          param-1: "bar"
+          always-fail: false
 `
 
 	loadedConfig, err := ParseConfig([]byte(configFileContents))
@@ -80,7 +80,7 @@ func TestValidConfigWithEndpointLoad(t *testing.T) {
 				Name: "d1",
 				Kind: "dummy",
 				Config: &dummyConfig{
-					Param1: "bar",
+					AlwaysFail: false,
 				},
 			},
 		},
