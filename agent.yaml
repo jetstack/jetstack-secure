@@ -8,9 +8,8 @@ data-gatherers:
 - kind: "dummy"
   name: "dummy"
   config:
-    param-1: "bar"
     failed-attempts: 5
 - kind: "dummy"
   name: "dummy-fail"
   config:
-    param-1: "foo"
+    always-fail: true
