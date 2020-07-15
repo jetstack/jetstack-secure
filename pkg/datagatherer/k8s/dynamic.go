@@ -158,7 +158,6 @@ func redactList(list *unstructured.UnstructuredList) error {
 	// In principal we could only redact the list if it's kind is SecretList or
 	// a generic mixed List, however the test suite does not set the list kind
 	// and it is safer to always check for Secrets.
-	// Iterate over the items in the list.
 	for i := range list.Items {
 		// Determine the kind of items in case this is a generic 'mixed' list.
 		gvks, _, err := scheme.Scheme.ObjectKinds(&list.Items[i])
@@ -168,17 +167,38 @@ func redactList(list *unstructured.UnstructuredList) error {
 		for _, gvk := range gvks {
 			// If this item is a Secret then we need to redact it.
 			if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
-				// Redact secret data
-				list.Items[i].Object["data"] = map[string]interface{}{}
+				secret := list.Items[i]
+
+				// If the secret is a tls secret, we redact all data other then
+				// the tls.crt and ca.crt. This is because we need to inspect
+				// the certificate to make recommendations.
+				if secret.Object["type"] == "kubernetes.io/tls" {
+					secretData, ok := secret.Object["data"].(map[string]interface{})
+					if ok {
+						for k := range secretData {
+							// Only these two keys will be sent, all others are
+							// deleted
+							if k != "tls.crt" && k != "ca.crt" {
+								delete(secretData, k)
+							}
+						}
+					} else {
+						// If secret is not string mapping, redact all secret data
+						secret.Object["data"] = map[string]interface{}{}
+					}
+				} else {
+					// Redact all secret data for non-tls secrets
+					secret.Object["data"] = map[string]interface{}{}
+				}
 
 				// Redact last-applied-configuration annotation if set
-				annotations, present := list.Items[i].Object["annotations"].(map[string]interface{})
+				annotations, present := secret.Object["annotations"].(map[string]interface{})
 				if present {
 					_, annotationPresent := annotations["kubectl.kubernetes.io/last-applied-configuration"]
 					if annotationPresent {
 						annotations["kubectl.kubernetes.io/last-applied-configuration"] = "redacted"
 					}
-					list.Items[i].Object["annotations"] = annotations
+					secret.Object["annotations"] = annotations
 				}
 				break
 			}
