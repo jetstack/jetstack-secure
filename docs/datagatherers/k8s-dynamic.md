@@ -63,3 +63,28 @@ resource referenced in the `kind` for that datagatherer.
 
 There is an example `ClusterRole` and `ClusterRoleBinding` which can be found in
 [`./deployment/kubernetes/base/00-rbac.yaml`](./deployment/kubernetes/base/00-rbac.yaml).
+
+# Secrets
+
+Secrets can be gathered using the following config:
+
+```yaml
+- kind: "k8s-dynamic"
+  name: "k8s/secrets"
+  config:
+    resource-type:
+      version: v1
+      resource: secrets
+```
+
+Before Secrets are sent to the Preflight backend, they are redacted in the
+following way:
+
+- `last-applied-configuration` annotation is removed
+- For Secrets of type `kubernetes.io/tls`
+  - All keys under data other than the following are removed:
+    - tls.crt
+    - ca.crt
+- All other secrets have all keys removed from their data.
+
+**All resource other than Kubernetes Secrets are sent in full.**
