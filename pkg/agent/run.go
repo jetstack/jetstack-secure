@@ -239,16 +239,18 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 				})
 			}
 		}
-		dgError.ErrorFormat = func(es []error) string {
-			points := make([]string, len(es))
-			for i, err := range es {
-				points[i] = fmt.Sprintf("* %s", err)
+		if dgError != nil {
+			dgError.ErrorFormat = func(es []error) string {
+				points := make([]string, len(es))
+				for i, err := range es {
+					points[i] = fmt.Sprintf("* %s", err)
+				}
+				return fmt.Sprintf(
+					"The following %d data gatherer(s) have failed:\n\t%s",
+					len(es), strings.Join(points, "\n\t"))
 			}
-			return fmt.Sprintf(
-				"The following %d data gatherer(s) have failed:\n\t%s",
-				len(es), strings.Join(points, "\n\t"))
 		}
-		return dgError
+		return dgError.ErrorOrNil()
 	}
 
 	err := backoff.RetryNotify(getReadings, backOff, notify)
