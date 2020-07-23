@@ -27,9 +27,14 @@ func getObject(version, kind, name, namespace string) *unstructured.Unstructured
 	}
 }
 
-func getSecret(name, namespace string, data map[string]interface{}, withLastApplied bool) *unstructured.Unstructured {
+func getSecret(name, namespace string, data map[string]interface{}, isTLS bool, withLastApplied bool) *unstructured.Unstructured {
 	object := getObject("v1", "Secret", name, namespace)
 	object.Object["data"] = data
+
+	object.Object["type"] = "Opaque"
+	if isTLS {
+		object.Object["type"] = "kubernetes.io/tls"
+	}
 
 	// if we're creating a 'raw' secret as scraped that was applied by kubectl
 	if withLastApplied {
@@ -137,14 +142,37 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			objects: []runtime.Object{
 				getSecret("testsecret", "testns", map[string]interface{}{
 					"secretKey": "secretValue",
-				}, true),
+				}, false, true),
 				getSecret("anothertestsecret", "differentns", map[string]interface{}{
 					"secretNumber": "12345",
-				}, true),
+				}, false, true),
 			},
 			expected: asUnstructuredList(
-				getSecret("testsecret", "testns", map[string]interface{}{}, false),
-				getSecret("anothertestsecret", "differentns", map[string]interface{}{}, false),
+				getSecret("testsecret", "testns", map[string]interface{}{}, false, false),
+				getSecret("anothertestsecret", "differentns", map[string]interface{}{}, false, false),
+			),
+		},
+		"Secret of type kubernetes.io/tls should have crts and not keys": {
+			gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+			objects: []runtime.Object{
+				getSecret("testsecret", "testns", map[string]interface{}{
+					"tls.key": "secretValue",
+					"tls.crt": "value",
+					"ca.crt":  "value",
+				}, true, true),
+				getSecret("anothertestsecret", "differentns", map[string]interface{}{
+					"example.key": "secretValue",
+					"example.crt": "value",
+				}, true, true),
+			},
+			expected: asUnstructuredList(
+				// only tls.crt and ca.cert remain
+				getSecret("testsecret", "testns", map[string]interface{}{
+					"tls.crt": "value",
+					"ca.crt":  "value",
+				}, true, false),
+				// all other keys removed
+				getSecret("anothertestsecret", "differentns", map[string]interface{}{}, true, false),
 			),
 		},
 		"Foos in different namespaces should be returned if they are in the namespace list for the gatherer": {
