@@ -100,9 +100,12 @@ resource "google_project_iam_member" "preflight_agent_cluster_viewer" {
 
 # if using workload identity in GKE, use the following binding to allow the
 # agent to use the service account
-resource "google_project_iam_binding" "preflight_agent_workload_identity" {
-  project = var.project_id
+resource "google_service_account_iam_binding" "preflight_agent_workload_identity" {
+  service_account_id = google_service_account.preflight_agent_service_account.name
   role    = "roles/iam.workloadIdentityUser"
-  members = "serviceAccount:${var.project_id}.svc.id.goog[preflight/default]"
+  members = ["serviceAccount:${var.project_id}.svc.id.goog[preflight/agent]"]
 }
 ```
+
+An annotation specifing the gcp service account must be added to the agent's k8s service account
+`iam.gke.io/gcp-service-account=<gsa_name>@<gsa_project.iam.gserviceaccount.com>`
