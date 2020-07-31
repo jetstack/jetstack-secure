@@ -83,7 +83,7 @@ func init() {
 		&agent.BackoffMaxTime,
 		"backoff-max-time",
 		"",
-		5*time.Minute,
+		10*time.Minute,
 		"Max time for retrying failed data gatherers (given as XhYmZs).",
 	)
 
