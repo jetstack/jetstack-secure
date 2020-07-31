@@ -176,6 +176,8 @@ func gatherAndOutputData(ctx context.Context, config Config, preflightClient *cl
 		log.Println("Data saved locally to", OutputPath)
 	} else {
 		backOff := backoff.NewExponentialBackOff()
+		backOff.InitialInterval = 30 * time.Second
+		backOff.MaxInterval = 3 * time.Minute
 		backOff.MaxElapsedTime = BackoffMaxTime
 		post := func() error {
 			return postData(config, preflightClient, readings)
