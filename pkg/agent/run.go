@@ -70,10 +70,6 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 		log.Fatalf("Failed to parse config file: %s", err)
 	}
 
-	if config.Token != "" {
-		config.Token = "(redacted)"
-	}
-
 	baseURL := config.Server
 	if baseURL == "" {
 		log.Printf("Using deprecated Endpoint configuration. User Server instead.")
