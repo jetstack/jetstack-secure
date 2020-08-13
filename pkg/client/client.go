@@ -24,23 +24,18 @@ type PreflightClient struct {
 
 	baseURL string
 
-	// basicAuthToken will be used instead of using OAuth2 based authentication if userID is not set.
-	// It can be empty, meaning that no authentication will be used.
-	basicAuthToken string
-
 	agentMetadata *api.AgentMetadata
 }
 
-// NewWithBasicAuth creates a new client with basic authentication.
-func NewWithBasicAuth(agentMetadata *api.AgentMetadata, authToken, baseURL string) (*PreflightClient, error) {
+// NewWithNoAuth creates a new client with no authentication.
+func NewWithNoAuth(agentMetadata *api.AgentMetadata, baseURL string) (*PreflightClient, error) {
 	if baseURL == "" {
 		return nil, fmt.Errorf("cannot create PreflightClient: baseURL cannot be empty")
 	}
 
 	return &PreflightClient{
-		agentMetadata:  agentMetadata,
-		basicAuthToken: authToken,
-		baseURL:        baseURL,
+		agentMetadata: agentMetadata,
+		baseURL:       baseURL,
 	}, nil
 }
 

@@ -11,8 +11,9 @@ import (
 
 func TestValidConfigLoad(t *testing.T) {
 	configFileContents := `
-      token: "12345"
       server: "http://localhost:8080"
+      organization_id: "example"
+      cluster_id: "example-cluster"
       data-gatherers:
       - name: d1
         kind: dummy
@@ -28,8 +29,9 @@ func TestValidConfigLoad(t *testing.T) {
 	}
 
 	expected := Config{
-		Token:  "12345",
-		Server: "http://localhost:8080",
+		Server:         "http://localhost:8080",
+		OrganizationID: "example",
+		ClusterID:      "example-cluster",
 		DataGatherers: []dataGatherer{
 			dataGatherer{
 				Name: "d1",
@@ -54,7 +56,8 @@ func TestValidConfigWithEndpointLoad(t *testing.T) {
         host: example.com
         path: api/v1/data
       schedule: "* * * * *"
-      token: "12345"
+      organization_id: "example"
+      cluster_id: "example-cluster"
       data-gatherers:
       - name: d1
         kind: dummy
@@ -73,8 +76,9 @@ func TestValidConfigWithEndpointLoad(t *testing.T) {
 			Host:     "example.com",
 			Path:     "api/v1/data",
 		},
-		Schedule: "* * * * *",
-		Token:    "12345",
+		Schedule:       "* * * * *",
+		OrganizationID: "example",
+		ClusterID:      "example-cluster",
 		DataGatherers: []dataGatherer{
 			dataGatherer{
 				Name: "d1",
@@ -132,7 +136,8 @@ func TestPartialMissingConfigError(t *testing.T) {
         host: example.com
         path: /api/v1/data
       schedule: "* * * * *"
-      token: "12345"
+      organization_id: "example"
+      cluster_id: "example-cluster"
       data-gatherers:
         - kind: dummy`))
 
@@ -189,7 +194,6 @@ func TestInvalidDataGathered(t *testing.T) {
         host: example.com
         path: /api/v1/data
       schedule: "* * * * *"
-      token: "12345"
       data-gatherers:
         - kind: "foo"`))
 

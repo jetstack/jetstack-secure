@@ -10,9 +10,7 @@ import (
 // Post performs a post request.
 func (c *PreflightClient) Post(path string, body io.Reader) (*http.Response, error) {
 	var bearer string
-	if !c.usingOAuth2() {
-		bearer = c.basicAuthToken
-	} else {
+	if c.usingOAuth2() {
 		token, err := c.getValidAccessToken()
 		if err != nil {
 			return nil, err

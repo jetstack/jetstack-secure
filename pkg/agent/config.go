@@ -18,9 +18,6 @@ import (
 // Config wraps the options for a run of the agent.
 type Config struct {
 	Schedule string `yaml:"schedule"`
-	// Token is the agent token if using basic authentication.
-	// If not provided it will assume OAuth2 authentication.
-	Token string `yaml:"token"`
 	// Deprecated: Endpoint is being replaced with Server.
 	Endpoint Endpoint `yaml:"endpoint"`
 	// Server is the base url for the Preflight server.
@@ -130,13 +127,11 @@ func (c *Config) Dump() (string, error) {
 func (c *Config) validate() error {
 	var result *multierror.Error
 
-	if c.Token == "" {
-		if c.OrganizationID == "" {
-			result = multierror.Append(result, fmt.Errorf("organization_id is required"))
-		}
-		if c.ClusterID == "" {
-			result = multierror.Append(result, fmt.Errorf("cluster_id is required"))
-		}
+	if c.OrganizationID == "" {
+		result = multierror.Append(result, fmt.Errorf("organization_id is required"))
+	}
+	if c.ClusterID == "" {
+		result = multierror.Append(result, fmt.Errorf("cluster_id is required"))
 	}
 
 	if c.Server != "" {
