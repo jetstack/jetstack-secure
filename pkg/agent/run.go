@@ -24,9 +24,6 @@ import (
 // ConfigFilePath is where the agent will try to load the configuration from
 var ConfigFilePath string
 
-// AuthToken is the authorization token that will be used for API calls
-var AuthToken string
-
 // Period is the time waited between scans
 var Period time.Duration
 
@@ -71,13 +68,6 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 	config, err := ParseConfig(b)
 	if err != nil {
 		log.Fatalf("Failed to parse config file: %s", err)
-	}
-
-	// AuthToken flag takes preference over token in configuration file.
-	if AuthToken == "" {
-		AuthToken = config.Token
-	} else {
-		log.Printf("Using authorization token from flag.")
 	}
 
 	if config.Token != "" {
@@ -128,11 +118,8 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 			log.Fatalf("Error creating preflight client: %+v", err)
 		}
 	} else {
-		if AuthToken == "" {
-			log.Fatalf("Missing authorization token. Cannot continue.")
-		}
-
-		preflightClient, err = client.NewWithBasicAuth(agentMetadata, AuthToken, baseURL)
+		log.Printf("No credentials file was specified. Starting client with no authentication...")
+		preflightClient, err = client.NewWithNoAuth(agentMetadata, baseURL)
 		if err != nil {
 			log.Fatalf("Error creating preflight client: %+v", err)
 		}
