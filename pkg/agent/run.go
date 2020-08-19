@@ -42,6 +42,9 @@ var InputPath string
 // BackoffMaxTime is the maximum time for which data gatherers will be retried
 var BackoffMaxTime time.Duration
 
+// StrictMode flag causes the agent to fail at the first attempt
+var StrictMode bool
+
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
@@ -199,7 +202,7 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 	completedDataGatherers := make(map[string]bool, len(dataGatherers))
 
 	// Fetch from all datagatherers
-	getReadings := func() error {
+	getReadings := func() *multierror.Error {
 		var dgError *multierror.Error
 		for k, dg := range dataGatherers {
 			if completedDataGatherers[k] {
@@ -235,16 +238,30 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 					len(es), strings.Join(points, "\n\t"))
 			}
 		}
-		return dgError.ErrorOrNil()
+		return dgError
 	}
 
-	err := backoff.RetryNotify(getReadings, backOff, notify)
-	if err != nil {
-		log.Println(err)
-		log.Printf("This will not be retried")
+	if StrictMode {
+		multiError := getReadings()
+		// check all the errors and find if it's due to a missing dg or not
+		for _, err := range multiError.WrappedErrors() {
+			if !strings.Contains(err.Error(), "the server could not find the requested resource") {
+				log.Fatalf("%v", err)
+			}
+		}
+		if err := multiError.ErrorOrNil(); err != nil {
+			log.Printf("%v", err)
+		}
 	} else {
-		log.Printf("All data gatherers successfull")
+		err := backoff.RetryNotify(func() error { return getReadings().ErrorOrNil() }, backOff, notify)
+		if err != nil {
+			log.Println(err)
+			log.Printf("This will not be retried")
+		} else {
+			log.Printf("All data gatherers successfull")
+		}
 	}
+
 	return readings
 }
 

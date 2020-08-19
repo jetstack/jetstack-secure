@@ -79,5 +79,12 @@ func init() {
 		10*time.Minute,
 		"Max time for retrying failed data gatherers (given as XhYmZs).",
 	)
+	agentCmd.PersistentFlags().BoolVarP(
+		&agent.StrictMode,
+		"strict",
+		"",
+		false,
+		"Runs agent in strict mode. No retry attempts will be made for a missing data gatherer's data.",
+	)
 
 }
