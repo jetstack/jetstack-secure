@@ -17,6 +17,7 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/version"
 	"github.com/spf13/cobra"
 )
@@ -210,8 +211,20 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 			}
 			dgData, err := dg.Fetch()
 			if err != nil {
-				err = fmt.Errorf("%s: %v", k, err)
-				dgError = multierror.Append(dgError, err)
+				if _, ok := err.(*k8s.CRDNotFoundError); ok {
+					err := k8s.CRDNotFoundError{
+						Err:          err.Error(),
+						DataGatherer: k,
+					}
+					if StrictMode {
+						dgError = multierror.Append(dgError, &err)
+					} else {
+						log.Println(err.Error())
+					}
+				} else {
+					err = fmt.Errorf("%s: %v", k, err)
+					dgError = multierror.Append(dgError, err)
+				}
 				continue
 			} else {
 				completedDataGatherers[k] = true
@@ -243,14 +256,8 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 
 	if StrictMode {
 		multiError := getReadings()
-		// check all the errors and find if it's due to a missing dg or not
-		for _, err := range multiError.WrappedErrors() {
-			if !strings.Contains(err.Error(), "the server could not find the requested resource") {
-				log.Fatalf("%v", err)
-			}
-		}
 		if err := multiError.ErrorOrNil(); err != nil {
-			log.Printf("%v", err)
+			log.Fatalf("%v", err)
 		}
 	} else {
 		err := backoff.RetryNotify(func() error { return getReadings().ErrorOrNil() }, backOff, notify)

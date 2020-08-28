@@ -7,6 +7,7 @@ import (
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/pkg/errors"
+	statusError "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -118,6 +119,19 @@ type DataGathererDynamic struct {
 	fieldSelector string
 }
 
+// CRDNotFoundError is the error type if a CRD is not found
+type CRDNotFoundError struct {
+	Err          string
+	DataGatherer string
+}
+
+func (e *CRDNotFoundError) Error() string {
+	if e.DataGatherer != "" {
+		return fmt.Sprintf("%s: %s", e.DataGatherer, e.Err)
+	}
+	return fmt.Sprintf("unknown data gatherer: %s", e.Err)
+}
+
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
 func (g *DataGathererDynamic) Fetch() (interface{}, error) {
@@ -139,7 +153,12 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 			FieldSelector: g.fieldSelector,
 		})
 		if err != nil {
-			return nil, errors.WithStack(err)
+			if statusErr, ok := err.(*statusError.StatusError); ok {
+				if statusErr.Status().Code == 404 {
+					return nil, &CRDNotFoundError{Err: fmt.Sprintf("%v", err)}
+				}
+			}
+			return nil, err
 		}
 		list.Object = namespaceList.Object
 		list.Items = append(list.Items, namespaceList.Items...)
