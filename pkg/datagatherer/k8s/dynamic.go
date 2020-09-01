@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/datagatherer/local"
 	"github.com/pkg/errors"
 	statusError "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -119,15 +120,6 @@ type DataGathererDynamic struct {
 	fieldSelector string
 }
 
-// CRDNotFoundError is the error type if a CRD is not found
-type CRDNotFoundError struct {
-	Err string
-}
-
-func (e *CRDNotFoundError) Error() string {
-	return fmt.Sprintf("%s", e.Err)
-}
-
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
 func (g *DataGathererDynamic) Fetch() (interface{}, error) {
@@ -151,7 +143,7 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 		if err != nil {
 			if statusErr, ok := err.(*statusError.StatusError); ok {
 				if statusErr.Status().Code == 404 {
-					return nil, &CRDNotFoundError{Err: err.Error()}
+					return nil, &local.ConfigError{Err: err.Error()}
 				}
 			}
 			return nil, err
