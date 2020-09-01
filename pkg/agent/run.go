@@ -17,7 +17,7 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
-	"github.com/jetstack/preflight/pkg/datagatherer/local"
+	dgerror "github.com/jetstack/preflight/pkg/datagatherer/error"
 	"github.com/jetstack/preflight/pkg/version"
 	"github.com/spf13/cobra"
 )
@@ -211,7 +211,7 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 			}
 			dgData, err := dg.Fetch()
 			if err != nil {
-				if _, ok := err.(*local.ConfigError); ok {
+				if _, ok := err.(*dgerror.ConfigError); ok {
 					if StrictMode {
 						err = fmt.Errorf("%s: %v", k, err)
 						dgError = multierror.Append(dgError, err)
@@ -262,7 +262,7 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 			log.Println(err)
 			log.Printf("This will not be retried")
 		} else {
-			log.Printf("All data gatherers successfull")
+			log.Printf("Finished gathering data")
 		}
 	}
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
-	"github.com/jetstack/preflight/pkg/datagatherer/local"
+	dgerror "github.com/jetstack/preflight/pkg/datagatherer/error"
 	"github.com/pkg/errors"
 	statusError "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -143,7 +143,7 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 		if err != nil {
 			if statusErr, ok := err.(*statusError.StatusError); ok {
 				if statusErr.Status().Code == 404 {
-					return nil, &local.ConfigError{Err: err.Error()}
+					return nil, &dgerror.ConfigError{Err: err.Error()}
 				}
 			}
 			return nil, err
