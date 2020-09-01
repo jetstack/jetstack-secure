@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	dgerror "github.com/jetstack/preflight/pkg/datagatherer/error"
 	"github.com/pkg/errors"
+	statusError "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -139,7 +141,12 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 			FieldSelector: g.fieldSelector,
 		})
 		if err != nil {
-			return nil, errors.WithStack(err)
+			if statusErr, ok := err.(*statusError.StatusError); ok {
+				if statusErr.Status().Code == 404 {
+					return nil, &dgerror.ConfigError{Err: err.Error()}
+				}
+			}
+			return nil, err
 		}
 		list.Object = namespaceList.Object
 		list.Items = append(list.Items, namespaceList.Items...)

@@ -17,6 +17,7 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	dgerror "github.com/jetstack/preflight/pkg/datagatherer/error"
 	"github.com/jetstack/preflight/pkg/version"
 	"github.com/spf13/cobra"
 )
@@ -41,6 +42,9 @@ var InputPath string
 
 // BackoffMaxTime is the maximum time for which data gatherers will be retried
 var BackoffMaxTime time.Duration
+
+// StrictMode flag causes the agent to fail at the first attempt
+var StrictMode bool
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
@@ -207,8 +211,17 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 			}
 			dgData, err := dg.Fetch()
 			if err != nil {
-				err = fmt.Errorf("%s: %v", k, err)
-				dgError = multierror.Append(dgError, err)
+				if _, ok := err.(*dgerror.ConfigError); ok {
+					if StrictMode {
+						err = fmt.Errorf("%s: %v", k, err)
+						dgError = multierror.Append(dgError, err)
+					} else {
+						log.Printf("%s: %v", k, err)
+					}
+				} else {
+					err = fmt.Errorf("%s: %v", k, err)
+					dgError = multierror.Append(dgError, err)
+				}
 				continue
 			} else {
 				completedDataGatherers[k] = true
@@ -238,13 +251,21 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 		return dgError.ErrorOrNil()
 	}
 
-	err := backoff.RetryNotify(getReadings, backOff, notify)
-	if err != nil {
-		log.Println(err)
-		log.Printf("This will not be retried")
+	if StrictMode {
+		err := getReadings()
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
 	} else {
-		log.Printf("All data gatherers successfull")
+		err := backoff.RetryNotify(func() error { return getReadings() }, backOff, notify)
+		if err != nil {
+			log.Println(err)
+			log.Printf("This will not be retried")
+		} else {
+			log.Printf("Finished gathering data")
+		}
 	}
+
 	return readings
 }
 
