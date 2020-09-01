@@ -121,15 +121,11 @@ type DataGathererDynamic struct {
 
 // CRDNotFoundError is the error type if a CRD is not found
 type CRDNotFoundError struct {
-	Err          string
-	DataGatherer string
+	Err string
 }
 
 func (e *CRDNotFoundError) Error() string {
-	if e.DataGatherer != "" {
-		return fmt.Sprintf("%s: %s", e.DataGatherer, e.Err)
-	}
-	return fmt.Sprintf("unknown data gatherer: %s", e.Err)
+	return fmt.Sprintf("%s", e.Err)
 }
 
 // Fetch will fetch the requested data from the apiserver, or return an error
@@ -155,7 +151,7 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 		if err != nil {
 			if statusErr, ok := err.(*statusError.StatusError); ok {
 				if statusErr.Status().Code == 404 {
-					return nil, &CRDNotFoundError{Err: fmt.Sprintf("%v", err)}
+					return nil, &CRDNotFoundError{Err: err.Error()}
 				}
 			}
 			return nil, err

@@ -203,7 +203,7 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 	completedDataGatherers := make(map[string]bool, len(dataGatherers))
 
 	// Fetch from all datagatherers
-	getReadings := func() *multierror.Error {
+	getReadings := func() error {
 		var dgError *multierror.Error
 		for k, dg := range dataGatherers {
 			if completedDataGatherers[k] {
@@ -212,14 +212,11 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 			dgData, err := dg.Fetch()
 			if err != nil {
 				if _, ok := err.(*k8s.CRDNotFoundError); ok {
-					err := k8s.CRDNotFoundError{
-						Err:          err.Error(),
-						DataGatherer: k,
-					}
 					if StrictMode {
-						dgError = multierror.Append(dgError, &err)
+						err = fmt.Errorf("%s: %v", k, err)
+						dgError = multierror.Append(dgError, err)
 					} else {
-						log.Println(err.Error())
+						log.Printf("%s: %v", k, err)
 					}
 				} else {
 					err = fmt.Errorf("%s: %v", k, err)
@@ -251,16 +248,16 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 					len(es), strings.Join(points, "\n\t"))
 			}
 		}
-		return dgError
+		return dgError.ErrorOrNil()
 	}
 
 	if StrictMode {
-		multiError := getReadings()
-		if err := multiError.ErrorOrNil(); err != nil {
+		err := getReadings()
+		if err != nil {
 			log.Fatalf("%v", err)
 		}
 	} else {
-		err := backoff.RetryNotify(func() error { return getReadings().ErrorOrNil() }, backOff, notify)
+		err := backoff.RetryNotify(func() error { return getReadings() }, backOff, notify)
 		if err != nil {
 			log.Println(err)
 			log.Printf("This will not be retried")
