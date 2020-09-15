@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"strings"
@@ -67,18 +68,20 @@ func asUnstructuredList(items ...*unstructured.Unstructured) *unstructured.Unstr
 }
 
 func TestNewDataGathererWithClient(t *testing.T) {
+	ctx := context.Background()
 	config := ConfigDynamic{
 		IncludeNamespaces:    []string{"a"},
 		GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 	}
 	cl := fake.NewSimpleDynamicClient(runtime.NewScheme())
-	dg, err := config.newDataGathererWithClient(cl)
+	dg, err := config.newDataGathererWithClient(ctx, cl)
 
 	if err != nil {
 		t.Errorf("expected no error but got: %v", err)
 	}
 
 	expected := &DataGathererDynamic{
+		ctx:                  ctx,
 		cl:                   cl,
 		groupVersionResource: config.GroupVersionResource,
 		// it's important that the namespaces are set as the IncludeNamespaces
@@ -129,50 +132,50 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 		"Foos in different namespaces should be returned if no namespace field is set": {
 			gvr: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 			objects: []runtime.Object{
-				getObject("foobar/v1", "Foo", "testfoo", "testns"),
-				getObject("foobar/v1", "Foo", "testfoo", "nottestns"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns1"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns2"),
 			},
 			expected: asUnstructuredList(
-				getObject("foobar/v1", "Foo", "testfoo", "testns"),
-				getObject("foobar/v1", "Foo", "testfoo", "nottestns"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns1"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns2"),
 			),
 		},
 		"Secret resources should have data removed": {
 			gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
 			objects: []runtime.Object{
-				getSecret("testsecret", "testns", map[string]interface{}{
+				getSecret("testsecret", "testns1", map[string]interface{}{
 					"secretKey": "secretValue",
 				}, false, true),
-				getSecret("anothertestsecret", "differentns", map[string]interface{}{
+				getSecret("anothertestsecret", "testns2", map[string]interface{}{
 					"secretNumber": "12345",
 				}, false, true),
 			},
 			expected: asUnstructuredList(
-				getSecret("testsecret", "testns", map[string]interface{}{}, false, false),
-				getSecret("anothertestsecret", "differentns", map[string]interface{}{}, false, false),
+				getSecret("testsecret", "testns1", map[string]interface{}{}, false, false),
+				getSecret("anothertestsecret", "testns2", map[string]interface{}{}, false, false),
 			),
 		},
 		"Secret of type kubernetes.io/tls should have crts and not keys": {
 			gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
 			objects: []runtime.Object{
-				getSecret("testsecret", "testns", map[string]interface{}{
+				getSecret("testsecret", "testns1", map[string]interface{}{
 					"tls.key": "secretValue",
 					"tls.crt": "value",
 					"ca.crt":  "value",
 				}, true, true),
-				getSecret("anothertestsecret", "differentns", map[string]interface{}{
+				getSecret("anothertestsecret", "testns2", map[string]interface{}{
 					"example.key": "secretValue",
 					"example.crt": "value",
 				}, true, true),
 			},
 			expected: asUnstructuredList(
 				// only tls.crt and ca.cert remain
-				getSecret("testsecret", "testns", map[string]interface{}{
+				getSecret("testsecret", "testns1", map[string]interface{}{
 					"tls.crt": "value",
 					"ca.crt":  "value",
 				}, true, false),
 				// all other keys removed
-				getSecret("anothertestsecret", "differentns", map[string]interface{}{}, true, false),
+				getSecret("anothertestsecret", "testns2", map[string]interface{}{}, true, false),
 			),
 		},
 		"Foos in different namespaces should be returned if they are in the namespace list for the gatherer": {
