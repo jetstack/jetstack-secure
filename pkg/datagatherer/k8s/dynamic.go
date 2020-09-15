@@ -82,15 +82,16 @@ func (c *ConfigDynamic) NewDataGatherer(ctx context.Context) (datagatherer.DataG
 		return nil, err
 	}
 
-	return c.newDataGathererWithClient(cl)
+	return c.newDataGathererWithClient(ctx, cl)
 }
 
-func (c *ConfigDynamic) newDataGathererWithClient(cl dynamic.Interface) (datagatherer.DataGatherer, error) {
+func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynamic.Interface) (datagatherer.DataGatherer, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
 	return &DataGathererDynamic{
+		ctx:                  ctx,
 		cl:                   cl,
 		groupVersionResource: c.GroupVersionResource,
 		fieldSelector:        generateFieldSelector(c.ExcludeNamespaces),
@@ -105,6 +106,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(cl dynamic.Interface) (datagat
 // This is to allow us to support arbitrary CRDs and resources that Preflight
 // does not have registered as part of its `runtime.Scheme`.
 type DataGathererDynamic struct {
+	ctx context.Context
 	// The 'dynamic' client used for fetching data.
 	cl dynamic.Interface
 	// groupVersionResource is the name of the API group, version and resource
@@ -137,7 +139,7 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 
 	for _, namespace := range fetchNamespaces {
 		resourceInterface := namespaceResourceInterface(g.cl.Resource(g.groupVersionResource), namespace)
-		namespaceList, err := resourceInterface.List(metav1.ListOptions{
+		namespaceList, err := resourceInterface.List(g.ctx, metav1.ListOptions{
 			FieldSelector: g.fieldSelector,
 		})
 		if err != nil {
