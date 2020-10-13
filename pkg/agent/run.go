@@ -108,7 +108,8 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 	}
 
 	agentMetadata := &api.AgentMetadata{
-		Version: version.PreflightVersion,
+		Version:   version.PreflightVersion,
+		ClusterID: config.ClusterID,
 	}
 	var preflightClient *client.PreflightClient
 	if credentials != nil {

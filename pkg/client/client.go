@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"time"
 
 	"github.com/jetstack/preflight/api"
 )
@@ -77,8 +78,9 @@ func (c *PreflightClient) usingOAuth2() bool {
 // PostDataReadings sends a slice of readings to Preflight.
 func (c *PreflightClient) PostDataReadings(orgID string, readings []*api.DataReading) error {
 	payload := api.DataReadingsPost{
-		AgentMetadata: c.agentMetadata,
-		DataReadings:  readings,
+		AgentMetadata:  c.agentMetadata,
+		DataGatherTime: time.Now(),
+		DataReadings:   readings,
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
