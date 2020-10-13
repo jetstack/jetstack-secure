@@ -79,7 +79,7 @@ func (c *PreflightClient) usingOAuth2() bool {
 func (c *PreflightClient) PostDataReadings(orgID string, readings []*api.DataReading) error {
 	payload := api.DataReadingsPost{
 		AgentMetadata:  c.agentMetadata,
-		DataGatherTime: time.Now(),
+		DataGatherTime: time.Now().UTC(),
 		DataReadings:   readings,
 	}
 	data, err := json.Marshal(payload)
