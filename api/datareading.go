@@ -1,9 +1,13 @@
 package api
 
+import "time"
+
 // DataReadingsPost is the payload in the upload request.
 type DataReadingsPost struct {
 	AgentMetadata *AgentMetadata `json:"agent_metadata"`
-	DataReadings  []*DataReading `json:"data_readings"`
+	// DataGatherTime represents the time that the data readings were gathered
+	DataGatherTime time.Time      `json:"data_gather_time"`
+	DataReadings   []*DataReading `json:"data_readings"`
 }
 
 // DataReading is the output of a DataGatherer.
