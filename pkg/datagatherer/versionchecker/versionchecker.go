@@ -66,14 +66,14 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		case "gcr":
 			data, err := loadKeysFromPaths([]string{"token"}, v.Params)
 			if err != nil {
-				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
 			c.VersionCheckerClientOptions.GCR.Token = data["token"]
 		case "acr":
 			data, err := loadKeysFromPaths([]string{"username", "password", "refresh_token"}, v.Params)
 			if err != nil {
-				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
 			c.VersionCheckerClientOptions.ACR.Username = data["username"]
@@ -82,7 +82,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		case "ecr":
 			data, err := loadKeysFromPaths([]string{"access_key_id", "secret_access_key", "session_token"}, v.Params)
 			if err != nil {
-				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
 			c.VersionCheckerClientOptions.ECR.AccessKeyID = data["access_key_id"]
@@ -91,7 +91,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		case "docker":
 			data, err := loadKeysFromPaths([]string{"username", "password", "token"}, v.Params)
 			if err != nil {
-				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
 			c.VersionCheckerClientOptions.Docker.Username = data["username"]
@@ -100,7 +100,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		case "quay":
 			data, err := loadKeysFromPaths([]string{"token"}, v.Params)
 			if err != nil {
-				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
 			c.VersionCheckerClientOptions.Quay.Token = data["token"]
@@ -108,7 +108,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			// currently, version checker only supports multiple selfhosted registries
 			data, err := loadKeysFromPaths([]string{"host", "username", "password", "bearer"}, v.Params)
 			if err != nil {
-				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
 			opts := selfhosted.Options{
