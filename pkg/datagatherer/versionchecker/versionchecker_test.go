@@ -58,12 +58,12 @@ registries:
     token: fixtures/example_secret
 - kind: selfhosted
   params:
-    host: fixtures/example_secret
+    host: fixtures/example_host
     username: fixtures/example_secret
     password: fixtures/example_secret
 - kind: selfhosted
   params:
-    host: fixtures/example_secret
+    host: fixtures/example_host_2
     bearer: fixtures/example_secret
 `
 
@@ -102,11 +102,11 @@ registries:
 		t.Errorf("GCR token does not match: got=%+v want=%+v", got, want)
 	}
 
-	if got, want := cfg.VersionCheckerClientOptions.Selfhosted["selfhosted-6"].Password, "pa55w0rd"; got != want {
+	if got, want := cfg.VersionCheckerClientOptions.Selfhosted["example.com"].Password, "pa55w0rd"; got != want {
 		t.Errorf("Selfhosted 6 password does not match: got=%+v want=%+v", got, want)
 	}
 
-	if got, want := cfg.VersionCheckerClientOptions.Selfhosted["selfhosted-7"].Bearer, "pa55w0rd"; got != want {
+	if got, want := cfg.VersionCheckerClientOptions.Selfhosted["example.net"].Bearer, "pa55w0rd"; got != want {
 		t.Errorf("Selfhosted 7 bearer does not match: got=%+v want=%+v", got, want)
 	}
 }

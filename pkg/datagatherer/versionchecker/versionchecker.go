@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -144,7 +145,16 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 				Host:     data["host"],
 			}
 
-			c.VersionCheckerClientOptions.Selfhosted[fmt.Sprintf("selfhosted-%d", i+1)] = &opts
+			if len(opts.Host) == 0 {
+				return fmt.Errorf("failed to init selfhosted dg, host is required (registry %d/%d): %s", i+1, len(aux.Registries), err)
+			}
+
+			parsedURL, err := url.Parse(opts.Host)
+			if err != nil {
+				return fmt.Errorf("failed to parse host %s (registry %d/%d): %s", opts.Host, i+1, len(aux.Registries), err)
+			}
+
+			c.VersionCheckerClientOptions.Selfhosted[parsedURL.Host] = &opts
 		default:
 			return fmt.Errorf("registry %d/%d was an unknown kind (%s)", i+1, len(aux.Registries), v.Kind)
 		}
