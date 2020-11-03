@@ -26,8 +26,9 @@ import (
 type Config struct {
 	// the version checker dg will also gather pods and so has the same options
 	// as the dynamic datagatherer
-	Dynamic                      k8s.ConfigDynamic
-	VersionCheckerClientOptions  vcclient.Options
+	Dynamic                     k8s.ConfigDynamic
+	VersionCheckerClientOptions vcclient.Options
+	// Currently unused, but keeping to allow future config of VersionChecker
 	VersionCheckerCheckerOptions vcapi.Options
 }
 
