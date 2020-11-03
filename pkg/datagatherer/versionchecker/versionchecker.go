@@ -20,7 +20,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // Config is the configuration for a VersionChecker DataGatherer.
@@ -147,8 +146,8 @@ func loadKeysFromPaths(keys []string, params map[string]string) (map[string]stri
 			// config is missing
 			continue
 		}
-		p, _ := os.Getwd()
-		file, err := os.Open(p + "/" + path)
+
+		file, err := os.Open(path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load file for %s at %s: %s", k, path, err)
 		}
@@ -174,12 +173,6 @@ func (c *Config) validate() error {
 func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
-	}
-
-	// ensure that the k8s dg will always get pods
-	// TODO remove, comes from config
-	c.Dynamic.GroupVersionResource = schema.GroupVersionResource{
-		Group: "", Version: "v1", Resource: "pods",
 	}
 
 	// create the k8s DataGatherer to use when collecting pods

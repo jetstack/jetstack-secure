@@ -14,9 +14,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
-	vcclient "github.com/jetstack/version-checker/pkg/client"
-	vcselfhosted "github.com/jetstack/version-checker/pkg/client/selfhosted"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -122,25 +119,37 @@ func TestVersionCheckerFetch(t *testing.T) {
 		t.Fatalf("failed to parse test server url %s", localServer.URL)
 	}
 
+	// ensure there is a valid kubeconfig in a tmp file for the dynamic dg
 	kubeConfig, err := createKubeConfigWithServer(parsedURL.String())
 	if err != nil {
 		t.Fatalf("failed to create temp kubeconfig: %s", err)
 	}
 	defer os.Remove(kubeConfig.Name())
 
+	// ensure there is a valid host file, this would be loaded from a secret
+	// mount in an agent pod
+	hostConfig, err := createDgHostConfigWithServer("http://" + parsedURL.Host)
+	if err != nil {
+		t.Fatalf("failed to create temp kubeconfig: %s", err)
+	}
+	defer os.Remove(hostConfig.Name())
+
 	// create the config for the DataGatherer, wraps config for Dynamic client
 	// and version checker
-	config := Config{
-		Dynamic: k8s.ConfigDynamic{
-			KubeConfigPath: kubeConfig.Name(),
-		},
-		VersionCheckerClientOptions: vcclient.Options{
-			Selfhosted: map[string]*vcselfhosted.Options{
-				"test": {
-					Host: "http://" + parsedURL.Host,
-				},
-			},
-		},
+	textCfg := fmt.Sprintf(`
+k8s:
+  kubeconfig: %s
+registries:
+- kind: selfhosted
+  params:
+    host: %s
+    bearer: fixtures/example_secret
+`, kubeConfig.Name(), hostConfig.Name())
+
+	config := Config{}
+	err = yaml.Unmarshal([]byte(textCfg), &config)
+	if err != nil {
+		t.Fatalf("failed to load config: %+v", err)
 	}
 
 	dg, err := config.NewDataGatherer(context.Background())
@@ -223,6 +232,24 @@ func TestVersionCheckerFetch(t *testing.T) {
 	if expectedResultsJSON != string(resultsJSON) {
 		t.Fatalf("results json does not match: %s vs %s", resultsJSON, expectedResultsJSON)
 	}
+}
+
+// config must be loaded from file paths, this creates a tmp file with the host
+// to load in for the DataGatherer
+func createDgHostConfigWithServer(server string) (*os.File, error) {
+	tmpfile, err := ioutil.TempFile("", "example")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a tmpfile for host")
+	}
+
+	if _, err := tmpfile.Write([]byte(server)); err != nil {
+		return nil, fmt.Errorf("failed to write to tmp host file")
+	}
+	if err := tmpfile.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close tmp host file after writing")
+	}
+
+	return tmpfile, nil
 }
 
 func createKubeConfigWithServer(server string) (*os.File, error) {
