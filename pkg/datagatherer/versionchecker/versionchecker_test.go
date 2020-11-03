@@ -11,12 +11,106 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	vcclient "github.com/jetstack/version-checker/pkg/client"
 	vcselfhosted "github.com/jetstack/version-checker/pkg/client/selfhosted"
+	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
+
+func TestUnmarshalConfig(t *testing.T) {
+	textCfg := `
+k8s:
+  kubeconfig: "/home/someone/.kube/config"
+  resource-type:
+    # not usually set by users, but here to test defaulting
+    group: "g"
+    version: "v"
+    resource: "r"
+  exclude-namespaces:
+  - kube-system
+  include-namespaces:
+  # invalid to have in addition to exclude, but used to get config loading
+  - default
+registries:
+- kind: acr
+  params:
+    username: fixtures/example_secret
+    password: fixtures/example_secret
+    refresh_token: fixtures/example_secret
+- kind: ecr
+  params:
+    access_key_id: fixtures/example_secret
+    secret_access_key: fixtures/example_secret
+    session_token: fixtures/example_secret
+- kind: gcr
+  params:
+    token: fixtures/example_secret
+- kind: docker
+  params:
+    username: fixtures/example_secret
+    password: fixtures/example_secret
+    token: fixtures/example_secret
+- kind: quay
+  params:
+    token: fixtures/example_secret
+- kind: selfhosted
+  params:
+    host: fixtures/example_secret
+    username: fixtures/example_secret
+    password: fixtures/example_secret
+- kind: selfhosted
+  params:
+    host: fixtures/example_secret
+    bearer: fixtures/example_secret
+`
+
+	expectedGVR := schema.GroupVersionResource{
+		Group:    "",
+		Version:  "v1",
+		Resource: "pods", // should use pods even if other gvr set
+	}
+
+	expectedExcludeNamespaces := []string{"kube-system"}
+	expectedIncludeNamespaces := []string{"default"}
+
+	cfg := Config{}
+	err := yaml.Unmarshal([]byte(textCfg), &cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+
+	if got, want := cfg.Dynamic.KubeConfigPath, "/home/someone/.kube/config"; got != want {
+		t.Errorf("KubeConfigPath does not match: got=%q; want=%q", got, want)
+	}
+
+	if got, want := cfg.Dynamic.GroupVersionResource, expectedGVR; !reflect.DeepEqual(got, want) {
+		t.Errorf("GroupVersionResource does not match: got=%+v want=%+v", got, want)
+	}
+
+	if got, want := cfg.Dynamic.ExcludeNamespaces, expectedExcludeNamespaces; !reflect.DeepEqual(got, want) {
+		t.Errorf("ExcludeNamespaces does not match: got=%+v want=%+v", got, want)
+	}
+
+	if got, want := cfg.Dynamic.IncludeNamespaces, expectedIncludeNamespaces; !reflect.DeepEqual(got, want) {
+		t.Errorf("IncludeNamespaces does not match: got=%+v want=%+v", got, want)
+	}
+
+	if got, want := cfg.VersionCheckerClientOptions.GCR.Token, "pa55w0rd"; got != want {
+		t.Errorf("GCR token does not match: got=%+v want=%+v", got, want)
+	}
+
+	if got, want := cfg.VersionCheckerClientOptions.Selfhosted["selfhosted-6"].Password, "pa55w0rd"; got != want {
+		t.Errorf("Selfhosted 6 password does not match: got=%+v want=%+v", got, want)
+	}
+
+	if got, want := cfg.VersionCheckerClientOptions.Selfhosted["selfhosted-7"].Bearer, "pa55w0rd"; got != want {
+		t.Errorf("Selfhosted 7 bearer does not match: got=%+v want=%+v", got, want)
+	}
+}
 
 func TestVersionCheckerFetch(t *testing.T) {
 	// server to handle requests made my version checker and k8s dynamic dg

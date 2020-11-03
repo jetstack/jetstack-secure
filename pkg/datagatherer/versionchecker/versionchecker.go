@@ -3,13 +3,16 @@ package versionchecker
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	vcapi "github.com/jetstack/version-checker/pkg/api"
 	vcclient "github.com/jetstack/version-checker/pkg/client"
+	selfhosted "github.com/jetstack/version-checker/pkg/client/selfhosted"
 	vcchecker "github.com/jetstack/version-checker/pkg/controller/checker"
 	vcsearch "github.com/jetstack/version-checker/pkg/controller/search"
 	vcversion "github.com/jetstack/version-checker/pkg/version"
@@ -29,6 +32,138 @@ type Config struct {
 	VersionCheckerCheckerOptions vcapi.Options
 }
 
+// UnmarshalYAML unmarshals the ConfigDynamic resolving GroupVersionResource.
+func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	aux := struct {
+		Dynamic struct {
+			KubeConfigPath    string   `yaml:"kubeconfig"`
+			ExcludeNamespaces []string `yaml:"exclude-namespaces"`
+			IncludeNamespaces []string `yaml:"include-namespaces"`
+		} `yaml:"k8s"`
+		Registries []struct {
+			Kind   string            `yaml:"kind"`
+			Params map[string]string `yaml:"params"`
+		} `yaml:"registries"`
+	}{}
+	err := unmarshal(&aux)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal version checker config: %s", err)
+	}
+
+	c.Dynamic.KubeConfigPath = aux.Dynamic.KubeConfigPath
+	c.Dynamic.ExcludeNamespaces = aux.Dynamic.ExcludeNamespaces
+	c.Dynamic.IncludeNamespaces = aux.Dynamic.IncludeNamespaces
+	// gvr must be pods for the version checker dg
+	c.Dynamic.GroupVersionResource.Group = ""
+	c.Dynamic.GroupVersionResource.Version = "v1"
+	c.Dynamic.GroupVersionResource.Resource = "pods"
+
+	c.VersionCheckerClientOptions.Selfhosted = map[string]*selfhosted.Options{}
+	registryKindCounts := map[string]int{}
+	for i, v := range aux.Registries {
+		registryKindCounts[v.Kind]++
+		switch v.Kind {
+		case "gcr":
+			data, err := loadKeysFromPaths([]string{"token"}, v.Params)
+			if err != nil {
+				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+			}
+
+			c.VersionCheckerClientOptions.GCR.Token = data["token"]
+		case "acr":
+			data, err := loadKeysFromPaths([]string{"username", "password", "refresh_token"}, v.Params)
+			if err != nil {
+				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+			}
+
+			c.VersionCheckerClientOptions.ACR.Username = data["username"]
+			c.VersionCheckerClientOptions.ACR.Password = data["password"]
+			c.VersionCheckerClientOptions.ACR.RefreshToken = data["refresh_token"]
+		case "ecr":
+			data, err := loadKeysFromPaths([]string{"access_key_id", "secret_access_key", "session_token"}, v.Params)
+			if err != nil {
+				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+			}
+
+			c.VersionCheckerClientOptions.ECR.AccessKeyID = data["access_key_id"]
+			c.VersionCheckerClientOptions.ECR.SecretAccessKey = data["secret_access_key"]
+			c.VersionCheckerClientOptions.ECR.SessionToken = data["session_token"]
+		case "docker":
+			data, err := loadKeysFromPaths([]string{"username", "password", "token"}, v.Params)
+			if err != nil {
+				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+			}
+
+			c.VersionCheckerClientOptions.Docker.Username = data["username"]
+			c.VersionCheckerClientOptions.Docker.Password = data["password"]
+			c.VersionCheckerClientOptions.Docker.Token = data["token"]
+		case "quay":
+			data, err := loadKeysFromPaths([]string{"token"}, v.Params)
+			if err != nil {
+				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+			}
+
+			c.VersionCheckerClientOptions.Quay.Token = data["token"]
+		case "selfhosted":
+			// currently, version checker only supports multiple selfhosted registries
+			data, err := loadKeysFromPaths([]string{"host", "username", "password", "bearer"}, v.Params)
+			if err != nil {
+				return fmt.Errorf("failed to load params for registry %d/%d: %s", i+1, len(aux.Registries), err)
+			}
+
+			opts := selfhosted.Options{
+				Username: data["username"],
+				Password: data["password"],
+				Bearer:   data["bearer"],
+				Host:     data["host"],
+			}
+
+			c.VersionCheckerClientOptions.Selfhosted[fmt.Sprintf("selfhosted-%d", i+1)] = &opts
+		default:
+			return fmt.Errorf("registry %d/%d was an unknown kind (%s)", i+1, len(aux.Registries), v.Kind)
+		}
+	}
+
+	for k, v := range registryKindCounts {
+		if v > 1 && k != "selfhosted" {
+			return fmt.Errorf("found %d registries of kind %s, only 1 is supported", v, k)
+		}
+	}
+
+	return nil
+}
+
+func loadKeysFromPaths(keys []string, params map[string]string) (map[string]string, error) {
+	requiredKeys := map[string]bool{}
+	for _, v := range keys {
+		requiredKeys[v] = false
+	}
+
+	loadedData := map[string]string{}
+	for _, k := range keys {
+		path := params[k]
+		if path == "" {
+			// don't try to load unset secrets. version-checker will fail if
+			// config is missing
+			continue
+		}
+		p, _ := os.Getwd()
+		file, err := os.Open(p + "/" + path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load file for %s at %s: %s", k, path, err)
+		}
+		defer file.Close()
+
+		b, err := ioutil.ReadAll(file)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read file for %s at %s: %s", k, path, err)
+		}
+		loadedData[k] = strings.TrimSpace(string(b))
+	}
+
+	return loadedData, nil
+}
+
 // validate validates the configuration.
 func (c *Config) validate() error {
 	// TODO
@@ -42,6 +177,7 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	}
 
 	// ensure that the k8s dg will always get pods
+	// TODO remove, comes from config
 	c.Dynamic.GroupVersionResource = schema.GroupVersionResource{
 		Group: "", Version: "v1", Resource: "pods",
 	}
