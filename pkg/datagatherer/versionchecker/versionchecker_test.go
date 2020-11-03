@@ -225,12 +225,18 @@ registries:
         ]
       }
     },
-    "result": {
-      "CurrentVersion": "v1.0.0",
-      "LatestVersion": "v1.0.1",
-      "IsLatest": false,
-      "ImageURL": "%s/jetstack/example"
-    }
+    "results": [
+      {
+        "container_name": "example",
+        "init_container": false,
+        "result": {
+          "CurrentVersion": "v1.0.0",
+          "LatestVersion": "v1.0.1",
+          "IsLatest": false,
+          "ImageURL": "%s/jetstack/example"
+        }
+      }
+    ]
   }
 ]`, parsedURL.Host, parsedURL.Host)
 

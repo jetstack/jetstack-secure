@@ -236,8 +236,14 @@ type DataGatherer struct {
 // of the containers for that pod. Exported so the backend can destructure
 // json.
 type PodResult struct {
-	Pod    v1.Pod            `json:"pod"`
-	Result *vcchecker.Result `json:"result"`
+	Pod     v1.Pod            `json:"pod"`
+	Results []containerResult `json:"results"`
+}
+
+type containerResult struct {
+	ContainerName   string            `json:"container_name"`
+	InitContinainer bool              `json:"init_container"`
+	Result          *vcchecker.Result `json:"result"`
 }
 
 // Fetch retrieves cluster information from GKE.
@@ -260,20 +266,35 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 			return nil, fmt.Errorf("failed to parse pod from unstructured data")
 		}
 
-		// allContainers will contain a list of containers and init containers,
-		// they will be checked in the same way
 		var allContainers []v1.Container
-		allContainers = append(allContainers, pod.Spec.Containers...)
-		allContainers = append(allContainers, pod.Spec.InitContainers...)
+		var isInitContainer []bool
+		for _, c := range pod.Spec.Containers {
+			allContainers = append(allContainers, c)
+			isInitContainer = append(isInitContainer, false)
+		}
+		for _, c := range pod.Spec.InitContainers {
+			allContainers = append(allContainers, c)
+			isInitContainer = append(isInitContainer, true)
+		}
 
-		for _, c := range allContainers {
+		var containerResults []containerResult
+		for i, c := range allContainers {
 			result, err := g.versionChecker.Container(g.ctx, g.versionCheckerLog, &pod, &c, &g.versionCheckerOptions)
 			if err != nil {
 				return nil, fmt.Errorf("failed to check image for container: %s", err)
 			}
 
-			results = append(results, PodResult{Pod: pod, Result: result})
+			containerResults = append(
+				containerResults,
+				containerResult{
+					ContainerName:   c.Name,
+					InitContinainer: isInitContainer[i],
+					Result:          result,
+				},
+			)
 		}
+
+		results = append(results, PodResult{Pod: pod, Results: containerResults})
 	}
 
 	return results, nil
