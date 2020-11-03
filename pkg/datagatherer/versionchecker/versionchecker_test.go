@@ -299,6 +299,7 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 	var localServer *httptest.Server
 	localServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var responseContent []byte
+		var err error
 
 		switch r.URL.Path {
 		case "/api/v1/pods":
@@ -323,13 +324,7 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 			}
 			responseContent = response.Bytes()
 		case "/v2/jetstack/example/tags/list":
-			file, err := os.Open("fixtures/tags.json")
-			if err != nil {
-				t.Fatalf("failed to open tags fixture: %s", err)
-			}
-			defer file.Close()
-
-			responseContent, err = ioutil.ReadAll(file)
+			responseContent, err = ioutil.ReadFile("fixtures/tags.json")
 			if err != nil {
 				t.Fatalf("failed to read tags fixture: %s", err)
 			}

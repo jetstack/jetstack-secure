@@ -148,13 +148,7 @@ func loadKeysFromPaths(keys []string, params map[string]string) (map[string]stri
 			continue
 		}
 
-		file, err := os.Open(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load file for %s at %s: %s", k, path, err)
-		}
-		defer file.Close()
-
-		b, err := ioutil.ReadAll(file)
+		b, err := ioutil.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read file for %s at %s: %s", k, path, err)
 		}
