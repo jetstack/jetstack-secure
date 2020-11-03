@@ -125,19 +125,19 @@ func TestVersionCheckerFetch(t *testing.T) {
 	}
 
 	// ensure there is a valid kubeconfig in a tmp file for the dynamic dg
-	kubeConfig, err := createKubeConfigWithServer(parsedURL.String())
+	kubeConfigPath, err := createKubeConfigWithServer(parsedURL.String())
 	if err != nil {
 		t.Fatalf("failed to create temp kubeconfig: %s", err)
 	}
-	defer os.Remove(kubeConfig.Name())
+	defer os.Remove(kubeConfigPath)
 
 	// ensure there is a valid host file, this would be loaded from a secret
 	// mount in an agent pod
-	hostConfig, err := createDgHostConfigWithServer("http://" + parsedURL.Host)
+	hostConfigPath, err := createDgHostConfigWithServer("http://" + parsedURL.Host)
 	if err != nil {
 		t.Fatalf("failed to create temp kubeconfig: %s", err)
 	}
-	defer os.Remove(hostConfig.Name())
+	defer os.Remove(hostConfigPath)
 
 	// create the config for the DataGatherer, wraps config for Dynamic client
 	// and version checker
@@ -149,7 +149,7 @@ registries:
   params:
     host: %s
     bearer: fixtures/example_secret
-`, kubeConfig.Name(), hostConfig.Name())
+`, kubeConfigPath, hostConfigPath)
 
 	config := Config{}
 	err = yaml.Unmarshal([]byte(textCfg), &config)
@@ -241,25 +241,25 @@ registries:
 
 // config must be loaded from file paths, this creates a tmp file with the host
 // to load in for the DataGatherer
-func createDgHostConfigWithServer(server string) (*os.File, error) {
+func createDgHostConfigWithServer(server string) (string, error) {
 	tmpfile, err := ioutil.TempFile("", tmpFilePrefix)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create a tmpfile for host")
+		return "", fmt.Errorf("failed to create a tmpfile for host")
 	}
 
 	if _, err := tmpfile.Write([]byte(server)); err != nil {
-		return nil, fmt.Errorf("failed to write to tmp host file")
+		return "", fmt.Errorf("failed to write to tmp host file")
 	}
 	if err := tmpfile.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close tmp host file after writing")
+		return "", fmt.Errorf("failed to close tmp host file after writing")
 	}
 
-	return tmpfile, nil
+	return tmpfile.Name(), nil
 }
 
 // creates a kubeconfig file on disk with a reference to the local server
 // allowing requests to be mocked
-func createKubeConfigWithServer(server string) (*os.File, error) {
+func createKubeConfigWithServer(server string) (string, error) {
 	content := fmt.Sprintf(`
 apiVersion: v1
 kind: Config
@@ -281,17 +281,17 @@ users:
     password: test`, server)
 	tmpfile, err := ioutil.TempFile("", tmpFilePrefix)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create a tmpfile for kubeconfig")
+		return "", fmt.Errorf("failed to create a tmpfile for kubeconfig")
 	}
 
 	if _, err := tmpfile.Write([]byte(content)); err != nil {
-		return nil, fmt.Errorf("failed to write to tmp kubeconfig file")
+		return "", fmt.Errorf("failed to write to tmp kubeconfig file")
 	}
 	if err := tmpfile.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close tmp kubeconfig file after writing")
+		return "", fmt.Errorf("failed to close tmp kubeconfig file after writing")
 	}
 
-	return tmpfile, nil
+	return tmpfile.Name(), nil
 }
 
 // create a local test server to respond to k8s and registry api requests from
