@@ -163,18 +163,8 @@ func loadKeysFromPaths(keys []string, params map[string]string) (map[string]stri
 	return loadedData, nil
 }
 
-// validate validates the configuration.
-func (c *Config) validate() error {
-	// TODO
-	return nil
-}
-
 // NewDataGatherer creates a new VersionChecker DataGatherer
 func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
-	if err := c.validate(); err != nil {
-		return nil, err
-	}
-
 	// create the k8s DataGatherer to use when collecting pods
 	dynamicDg, err := c.Dynamic.NewDataGatherer(ctx)
 	if err != nil {
@@ -218,10 +208,11 @@ type DataGatherer struct {
 }
 
 // PodResult wraps a pod and a version checker result for an image found in one
-// of the containers for that pod
+// of the containers for that pod. Exported so the backend can destructure
+// json.
 type PodResult struct {
-	Pod    v1.Pod
-	Result *vcchecker.Result
+	Pod    v1.Pod            `json:"pod"`
+	Result *vcchecker.Result `json:"result"`
 }
 
 // Fetch retrieves cluster information from GKE.

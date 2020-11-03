@@ -109,6 +109,9 @@ registries:
 	}
 }
 
+// TestVersionCheckerFetch will make requests against a dummy k8s server to get
+// pods, then check the found images using version checker. Version checker
+// will call the same version checker to get image tag data
 func TestVersionCheckerFetch(t *testing.T) {
 	// server to handle requests made my version checker and k8s dynamic dg
 	localServer := createLocalTestServer(t)
@@ -169,7 +172,7 @@ registries:
 
 	expectedResultsJSON := fmt.Sprintf(`[
   {
-    "Pod": {
+    "pod": {
       "kind": "Pod",
       "apiVersion": "v1",
       "metadata": {
@@ -220,7 +223,7 @@ registries:
         ]
       }
     },
-    "Result": {
+    "result": {
       "CurrentVersion": "v1.0.0",
       "LatestVersion": "v1.0.1",
       "IsLatest": false,
@@ -252,6 +255,8 @@ func createDgHostConfigWithServer(server string) (*os.File, error) {
 	return tmpfile, nil
 }
 
+// creates a kubeconfig file on disk with a reference to the local server
+// allowing requests to be mocked
 func createKubeConfigWithServer(server string) (*os.File, error) {
 	content := fmt.Sprintf(`
 apiVersion: v1
@@ -287,8 +292,10 @@ users:
 	return tmpfile, nil
 }
 
+// create a local test server to respond to k8s and registry api requests from
+// the DataGatherer during operation. The dg is configured to use this local
+// address to get data from k8s and registries.
 func createLocalTestServer(t *testing.T) *httptest.Server {
-	// create a local test server to respond to k8s and registry api requests
 	var localServer *httptest.Server
 	localServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var responseContent []byte
@@ -326,12 +333,14 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 				t.Fatalf("failed to read tags fixture: %s", err)
 			}
 		} else if r.URL.Path == "/v2/jetstack/example/manifests/v1.0.0" {
+			// this is a partial response, but it's all version checker needs
 			responseContent = []byte(`{
 			  "schemaVersion": 1,
 			  "name": "jetstack/example",
 			  "tag": "v1.0.0"
 			}`)
 		} else if r.URL.Path == "/v2/jetstack/example/manifests/v1.0.1" {
+			// this is a partial response, but it's all version checker needs
 			responseContent = []byte(`{
 			  "schemaVersion": 1,
 			  "name": "jetstack/example",
