@@ -124,6 +124,9 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 	}
 
+	// this is only needed while version checker only supports one registry of
+	// each kind. Using an array of registries in the config allows us to
+	// support many in future without changing the config format.
 	for k, v := range registryKindCounts {
 		if v > 1 && k != "selfhosted" {
 			return fmt.Errorf("found %d registries of kind %s, only 1 is supported", v, k)
