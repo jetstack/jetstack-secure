@@ -18,6 +18,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+const tmpFilePrefix = "preflight-test-file"
+
 func TestUnmarshalConfig(t *testing.T) {
 	textCfg := `
 k8s:
@@ -240,7 +242,7 @@ registries:
 // config must be loaded from file paths, this creates a tmp file with the host
 // to load in for the DataGatherer
 func createDgHostConfigWithServer(server string) (*os.File, error) {
-	tmpfile, err := ioutil.TempFile("", "example")
+	tmpfile, err := ioutil.TempFile("", tmpFilePrefix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a tmpfile for host")
 	}
@@ -277,7 +279,7 @@ users:
   user:
     username: test
     password: test`, server)
-	tmpfile, err := ioutil.TempFile("", "example")
+	tmpfile, err := ioutil.TempFile("", tmpFilePrefix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a tmpfile for kubeconfig")
 	}
