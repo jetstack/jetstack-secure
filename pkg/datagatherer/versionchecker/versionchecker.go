@@ -52,20 +52,22 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 		return nil, err
 	}
 
+	// configure version checker parameters
 	vclog := logrus.New()
 	vclog.SetOutput(os.Stdout)
 	log := logrus.NewEntry(vclog)
-
 	imageClient, err := vcclient.New(ctx, log, c.VersionCheckerClientOptions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to setup image registry clients: %s", err)
+		return nil, fmt.Errorf("failed to setup version checker image registry clients: %s", err)
 	}
+	timeout := 30 * time.Minute // this is the default used in version checker
 	search := vcsearch.New(
 		log,
-		30*time.Minute,
-		vcversion.New(log, imageClient, 30*time.Minute),
+		timeout,
+		vcversion.New(log, imageClient, timeout),
 	)
 
+	// dg wraps version checker and dynamic client to request pods
 	return &DataGatherer{
 		ctx:                   ctx,
 		config:                c,
@@ -86,6 +88,8 @@ type DataGatherer struct {
 	versionCheckerOptions vcapi.Options
 }
 
+// PodResult wraps a pod and a version checker result for an image found in one
+// of the containers for that pod
 type PodResult struct {
 	Pod    v1.Pod
 	Result *vcchecker.Result
@@ -106,12 +110,13 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 	var results []PodResult
 	for _, v := range pods.Items {
 		var pod v1.Pod
-		err = runtime.DefaultUnstructuredConverter.
-			FromUnstructured(v.Object, &pod)
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(v.Object, &pod)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse pods loaded from DataGatherer")
+			return nil, fmt.Errorf("failed to parse pod from unstructured data")
 		}
 
+		// allContainers will contain a list of containers and init containers,
+		// they will be checked in the same way
 		var allContainers []v1.Container
 		allContainers = append(allContainers, pod.Spec.Containers...)
 		allContainers = append(allContainers, pod.Spec.InitContainers...)

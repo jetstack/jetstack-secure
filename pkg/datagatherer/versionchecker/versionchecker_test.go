@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -19,62 +18,9 @@ import (
 	vcselfhosted "github.com/jetstack/version-checker/pkg/client/selfhosted"
 )
 
-func Test1(t *testing.T) {
-	// create a local test server to respond to k8s and registry api requests
-	var localServer *httptest.Server
-	localServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var responseContent []byte
-
-		if r.URL.Path == "/api/v1/pods" {
-			// the responses from the server are self referential and the host is
-			// needed to generate responses
-			parsedURL, err := url.Parse(localServer.URL)
-			if err != nil {
-				t.Fatalf("failed to parse test server url %s", localServer.URL)
-			}
-
-			tmpl, err := template.ParseFiles("fixtures/pods.json.tmpl")
-			if err != nil {
-				t.Fatalf("failed to load template files: %s", err)
-			}
-
-			// generate a response that contains pods pointing to this server
-			// as the registry
-			var response bytes.Buffer
-			err = tmpl.Execute(&response, struct{ URL *string }{&parsedURL.Host})
-			if err != nil {
-				t.Fatalf("failed to exe template: %s", err)
-			}
-			responseContent = response.Bytes()
-		} else if r.URL.Path == "/v2/jetstack/example/tags/list" {
-			file, err := os.Open("fixtures/tags.json")
-			if err != nil {
-				t.Fatalf("failed to open tags fixture: %s", err)
-			}
-			defer file.Close()
-
-			responseContent, err = ioutil.ReadAll(file)
-			if err != nil {
-				t.Fatalf("failed to read tags fixture: %s", err)
-			}
-		} else if r.URL.Path == "/v2/jetstack/example/manifests/v1.0.0" {
-			responseContent = []byte(`{
-			  "schemaVersion": 1,
-			  "name": "jetstack/example",
-			  "tag": "v1.0.0"
-			}`)
-		} else if r.URL.Path == "/v2/jetstack/example/manifests/v1.0.1" {
-			responseContent = []byte(`{
-			  "schemaVersion": 1,
-			  "name": "jetstack/example",
-			  "tag": "v1.0.1"
-			}`)
-		} else {
-			t.Fatalf("Unexpected URL was called: %s", r.URL.Path)
-		}
-
-		fmt.Fprint(w, string(responseContent))
-	}))
+func TestVersionCheckerFetch(t *testing.T) {
+	// server to handle requests made my version checker and k8s dynamic dg
+	localServer := createLocalTestServer(t)
 
 	// parse the URL of the server to generate the KubeConfig file
 	parsedURL, err := url.Parse(localServer.URL)
@@ -82,44 +28,17 @@ func Test1(t *testing.T) {
 		t.Fatalf("failed to parse test server url %s", localServer.URL)
 	}
 
-	content := fmt.Sprintf(`
-apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    server: %s
-  name: example
-contexts:
-- context:
-    cluster: example
-    namespace: default
-    user: test
-  name: test
-current-context: test
-users:
-- name: test
-  user:
-    username: test
-    password: test`, parsedURL)
-	tmpfile, err := ioutil.TempFile("", "example")
+	kubeConfig, err := createKubeConfigWithServer(parsedURL.String())
 	if err != nil {
-		t.Fatalf("failed to parse test server url %s", err)
+		t.Fatalf("failed to create temp kubeconfig: %s", err)
 	}
-
-	defer os.Remove(tmpfile.Name())
-
-	if _, err := tmpfile.Write([]byte(content)); err != nil {
-		log.Fatal(err)
-	}
-	if err := tmpfile.Close(); err != nil {
-		log.Fatal(err)
-	}
+	defer os.Remove(kubeConfig.Name())
 
 	// create the config for the DataGatherer, wraps config for Dynamic client
 	// and version checker
 	config := Config{
 		Dynamic: k8s.ConfigDynamic{
-			KubeConfigPath: tmpfile.Name(),
+			KubeConfigPath: kubeConfig.Name(),
 		},
 		VersionCheckerClientOptions: vcclient.Options{
 			Selfhosted: map[string]*vcselfhosted.Options{
@@ -210,4 +129,99 @@ users:
 	if expectedResultsJSON != string(resultsJSON) {
 		t.Fatalf("results json does not match: %s vs %s", resultsJSON, expectedResultsJSON)
 	}
+}
+
+func createKubeConfigWithServer(server string) (*os.File, error) {
+	content := fmt.Sprintf(`
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: %s
+  name: example
+contexts:
+- context:
+    cluster: example
+    namespace: default
+    user: test
+  name: test
+current-context: test
+users:
+- name: test
+  user:
+    username: test
+    password: test`, server)
+	tmpfile, err := ioutil.TempFile("", "example")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a tmpfile for kubeconfig")
+	}
+
+	if _, err := tmpfile.Write([]byte(content)); err != nil {
+		return nil, fmt.Errorf("failed to write to tmp kubeconfig file")
+	}
+	if err := tmpfile.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close tmp kubeconfig file after writing")
+	}
+
+	return tmpfile, nil
+}
+
+func createLocalTestServer(t *testing.T) *httptest.Server {
+	// create a local test server to respond to k8s and registry api requests
+	var localServer *httptest.Server
+	localServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var responseContent []byte
+
+		if r.URL.Path == "/api/v1/pods" {
+			// the responses from the server are self referential and the host is
+			// needed to generate responses
+			parsedURL, err := url.Parse(localServer.URL)
+			if err != nil {
+				t.Fatalf("failed to parse test server url %s", localServer.URL)
+			}
+
+			tmpl, err := template.ParseFiles("fixtures/pods.json.tmpl")
+			if err != nil {
+				t.Fatalf("failed to load template files: %s", err)
+			}
+
+			// generate a response that contains pods pointing to this server
+			// as the registry
+			var response bytes.Buffer
+			err = tmpl.Execute(&response, struct{ URL *string }{&parsedURL.Host})
+			if err != nil {
+				t.Fatalf("failed to exe template: %s", err)
+			}
+			responseContent = response.Bytes()
+		} else if r.URL.Path == "/v2/jetstack/example/tags/list" {
+			file, err := os.Open("fixtures/tags.json")
+			if err != nil {
+				t.Fatalf("failed to open tags fixture: %s", err)
+			}
+			defer file.Close()
+
+			responseContent, err = ioutil.ReadAll(file)
+			if err != nil {
+				t.Fatalf("failed to read tags fixture: %s", err)
+			}
+		} else if r.URL.Path == "/v2/jetstack/example/manifests/v1.0.0" {
+			responseContent = []byte(`{
+			  "schemaVersion": 1,
+			  "name": "jetstack/example",
+			  "tag": "v1.0.0"
+			}`)
+		} else if r.URL.Path == "/v2/jetstack/example/manifests/v1.0.1" {
+			responseContent = []byte(`{
+			  "schemaVersion": 1,
+			  "name": "jetstack/example",
+			  "tag": "v1.0.1"
+			}`)
+		} else {
+			t.Fatalf("Unexpected URL was called: %s", r.URL.Path)
+		}
+
+		fmt.Fprint(w, string(responseContent))
+	}))
+
+	return localServer
 }
