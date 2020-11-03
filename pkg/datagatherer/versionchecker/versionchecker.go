@@ -8,20 +8,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jetstack/preflight/pkg/datagatherer"
-	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
-
 	vcapi "github.com/jetstack/version-checker/pkg/api"
 	vcclient "github.com/jetstack/version-checker/pkg/client"
-	selfhosted "github.com/jetstack/version-checker/pkg/client/selfhosted"
+	vcselfhosted "github.com/jetstack/version-checker/pkg/client/selfhosted"
 	vcchecker "github.com/jetstack/version-checker/pkg/controller/checker"
 	vcsearch "github.com/jetstack/version-checker/pkg/controller/search"
 	vcversion "github.com/jetstack/version-checker/pkg/version"
-
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 )
 
 const (
@@ -85,7 +84,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	c.Dynamic.GroupVersionResource.Version = "v1"
 	c.Dynamic.GroupVersionResource.Resource = "pods"
 
-	c.VersionCheckerClientOptions.Selfhosted = map[string]*selfhosted.Options{}
+	c.VersionCheckerClientOptions.Selfhosted = map[string]*vcselfhosted.Options{}
 	registryKindCounts := map[string]int{}
 	for i, v := range aux.Registries {
 		registryKindCounts[v.Kind]++
@@ -138,7 +137,7 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
-			opts := selfhosted.Options{
+			opts := vcselfhosted.Options{
 				Username: data["username"],
 				Password: data["password"],
 				Bearer:   data["bearer"],
