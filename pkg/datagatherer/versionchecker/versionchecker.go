@@ -10,12 +10,14 @@ import (
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
+
 	vcapi "github.com/jetstack/version-checker/pkg/api"
 	vcclient "github.com/jetstack/version-checker/pkg/client"
 	selfhosted "github.com/jetstack/version-checker/pkg/client/selfhosted"
 	vcchecker "github.com/jetstack/version-checker/pkg/controller/checker"
 	vcsearch "github.com/jetstack/version-checker/pkg/controller/search"
 	vcversion "github.com/jetstack/version-checker/pkg/version"
+
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
