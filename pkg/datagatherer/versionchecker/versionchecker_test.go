@@ -67,47 +67,56 @@ registries:
     bearer: fixtures/example_secret
 `
 
-	expectedGVR := schema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "pods", // should use pods even if other gvr set
-	}
-
-	expectedExcludeNamespaces := []string{"kube-system"}
-	expectedIncludeNamespaces := []string{"default"}
-
 	cfg := Config{}
 	err := yaml.Unmarshal([]byte(textCfg), &cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %+v", err)
 	}
 
-	if got, want := cfg.Dynamic.KubeConfigPath, "/home/someone/.kube/config"; got != want {
-		t.Errorf("KubeConfigPath does not match: got=%q; want=%q", got, want)
+	tests := map[string]struct {
+		configTarget interface{}
+		expTarget    interface{}
+	}{
+		"KubeConfigPath": {
+			configTarget: cfg.Dynamic.KubeConfigPath,
+			expTarget:    "/home/someone/.kube/config",
+		},
+		"GVR": {
+			configTarget: cfg.Dynamic.GroupVersionResource,
+			expTarget: schema.GroupVersionResource{
+				Group:    "",
+				Version:  "v1",
+				Resource: "pods", // should use pods even if other gvr set
+			},
+		},
+		"IncludeNamespaces": {
+			configTarget: cfg.Dynamic.IncludeNamespaces,
+			expTarget:    []string{"default"},
+		},
+		"ExcludeNamespaces": {
+			configTarget: cfg.Dynamic.ExcludeNamespaces,
+			expTarget:    []string{"kube-system"},
+		},
+		"GCR Token": {
+			configTarget: cfg.VersionCheckerClientOptions.GCR.Token,
+			expTarget:    "pa55w0rd",
+		},
+		"self hosted password": {
+			configTarget: cfg.VersionCheckerClientOptions.Selfhosted["example.com"].Password,
+			expTarget:    "pa55w0rd",
+		},
+		"self hosted bearer": {
+			configTarget: cfg.VersionCheckerClientOptions.Selfhosted["example.net"].Bearer,
+			expTarget:    "pa55w0rd",
+		},
 	}
 
-	if got, want := cfg.Dynamic.GroupVersionResource, expectedGVR; !reflect.DeepEqual(got, want) {
-		t.Errorf("GroupVersionResource does not match: got=%+v want=%+v", got, want)
-	}
-
-	if got, want := cfg.Dynamic.ExcludeNamespaces, expectedExcludeNamespaces; !reflect.DeepEqual(got, want) {
-		t.Errorf("ExcludeNamespaces does not match: got=%+v want=%+v", got, want)
-	}
-
-	if got, want := cfg.Dynamic.IncludeNamespaces, expectedIncludeNamespaces; !reflect.DeepEqual(got, want) {
-		t.Errorf("IncludeNamespaces does not match: got=%+v want=%+v", got, want)
-	}
-
-	if got, want := cfg.VersionCheckerClientOptions.GCR.Token, "pa55w0rd"; got != want {
-		t.Errorf("GCR token does not match: got=%+v want=%+v", got, want)
-	}
-
-	if got, want := cfg.VersionCheckerClientOptions.Selfhosted["example.com"].Password, "pa55w0rd"; got != want {
-		t.Errorf("Selfhosted 6 password does not match: got=%+v want=%+v", got, want)
-	}
-
-	if got, want := cfg.VersionCheckerClientOptions.Selfhosted["example.net"].Bearer, "pa55w0rd"; got != want {
-		t.Errorf("Selfhosted 7 bearer does not match: got=%+v want=%+v", got, want)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if !reflect.DeepEqual(test.configTarget, test.expTarget) {
+				t.Errorf("unexpected config target: got=%q; want=%q", test.configTarget, test.expTarget)
+			}
+		})
 	}
 }
 
