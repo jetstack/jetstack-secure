@@ -300,7 +300,8 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 	localServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var responseContent []byte
 
-		if r.URL.Path == "/api/v1/pods" {
+		switch r.URL.Path {
+		case "/api/v1/pods":
 			// the responses from the server are self referential and the host is
 			// needed to generate responses
 			parsedURL, err := url.Parse(localServer.URL)
@@ -321,7 +322,7 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 				t.Fatalf("failed to exe template: %s", err)
 			}
 			responseContent = response.Bytes()
-		} else if r.URL.Path == "/v2/jetstack/example/tags/list" {
+		case "/v2/jetstack/example/tags/list":
 			file, err := os.Open("fixtures/tags.json")
 			if err != nil {
 				t.Fatalf("failed to open tags fixture: %s", err)
@@ -332,25 +333,25 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 			if err != nil {
 				t.Fatalf("failed to read tags fixture: %s", err)
 			}
-		} else if r.URL.Path == "/v2/jetstack/example/manifests/v1.0.0" {
+		case "/v2/jetstack/example/manifests/v1.0.0":
 			// this is a partial response, but it's all version checker needs
 			responseContent = []byte(`{
 			  "schemaVersion": 1,
 			  "name": "jetstack/example",
 			  "tag": "v1.0.0"
 			}`)
-		} else if r.URL.Path == "/v2/jetstack/example/manifests/v1.0.1" {
+		case "/v2/jetstack/example/manifests/v1.0.1":
 			// this is a partial response, but it's all version checker needs
 			responseContent = []byte(`{
 			  "schemaVersion": 1,
 			  "name": "jetstack/example",
 			  "tag": "v1.0.1"
 			}`)
-		} else {
+		default:
 			t.Fatalf("Unexpected URL was called: %s", r.URL.Path)
 		}
 
-		fmt.Fprint(w, string(responseContent))
+		w.Write(responseContent)
 	}))
 
 	return localServer
