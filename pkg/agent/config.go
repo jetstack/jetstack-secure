@@ -11,6 +11,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer/gke"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/datagatherer/local"
+	"github.com/jetstack/preflight/pkg/datagatherer/versionchecker"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
@@ -95,6 +96,8 @@ func (dg *dataGatherer) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		cfg = &k8s.ConfigDiscovery{}
 	case "local":
 		cfg = &local.Config{}
+	case "version-checker":
+		cfg = &versionchecker.Config{}
 	// dummy dataGatherer is just used for testing
 	case "dummy":
 		cfg = &dummyConfig{}
