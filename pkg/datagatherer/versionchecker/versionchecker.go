@@ -96,41 +96,41 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
-			c.VersionCheckerClientOptions.GCR.Token = data["token"]
+			c.VersionCheckerClientOptions.GCR.Token = data[gcrTokenKey]
 		case "acr":
 			data, err := loadKeysFromPaths([]string{acrUsernameKey, acrPasswordKey, acrRefreshTokenKey}, v.Params)
 			if err != nil {
 				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
-			c.VersionCheckerClientOptions.ACR.Username = data["username"]
-			c.VersionCheckerClientOptions.ACR.Password = data["password"]
-			c.VersionCheckerClientOptions.ACR.RefreshToken = data["refresh_token"]
+			c.VersionCheckerClientOptions.ACR.Username = data[acrUsernameKey]
+			c.VersionCheckerClientOptions.ACR.Password = data[acrPasswordKey]
+			c.VersionCheckerClientOptions.ACR.RefreshToken = data[acrRefreshTokenKey]
 		case "ecr":
 			data, err := loadKeysFromPaths([]string{ecrAccessKeyIdKey, ecrSecretAccessKeyKey, ecrSessionTokenKey}, v.Params)
 			if err != nil {
 				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
-			c.VersionCheckerClientOptions.ECR.AccessKeyID = data["access_key_id"]
-			c.VersionCheckerClientOptions.ECR.SecretAccessKey = data["secret_access_key"]
-			c.VersionCheckerClientOptions.ECR.SessionToken = data["session_token"]
+			c.VersionCheckerClientOptions.ECR.AccessKeyID = data[ecrAccessKeyIdKey]
+			c.VersionCheckerClientOptions.ECR.SecretAccessKey = data[ecrSecretAccessKeyKey]
+			c.VersionCheckerClientOptions.ECR.SessionToken = data[ecrSessionTokenKey]
 		case "docker":
 			data, err := loadKeysFromPaths([]string{dockerUsernameKey, dockerPasswordKey, dockerTokenKey}, v.Params)
 			if err != nil {
 				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
-			c.VersionCheckerClientOptions.Docker.Username = data["username"]
-			c.VersionCheckerClientOptions.Docker.Password = data["password"]
-			c.VersionCheckerClientOptions.Docker.Token = data["token"]
+			c.VersionCheckerClientOptions.Docker.Username = data[dockerUsernameKey]
+			c.VersionCheckerClientOptions.Docker.Password = data[dockerPasswordKey]
+			c.VersionCheckerClientOptions.Docker.Token = data[dockerTokenKey]
 		case "quay":
 			data, err := loadKeysFromPaths([]string{quayTokenKey}, v.Params)
 			if err != nil {
 				return fmt.Errorf("failed to load params for %s registry %d/%d: %s", v.Kind, i+1, len(aux.Registries), err)
 			}
 
-			c.VersionCheckerClientOptions.Quay.Token = data["token"]
+			c.VersionCheckerClientOptions.Quay.Token = data[quayTokenKey]
 		case "selfhosted":
 			// currently, version checker only supports multiple selfhosted registries
 			data, err := loadKeysFromPaths([]string{selfhostedUsernameKey, selfhostedPasswordKey, selfhostedHostKey, selfhostedBearerKey}, v.Params)
@@ -139,10 +139,10 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			}
 
 			opts := vcselfhosted.Options{
-				Username: data["username"],
-				Password: data["password"],
-				Bearer:   data["bearer"],
-				Host:     data["host"],
+				Username: data[selfhostedUsernameKey],
+				Password: data[selfhostedPasswordKey],
+				Bearer:   data[selfhostedBearerKey],
+				Host:     data[selfhostedHostKey],
 			}
 
 			if len(opts.Host) == 0 {
