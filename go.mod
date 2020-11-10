@@ -33,10 +33,8 @@ require (
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/sync v0.0.0-20200930132711-30421366ff76 // indirect
 	golang.org/x/sys v0.0.0-20201005172224-997123666555 // indirect
-	golang.org/x/text v0.3.3
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	google.golang.org/api v0.30.0
-	google.golang.org/appengine v1.6.6
 	gopkg.in/d4l3k/messagediff.v1 v1.2.1
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce // indirect

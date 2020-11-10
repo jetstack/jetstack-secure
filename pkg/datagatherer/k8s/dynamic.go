@@ -173,16 +173,18 @@ func redactList(list *unstructured.UnstructuredList) error {
 		if err != nil {
 			return errors.WithStack(err)
 		}
+
+		object := list.Items[i]
+
 		for _, gvk := range gvks {
 			// If this item is a Secret then we need to redact it.
 			if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
-				secret := list.Items[i]
 
 				// If the secret is a tls secret, we redact all data other then
 				// the tls.crt and ca.crt. This is because we need to inspect
 				// the certificate to make recommendations.
-				if secret.Object["type"] == "kubernetes.io/tls" {
-					secretData, ok := secret.Object["data"].(map[string]interface{})
+				if object.Object["type"] == "kubernetes.io/tls" {
+					secretData, ok := object.Object["data"].(map[string]interface{})
 					if ok {
 						for k := range secretData {
 							// Only these two keys will be sent, all others are
@@ -193,14 +195,14 @@ func redactList(list *unstructured.UnstructuredList) error {
 						}
 					} else {
 						// If secret is not string mapping, redact all secret data
-						secret.Object["data"] = map[string]interface{}{}
+						object.Object["data"] = map[string]interface{}{}
 					}
 				} else {
 					// Redact all secret data for non-tls secrets
-					secret.Object["data"] = map[string]interface{}{}
+					object.Object["data"] = map[string]interface{}{}
 				}
 
-				metadata, metadataPresent := secret.Object["metadata"].(map[string]interface{})
+				metadata, metadataPresent := object.Object["metadata"].(map[string]interface{})
 				if metadataPresent {
 					// Redact last-applied-configuration annotation if set
 					annotations, present := metadata["annotations"].(map[string]interface{})
@@ -211,12 +213,25 @@ func redactList(list *unstructured.UnstructuredList) error {
 						}
 						metadata["annotations"] = annotations
 					}
-					secret.Object["metadata"] = metadata
+
+					// update the metadata after an modifications
+					object.Object["metadata"] = metadata
 				}
 				// break when the object has been processed as a secret, no
 				// other kinds have redact modifications
 				break
 			}
+
+			metadata, metadataPresent := object.Object["metadata"].(map[string]interface{})
+			if metadataPresent {
+				// Drop managed fields if set
+				if _, present := metadata["managedFields"]; present {
+					delete(metadata, "managedFields")
+				}
+			}
+
+			// update the metadata after an modifications
+			object.Object["metadata"] = metadata
 		}
 	}
 	return nil
