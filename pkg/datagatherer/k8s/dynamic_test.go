@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/d4l3k/messagediff"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,14 +38,16 @@ func getSecret(name, namespace string, data map[string]interface{}, isTLS bool, 
 		object.Object["type"] = "kubernetes.io/tls"
 	}
 
+	metadata, _ := object.Object["metadata"].(map[string]interface{})
+
 	// if we're creating a 'raw' secret as scraped that was applied by kubectl
 	if withLastApplied {
 		jsonData, _ := json.Marshal(data)
-		object.Object["annotations"] = map[string]interface{}{
+		metadata["annotations"] = map[string]interface{}{
 			"kubectl.kubernetes.io/last-applied-configuration": string(jsonData),
 		}
 	} else { // generate an expected redacted secret
-		object.Object["annotations"] = map[string]interface{}{
+		metadata["annotations"] = map[string]interface{}{
 			"kubectl.kubernetes.io/last-applied-configuration": "redacted",
 		}
 	}
@@ -214,8 +217,8 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			if err == nil && test.err {
 				t.Errorf("expected to get an error but didn't get one")
 			}
-			if !reflect.DeepEqual(res, test.expected) {
-				t.Errorf("unexpected difference: %v", diff.ObjectDiff(res, test.expected))
+			if diff, equal := messagediff.PrettyDiff(res, test.expected); !equal {
+				t.Errorf("\n%s", diff)
 			}
 		})
 	}

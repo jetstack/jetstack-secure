@@ -200,15 +200,21 @@ func redactList(list *unstructured.UnstructuredList) error {
 					secret.Object["data"] = map[string]interface{}{}
 				}
 
-				// Redact last-applied-configuration annotation if set
-				annotations, present := secret.Object["annotations"].(map[string]interface{})
-				if present {
-					_, annotationPresent := annotations["kubectl.kubernetes.io/last-applied-configuration"]
-					if annotationPresent {
-						annotations["kubectl.kubernetes.io/last-applied-configuration"] = "redacted"
+				metadata, metadataPresent := secret.Object["metadata"].(map[string]interface{})
+				if metadataPresent {
+					// Redact last-applied-configuration annotation if set
+					annotations, present := metadata["annotations"].(map[string]interface{})
+					if present {
+						_, annotationPresent := annotations["kubectl.kubernetes.io/last-applied-configuration"]
+						if annotationPresent {
+							annotations["kubectl.kubernetes.io/last-applied-configuration"] = "redacted"
+						}
+						metadata["annotations"] = annotations
 					}
-					secret.Object["annotations"] = annotations
+					secret.Object["metadata"] = metadata
 				}
+				// break when the object has been processed as a secret, no
+				// other kinds have redact modifications
 				break
 			}
 		}
