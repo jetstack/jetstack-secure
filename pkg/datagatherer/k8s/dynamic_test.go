@@ -16,21 +16,31 @@ import (
 	"k8s.io/utils/diff"
 )
 
-func getObject(version, kind, name, namespace string) *unstructured.Unstructured {
+func getObject(version, kind, name, namespace string, withManagedFields bool) *unstructured.Unstructured {
+	metadata := map[string]interface{}{
+		"name":      name,
+		"namespace": namespace,
+	}
+
+	if withManagedFields {
+		// []metav1.FieldsV1{} can't be deep copied by fake client so using
+		// string as example value
+		metadata["managedFields"] = "set"
+	}
+
+	object := map[string]interface{}{
+		"apiVersion": version,
+		"kind":       kind,
+		"metadata":   metadata,
+	}
+
 	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": version,
-			"kind":       kind,
-			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": namespace,
-			},
-		},
+		Object: object,
 	}
 }
 
 func getSecret(name, namespace string, data map[string]interface{}, isTLS bool, withLastApplied bool) *unstructured.Unstructured {
-	object := getObject("v1", "Secret", name, namespace)
+	object := getObject("v1", "Secret", name, namespace, false)
 	object.Object["data"] = data
 
 	object.Object["type"] = "Opaque"
@@ -113,34 +123,34 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 		"only a Foo should be returned if GVR selects foos": {
 			gvr: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 			objects: []runtime.Object{
-				getObject("foobar/v1", "Foo", "testfoo", "testns"),
-				getObject("v1", "Service", "testservice", "testns"),
-				getObject("foobar/v1", "NotFoo", "notfoo", "testns"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+				getObject("v1", "Service", "testservice", "testns", false),
+				getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
 			},
 			expected: asUnstructuredList(
-				getObject("foobar/v1", "Foo", "testfoo", "testns"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
 			),
 		},
 		"only Foos in the specified namespace should be returned": {
 			gvr:        schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 			namespaces: []string{"testns"},
 			objects: []runtime.Object{
-				getObject("foobar/v1", "Foo", "testfoo", "testns"),
-				getObject("foobar/v1", "Foo", "testfoo", "nottestns"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+				getObject("foobar/v1", "Foo", "testfoo", "nottestns", false),
 			},
 			expected: asUnstructuredList(
-				getObject("foobar/v1", "Foo", "testfoo", "testns"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
 			),
 		},
 		"Foos in different namespaces should be returned if no namespace field is set": {
 			gvr: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 			objects: []runtime.Object{
-				getObject("foobar/v1", "Foo", "testfoo", "testns1"),
-				getObject("foobar/v1", "Foo", "testfoo", "testns2"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns1", false),
+				getObject("foobar/v1", "Foo", "testfoo", "testns2", false),
 			},
 			expected: asUnstructuredList(
-				getObject("foobar/v1", "Foo", "testfoo", "testns1"),
-				getObject("foobar/v1", "Foo", "testfoo", "testns2"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns1", false),
+				getObject("foobar/v1", "Foo", "testfoo", "testns2", false),
 			),
 		},
 		"Secret resources should have data removed": {
@@ -185,13 +195,24 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			gvr:        schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 			namespaces: []string{"testns", "testns2"},
 			objects: []runtime.Object{
-				getObject("foobar/v1", "Foo", "testfoo", "testns"),
-				getObject("foobar/v1", "Foo", "testfoo2", "testns2"),
-				getObject("foobar/v1", "Foo", "testfoo3", "nottestns"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+				getObject("foobar/v1", "Foo", "testfoo3", "nottestns", false),
 			},
 			expected: asUnstructuredList(
-				getObject("foobar/v1", "Foo", "testfoo", "testns"),
-				getObject("foobar/v1", "Foo", "testfoo2", "testns2"),
+				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+			),
+		},
+		"Resources should have managed fields removed": {
+			gvr: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
+			objects: []runtime.Object{
+				getObject("apps/v1", "Deployment", "foo1", "testns", false),
+				getObject("apps/v1", "Deployment", "foo2", "testns", true),
+			},
+			expected: asUnstructuredList(
+				getObject("apps/v1", "Deployment", "foo1", "testns", false),
+				getObject("apps/v1", "Deployment", "foo2", "testns", false),
 			),
 		},
 		// Note that we can't test use of fieldSelector to exclude namespaces
@@ -217,7 +238,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			if err == nil && test.err {
 				t.Errorf("expected to get an error but didn't get one")
 			}
-			if diff, equal := messagediff.PrettyDiff(res, test.expected); !equal {
+			if diff, equal := messagediff.PrettyDiff(test.expected, res); !equal {
 				t.Errorf("\n%s", diff)
 			}
 		})
