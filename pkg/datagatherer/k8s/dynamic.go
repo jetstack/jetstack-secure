@@ -213,9 +213,6 @@ func redactList(list *unstructured.UnstructuredList) error {
 						}
 						metadata["annotations"] = annotations
 					}
-
-					// update the metadata after an modifications
-					object.Object["metadata"] = metadata
 				}
 				// break when the object has been processed as a secret, no
 				// other kinds have redact modifications
@@ -229,9 +226,6 @@ func redactList(list *unstructured.UnstructuredList) error {
 					delete(metadata, "managedFields")
 				}
 			}
-
-			// update the metadata after an modifications
-			object.Object["metadata"] = metadata
 		}
 	}
 	return nil
