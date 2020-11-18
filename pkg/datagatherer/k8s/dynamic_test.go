@@ -41,7 +41,10 @@ func getObject(version, kind, name, namespace string, withManagedFields bool) *u
 
 func getSecret(name, namespace string, data map[string]interface{}, isTLS bool, withLastApplied bool) *unstructured.Unstructured {
 	object := getObject("v1", "Secret", name, namespace, false)
-	object.Object["data"] = data
+
+	if data != nil {
+		object.Object["data"] = data
+	}
 
 	object.Object["type"] = "Opaque"
 	if isTLS {
@@ -55,10 +58,6 @@ func getSecret(name, namespace string, data map[string]interface{}, isTLS bool, 
 		jsonData, _ := json.Marshal(data)
 		metadata["annotations"] = map[string]interface{}{
 			"kubectl.kubernetes.io/last-applied-configuration": string(jsonData),
-		}
-	} else { // generate an expected redacted secret
-		metadata["annotations"] = map[string]interface{}{
-			"kubectl.kubernetes.io/last-applied-configuration": "redacted",
 		}
 	}
 
@@ -164,8 +163,8 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				}, false, true),
 			},
 			expected: asUnstructuredList(
-				getSecret("testsecret", "testns1", map[string]interface{}{}, false, false),
-				getSecret("anothertestsecret", "testns2", map[string]interface{}{}, false, false),
+				getSecret("testsecret", "testns1", nil, false, false),
+				getSecret("anothertestsecret", "testns2", nil, false, false),
 			),
 		},
 		"Secret of type kubernetes.io/tls should have crts and not keys": {
@@ -188,7 +187,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 					"ca.crt":  "value",
 				}, true, false),
 				// all other keys removed
-				getSecret("anothertestsecret", "testns2", map[string]interface{}{}, true, false),
+				getSecret("anothertestsecret", "testns2", nil, true, false),
 			),
 		},
 		"Foos in different namespaces should be returned if they are in the namespace list for the gatherer": {
@@ -240,6 +239,9 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			}
 			if diff, equal := messagediff.PrettyDiff(test.expected, res); !equal {
 				t.Errorf("\n%s", diff)
+				expectedJSON, _ := json.MarshalIndent(test.expected, "", "  ")
+				gotJSON, _ := json.MarshalIndent(res, "", "  ")
+				t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
 			}
 		})
 	}
