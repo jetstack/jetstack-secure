@@ -21,6 +21,12 @@ var SecretSelectedFields = []string{
 	"/data/ca.crt",
 }
 
+// RedactFields are removed from all objects
+var RedactFields = []string{
+	"metadata.managedFields",
+	"/metadata.annotations/kubectl.kubernetes.io~1last-applied-configuration",
+}
+
 // Select removes all but the supplied fields from the resource
 func Select(fields []string, resource *unstructured.Unstructured) error {
 	// convert the object to JSON for field filtering
@@ -45,8 +51,11 @@ func Select(fields []string, resource *unstructured.Unstructured) error {
 				// fail to select field if missing, just continue
 				continue
 			}
-			pathComponents := strings.Split(v, "/")
-			filteredObject.Set(gObject.Data(), pathComponents[1:]...)
+			pathComponents, err := gabs.JSONPointerToSlice(v)
+			if err != nil {
+				return fmt.Errorf("invalid JSONPointer: %s", v)
+			}
+			filteredObject.Set(gObject.Data(), pathComponents...)
 		} else {
 			if jsonParsed.ExistsP(v) {
 				filteredObject.SetP(jsonParsed.Path(v).Data(), v)
@@ -81,7 +90,10 @@ func Redact(fields []string, resource *unstructured.Unstructured) error {
 	for _, v := range fields {
 		// also support JSONPointers for keys containing '.' chars
 		if strings.HasPrefix(v, "/") {
-			pathComponents := strings.Split(v, "/")[1:]
+			pathComponents, err := gabs.JSONPointerToSlice(v)
+			if err != nil {
+				return fmt.Errorf("invalid JSONPointer: %s", v)
+			}
 			if jsonParsed.Exists(pathComponents...) {
 				jsonParsed.Delete(pathComponents...)
 			}
