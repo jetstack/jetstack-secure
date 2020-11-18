@@ -29,12 +29,15 @@ func Select(fields []string, resource *unstructured.Unstructured) error {
 		if strings.HasPrefix(v, "/") {
 			gObject, err := jsonParsed.JSONPointer(v)
 			if err != nil {
-				return fmt.Errorf("failed to select data at JSONPointer: %s", v)
+				// fail to select field if missing, just continue
+				continue
 			}
 			pathComponents := strings.Split(v, "/")
 			filteredObject.Set(gObject.Data(), pathComponents[1:]...)
 		} else {
-			filteredObject.SetP(jsonParsed.Path(v).Data(), v)
+			if jsonParsed.ExistsP(v) {
+				filteredObject.SetP(jsonParsed.Path(v).Data(), v)
+			}
 		}
 	}
 

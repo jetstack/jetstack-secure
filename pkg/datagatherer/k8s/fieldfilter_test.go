@@ -56,3 +56,30 @@ func TestFieldSelector(t *testing.T) {
 		t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), expectedJSON)
 	}
 }
+
+func TestFieldSelectorMissingSelectedField(t *testing.T) {
+	resource := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"kind": "Secret",
+		},
+	}
+
+	fieldsToSelect := []string{
+		"kind",
+		"missing",
+		"/missing",
+	}
+
+	err := Select(fieldsToSelect, resource)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	bytes, err := json.MarshalIndent(resource, "", "    ")
+	expectedJSON := `{
+    "kind": "Secret"
+}`
+	if string(bytes) != expectedJSON {
+		t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), expectedJSON)
+	}
+}
