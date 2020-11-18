@@ -24,7 +24,7 @@ var SecretSelectedFields = []string{
 // RedactFields are removed from all objects
 var RedactFields = []string{
 	"metadata.managedFields",
-	"/metadata.annotations/kubectl.kubernetes.io~1last-applied-configuration",
+	"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration",
 }
 
 // Select removes all but the supplied fields from the resource
