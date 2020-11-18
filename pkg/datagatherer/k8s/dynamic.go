@@ -176,15 +176,7 @@ func redactList(list *unstructured.UnstructuredList) error {
 		for _, gvk := range gvks {
 			// If this item is a Secret then we need to redact it.
 			if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
-				Select([]string{
-					"kind",
-					"apiVersion",
-					"metadata.name",
-					"metadata.namespace",
-					"type",
-					"/data/tls.crt",
-					"/data/ca.crt",
-				}, &resource)
+				Select(SecretSelectedFields, &resource)
 
 				// break when the object has been processed as a secret, no
 				// other kinds have redact modifications

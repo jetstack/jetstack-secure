@@ -9,6 +9,18 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+// SecretSelectedFields is the list of fields sent from Secret objects to the
+// backend
+var SecretSelectedFields = []string{
+	"kind",
+	"apiVersion",
+	"metadata.name",
+	"metadata.namespace",
+	"type",
+	"/data/tls.crt",
+	"/data/ca.crt",
+}
+
 // Select removes all but the supplied fields from the resource
 func Select(fields []string, resource *unstructured.Unstructured) error {
 	// convert the object to JSON for field filtering
