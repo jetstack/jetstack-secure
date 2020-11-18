@@ -156,7 +156,7 @@ func gatherAndOutputData(ctx context.Context, config Config, preflightClient *cl
 	}
 
 	if OutputPath != "" {
-		data, err := json.MarshalIndent(readings, " ", " ")
+		data, err := json.MarshalIndent(readings, "", "  ")
 		err = ioutil.WriteFile(OutputPath, data, 0644)
 		if err != nil {
 			log.Fatal(err)

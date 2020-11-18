@@ -183,11 +183,10 @@ func redactList(list *unstructured.UnstructuredList) error {
 				break
 			}
 
-			// remove managedFields from all resources
-			Redact([]string{
-				"metadata.managedFields",
-			}, &resource)
 		}
+
+		// remove managedFields from all resources
+		Redact(RedactFields, &resource)
 
 		// update the object in the list
 		list.Items[i] = resource
