@@ -80,8 +80,6 @@ func Redact(fields []string, resource *unstructured.Unstructured) error {
 		}
 	}
 
-	fmt.Println(jsonParsed.String())
-
 	// load the filtered JSON back into the resource
 	err = json.Unmarshal(jsonParsed.Bytes(), resource)
 	if err != nil {

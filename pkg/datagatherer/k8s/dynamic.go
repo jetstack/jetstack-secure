@@ -164,9 +164,6 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 }
 
 func redactList(list *unstructured.UnstructuredList) error {
-	// In principal we could only redact the list if it's kind is SecretList or
-	// a generic mixed List, however the test suite does not set the list kind
-	// and it is safer to always check for Secrets.
 	for i := range list.Items {
 		// Determine the kind of items in case this is a generic 'mixed' list.
 		gvks, _, err := scheme.Scheme.ObjectKinds(&list.Items[i])
@@ -174,59 +171,34 @@ func redactList(list *unstructured.UnstructuredList) error {
 			return errors.WithStack(err)
 		}
 
-		object := list.Items[i]
+		resource := list.Items[i]
 
 		for _, gvk := range gvks {
 			// If this item is a Secret then we need to redact it.
 			if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
+				Select([]string{
+					"kind",
+					"apiVersion",
+					"metadata.name",
+					"metadata.namespace",
+					"type",
+					"/data/tls.crt",
+					"/data/ca.crt",
+				}, &resource)
 
-				// If the secret is a tls secret, we redact all data other then
-				// the tls.crt and ca.crt. This is because we need to inspect
-				// the certificate to make recommendations.
-				if object.Object["type"] == "kubernetes.io/tls" {
-					secretData, ok := object.Object["data"].(map[string]interface{})
-					if ok {
-						for k := range secretData {
-							// Only these two keys will be sent, all others are
-							// deleted
-							if k != "tls.crt" && k != "ca.crt" {
-								delete(secretData, k)
-							}
-						}
-					} else {
-						// If secret is not string mapping, redact all secret data
-						object.Object["data"] = map[string]interface{}{}
-					}
-				} else {
-					// Redact all secret data for non-tls secrets
-					object.Object["data"] = map[string]interface{}{}
-				}
-
-				metadata, metadataPresent := object.Object["metadata"].(map[string]interface{})
-				if metadataPresent {
-					// Redact last-applied-configuration annotation if set
-					annotations, present := metadata["annotations"].(map[string]interface{})
-					if present {
-						_, annotationPresent := annotations["kubectl.kubernetes.io/last-applied-configuration"]
-						if annotationPresent {
-							annotations["kubectl.kubernetes.io/last-applied-configuration"] = "redacted"
-						}
-						metadata["annotations"] = annotations
-					}
-				}
 				// break when the object has been processed as a secret, no
 				// other kinds have redact modifications
 				break
 			}
 
-			metadata, metadataPresent := object.Object["metadata"].(map[string]interface{})
-			if metadataPresent {
-				// Drop managed fields if set
-				if _, present := metadata["managedFields"]; present {
-					delete(metadata, "managedFields")
-				}
-			}
+			// remove managedFields from all resources
+			Redact([]string{
+				"metadata.managedFields",
+			}, &resource)
 		}
+
+		// update the object in the list
+		list.Items[i] = resource
 	}
 	return nil
 }
