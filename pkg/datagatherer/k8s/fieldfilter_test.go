@@ -13,9 +13,11 @@ func TestSelect(t *testing.T) {
 			"apiVersion": "v1",
 			"kind":       "Secret",
 			"metadata": map[string]interface{}{
-				"name":                       "example",
-				"namespace":                  "example",
-				"last-applied-configuration": "secret",
+				"name":      "example",
+				"namespace": "example",
+				"annotations": map[string]string{
+					"kubectl.kubernetes.io/last-applied-configuration": "secret",
+				},
 			},
 			"type": "kubernetes.io/tls",
 			"data": map[string]interface{}{
@@ -90,9 +92,12 @@ func TestRedact(t *testing.T) {
 			"apiVersion": "v1",
 			"kind":       "Secret",
 			"metadata": map[string]interface{}{
-				"name":                       "example",
-				"namespace":                  "example",
-				"last-applied-configuration": "secret",
+				"name":      "example",
+				"namespace": "example",
+				"annotations": map[string]string{
+					"kubectl.kubernetes.io/last-applied-configuration": "secret",
+				},
+				"managedFields": nil,
 			},
 			"type": "kubernetes.io/tls",
 			"data": map[string]interface{}{
@@ -103,7 +108,8 @@ func TestRedact(t *testing.T) {
 	}
 
 	fieldsToRedact := []string{
-		"metadata.last-applied-configuration",
+		"metadata.managedFields",
+		"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration",
 		"/data/tls.key",
 	}
 
@@ -120,6 +126,7 @@ func TestRedact(t *testing.T) {
     },
     "kind": "Secret",
     "metadata": {
+        "annotations": {},
         "name": "example",
         "namespace": "example"
     },
