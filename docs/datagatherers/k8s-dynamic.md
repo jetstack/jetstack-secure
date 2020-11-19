@@ -77,14 +77,6 @@ Secrets can be gathered using the following config:
       resource: secrets
 ```
 
-Before Secrets are sent to the Preflight backend, they are redacted in the
-following way:
+Before Secrets are sent to the Preflight backend, they are redacted so no secret data is transmitted. See [`fieldfilter.go`](./../../pkg/datagatherer/k8s/fieldfilter.go) to see the details of which fields are filteres and which ones are redacted.
 
-- `last-applied-configuration` annotation is removed
-- For Secrets of type `kubernetes.io/tls`
-  - All keys under data other than the following are removed:
-    - tls.crt
-    - ca.crt
-- All other secrets have all keys removed from their data.
-
-**All resource other than Kubernetes Secrets are sent in full.**
+> **All resource other than Kubernetes Secrets are sent in full, so make sure that you don't store secret information on arbitrary resources.**
