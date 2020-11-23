@@ -86,7 +86,7 @@ func TestSelectMissingSelectedField(t *testing.T) {
 	}
 }
 
-func TestRedact(t *testing.T) {
+func TestRedactSecret(t *testing.T) {
 	resource := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "v1",
@@ -131,6 +131,48 @@ func TestRedact(t *testing.T) {
         "namespace": "example"
     },
     "type": "kubernetes.io/tls"
+}`
+	if string(bytes) != expectedJSON {
+		t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), expectedJSON)
+	}
+}
+
+func TestRedactPod(t *testing.T) {
+	resource := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]interface{}{
+				"name":          "example",
+				"namespace":     "example",
+				"managedFields": []interface{}{},
+			},
+			"spec": map[string]interface{}{
+				"serviceAccountName": "example",
+			},
+		},
+	}
+
+	fieldsToRedact := []string{
+		"metadata.managedFields",
+	}
+
+	err := Redact(fieldsToRedact, resource)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	bytes, err := json.MarshalIndent(resource, "", "    ")
+	expectedJSON := `{
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "name": "example",
+        "namespace": "example"
+    },
+    "spec": {
+        "serviceAccountName": "example"
+    }
 }`
 	if string(bytes) != expectedJSON {
 		t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), expectedJSON)
