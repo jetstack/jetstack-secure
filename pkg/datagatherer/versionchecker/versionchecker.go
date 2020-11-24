@@ -10,11 +10,12 @@ import (
 	"time"
 
 	vcapi "github.com/jetstack/version-checker/pkg/api"
+	vcchecker "github.com/jetstack/version-checker/pkg/checker"
+	vcarchitecture "github.com/jetstack/version-checker/pkg/checker/architecture"
+	vcsearch "github.com/jetstack/version-checker/pkg/checker/search"
+	vcversion "github.com/jetstack/version-checker/pkg/checker/version"
 	vcclient "github.com/jetstack/version-checker/pkg/client"
 	vcselfhosted "github.com/jetstack/version-checker/pkg/client/selfhosted"
-	vcchecker "github.com/jetstack/version-checker/pkg/controller/checker"
-	vcsearch "github.com/jetstack/version-checker/pkg/controller/search"
-	vcversion "github.com/jetstack/version-checker/pkg/version"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -53,7 +54,9 @@ const (
 type Config struct {
 	// the version checker dg will also gather pods and so has the same options
 	// as the dynamic datagatherer
-	Dynamic                     k8s.ConfigDynamic
+	DynamicPod k8s.ConfigDynamic
+	// the nodes information is also gathered by the version checker datagatherer
+	DynamicNode                 k8s.ConfigDynamic
 	VersionCheckerClientOptions vcclient.Options
 	// Currently unused, but keeping to allow future config of VersionChecker
 	VersionCheckerCheckerOptions vcapi.Options
@@ -77,13 +80,20 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return fmt.Errorf("failed to unmarshal version checker config: %s", err)
 	}
 
-	c.Dynamic.KubeConfigPath = aux.Dynamic.KubeConfigPath
-	c.Dynamic.ExcludeNamespaces = aux.Dynamic.ExcludeNamespaces
-	c.Dynamic.IncludeNamespaces = aux.Dynamic.IncludeNamespaces
+	c.DynamicPod.KubeConfigPath = aux.Dynamic.KubeConfigPath
+	c.DynamicPod.ExcludeNamespaces = aux.Dynamic.ExcludeNamespaces
+	c.DynamicPod.IncludeNamespaces = aux.Dynamic.IncludeNamespaces
 	// gvr must be pods for the version checker dg
-	c.Dynamic.GroupVersionResource.Group = ""
-	c.Dynamic.GroupVersionResource.Version = "v1"
-	c.Dynamic.GroupVersionResource.Resource = "pods"
+	c.DynamicPod.GroupVersionResource.Group = ""
+	c.DynamicPod.GroupVersionResource.Version = "v1"
+	c.DynamicPod.GroupVersionResource.Resource = "pods"
+	// node dynamic dg
+	c.DynamicNode.KubeConfigPath = aux.Dynamic.KubeConfigPath
+	c.DynamicNode.ExcludeNamespaces = []string{}
+	c.DynamicNode.IncludeNamespaces = []string{}
+	c.DynamicNode.GroupVersionResource.Group = ""
+	c.DynamicNode.GroupVersionResource.Version = "v1"
+	c.DynamicNode.GroupVersionResource.Resource = "nodes"
 
 	c.VersionCheckerClientOptions.Selfhosted = map[string]*vcselfhosted.Options{}
 	registryKindCounts := map[string]int{}
@@ -200,7 +210,12 @@ func loadKeysFromPaths(keys []string, params map[string]string) (map[string]stri
 // NewDataGatherer creates a new VersionChecker DataGatherer
 func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	// create the k8s DataGatherer to use when collecting pods
-	dynamicDg, err := c.Dynamic.NewDataGatherer(ctx)
+	podDynamicDg, err := c.DynamicPod.NewDataGatherer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// create a data gatherer to use to collect nodes architecture information
+	nodeDynamicDg, err := c.DynamicNode.NewDataGatherer(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -219,13 +234,16 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 		timeout,
 		vcversion.New(log, imageClient, timeout),
 	)
+	architecture := vcarchitecture.New()
 
 	// dg wraps version checker and dynamic client to request pods
 	return &DataGatherer{
 		ctx:                   ctx,
 		config:                c,
-		dynamicDg:             dynamicDg,
-		versionChecker:        vcchecker.New(search),
+		podDynamicDg:          podDynamicDg,
+		nodeDynamicDg:         nodeDynamicDg,
+		nodeArchitecture:      architecture,
+		versionChecker:        vcchecker.New(search, architecture),
 		versionCheckerLog:     log,
 		versionCheckerOptions: c.VersionCheckerCheckerOptions,
 	}, nil
@@ -235,7 +253,9 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 type DataGatherer struct {
 	ctx                   context.Context
 	config                *Config
-	dynamicDg             datagatherer.DataGatherer
+	podDynamicDg          datagatherer.DataGatherer
+	nodeDynamicDg         datagatherer.DataGatherer
+	nodeArchitecture      *vcarchitecture.NodeMap
 	versionChecker        *vcchecker.Checker
 	versionCheckerLog     *logrus.Entry
 	versionCheckerOptions vcapi.Options
@@ -257,9 +277,31 @@ type containerResult struct {
 
 // Fetch retrieves cluster information from GKE.
 func (g *DataGatherer) Fetch() (interface{}, error) {
-	rawPods, err := g.dynamicDg.Fetch()
+	// Get nodes information to update version-checker architecture structure
+	rawNodes, err := g.nodeDynamicDg.Fetch()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch nodes: %v", err)
+	}
+	nodes, ok := rawNodes.(*unstructured.UnstructuredList)
+	if !ok {
+		return nil, fmt.Errorf("failed to parse nodes loaded from DataGatherer")
+	}
+	for _, v := range nodes.Items {
+		var node v1.Node
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(v.Object, &node)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse node from unstructured data: %v", err)
+		}
+		// update version-checker's internal representation of the current cluster's nodes,
+		// to correctly select the right OS and Architecture for the images
+		if err = g.nodeArchitecture.Add(&node); err != nil {
+			return nil, fmt.Errorf("failed to add node to version-checker architecture structure")
+		}
+	}
+
+	rawPods, err := g.podDynamicDg.Fetch()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch pods: %v", err)
 	}
 
 	pods, ok := rawPods.(*unstructured.UnstructuredList)
@@ -272,7 +314,7 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 		var pod v1.Pod
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(v.Object, &pod)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse pod from unstructured data")
+			return nil, fmt.Errorf("failed to parse pod from unstructured data: %v", err)
 		}
 
 		var allContainers []v1.Container

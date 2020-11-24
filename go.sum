@@ -295,6 +295,8 @@ github.com/jarcoal/httpmock v1.0.1 h1:OXIOrglWeSllwHQGJ5X4PX4hFZK1DPCXSJVhMSJacg
 github.com/jarcoal/httpmock v1.0.1/go.mod h1:ATjnClrvW/3tijVmpL/va5Z3aAyGvqU3gCT8nX0Txik=
 github.com/jetstack/version-checker v0.2.1 h1:fTkj1ztb6WP4gMQTROHYAUHJMFMuZOBRRLMrZa0bed4=
 github.com/jetstack/version-checker v0.2.1/go.mod h1:908YLy8SWIJMJoYQpZf2QIRAvBvZ2WM0ylNiCrK8Vvg=
+github.com/jetstack/version-checker v0.2.2-0.20201118163251-4bab9ef088ef h1:bsZIh0Y7TogJfmseOARM9OeZzctSDuuHuJQTQhl97Mo=
+github.com/jetstack/version-checker v0.2.2-0.20201118163251-4bab9ef088ef/go.mod h1:908YLy8SWIJMJoYQpZf2QIRAvBvZ2WM0ylNiCrK8Vvg=
 github.com/jmespath/go-jmespath v0.3.0 h1:OS12ieG61fsCg5+qLJ+SsW9NicxNkg3b25OyT2yCeUc=
 github.com/jmespath/go-jmespath v0.3.0/go.mod h1:9QtRXoHjLGCJ5IBSaohpXITPlowMeeYCZ7fLUTSywik=
 github.com/jonboulle/clockwork v0.1.0/go.mod h1:Ii8DK3G1RaLaWxj9trq07+26W01tbo22gdxWY5EU2bo=

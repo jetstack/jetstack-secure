@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"regexp"
 	"testing"
 
 	"gopkg.in/yaml.v2"
@@ -78,11 +79,11 @@ registries:
 		expTarget    interface{}
 	}{
 		"KubeConfigPath": {
-			configTarget: cfg.Dynamic.KubeConfigPath,
+			configTarget: cfg.DynamicPod.KubeConfigPath,
 			expTarget:    "/home/someone/.kube/config",
 		},
 		"GVR": {
-			configTarget: cfg.Dynamic.GroupVersionResource,
+			configTarget: cfg.DynamicPod.GroupVersionResource,
 			expTarget: schema.GroupVersionResource{
 				Group:    "",
 				Version:  "v1",
@@ -90,11 +91,11 @@ registries:
 			},
 		},
 		"IncludeNamespaces": {
-			configTarget: cfg.Dynamic.IncludeNamespaces,
+			configTarget: cfg.DynamicPod.IncludeNamespaces,
 			expTarget:    []string{"default"},
 		},
 		"ExcludeNamespaces": {
-			configTarget: cfg.Dynamic.ExcludeNamespaces,
+			configTarget: cfg.DynamicPod.ExcludeNamespaces,
 			expTarget:    []string{"kube-system"},
 		},
 		"GCR Token": {
@@ -173,12 +174,12 @@ registries:
 
 	rawResults, err := dg.Fetch()
 	if err != nil {
-		t.Fatalf("failed fetch data %s", err)
+		t.Fatalf("failed fetch data: %s", err)
 	}
 
 	resultsJSON, err := json.MarshalIndent(rawResults, "", "  ")
 	if err != nil {
-		t.Fatalf("failed to marshal data %s", err)
+		t.Fatalf("failed to marshal data: %s", err)
 	}
 
 	expectedResultsJSON := fmt.Sprintf(`[
@@ -218,7 +219,8 @@ registries:
             ],
             "resources": {}
           }
-        ]
+        ],
+        "nodeName": "control-plane"
       },
       "status": {
         "containerStatuses": [
@@ -241,16 +243,20 @@ registries:
         "result": {
           "CurrentVersion": "v1.0.0",
           "LatestVersion": "v1.0.1",
-          "IsLatest": false,
-          "ImageURL": "%s/jetstack/example"
+	  "IsLatest": false,
+	  "ImageURL": "%s/jetstack/example",
+	  "OS": "",
+	  "Architecture": "amd64"
         }
       }
     ]
   }
 ]`, parsedURL.Host, parsedURL.Host)
 
-	if expectedResultsJSON != string(resultsJSON) {
-		t.Fatalf("results json does not match: %s vs %s", resultsJSON, expectedResultsJSON)
+	act := removeWhitespace(string(resultsJSON))
+	expected := removeWhitespace(expectedResultsJSON)
+	if act != expected {
+		t.Fatalf("results json does not match: %s vs %s", act, expected)
 	}
 }
 
@@ -319,6 +325,11 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 		var err error
 
 		switch r.URL.Path {
+		case "/api/v1/nodes":
+			responseContent, err = ioutil.ReadFile("fixtures/nodes.json")
+			if err != nil {
+				t.Fatalf("failed to read nodes fixture: %s", err)
+			}
 		case "/api/v1/pods":
 			// the responses from the server are self referential and the host is
 			// needed to generate responses
@@ -347,17 +358,23 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 			}
 		case "/v2/jetstack/example/manifests/v1.0.0":
 			// this is a partial response, but it's all version checker needs
+			// selfhosted registers currently don't expose OS information
 			responseContent = []byte(`{
 			  "schemaVersion": 1,
 			  "name": "jetstack/example",
-			  "tag": "v1.0.0"
+			  "tag": "v1.0.0",
+			  "architecture":"amd64",
+			  "os":""
 			}`)
 		case "/v2/jetstack/example/manifests/v1.0.1":
 			// this is a partial response, but it's all version checker needs
+			// selfhosted registers currently don't expose OS information
 			responseContent = []byte(`{
 			  "schemaVersion": 1,
 			  "name": "jetstack/example",
-			  "tag": "v1.0.1"
+			  "tag": "v1.0.1",
+			  "architecture":"amd64",
+			  "os":""
 			}`)
 		default:
 			t.Fatalf("Unexpected URL was called: %s", r.URL.Path)
@@ -367,4 +384,10 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 	}))
 
 	return localServer
+}
+
+// Simple helper function to remove whitespaces from string
+func removeWhitespace(input string) string {
+	ws := regexp.MustCompile(`[\s]`)
+	return ws.ReplaceAllString(input, "")
 }
