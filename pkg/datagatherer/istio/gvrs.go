@@ -2,8 +2,8 @@ package isito
 
 import "k8s.io/apimachinery/pkg/runtime/schema"
 
-// List of resources used by Istio analysis.
-var gvrs = []schema.GroupVersionResource{
+// defaultGVRs is the default list of resources to fetch for Istio analysis.
+var defaultGVRs = []schema.GroupVersionResource{
 	{
 		Group:    "apiextensions.k8s.io",
 		Version:  "v1beta1",

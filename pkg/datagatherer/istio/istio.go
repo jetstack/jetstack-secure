@@ -15,6 +15,7 @@ import (
 	"istio.io/istio/pkg/config/resource"
 	istioSchema "istio.io/istio/pkg/config/schema"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
 )
@@ -29,6 +30,8 @@ type Config struct {
 	ExcludeNamespaces []string `yaml:"exclude-namespaces"`
 	// IncludeNamespaces is a list of namespaces to include.
 	IncludeNamespaces []string `yaml:"include-namespaces"`
+	// Resources is a list of GroupVersionResources to collect for Istio analysis.
+	Resources []schema.GroupVersionResource
 }
 
 // validate validates the configuration.
@@ -58,9 +61,16 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 		return nil, err
 	}
 
+	// If the Istio namespace is not set then default it to 'istio-system'.
 	istioNamespace := c.IstioNamespace
 	if istioNamespace == "" {
 		istioNamespace = "istio-system"
+	}
+
+	// If a list of resources is not set then use the data gatherer default list.
+	gvrs := c.Resources
+	if len(gvrs) == 0 {
+		gvrs = defaultGVRs
 	}
 
 	// Create a list of Kubernetes dynamic data gatherers to fetch all the required resources for Istio analysis.
