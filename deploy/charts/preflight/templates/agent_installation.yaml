@@ -1,0 +1,190 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jetstack-secure
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent
+  namespace: jetstack-secure
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: jetstack-secure-agent-node-reader
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: jetstack-secure-agent-secret-reader
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: jetstack-secure-agent-cert-manager-reader
+rules:
+- apiGroups: ["cert-manager.io"]
+  resources:
+  - certificates
+  - certificaterequests
+  - issuers
+  - clusterissuers
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: jetstack-secure-agent-googlecas-reader
+rules:
+- apiGroups: ["cas-issuer.jetstack.io"]
+  resources:
+  - googlecasissuers
+  - googlecasclusterissuers
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: jetstack-secure-agent-get-webhooks
+rules:
+- apiGroups: ["admissionregistration.k8s.io"]
+  resources:
+  - validatingwebhookconfigurations
+  - mutatingwebhookconfigurations
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jetstack-secure-agent-secret-reader
+roleRef:
+  kind: ClusterRole
+  name: jetstack-secure-agent-secret-reader
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: jetstack-secure
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jetstack-secure-agent-cert-manager-reader
+roleRef:
+  kind: ClusterRole
+  name: jetstack-secure-agent-cert-manager-reader
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: jetstack-secure
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jetstack-secure-agent-googlecas-reader
+roleRef:
+  kind: ClusterRole
+  name: jetstack-secure-agent-googlecas-reader
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: jetstack-secure
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jetstack-secure-agent-get-webhooks
+roleRef:
+  kind: ClusterRole
+  name: jetstack-secure-agent-get-webhooks
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: jetstack-secure
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jetstack-secure-agent-node-reader
+roleRef:
+  kind: ClusterRole
+  name: jetstack-secure-agent-node-reader
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: jetstack-secure
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jetstack-secure-agent-cluster-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: jetstack-secure
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent
+  namespace: jetstack-secure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agent
+    spec:
+      serviceAccountName: agent
+      volumes:
+      - name: config
+        configMap:
+          name: agent-config
+      - name: credentials
+        secret:
+          secretName: agent-credentials
+      containers:
+      - name: agent
+        image: quay.io/jetstack/preflight:v0.1.27
+        args:
+        - "agent"
+        - "-c"
+        - "/etc/jetstack-secure/agent/config/config.yaml"
+        - "-k"
+        - "/etc/jetstack-secure/agent/credentials/credentials.json"
+        - "-p"
+        - "0h1m0s"
+        volumeMounts:
+        - name: config
+          mountPath: "/etc/jetstack-secure/agent/config"
+          readOnly: true
+        - name: credentials
+          mountPath: "/etc/jetstack-secure/agent/credentials"
+          readOnly: true
+        resources:
+          requests:
+            memory: "200Mi"
+            cpu: "200m"
+          limits:
+            memory: "200Mi"
+            cpu: "200m"
