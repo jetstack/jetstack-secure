@@ -41,7 +41,7 @@ func init() {
 		&agent.Period,
 		"period",
 		"p",
-		time.Hour,
+		0,
 		"Time between scans (given as XhYmZs).",
 	)
 	agentCmd.PersistentFlags().StringVarP(
