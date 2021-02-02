@@ -51,6 +51,13 @@ func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 	for {
 		config, preflightClient := getConfiguration(ctx)
+
+		// if period is set in the config, then use that instead
+		if config.Period != 0 {
+			log.Printf("Using period from config %s", config.Period)
+			Period = config.Period
+		}
+
 		gatherAndOutputData(ctx, config, preflightClient)
 		if OneShot {
 			break
@@ -82,12 +89,6 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 		if err != nil {
 			log.Fatalf("Failed to build URL: %s", err)
 		}
-	}
-
-	// if period is set in the config, then use that
-	if config.Period != 0 {
-		log.Printf("Using period from config %s", config.Period)
-		Period = config.Period
 	}
 
 	dump, err := config.Dump()
