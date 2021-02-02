@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/jetstack/preflight/pkg/datagatherer"
@@ -18,7 +19,8 @@ import (
 
 // Config wraps the options for a run of the agent.
 type Config struct {
-	Schedule string `yaml:"schedule"`
+	Schedule string        `yaml:"schedule"`
+	Period   time.Duration `yaml:"period"`
 	// Deprecated: Endpoint is being replaced with Server.
 	Endpoint Endpoint `yaml:"endpoint"`
 	// Server is the base url for the Preflight server.

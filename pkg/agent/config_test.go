@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kylelemons/godebug/diff"
 	"gopkg.in/d4l3k/messagediff.v1"
@@ -12,6 +13,7 @@ import (
 func TestValidConfigLoad(t *testing.T) {
 	configFileContents := `
       server: "http://localhost:8080"
+      period: 1h
       organization_id: "example"
       cluster_id: "example-cluster"
       data-gatherers:
@@ -25,15 +27,16 @@ func TestValidConfigLoad(t *testing.T) {
 
 	loadedConfig, err := ParseConfig([]byte(configFileContents))
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	expected := Config{
 		Server:         "http://localhost:8080",
+		Period:         time.Hour,
 		OrganizationID: "example",
 		ClusterID:      "example-cluster",
 		DataGatherers: []dataGatherer{
-			dataGatherer{
+			{
 				Name: "d1",
 				Kind: "dummy",
 				Config: &dummyConfig{
