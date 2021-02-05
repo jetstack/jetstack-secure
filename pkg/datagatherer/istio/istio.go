@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	dgerror "github.com/jetstack/preflight/pkg/datagatherer/error"
 )
 
 // Config is the configuration for the Istio DataGatherer.
@@ -100,7 +101,7 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	}, nil
 }
 
-// Fetch retrieves resources from the K8s API and runs Istio analysis
+// Fetch retrieves resources from the K8s API and runs Istio analysis.
 func (g *DataGatherer) Fetch() (interface{}, error) {
 
 	// Fetch resources from all data gatherers and accumulate in an Unstructured slice.
@@ -112,7 +113,12 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 			// This could be because the cluster does not yet have Istio installed. However we should still run the
 			// analysis on the resources that are available as it is useful for pre-checking a cluster for future Istio
 			// installations.
-			continue
+			if cfgErr, ok := err.(*dgerror.ConfigError); ok {
+				if cfgErr.Err == "the server could not find the requested resource" {
+					continue
+				}
+			}
+			return nil, err
 		}
 		resources, ok := rawResources.(*unstructured.UnstructuredList)
 		if !ok {
