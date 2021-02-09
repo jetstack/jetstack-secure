@@ -42,7 +42,7 @@ func init() {
 		"period",
 		"p",
 		0,
-		"Time between scans (given as XhYmZs).",
+		"Override time between scans in the configuration file (given as XhYmZs).",
 	)
 	agentCmd.PersistentFlags().StringVarP(
 		&agent.CredentialsPath,
