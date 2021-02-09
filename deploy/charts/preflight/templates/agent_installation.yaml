@@ -1,13 +1,7 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: jetstack-secure
----
-apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: agent
-  namespace: jetstack-secure
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -73,7 +67,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: agent
-  namespace: jetstack-secure
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -86,7 +80,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: agent
-  namespace: jetstack-secure
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -99,7 +93,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: agent
-  namespace: jetstack-secure
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -112,7 +106,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: agent
-  namespace: jetstack-secure
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -125,7 +119,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: agent
-  namespace: jetstack-secure
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -138,13 +132,12 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: agent
-  namespace: jetstack-secure
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: agent
-  namespace: jetstack-secure
 spec:
   replicas: 1
   selector:
