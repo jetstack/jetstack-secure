@@ -1,2 +1,4 @@
 image:
   repository: quay.io/jetstack/preflight
+
+podAnnotations: {}
