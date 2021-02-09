@@ -87,6 +87,44 @@ taking place in the SaaS backend.
 The following instructions walk through the installation of the Preflight agent
 to gather data about cluster pods and send them to the backend for analysis.
 
+### Recommended Installation: Using Jetstack Secure
+
+The preferred way to install the Preflight agent is to sign in to https://platform.jetstack.io/
+and follow the instructions there.
+For example, to configure the agent for "Machine Identity / Cert Inventory":
+
+1. Visit https://platform.jetstack.io/
+2. Click the "Machine Identity" button, in the tool bar on the left
+3. Click "ADD CLUSTER"
+4. Follow the instructions
+5. Click "COPY COMMAND TO CLIPBOARD" to copy the credentials and configuration command to the clipboard
+
+
+### Helm Installation
+
+You can install the Preflight agent using Helm, as follows, but this is not recommended:
+
+```
+helm install --create-namespace --namespace jetstack-secure jetstack-secure deploy/charts/preflight
+```
+
+Next you will need to register the agent.
+For example, to configure the agent for "Machine Identity / Cert Inventory", please follow these steps:
+
+1. Visit https://platform.jetstack.io/
+2. Click the "Machine Identity" button, in the tool bar on the left
+3. Click "ADD CLUSTER"
+4. Follow the instructions
+5. Click "COPY COMMAND TO CLIPBOARD" to copy the credentials and configuration command to the clipboard
+6. Paste, inspect and then execute the command in your terminal
+
+
+### Manual Installation
+
+You can install the agent from scratch, by manually creating deployment manifests 
+and then using `kubectl apply` to deploy the agent to the cluster,
+but this is not recommended.
+
 **To complete the secret manifest below, you will need to have a Preflight
 token.**
 
