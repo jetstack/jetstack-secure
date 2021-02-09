@@ -1,0 +1,10 @@
+Congratulations! The Jetstack Secure Agent is now installed.
+
+To register the agent, please follow these steps:
+
+1. Visit https://platform.jetstack.io/
+2. Click the "Machine Identity" button, in the tool bar on the left
+3. Click "ADD CLUSTER"
+4. Follow the instructions
+5. Click "COPY COMMAND TO CLIPBOARD" to copy the credentials and configuration command to the clipboard
+6. Paste, inspect and then execute the command in your terminal
