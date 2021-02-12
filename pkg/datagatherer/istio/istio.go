@@ -85,7 +85,6 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 		}
 		dynamicDataGatherer, err := configDynamic.NewDataGatherer(ctx)
 		if err != nil {
-			// TODO: Might be better to collect errors here rather than just give up straight away.
 			return nil, err
 		}
 		dynamicDataGatherers = append(dynamicDataGatherers, dynamicDataGatherer)

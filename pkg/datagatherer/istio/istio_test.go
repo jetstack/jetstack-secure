@@ -16,31 +16,6 @@ import (
 
 const tempFilePrefix = "preflight-test-istio-datagatherer"
 
-//// TestFetchRealCluster is not used, but has been left here for development use to allow testing against a real cluster.
-//func TestFetchRealCluster(t *testing.T) {
-//	c := Config{
-//		Resources: []schema.GroupVersionResource{
-//			{
-//				Group:    "",
-//				Version:  "v1",
-//				Resource: "namespaces",
-//			},
-//		},
-//	}
-//
-//	dg, err := c.NewDataGatherer(context.TODO())
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	results, err := dg.Fetch()
-//	if err != nil {
-//		t.Fatal(fmt.Sprintf("%T", err))
-//	}
-//
-//	t.Log(results)
-//}
-
 // TestFetch runs a full test of the Istio data gatherer; running a fake Kubernetes API, using dynamic data gatherers to
 // fetch resources, running fetched resources through Istio analysis, and checking that the analysis messaged generated
 // are what was expected.
