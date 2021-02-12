@@ -127,16 +127,17 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 		allResources = append(allResources, resources.Items...)
 	}
 
-	// Convert the slice of Unstructured resources into a YAML document string.
-	allResourcesYAMLString := ""
+	// Convert the slice of Unstructured resources into a string of YAML documents.
+	var allResourcesYAML []string
 	for _, resource := range allResources {
 		// Marshall the unstructured resource to a YAML string.
 		resourceYAML, err := yaml.Marshal(resource.Object)
 		if err != nil {
 			return nil, err
 		}
-		allResourcesYAMLString = string(resourceYAML) + "---\n" + allResourcesYAMLString
+		allResourcesYAML = append(allResourcesYAML, string(resourceYAML))
 	}
+	allResourcesYAMLString := strings.Join(allResourcesYAML, "---\n")
 
 	// Pass the YAML document string to the Istio analyzer wrapped in a Reader.
 	g.sourceAnalyzer.AddReaderKubeSource([]local.ReaderSource{{Name: "", Reader: strings.NewReader(allResourcesYAMLString)}})
