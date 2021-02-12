@@ -1,5 +1,5 @@
 // Package isito provides a datagatherer for Istio.
-package isito
+package istio
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package isito
+package istio
 
 import "k8s.io/apimachinery/pkg/runtime/schema"
 

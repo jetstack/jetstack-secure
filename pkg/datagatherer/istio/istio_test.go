@@ -1,4 +1,4 @@
-package isito
+package istio
 
 import (
 	"context"
