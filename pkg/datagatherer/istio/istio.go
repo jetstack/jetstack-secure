@@ -52,8 +52,8 @@ func (c *Config) validate() error {
 
 // DataGatherer is a DataGatherer for Istio.
 type DataGatherer struct {
-	sa       *local.SourceAnalyzer
-	dynamics []datagatherer.DataGatherer
+	sourceAnalyzer       *local.SourceAnalyzer
+	dynamicDataGatherers []datagatherer.DataGatherer
 }
 
 // NewDataGatherer creates a new DataGatherer for a cluster.
@@ -75,7 +75,7 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	}
 
 	// Create a list of Kubernetes dynamic data gatherers to fetch all the required resources for Istio analysis.
-	var dynamics []datagatherer.DataGatherer
+	var dynamicDataGatherers []datagatherer.DataGatherer
 	for _, gvr := range gvrs {
 		configDynamic := k8s.ConfigDynamic{
 			KubeConfigPath:       c.KubeConfigPath,
@@ -83,21 +83,21 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 			ExcludeNamespaces:    c.ExcludeNamespaces,
 			IncludeNamespaces:    c.IncludeNamespaces,
 		}
-		dynamic, err := configDynamic.NewDataGatherer(ctx)
+		dynamicDataGatherer, err := configDynamic.NewDataGatherer(ctx)
 		if err != nil {
 			// TODO: Might be better to collect errors here rather than just give up straight away.
 			return nil, err
 		}
-		dynamics = append(dynamics, dynamic)
+		dynamicDataGatherers = append(dynamicDataGatherers, dynamicDataGatherer)
 	}
 
 	// Create an Istio SourceAnalyzer.
-	sa := local.NewSourceAnalyzer(istioSchema.MustGet(), analyzers.AllCombined(),
+	sourceAnalyzer := local.NewSourceAnalyzer(istioSchema.MustGet(), analyzers.AllCombined(),
 		"", resource.Namespace(istioNamespace), nil, true, 30*time.Second)
 
 	return &DataGatherer{
-		sa:       sa,
-		dynamics: dynamics,
+		sourceAnalyzer:       sourceAnalyzer,
+		dynamicDataGatherers: dynamicDataGatherers,
 	}, nil
 }
 
@@ -106,15 +106,15 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 
 	// Fetch resources from all data gatherers and accumulate in an Unstructured slice.
 	var allResources []unstructured.Unstructured
-	for _, dynamic := range g.dynamics {
-		rawResources, err := dynamic.Fetch()
+	for _, dynamicDataGatherer := range g.dynamicDataGatherers {
+		rawResources, err := dynamicDataGatherer.Fetch()
 		if err != nil {
 			// Data gatherers will error if the resource kind they are trying to fetch is not present in the cluster.
 			// This could be because the cluster does not yet have Istio installed. However we should still run the
 			// analysis on the resources that are available as it is useful for pre-checking a cluster for future Istio
 			// installations.
-			if cfgErr, ok := err.(*dgerror.ConfigError); ok {
-				if cfgErr.Err == "the server could not find the requested resource" {
+			if configErr, ok := err.(*dgerror.ConfigError); ok {
+				if configErr.Err == "the server could not find the requested resource" {
 					continue
 				}
 			}
@@ -139,10 +139,10 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 	}
 
 	// Pass the YAML document string to the Istio analyzer wrapped in a Reader.
-	g.sa.AddReaderKubeSource([]local.ReaderSource{{Name: "", Reader: strings.NewReader(allResourcesYAMLString)}})
+	g.sourceAnalyzer.AddReaderKubeSource([]local.ReaderSource{{Name: "", Reader: strings.NewReader(allResourcesYAMLString)}})
 
 	// Perform Istio analysis.
-	result, err := g.sa.Analyze(nil)
+	result, err := g.sourceAnalyzer.Analyze(nil)
 	if err != nil {
 		return nil, err
 	}

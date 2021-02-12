@@ -67,13 +67,13 @@ func TestFetch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %+v", err)
 	}
-	dg, err := config.NewDataGatherer(context.TODO())
+	dataGatherer, err := config.NewDataGatherer(context.TODO())
 	if err != nil {
 		t.Fatalf("unexpected error creating data gatherer: %+v", err)
 	}
 
 	// Fetch analysis result from the data gatherer.
-	rawAnalysisResult, err := dg.Fetch()
+	rawAnalysisResult, err := dataGatherer.Fetch()
 	if err != nil {
 		t.Fatalf("unexpected error fetching results: %+v", err)
 	}
