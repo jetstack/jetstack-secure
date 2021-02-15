@@ -10,10 +10,10 @@ GOARCH:=$(shell go env GOARCH)
 DOCKER_IMAGE?=quay.io/jetstack/preflight
 DOCKER_IMAGE_TAG?=$(DOCKER_IMAGE):$(VERSION)
 
-# OAuth2 config for the agent to work with preflight.jetstack.io
+# OAuth2 config for the agent to work with platform.jetstack.io
 OAUTH_CLIENT_ID?=k3TrDbfLhCgnpAbOiiT2kIE1AbovKzjo
 OAUTH_CLIENT_SECRET?=f39w_3KT9Vp0VhzcPzvh-uVbudzqCFmHER3Huj0dvHgJwVrjxsoOQPIw_1SDiCfa
-OAUTH_AUTH_SERVER_DOMAIN?=jetstack-prod.eu.auth0.com
+OAUTH_AUTH_SERVER_DOMAIN?=auth.jetstack.io
 
 define LDFLAGS
 -X "github.com/jetstack/preflight/pkg/version.PreflightVersion=$(VERSION)" \
