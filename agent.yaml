@@ -1,9 +1,6 @@
-schedule: "* * * *"
-token: ewogICJjbHVzdGVyIjogIm15IGNsdXN0ZXIiLAogICJ0b2tlbiI6ICJleGFtcGxlIgp9Cg==
-endpoint:
-  protocol: http
-  host: "localhost:8080"
-  path: "/api/v1/datareadings"
+server: "https://platform.jetstack.io"
+organization_id: "my-organization"
+cluster_id: "my_cluster"
 data-gatherers:
 - kind: "dummy"
   name: "dummy"
