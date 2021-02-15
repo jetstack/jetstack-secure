@@ -91,7 +91,7 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 		}
 	}
 
-	if Period == 0 && config.Period == 0 {
+	if Period == 0 && config.Period == 0 && !OneShot {
 		log.Fatalf("Failed to load period, must be set as flag or in config")
 	}
 
