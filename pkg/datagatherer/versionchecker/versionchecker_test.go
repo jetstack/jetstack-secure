@@ -125,7 +125,11 @@ registries:
 // pods, then check the found images using version checker. Version checker
 // will call the same version checker to get image tag data
 func TestVersionCheckerFetch(t *testing.T) {
-	// server to handle requests made my version checker and k8s dynamic dg
+	// server to handle requests made by version checker and k8s dynamic dg.
+	//
+	// since we do not support injecting a fake client as a dependency to the
+	// version checker datagatherer we are instead using an httptest
+	// LocalServer to mock requests from a real dynamic client
 	localServer := createLocalTestServer(t)
 
 	// parse the URL of the server to generate the KubeConfig file
