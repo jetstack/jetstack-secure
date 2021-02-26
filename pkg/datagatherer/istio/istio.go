@@ -32,7 +32,7 @@ type Config struct {
 	// IncludeNamespaces is a list of namespaces to include.
 	IncludeNamespaces []string `yaml:"include-namespaces"`
 	// Resources is a list of GroupVersionResources to collect for Istio analysis.
-	Resources []schema.GroupVersionResource
+	Resources []schema.GroupVersionResource `yaml:"resources"`
 }
 
 // validate validates the configuration.
