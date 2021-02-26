@@ -20,7 +20,9 @@ const tempFilePrefix = "preflight-test-istio-datagatherer"
 // fetch resources, running fetched resources through Istio analysis, and checking that the analysis messaged generated
 // are what was expected.
 func TestFetch(t *testing.T) {
-	// Local server to handle requests made by Kubernetes dynamic data gatherer.
+	// Local server to handle requests made by Kubernetes dynamic data gatherer. Injecting a fake client into the
+	// Kubernetes data gatherer used inside the Istio data gatherer is not supported, so this instead uses an httptest
+	// LocalServer to mock requests from a real dynamic client.
 	localServer := createLocalTestServer(t)
 
 	// Parse the URL of the server to generate the kubeconfig file.
