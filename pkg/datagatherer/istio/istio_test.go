@@ -90,7 +90,7 @@ resources:
 
 // createKubeConfigWithServer creates a kubeconfig file on disk with a reference to the local server.
 func createKubeConfigWithServer(server string) (string, error) {
-	content := fmt.Sprintf(kuebConfigString, server)
+	content := fmt.Sprintf(kubeConfigString, server)
 	tempFile, err := ioutil.TempFile("", tempFilePrefix)
 	if err != nil {
 		return "", fmt.Errorf("failed to create a tmpfile for kubeconfig")
@@ -106,7 +106,7 @@ func createKubeConfigWithServer(server string) (string, error) {
 	return tempFile.Name(), nil
 }
 
-var kuebConfigString = `
+var kubeConfigString = `
 apiVersion: v1
 kind: Config
 clusters:
