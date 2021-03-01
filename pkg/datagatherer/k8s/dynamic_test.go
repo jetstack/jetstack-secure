@@ -112,7 +112,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 		gvr        schema.GroupVersionResource
 		namespaces []string
 		objects    []runtime.Object
-		expected   interface{}
+		expected   *unstructured.UnstructuredList
 		err        bool
 	}{
 		"an error should be returned if 'resource' is missing": {
@@ -221,7 +221,12 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			cl := fake.NewSimpleDynamicClient(emptyScheme, test.objects...)
+			gvrToListKind := map[schema.GroupVersionResource]string{
+				schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"}: "UnstructuredList",
+				schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}: "UnstructuredList",
+				schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}: "UnstructuredList",
+			}
+			cl := fake.NewSimpleDynamicClientWithCustomListKinds(emptyScheme, gvrToListKind, test.objects...)
 			g := DataGathererDynamic{
 				cl:                   cl,
 				groupVersionResource: test.gvr,
@@ -237,11 +242,19 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			if err == nil && test.err {
 				t.Errorf("expected to get an error but didn't get one")
 			}
-			if diff, equal := messagediff.PrettyDiff(test.expected, res); !equal {
-				t.Errorf("\n%s", diff)
-				expectedJSON, _ := json.MarshalIndent(test.expected, "", "  ")
-				gotJSON, _ := json.MarshalIndent(res, "", "  ")
-				t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
+
+			if test.expected != nil {
+				list, ok := res.(*unstructured.UnstructuredList)
+				if !ok {
+					t.Errorf("expected result be an UnstructuredList but wasn't")
+				}
+
+				if diff, equal := messagediff.PrettyDiff(test.expected.Items, list.Items); !equal {
+					t.Errorf("\n%s", diff)
+					expectedJSON, _ := json.MarshalIndent(test.expected.Items, "", "  ")
+					gotJSON, _ := json.MarshalIndent(list.Items, "", "  ")
+					t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
+				}
 			}
 		})
 	}
