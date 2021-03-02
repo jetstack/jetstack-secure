@@ -87,7 +87,7 @@ var defaultGVRs = []schema.GroupVersionResource{
 	{
 		Group:    "networking.istio.io",
 		Version:  "v1alpha3",
-		Resource: "eorkloadentries",
+		Resource: "workloadentries",
 	},
 	{
 		Group:    "networking.istio.io",
