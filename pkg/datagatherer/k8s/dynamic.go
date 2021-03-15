@@ -4,17 +4,20 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
-	dgerror "github.com/jetstack/preflight/pkg/datagatherer/error"
 	"github.com/pkg/errors"
-	statusError "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/pmylund/go-cache"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes/scheme"
+	k8scache "k8s.io/client-go/tools/cache"
 )
 
 // ConfigDynamic contains the configuration for the data-gatherer.
@@ -89,13 +92,35 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	if err := c.validate(); err != nil {
 		return nil, err
 	}
+	fieldSelector := generateFieldSelector(c.ExcludeNamespaces)
+	// init cache
+	dgCache := cache.New(5*time.Minute, 30*time.Second)
+	// init shared informer
+	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(cl, 30*time.Second, metav1.NamespaceAll, func(options *metav1.ListOptions) {
+		options.FieldSelector = fieldSelector
+	})
+	resourceInformer := factory.ForResource(c.GroupVersionResource)
+	informer := resourceInformer.Informer()
+	informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			onAdd(obj, dgCache)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			onUpdate(old, new, dgCache)
+		},
+		DeleteFunc: func(obj interface{}) {
+			onDelete(obj, dgCache)
+		},
+	})
 
 	return &DataGathererDynamic{
 		ctx:                  ctx,
 		cl:                   cl,
 		groupVersionResource: c.GroupVersionResource,
-		fieldSelector:        generateFieldSelector(c.ExcludeNamespaces),
+		fieldSelector:        fieldSelector,
 		namespaces:           c.IncludeNamespaces,
+		cache:                dgCache,
+		informer:             informer,
 	}, nil
 }
 
@@ -120,6 +145,22 @@ type DataGathererDynamic struct {
 	// returned by the Kubernetes API.
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/
 	fieldSelector string
+	// cache holds all resources watched by the data gatherer, default object expiry time 5 minutes
+	// 30 seconds purge time https://pkg.go.dev/github.com/patrickmn/go-cache
+	cache *cache.Cache
+	// informer watches the events around the targeted resource and updates the cache
+	informer k8scache.SharedIndexInformer
+}
+
+func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) {
+	g.informer.Run(stopCh)
+}
+
+func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
+	if !k8scache.WaitForCacheSync(stopCh, g.informer.HasSynced) {
+		return fmt.Errorf("Timed out waiting for caches to sync")
+	}
+	return nil
 }
 
 // Fetch will fetch the requested data from the apiserver, or return an error
@@ -129,54 +170,50 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 		return nil, fmt.Errorf("resource type must be specified")
 	}
 
-	var list unstructured.UnstructuredList
+	var list = []*api.GatheredResource{}
 
 	fetchNamespaces := g.namespaces
 	if len(fetchNamespaces) == 0 {
 		// then they must have been looking for all namespaces
-		fetchNamespaces = []string{""}
+		fetchNamespaces = []string{metav1.NamespaceAll}
 	}
 
-	for _, namespace := range fetchNamespaces {
-		resourceInterface := namespaceResourceInterface(g.cl.Resource(g.groupVersionResource), namespace)
-		namespaceList, err := resourceInterface.List(g.ctx, metav1.ListOptions{
-			FieldSelector: g.fieldSelector,
-		})
-		if err != nil {
-			if statusErr, ok := err.(*statusError.StatusError); ok {
-				if statusErr.Status().Code == 404 {
-					return nil, &dgerror.ConfigError{Err: err.Error()}
-				}
-			}
-			return nil, err
+	//delete expired items from the cache
+	g.cache.DeleteExpired()
+	for _, item := range g.cache.Items() {
+		// filter cache items by namespace
+		cacheObject := item.Object.(*api.GatheredResource)
+		resource := cacheObject.Resource.(*unstructured.Unstructured)
+		namespace := resource.GetNamespace()
+		if isIncludedNamespace(namespace, fetchNamespaces) {
+			list = append(list, cacheObject)
 		}
-		list.Object = namespaceList.Object
-		list.Items = append(list.Items, namespaceList.Items...)
 	}
 
 	// Redact Secret data
-	err := redactList(&list)
+	err := redactList(list)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	return &list, nil
+	return list, nil
 }
 
-func redactList(list *unstructured.UnstructuredList) error {
-	for i := range list.Items {
+func redactList(list []*api.GatheredResource) error {
+	for i := range list {
+		item := list[i].Resource.(*unstructured.Unstructured)
 		// Determine the kind of items in case this is a generic 'mixed' list.
-		gvks, _, err := scheme.Scheme.ObjectKinds(&list.Items[i])
+		gvks, _, err := scheme.Scheme.ObjectKinds(item)
 		if err != nil {
 			return errors.WithStack(err)
 		}
 
-		resource := list.Items[i]
+		resource := item
 
 		for _, gvk := range gvks {
 			// If this item is a Secret then we need to redact it.
 			if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
-				Select(SecretSelectedFields, &resource)
+				Select(SecretSelectedFields, resource)
 
 				// break when the object has been processed as a secret, no
 				// other kinds have redact modifications
@@ -186,10 +223,8 @@ func redactList(list *unstructured.UnstructuredList) error {
 		}
 
 		// remove managedFields from all resources
-		Redact(RedactFields, &resource)
+		Redact(RedactFields, resource)
 
-		// update the object in the list
-		list.Items[i] = resource
 	}
 	return nil
 }
@@ -215,4 +250,16 @@ func generateFieldSelector(excludeNamespaces []string) string {
 		fieldSelector = fields.AndSelectors(fields.OneTermNotEqualSelector("metadata.namespace", excludeNamespace), fieldSelector)
 	}
 	return fieldSelector.String()
+}
+
+func isIncludedNamespace(namespace string, namespaces []string) bool {
+	if namespaces[0] == metav1.NamespaceAll {
+		return true
+	}
+	for _, current := range namespaces {
+		if namespace == current {
+			return true
+		}
+	}
+	return false
 }

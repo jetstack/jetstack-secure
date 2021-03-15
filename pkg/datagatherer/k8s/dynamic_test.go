@@ -3,16 +3,24 @@ package k8s
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/d4l3k/messagediff"
+	"github.com/jetstack/preflight/api"
 	"gopkg.in/yaml.v2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/fake"
+	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/utils/diff"
 )
 
@@ -20,6 +28,7 @@ func getObject(version, kind, name, namespace string, withManagedFields bool) *u
 	metadata := map[string]interface{}{
 		"name":      name,
 		"namespace": namespace,
+		"uid":       fmt.Sprintf("%s1", name),
 	}
 
 	if withManagedFields {
@@ -79,6 +88,16 @@ func asUnstructuredList(items ...*unstructured.Unstructured) *unstructured.Unstr
 	}
 }
 
+func sortGatheredResources(list []*api.GatheredResource) {
+	if len(list) > 1 {
+		sort.SliceStable(list, func(i, j int) bool {
+			itemA := list[i].Resource.(*unstructured.Unstructured).GetName()
+			itemB := list[j].Resource.(*unstructured.Unstructured).GetName()
+			return itemA < itemB
+		})
+	}
+}
+
 func TestNewDataGathererWithClient(t *testing.T) {
 	ctx := context.Background()
 	config := ConfigDynamic{
@@ -103,160 +122,6 @@ func TestNewDataGathererWithClient(t *testing.T) {
 
 	if !reflect.DeepEqual(dg, expected) {
 		t.Errorf("unexpected difference: %v", diff.ObjectDiff(dg, expected))
-	}
-}
-
-func TestDynamicGatherer_Fetch(t *testing.T) {
-	emptyScheme := runtime.NewScheme()
-	tests := map[string]struct {
-		gvr        schema.GroupVersionResource
-		namespaces []string
-		objects    []runtime.Object
-		expected   *unstructured.UnstructuredList
-		err        bool
-	}{
-		"an error should be returned if 'resource' is missing": {
-			err: true,
-			gvr: schema.GroupVersionResource{Group: "test", Version: "v1"},
-		},
-		"only a Foo should be returned if GVR selects foos": {
-			gvr: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
-			objects: []runtime.Object{
-				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
-				getObject("v1", "Service", "testservice", "testns", false),
-				getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
-			},
-			expected: asUnstructuredList(
-				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
-			),
-		},
-		"only Foos in the specified namespace should be returned": {
-			gvr:        schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
-			namespaces: []string{"testns"},
-			objects: []runtime.Object{
-				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
-				getObject("foobar/v1", "Foo", "testfoo", "nottestns", false),
-			},
-			expected: asUnstructuredList(
-				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
-			),
-		},
-		"Foos in different namespaces should be returned if no namespace field is set": {
-			gvr: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
-			objects: []runtime.Object{
-				getObject("foobar/v1", "Foo", "testfoo", "testns1", false),
-				getObject("foobar/v1", "Foo", "testfoo", "testns2", false),
-			},
-			expected: asUnstructuredList(
-				getObject("foobar/v1", "Foo", "testfoo", "testns1", false),
-				getObject("foobar/v1", "Foo", "testfoo", "testns2", false),
-			),
-		},
-		"Secret resources should have data removed": {
-			gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
-			objects: []runtime.Object{
-				getSecret("testsecret", "testns1", map[string]interface{}{
-					"secretKey": "secretValue",
-				}, false, true),
-				getSecret("anothertestsecret", "testns2", map[string]interface{}{
-					"secretNumber": "12345",
-				}, false, true),
-			},
-			expected: asUnstructuredList(
-				getSecret("testsecret", "testns1", nil, false, false),
-				getSecret("anothertestsecret", "testns2", nil, false, false),
-			),
-		},
-		"Secret of type kubernetes.io/tls should have crts and not keys": {
-			gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
-			objects: []runtime.Object{
-				getSecret("testsecret", "testns1", map[string]interface{}{
-					"tls.key": "secretValue",
-					"tls.crt": "value",
-					"ca.crt":  "value",
-				}, true, true),
-				getSecret("anothertestsecret", "testns2", map[string]interface{}{
-					"example.key": "secretValue",
-					"example.crt": "value",
-				}, true, true),
-			},
-			expected: asUnstructuredList(
-				// only tls.crt and ca.cert remain
-				getSecret("testsecret", "testns1", map[string]interface{}{
-					"tls.crt": "value",
-					"ca.crt":  "value",
-				}, true, false),
-				// all other keys removed
-				getSecret("anothertestsecret", "testns2", nil, true, false),
-			),
-		},
-		"Foos in different namespaces should be returned if they are in the namespace list for the gatherer": {
-			gvr:        schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
-			namespaces: []string{"testns", "testns2"},
-			objects: []runtime.Object{
-				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
-				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
-				getObject("foobar/v1", "Foo", "testfoo3", "nottestns", false),
-			},
-			expected: asUnstructuredList(
-				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
-				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
-			),
-		},
-		"Resources should have managed fields removed": {
-			gvr: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
-			objects: []runtime.Object{
-				getObject("apps/v1", "Deployment", "foo1", "testns", false),
-				getObject("apps/v1", "Deployment", "foo2", "testns", true),
-			},
-			expected: asUnstructuredList(
-				getObject("apps/v1", "Deployment", "foo1", "testns", false),
-				getObject("apps/v1", "Deployment", "foo2", "testns", false),
-			),
-		},
-		// Note that we can't test use of fieldSelector to exclude namespaces
-		// here as the as the fake client does not implement it.
-		// See go/pkg/mod/k8s.io/client-go@v0.17.0/dynamic/fake/simple.go:291
-		// TODO: Add a custom reactor to allow testing of fieldSelector.
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			gvrToListKind := map[schema.GroupVersionResource]string{
-				schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"}: "UnstructuredList",
-				schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}: "UnstructuredList",
-				schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}: "UnstructuredList",
-			}
-			cl := fake.NewSimpleDynamicClientWithCustomListKinds(emptyScheme, gvrToListKind, test.objects...)
-			g := DataGathererDynamic{
-				cl:                   cl,
-				groupVersionResource: test.gvr,
-				// if empty, namespaces will default to []string{""} during
-				// fetch to get all ns
-				namespaces: test.namespaces,
-			}
-
-			res, err := g.Fetch()
-			if err != nil && !test.err {
-				t.Errorf("expected no error but got: %v", err)
-			}
-			if err == nil && test.err {
-				t.Errorf("expected to get an error but didn't get one")
-			}
-
-			if test.expected != nil {
-				list, ok := res.(*unstructured.UnstructuredList)
-				if !ok {
-					t.Errorf("expected result be an UnstructuredList but wasn't")
-				}
-
-				if diff, equal := messagediff.PrettyDiff(test.expected.Items, list.Items); !equal {
-					t.Errorf("\n%s", diff)
-					expectedJSON, _ := json.MarshalIndent(test.expected.Items, "", "  ")
-					gotJSON, _ := json.MarshalIndent(list.Items, "", "  ")
-					t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
-				}
-			}
-		})
 	}
 }
 
@@ -375,5 +240,331 @@ func TestGenerateFieldSelector(t *testing.T) {
 		if fieldSelector != test.ExpectedFieldSelector {
 			t.Errorf("ExpectedFieldSelector does not match: got=%+v want=%+v", fieldSelector, test.ExpectedFieldSelector)
 		}
+	}
+}
+
+// fake time for testing
+type fakeTime struct {
+}
+
+func (f *fakeTime) now() time.Time {
+	//2021-03-16T18:22:15+00:00
+	return time.Unix(1615918935, 0)
+}
+
+func init() {
+	clock = &fakeTime{}
+}
+
+func TestDynamicGatherer_Fetch(t *testing.T) {
+	// start a k8s client
+	// init the datagatherer's informer with the client
+	// add/delete resources watched by the data gatherer
+	// check the expected result
+	emptyScheme := runtime.NewScheme()
+	tests := map[string]struct {
+		config        ConfigDynamic
+		addObjects    []runtime.Object
+		deleteObjects map[string]string
+		updateObjects map[string]runtime.Object
+		expected      []*api.GatheredResource
+		err           bool
+	}{
+		"only a Foo should be returned if GVR selects foos": {
+			addObjects: []runtime.Object{
+				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+				getObject("v1", "Service", "testservice", "testns", false),
+				getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
+			},
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{"testns"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			},
+			expected: []*api.GatheredResource{
+				{
+					Resource:   getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+			},
+		},
+		"delete a Foo resource from the testns, the cache should have a Foo with deletedAt set to now()": {
+			addObjects: []runtime.Object{
+				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+				getObject("v1", "Service", "testservice", "testns", false),
+				getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
+			},
+			deleteObjects: map[string]string{
+				"testns": "testfoo",
+			},
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{"testns"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			},
+			expected: []*api.GatheredResource{
+				{
+					Resource: getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+					Properties: &api.GatheredResourceMetadata{
+						DeletedAt: &api.Time{Time: clock.now()},
+					},
+				},
+			},
+		},
+		"only Foos in the specified namespace should be returned": {
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{"testns"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			},
+			addObjects: []runtime.Object{
+				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+				getObject("foobar/v1", "Foo", "testfoo", "nottestns", false),
+			},
+			expected: []*api.GatheredResource{
+				{
+					Resource:   getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+			},
+		},
+		"Foos in different namespaces should be returned if no namespace field is set": {
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			},
+			addObjects: []runtime.Object{
+				getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
+				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+			},
+			expected: []*api.GatheredResource{
+				{
+					Resource:   getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+				{
+					Resource:   getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+			},
+		},
+		"DeleteFoos in different namespaces should be returned if no namespace field is set": {
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			},
+			addObjects: []runtime.Object{
+				getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
+				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+			},
+			expected: []*api.GatheredResource{
+				{
+					Resource:   getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+				{
+					Resource:   getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+			},
+		},
+		"Delete all Foo resources, all the fetched resources should have a deletedAt field set to now()": {
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			},
+			deleteObjects: map[string]string{
+				"testns1": "testfoo1",
+				"testns2": "testfoo2",
+			},
+			addObjects: []runtime.Object{
+				getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
+				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+			},
+			expected: []*api.GatheredResource{
+				{
+					Resource: getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
+					Properties: &api.GatheredResourceMetadata{
+						DeletedAt: &api.Time{Time: clock.now()},
+					},
+				},
+				{
+					Resource: getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+					Properties: &api.GatheredResourceMetadata{
+						DeletedAt: &api.Time{Time: clock.now()},
+					},
+				},
+			},
+		},
+		"Update all Foo resources, all the fetched resources should have been updated": {
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+			},
+			updateObjects: map[string]runtime.Object{
+				"testns1": getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
+				"testns2": getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+			},
+			addObjects: []runtime.Object{
+				getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
+				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+			},
+			expected: []*api.GatheredResource{
+				{
+					Resource:   getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+				{
+					Resource:   getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+			},
+		},
+		"Secret resources should have data removed": {
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+			},
+			addObjects: []runtime.Object{
+				getSecret("testsecret", "testns1", map[string]interface{}{
+					"secretKey": "secretValue",
+				}, false, true),
+				getSecret("anothertestsecret", "testns2", map[string]interface{}{
+					"secretNumber": "12345",
+				}, false, true),
+			},
+			expected: []*api.GatheredResource{
+				{
+					Resource:   getSecret("testsecret", "testns1", nil, false, false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+				{
+					Resource:   getSecret("anothertestsecret", "testns2", nil, false, false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+			},
+		},
+		"Secret of type kubernetes.io/tls should have crts and not keys": {
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+			},
+			addObjects: []runtime.Object{
+				getSecret("testsecret", "testns1", map[string]interface{}{
+					"tls.key": "secretValue",
+					"tls.crt": "value",
+					"ca.crt":  "value",
+				}, true, true),
+				getSecret("anothertestsecret", "testns2", map[string]interface{}{
+					"example.key": "secretValue",
+					"example.crt": "value",
+				}, true, true),
+			},
+			expected: []*api.GatheredResource{
+				{
+					// only tls.crt and ca.cert remain
+					Resource: getSecret("testsecret", "testns1", map[string]interface{}{
+						"tls.crt": "value",
+						"ca.crt":  "value",
+					}, true, false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+				{
+					// all other keys removed
+					Resource:   getSecret("anothertestsecret", "testns2", nil, true, false),
+					Properties: &api.GatheredResourceMetadata{},
+				},
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			var wg sync.WaitGroup
+			ctx := context.Background()
+			gvrToListKind := map[schema.GroupVersionResource]string{
+				schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"}:      "UnstructuredList",
+				schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}: "UnstructuredList",
+				schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}:         "UnstructuredList",
+			}
+			cl := fake.NewSimpleDynamicClientWithCustomListKinds(emptyScheme, gvrToListKind, tc.addObjects...)
+			// init the datagatherer's informer with the client
+			dg, err := tc.config.newDataGathererWithClient(ctx, cl)
+			if err != nil {
+				t.Fatalf("unexpected error: %+v", err)
+			}
+
+			// initializing test informer, this informer will capture all the events
+			// that occur in the test case and only allow the dg.Fetch to be perfomed
+			// after all the events have been triggered
+			factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(cl, 30*time.Second, metav1.NamespaceAll, nil)
+			resourceInformer := factory.ForResource(tc.config.GroupVersionResource)
+			testInformer := resourceInformer.Informer()
+			testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
+				DeleteFunc: func(obj interface{}) {
+					wg.Done()
+				},
+				UpdateFunc: func(old, new interface{}) {
+					wg.Done()
+				},
+			})
+			//start test Informer
+			factory.Start(ctx.Done())
+			k8scache.WaitForCacheSync(ctx.Done(), testInformer.HasSynced)
+
+			// start data gatherer informer
+			dynamiDg := dg.(*DataGathererDynamic)
+			go dynamiDg.Run(ctx.Done())
+			err = dynamiDg.WaitForCacheSync(ctx.Done())
+			if err != nil {
+				t.Fatalf("unexpected client error: %+v", err)
+			}
+
+			// send resource events for the informer
+			for ns, delete := range tc.deleteObjects {
+				wg.Add(1)
+				deletePolicy := metav1.DeletePropagationForeground
+				deleteOptions := metav1.DeleteOptions{
+					PropagationPolicy: &deletePolicy,
+				}
+				err := cl.Resource(tc.config.GroupVersionResource).Namespace(ns).Delete(ctx, delete, deleteOptions)
+				if err != nil {
+					t.Fatalf("unexpected client delete error: %+v", err)
+				}
+			}
+
+			for ns, update := range tc.updateObjects {
+				wg.Add(1)
+				new := update.(*unstructured.Unstructured)
+				_, err := cl.Resource(tc.config.GroupVersionResource).Namespace(ns).Update(ctx, new, metav1.UpdateOptions{})
+				if err != nil {
+					t.Fatalf("unexpected client update error: %+v", err)
+				}
+			}
+
+			wg.Wait()
+			res, err := dynamiDg.Fetch()
+			if err != nil && !tc.err {
+				t.Errorf("expected no error but got: %v", err)
+			}
+			if err == nil && tc.err {
+				t.Errorf("expected to get an error but didn't get one")
+			}
+
+			if tc.expected != nil {
+				list, ok := res.([]*api.GatheredResource)
+				if !ok {
+					t.Errorf("expected result be an *api.GatheredResource but wasn't")
+				}
+				// sorting list of results by name
+				sortGatheredResources(list)
+				// sorting list of expected results by name
+				sortGatheredResources(tc.expected)
+
+				if diff, equal := messagediff.PrettyDiff(tc.expected, list); !equal {
+					t.Errorf("\n%s", diff)
+					expectedJSON, _ := json.MarshalIndent(tc.expected, "", "  ")
+					gotJSON, _ := json.MarshalIndent(list, "", "  ")
+					t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
+				}
+			}
+		})
 	}
 }

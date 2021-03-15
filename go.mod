@@ -21,6 +21,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1
+	github.com/pmylund/go-cache v2.1.0+incompatible
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
