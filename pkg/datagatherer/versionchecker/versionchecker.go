@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jetstack/preflight/api"
 	vcapi "github.com/jetstack/version-checker/pkg/api"
 	vcchecker "github.com/jetstack/version-checker/pkg/checker"
 	vcarchitecture "github.com/jetstack/version-checker/pkg/checker/architecture"
@@ -207,6 +208,21 @@ func loadKeysFromPaths(keys []string, params map[string]string) (map[string]stri
 	return loadedData, nil
 }
 
+func (g *DataGatherer) Run(stopCh <-chan struct{}) {
+	// start dynamic dynamic data gatherers informes
+	g.podDynamicDg.(*k8s.DataGathererDynamic).Run(stopCh)
+	g.nodeDynamicDg.(*k8s.DataGathererDynamic).Run(stopCh)
+}
+
+func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+	err := g.podDynamicDg.(*k8s.DataGathererDynamic).WaitForCacheSync(stopCh)
+	if err != nil {
+		return err
+	}
+	err = g.nodeDynamicDg.(*k8s.DataGathererDynamic).WaitForCacheSync(stopCh)
+	return err
+}
+
 // NewDataGatherer creates a new VersionChecker DataGatherer
 func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	// create the k8s DataGatherer to use when collecting pods
@@ -282,13 +298,17 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch nodes: %v", err)
 	}
-	nodes, ok := rawNodes.(*unstructured.UnstructuredList)
+	nodes, ok := rawNodes.([]*api.GatheredResource)
 	if !ok {
 		return nil, fmt.Errorf("failed to parse nodes loaded from DataGatherer")
 	}
-	for _, v := range nodes.Items {
+	for _, v := range nodes {
 		var node v1.Node
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(v.Object, &node)
+		resource, ok := v.Resource.(*unstructured.Unstructured)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse node resource")
+		}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(resource.Object, &node)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse node from unstructured data: %v", err)
 		}
@@ -304,15 +324,19 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 		return nil, fmt.Errorf("failed to fetch pods: %v", err)
 	}
 
-	pods, ok := rawPods.(*unstructured.UnstructuredList)
+	pods, ok := rawPods.([]*api.GatheredResource)
 	if !ok {
 		return nil, fmt.Errorf("failed to parse pods loaded from DataGatherer")
 	}
 
 	var results []PodResult
-	for _, v := range pods.Items {
+	for _, v := range pods {
 		var pod v1.Pod
-		err = runtime.DefaultUnstructuredConverter.FromUnstructured(v.Object, &pod)
+		resource, ok := v.Resource.(*unstructured.Unstructured)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse node resource")
+		}
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(resource.Object, &pod)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse pod from unstructured data: %v", err)
 		}

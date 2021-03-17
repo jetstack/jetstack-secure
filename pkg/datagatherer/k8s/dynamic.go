@@ -120,6 +120,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		fieldSelector:        fieldSelector,
 		namespaces:           c.IncludeNamespaces,
 		cache:                dgCache,
+		sharedInformer:       factory,
 		informer:             informer,
 	}, nil
 }
@@ -149,11 +150,12 @@ type DataGathererDynamic struct {
 	// 30 seconds purge time https://pkg.go.dev/github.com/patrickmn/go-cache
 	cache *cache.Cache
 	// informer watches the events around the targeted resource and updates the cache
-	informer k8scache.SharedIndexInformer
+	informer       k8scache.SharedIndexInformer
+	sharedInformer dynamicinformer.DynamicSharedInformerFactory
 }
 
 func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) {
-	g.informer.Run(stopCh)
+	g.sharedInformer.Start(stopCh)
 }
 
 func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
@@ -183,7 +185,10 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 	for _, item := range g.cache.Items() {
 		// filter cache items by namespace
 		cacheObject := item.Object.(*api.GatheredResource)
-		resource := cacheObject.Resource.(*unstructured.Unstructured)
+		resource, ok := cacheObject.Resource.(*unstructured.Unstructured)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse cached resource")
+		}
 		namespace := resource.GetNamespace()
 		if isIncludedNamespace(namespace, fetchNamespaces) {
 			list = append(list, cacheObject)

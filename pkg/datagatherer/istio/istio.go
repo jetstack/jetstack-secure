@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"istio.io/istio/galley/pkg/config/analysis/analyzers"
 	"istio.io/istio/galley/pkg/config/analysis/local"
@@ -100,6 +101,24 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	}, nil
 }
 
+func (g *DataGatherer) Run(stopCh <-chan struct{}) {
+	// start dynamic dynamic data gatherers informers
+	for _, dynamicDg := range g.dynamicDataGatherers {
+		dynamicDg.(*k8s.DataGathererDynamic).Run(stopCh)
+	}
+}
+
+func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+	for _, dynamicDg := range g.dynamicDataGatherers {
+		err := dynamicDg.(*k8s.DataGathererDynamic).WaitForCacheSync(stopCh)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Fetch retrieves resources from the K8s API and runs Istio analysis.
 func (g *DataGatherer) Fetch() (interface{}, error) {
 
@@ -119,11 +138,17 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 			}
 			return nil, err
 		}
-		resources, ok := rawResources.(*unstructured.UnstructuredList)
+		resources, ok := rawResources.([]*api.GatheredResource)
 		if !ok {
 			return nil, fmt.Errorf("failed to parse resources loaded from DataGatherer")
 		}
-		allResources = append(allResources, resources.Items...)
+		for _, item := range resources {
+			resource, ok := item.Resource.(*unstructured.Unstructured)
+			if !ok {
+				return nil, fmt.Errorf("failed to parse istio resource")
+			}
+			allResources = append(allResources, *resource)
+		}
 	}
 
 	// Convert the slice of Unstructured resources into a string of YAML documents.

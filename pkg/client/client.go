@@ -16,6 +16,12 @@ var ClientID string
 var ClientSecret string
 var AuthServerDomain string
 
+// schema version of the data sent by the agent
+// default is v2. The agent sends data readings using
+// api.gathereredResources
+// v1. The agent sends data readings using unstructuredList
+const schemaVersion string = "v2"
+
 // PreflightClient can be used to talk to the Preflight backend.
 type PreflightClient struct {
 	// OAuth2
@@ -81,6 +87,7 @@ func (c *PreflightClient) PostDataReadings(orgID string, readings []*api.DataRea
 		AgentMetadata:  c.agentMetadata,
 		DataGatherTime: time.Now().UTC(),
 		DataReadings:   readings,
+		SchemaVersion:  schemaVersion,
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {

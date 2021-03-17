@@ -38,19 +38,27 @@ func TestFetch(t *testing.T) {
 	}
 	defer os.Remove(kubeConfigPath)
 
+	ctx := context.TODO()
 	// Create the Config for the test.
 	config := Config{}
 	err = yaml.Unmarshal([]byte(fmt.Sprintf(configString, kubeConfigPath)), &config)
 	if err != nil {
 		t.Fatalf("unexpected error: %+v", err)
 	}
-	dataGatherer, err := config.NewDataGatherer(context.TODO())
+	dataGatherer, err := config.NewDataGatherer(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error creating data gatherer: %+v", err)
 	}
 
+	istioDg := dataGatherer.(*DataGatherer)
+	istioDg.Run(ctx.Done())
+	err = istioDg.WaitForCacheSync(ctx.Done())
+	if err != nil {
+		t.Fatalf("unexpected client error: %+v", err)
+	}
+
 	// Fetch analysis result from the data gatherer.
-	rawAnalysisResult, err := dataGatherer.Fetch()
+	rawAnalysisResult, err := istioDg.Fetch()
 	if err != nil {
 		t.Fatalf("unexpected error fetching results: %+v", err)
 	}

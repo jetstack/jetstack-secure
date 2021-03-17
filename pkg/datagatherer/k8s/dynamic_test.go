@@ -511,7 +511,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 
 			// start data gatherer informer
 			dynamiDg := dg.(*DataGathererDynamic)
-			go dynamiDg.Run(ctx.Done())
+			dynamiDg.Run(ctx.Done())
 			err = dynamiDg.WaitForCacheSync(ctx.Done())
 			if err != nil {
 				t.Fatalf("unexpected client error: %+v", err)

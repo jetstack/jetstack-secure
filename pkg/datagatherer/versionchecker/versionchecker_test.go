@@ -166,17 +166,25 @@ registries:
 `, kubeConfigPath, hostConfigPath)
 
 	config := Config{}
+	ctx := context.Background()
 	err = yaml.Unmarshal([]byte(textCfg), &config)
 	if err != nil {
 		t.Fatalf("failed to load config: %+v", err)
 	}
 
-	dg, err := config.NewDataGatherer(context.Background())
+	dg, err := config.NewDataGatherer(ctx)
 	if err != nil {
 		t.Fatalf("failed create new dg %s", err)
 	}
 
-	rawResults, err := dg.Fetch()
+	vcDg := dg.(*DataGatherer)
+	vcDg.Run(ctx.Done())
+	err = vcDg.WaitForCacheSync(ctx.Done())
+	if err != nil {
+		t.Fatalf("unexpected client error: %+v", err)
+	}
+
+	rawResults, err := vcDg.Fetch()
 	if err != nil {
 		t.Fatalf("failed fetch data: %s", err)
 	}
