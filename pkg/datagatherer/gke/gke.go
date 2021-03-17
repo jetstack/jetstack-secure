@@ -85,6 +85,17 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	}, nil
 }
 
+// Run starts the data gatherer's informers for resource collection.
+// Returns error if the data gatherer informer wasn't initialized
+func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
+	return fmt.Errorf("data gatherer's informer was not initialized")
+}
+
+// WaitForCacheSync waits for the data gatherer's informers cache to sync.
+func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+	return fmt.Errorf("timed out waiting for caches to sync")
+}
+
 // Fetch retrieves cluster information from GKE.
 func (g *DataGatherer) Fetch() (interface{}, error) {
 	var credsOpt option.ClientOption

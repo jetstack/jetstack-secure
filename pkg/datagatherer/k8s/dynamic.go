@@ -154,13 +154,21 @@ type DataGathererDynamic struct {
 	sharedInformer dynamicinformer.DynamicSharedInformerFactory
 }
 
-func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) {
+// Run starts the dynamic data gatherer's informers for resource collection.
+// Returns error if the data gatherer informer wasn't initialized
+func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
+	if g.sharedInformer == nil {
+		return fmt.Errorf("data gatherer informer was not initialized")
+	}
+	// start shared informer
 	g.sharedInformer.Start(stopCh)
+	return nil
 }
 
+// WaitForCacheSync waits for the data gatherer's informers cache to sync before collecting the resources.
 func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
 	if !k8scache.WaitForCacheSync(stopCh, g.informer.HasSynced) {
-		return fmt.Errorf("Timed out waiting for caches to sync")
+		return fmt.Errorf("timed out waiting for caches to sync")
 	}
 	return nil
 }

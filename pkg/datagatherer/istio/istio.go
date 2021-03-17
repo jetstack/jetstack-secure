@@ -101,21 +101,27 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	}, nil
 }
 
-func (g *DataGatherer) Run(stopCh <-chan struct{}) {
+// Run starts the istio data gatherer's dynamic informers for resource collection.
+// Returns error if the pod and node data gatherers haven't been correctly initialized
+func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
 	// start dynamic dynamic data gatherers informers
 	for _, dynamicDg := range g.dynamicDataGatherers {
-		dynamicDg.(*k8s.DataGathererDynamic).Run(stopCh)
-	}
-}
-
-func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
-	for _, dynamicDg := range g.dynamicDataGatherers {
-		err := dynamicDg.(*k8s.DataGathererDynamic).WaitForCacheSync(stopCh)
+		err := dynamicDg.Run(stopCh)
 		if err != nil {
 			return err
 		}
 	}
+	return nil
+}
 
+// WaitForCacheSync waits for the data gatherer's informers cache to sync before collecting the resources.
+func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+	for _, dynamicDg := range g.dynamicDataGatherers {
+		err := dynamicDg.WaitForCacheSync(stopCh)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

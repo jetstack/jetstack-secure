@@ -510,8 +510,11 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			k8scache.WaitForCacheSync(ctx.Done(), testInformer.HasSynced)
 
 			// start data gatherer informer
-			dynamiDg := dg.(*DataGathererDynamic)
-			dynamiDg.Run(ctx.Done())
+			dynamiDg := dg
+			err = dynamiDg.Run(ctx.Done())
+			if err != nil {
+				t.Fatalf("unexpected client error: %+v", err)
+			}
 			err = dynamiDg.WaitForCacheSync(ctx.Done())
 			if err != nil {
 				t.Fatalf("unexpected client error: %+v", err)

@@ -38,7 +38,7 @@ func TestFetch(t *testing.T) {
 	}
 	defer os.Remove(kubeConfigPath)
 
-	ctx := context.TODO()
+	ctx := context.Background()
 	// Create the Config for the test.
 	config := Config{}
 	err = yaml.Unmarshal([]byte(fmt.Sprintf(configString, kubeConfigPath)), &config)

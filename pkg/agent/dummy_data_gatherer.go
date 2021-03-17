@@ -29,6 +29,17 @@ type dummyDataGatherer struct {
 	FailedAttempts int
 }
 
+// Run starts the data gatherer's informers for resource collection.
+// Returns error if the data gatherer informer wasn't initialized
+func (g *dummyDataGatherer) Run(stopCh <-chan struct{}) error {
+	return fmt.Errorf("data gatherer's informer was not initialized")
+}
+
+// WaitForCacheSync waits for the data gatherer's informers cache to sync.
+func (g *dummyDataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+	return fmt.Errorf("timed out waiting for caches to sync")
+}
+
 func (c *dummyDataGatherer) Fetch() (interface{}, error) {
 	var err error
 	if c.attemptNumber < c.FailedAttempts {

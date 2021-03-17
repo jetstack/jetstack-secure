@@ -208,21 +208,6 @@ func loadKeysFromPaths(keys []string, params map[string]string) (map[string]stri
 	return loadedData, nil
 }
 
-func (g *DataGatherer) Run(stopCh <-chan struct{}) {
-	// start dynamic dynamic data gatherers informes
-	g.podDynamicDg.(*k8s.DataGathererDynamic).Run(stopCh)
-	g.nodeDynamicDg.(*k8s.DataGathererDynamic).Run(stopCh)
-}
-
-func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
-	err := g.podDynamicDg.(*k8s.DataGathererDynamic).WaitForCacheSync(stopCh)
-	if err != nil {
-		return err
-	}
-	err = g.nodeDynamicDg.(*k8s.DataGathererDynamic).WaitForCacheSync(stopCh)
-	return err
-}
-
 // NewDataGatherer creates a new VersionChecker DataGatherer
 func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	// create the k8s DataGatherer to use when collecting pods
@@ -289,6 +274,24 @@ type containerResult struct {
 	ContainerName   string            `json:"container_name"`
 	InitContinainer bool              `json:"init_container"`
 	Result          *vcchecker.Result `json:"result"`
+}
+
+// Run starts the version checker data gatherer's dynamic informers for resource collection.
+// Returns error if the pod and node data gatherers haven't been correctly initialized
+func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
+	// start dynamic dynamic data gatherers informes
+	if err := g.podDynamicDg.Run(stopCh); err != nil {
+		return err
+	}
+	return g.nodeDynamicDg.Run(stopCh)
+}
+
+// WaitForCacheSync waits for the data gatherer's informers cache to sync before collecting the resources.
+func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+	if err := g.podDynamicDg.WaitForCacheSync(stopCh); err != nil {
+		return err
+	}
+	return g.nodeDynamicDg.WaitForCacheSync(stopCh)
 }
 
 // Fetch retrieves cluster information from GKE.
