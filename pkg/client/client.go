@@ -16,11 +16,13 @@ var ClientID string
 var ClientSecret string
 var AuthServerDomain string
 
-// schema version of the data sent by the agent
-// default is v2. The agent sends data readings using
-// api.gathereredResources
-// v1. The agent sends data readings using unstructuredList
-const schemaVersion string = "v2"
+// schema version of the data sent by the agent.
+// The new default version is v2.
+// In v2 the agent posts data readings using api.gathereredResources
+// Any requests without a schema version set will be interpreted
+// as using v1 by the backend. In v1 the agent sends
+// raw resource data of unstructuredList
+const schemaVersion string = "v2.0.0"
 
 // PreflightClient can be used to talk to the Preflight backend.
 type PreflightClient struct {

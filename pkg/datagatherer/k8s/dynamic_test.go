@@ -270,6 +270,30 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 		expected      []*api.GatheredResource
 		err           bool
 	}{
+		"fetches the default namespace": {
+			addObjects: []runtime.Object{
+				getObject("v1", "Namespace", "default", "", false),
+			},
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+			},
+			expected: []*api.GatheredResource{
+				{
+					Resource: &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "v1",
+							"kind":       "Namespace",
+							"metadata": map[string]interface{}{
+								"name": "default",
+								"uid":  "default1",
+							},
+						},
+					},
+					Properties: &api.GatheredResourceMetadata{},
+				},
+			},
+		},
 		"only a Foo should be returned if GVR selects foos": {
 			addObjects: []runtime.Object{
 				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
@@ -483,6 +507,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"}:      "UnstructuredList",
 				schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}: "UnstructuredList",
 				schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}:         "UnstructuredList",
+				schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"}:      "UnstructuredList",
 			}
 			cl := fake.NewSimpleDynamicClientWithCustomListKinds(emptyScheme, gvrToListKind, tc.addObjects...)
 			// init the datagatherer's informer with the client
@@ -542,7 +567,10 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				}
 			}
 
-			wg.Wait()
+			// wait for all the events to occur, else timeut in 30 seconds
+			if waitTimeout(&wg, 5*time.Second) {
+				t.Fatalf("unexpected timeout")
+			}
 			res, err := dynamiDg.Fetch()
 			if err != nil && !tc.err {
 				t.Errorf("expected no error but got: %v", err)
@@ -569,5 +597,21 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// waitTimeout waits for the waitgroup for the specified max timeout.
+// Returns true if waiting timed out.
+func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return false
+	case <-time.After(timeout):
+		return true
 	}
 }

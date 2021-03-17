@@ -204,7 +204,14 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 		if err != nil {
 			log.Fatalf("failed to instantiate %s DataGatherer: %v", kind, err)
 		}
-
+		// start the data gatherers and wait for the cache sync
+		// TODO add backoff retry
+		if err := dg.Run(ctx.Done()); err != nil {
+			log.Printf("failed to start %s DataGatherer: %v", kind, err)
+		}
+		if err := dg.WaitForCacheSync(ctx.Done()); err != nil {
+			log.Printf("failed to cache sync %s DataGatherer: %v", kind, err)
+		}
 		dataGatherers[dgConfig.Name] = dg
 	}
 

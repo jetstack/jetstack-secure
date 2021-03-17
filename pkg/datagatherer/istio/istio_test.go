@@ -141,10 +141,20 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 	var localServer *httptest.Server
 	localServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var responseContent []byte
+		params := r.URL.Query()
+		isWatch := true
+		if params.Get("watch") == "" {
+			isWatch = false
+		}
 
 		switch r.URL.Path {
 		case "/api/v1/namespaces":
-			responseContent = []byte(testNamespaces)
+			if isWatch {
+				responseContent = []byte(watchString)
+			} else {
+				responseContent = []byte(testNamespaces)
+			}
+			w.Header().Set("Content-Type", "application/json")
 		default:
 			t.Fatalf("Unexpected URL was called: %s", r.URL.Path)
 		}
@@ -155,6 +165,22 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 	return localServer
 }
 
+var watchString = `
+{
+	"type": "ADDED",
+	"object": {
+	  "kind": "Namespace",
+	  "apiVersion": "v1",
+	  "metadata": {
+		"name": "default"
+	  },
+	  "spec": {
+	  },
+	  "status": {
+		"phase": "Active"
+	  }
+	}
+}`
 var testNamespaces = `
 {
   "apiVersion": "v1",
