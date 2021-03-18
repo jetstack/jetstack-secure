@@ -120,8 +120,28 @@ func TestNewDataGathererWithClient(t *testing.T) {
 		namespaces: config.IncludeNamespaces,
 	}
 
-	if !reflect.DeepEqual(dg, expected) {
-		t.Errorf("unexpected difference: %v", diff.ObjectDiff(dg, expected))
+	gatherer := dg.(*DataGathererDynamic)
+	// test gatherer's fields
+	if !reflect.DeepEqual(gatherer.ctx, expected.ctx) {
+		t.Errorf("unexpected ctx difference: %v", diff.ObjectDiff(dg, expected))
+	}
+	if !reflect.DeepEqual(gatherer.cl, expected.cl) {
+		t.Errorf("unexpected client difference: %v", diff.ObjectDiff(dg, expected))
+	}
+	if !reflect.DeepEqual(gatherer.groupVersionResource, expected.groupVersionResource) {
+		t.Errorf("unexpected gvr difference: %v", diff.ObjectDiff(dg, expected))
+	}
+	if !reflect.DeepEqual(gatherer.namespaces, expected.namespaces) {
+		t.Errorf("unexpected namespace difference: %v", diff.ObjectDiff(dg, expected))
+	}
+	if gatherer.cache == nil {
+		t.Errorf("unexpected cache value: %v", nil)
+	}
+	if gatherer.informer == nil {
+		t.Errorf("unexpected resource informer value: %v", nil)
+	}
+	if gatherer.sharedInformer == nil {
+		t.Errorf("unexpected sharedInformer value: %v", nil)
 	}
 }
 

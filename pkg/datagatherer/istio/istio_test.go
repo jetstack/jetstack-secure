@@ -167,36 +167,40 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 
 var watchString = `
 {
-	"type": "ADDED",
-	"object": {
-	  "kind": "Namespace",
-	  "apiVersion": "v1",
-	  "metadata": {
-		"name": "default"
-	  },
-	  "spec": {
-	  },
-	  "status": {
-		"phase": "Active"
-	  }
-	}
-}`
+    "type":"ADDED",
+    "object":{
+        "kind":"Namespace",
+        "apiVersion":"v1",
+        "metadata":{
+            "name":"default",
+            "uid":"d966826d-e63c-487c-a769-cb02098b95fd"
+        },
+        "spec":{
+            
+        },
+        "status":{
+            "phase":"Active"
+        }
+    }
+}
+`
 var testNamespaces = `
 {
-  "apiVersion": "v1",
-  "items": [
-    {
-      "apiVersion": "v1",
-      "kind": "Namespace",
-      "metadata": {
-        "name": "default"
-      }
+    "apiVersion":"v1",
+    "items":[
+        {
+            "apiVersion":"v1",
+            "kind":"Namespace",
+            "metadata":{
+                "name":"default",
+                "uid":"d966826d-e63c-487c-a769-cb02098b95fd"
+            }
+        }
+    ],
+    "kind":"List",
+    "metadata":{
+        "resourceVersion":"",
+        "selfLink":""
     }
-  ],
-  "kind": "List",
-  "metadata": {
-    "resourceVersion": "",
-    "selfLink": ""
-  }
 }
 `

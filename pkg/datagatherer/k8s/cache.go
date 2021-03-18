@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"log"
 	"time"
 
 	"github.com/jetstack/preflight/api"
@@ -35,7 +36,11 @@ func onAdd(obj interface{}, dgCache *cache.Cache) {
 				Properties: &api.GatheredResourceMetadata{},
 			}
 			dgCache.Set(uid.(string), cacheObject, cache.DefaultExpiration)
+		} else {
+			log.Printf("could not %q resource %q to the cache, missing uid field", "add", data["name"].(string))
 		}
+	} else {
+		log.Printf("could not %q resource to the cache, missing metadata", "add")
 	}
 }
 
@@ -49,7 +54,11 @@ func onUpdate(old, new interface{}, dgCache *cache.Cache) {
 		if uid, ok := data["uid"]; ok {
 			cacheObject := updateCacheGatheredResource(uid.(string), new, dgCache)
 			dgCache.Set(uid.(string), cacheObject, cache.DefaultExpiration)
+		} else {
+			log.Printf("could not %q resource %q to the cache, missing uid field", "update", data["name"].(string))
 		}
+	} else {
+		log.Printf("could not %q resource to the cache, missing metadata", "update")
 	}
 }
 
@@ -64,7 +73,11 @@ func onDelete(obj interface{}, dgCache *cache.Cache) {
 			cacheObject := updateCacheGatheredResource(uid.(string), obj, dgCache)
 			cacheObject.Properties.DeletedAt = &api.Time{Time: clock.now()}
 			dgCache.Set(uid.(string), cacheObject, cache.DefaultExpiration)
+		} else {
+			log.Printf("could not %q resource %q to the cache, missing uid field", "delete", data["name"].(string))
 		}
+	} else {
+		log.Printf("could not %q resource to the cache, missing metadata", "delete")
 	}
 }
 
