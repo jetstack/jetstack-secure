@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gopkg.in/yaml.v2"
+	"reflect"
 	"strings"
 	"time"
 
@@ -125,6 +126,29 @@ func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
 	return nil
 }
 
+func (g *DataGatherer) Equals(old datagatherer.DataGatherer) bool {
+	// shallow equality
+	dg, ok := old.(*DataGatherer)
+	if !ok {
+		return false
+	}
+
+	if !reflect.DeepEqual(g.sourceAnalyzer, dg.sourceAnalyzer) {
+		return false
+	}
+	if len(g.dynamicDataGatherers) != len(dg.dynamicDataGatherers) {
+		return false
+	}
+
+	for i := range g.dynamicDataGatherers {
+		if !g.dynamicDataGatherers[i].Equals(dg.dynamicDataGatherers[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Fetch retrieves resources from the K8s API and runs Istio analysis.
 func (g *DataGatherer) Fetch() (interface{}, error) {
 
@@ -144,10 +168,19 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 			}
 			return nil, err
 		}
-		resources, ok := rawResources.([]*api.GatheredResource)
+		resourceItems, ok := rawResources.(map[string]interface{})
 		if !ok {
 			return nil, fmt.Errorf("failed to parse resources loaded from DataGatherer")
 		}
+
+		var resources []*api.GatheredResource = []*api.GatheredResource{}
+		if items, ok := resourceItems["items"]; ok {
+			resources, ok = items.([]*api.GatheredResource)
+			if !ok {
+				return nil, fmt.Errorf("failed to parse nodes loaded from DataGatherer, is not []*api.GatheredResource")
+			}
+		}
+
 		for _, item := range resources {
 			resource, ok := item.Resource.(*unstructured.Unstructured)
 			if !ok {

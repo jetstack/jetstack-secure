@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"reflect"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
 )
@@ -47,6 +48,14 @@ func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
 // WaitForCacheSync waits for the data gatherer's informers cache to sync.
 func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
 	return fmt.Errorf("timed out waiting for caches to sync")
+}
+
+func (g *DataGatherer) Equals(old datagatherer.DataGatherer) bool {
+	dg, ok := old.(*DataGatherer)
+	if !ok {
+		return false
+	}
+	return !reflect.DeepEqual(g, dg)
 }
 
 // Fetch loads and returns the data from the LocalDatagatherer's dataPath

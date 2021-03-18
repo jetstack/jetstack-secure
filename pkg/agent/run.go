@@ -49,6 +49,9 @@ var StrictMode bool
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
+	// map of the current data gatherers that were configured in the config
+	// this will dgs to live outside the fetching cycle
+	dataGatherers := map[string]datagatherer.DataGatherer{}
 	for {
 		config, preflightClient := getConfiguration(ctx)
 
@@ -58,7 +61,7 @@ func Run(cmd *cobra.Command, args []string) {
 			Period = config.Period
 		}
 
-		gatherAndOutputData(ctx, config, preflightClient)
+		gatherAndOutputData(ctx, config, preflightClient, dataGatherers)
 		if OneShot {
 			break
 		}
@@ -140,7 +143,7 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 	return config, preflightClient
 }
 
-func gatherAndOutputData(ctx context.Context, config Config, preflightClient *client.PreflightClient) {
+func gatherAndOutputData(ctx context.Context, config Config, preflightClient *client.PreflightClient, dataGatherers map[string]datagatherer.DataGatherer) {
 	var readings []*api.DataReading
 
 	// Input/OutputPath flag overwrites agent.yaml configuration
@@ -163,7 +166,7 @@ func gatherAndOutputData(ctx context.Context, config Config, preflightClient *cl
 		}
 		log.Println("Data read successfully.")
 	} else {
-		readings = gatherData(ctx, config)
+		readings = gatherData(ctx, config, dataGatherers)
 	}
 
 	if OutputPath != "" {
@@ -189,9 +192,14 @@ func gatherAndOutputData(ctx context.Context, config Config, preflightClient *cl
 	}
 }
 
-func gatherData(ctx context.Context, config Config) []*api.DataReading {
+func startAndSyncDataGather(ctx context.Context, dg datagatherer.DataGatherer) error {
+	if err := dg.Run(ctx.Done()); err != nil {
+		return err
+	}
+	return dg.WaitForCacheSync(ctx.Done())
+}
 
-	dataGatherers := make(map[string]datagatherer.DataGatherer)
+func gatherData(ctx context.Context, config Config, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
 
 	for _, dgConfig := range config.DataGatherers {
 		kind := dgConfig.Kind
@@ -200,19 +208,34 @@ func gatherData(ctx context.Context, config Config) []*api.DataReading {
 			log.Printf("Running data gatherer %s of type %s as Local, data-path override present", dgConfig.Name, dgConfig.Kind)
 		}
 
-		dg, err := dgConfig.Config.NewDataGatherer(ctx)
+		// initialize data gatherer
+		newDg, err := dgConfig.Config.NewDataGatherer(ctx)
 		if err != nil {
 			log.Fatalf("failed to instantiate %s DataGatherer: %v", kind, err)
 		}
-		// start the data gatherers and wait for the cache sync
-		// TODO add backoff retry
-		if err := dg.Run(ctx.Done()); err != nil {
-			log.Printf("failed to start %s DataGatherer: %v", kind, err)
+
+		dg, ok := dataGatherers[dgConfig.Name]
+		if !ok {
+			// start the data gatherers and wait for the cache sync
+			err := startAndSyncDataGather(ctx, newDg)
+			if err != nil {
+				log.Printf("failed to start and cache sync %s DataGatherer: %v", kind, err)
+			}
+			dataGatherers[dgConfig.Name] = newDg
+		} else {
+			// checking if there have been any changes to the data gatherer's config
+			// if no changes are found the keep the current datagatherer in the state map
+			// this will allow dg with caches to not be always re initialized
+			// but still allow users to edit their config at runtime
+			if !dg.Equals(newDg) {
+				// update the data gatherer
+				err := startAndSyncDataGather(ctx, newDg)
+				if err != nil {
+					log.Printf("failed to start and cache sync %s DataGatherer: %v", kind, err)
+				}
+				dataGatherers[dgConfig.Name] = newDg
+			}
 		}
-		if err := dg.WaitForCacheSync(ctx.Done()); err != nil {
-			log.Printf("failed to cache sync %s DataGatherer: %v", kind, err)
-		}
-		dataGatherers[dgConfig.Name] = dg
 	}
 
 	//TODO Change backoff parameters to those desired

@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -173,6 +174,21 @@ func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
 	return nil
 }
 
+func (g *DataGathererDynamic) Equals(old datagatherer.DataGatherer) bool {
+	// shallow equality
+	dg, ok := old.(*DataGathererDynamic)
+	if !ok {
+		return false
+	}
+
+	if !reflect.DeepEqual(g.groupVersionResource, dg.groupVersionResource) ||
+		!reflect.DeepEqual(g.namespaces, dg.namespaces) || !reflect.DeepEqual(g.fieldSelector, dg.fieldSelector) {
+		return false
+	}
+
+	return true
+}
+
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
 func (g *DataGathererDynamic) Fetch() (interface{}, error) {
@@ -180,7 +196,8 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 		return nil, fmt.Errorf("resource type must be specified")
 	}
 
-	var list = []*api.GatheredResource{}
+	var list = map[string]interface{}{}
+	var items = []*api.GatheredResource{}
 
 	fetchNamespaces := g.namespaces
 	if len(fetchNamespaces) == 0 {
@@ -199,15 +216,18 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 		}
 		namespace := resource.GetNamespace()
 		if isIncludedNamespace(namespace, fetchNamespaces) {
-			list = append(list, cacheObject)
+			items = append(items, cacheObject)
 		}
 	}
 
 	// Redact Secret data
-	err := redactList(list)
+	err := redactList(items)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+
+	// add gathered resources to items
+	list["items"] = items
 
 	return list, nil
 }

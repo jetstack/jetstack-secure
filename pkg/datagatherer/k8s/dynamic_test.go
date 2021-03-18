@@ -310,7 +310,6 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 							},
 						},
 					},
-					Properties: &api.GatheredResourceMetadata{},
 				},
 			},
 		},
@@ -326,8 +325,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			},
 			expected: []*api.GatheredResource{
 				{
-					Resource:   getObject("foobar/v1", "Foo", "testfoo", "testns", false),
-					Properties: &api.GatheredResourceMetadata{},
+					Resource: getObject("foobar/v1", "Foo", "testfoo", "testns", false),
 				},
 			},
 		},
@@ -346,10 +344,8 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			},
 			expected: []*api.GatheredResource{
 				{
-					Resource: getObject("foobar/v1", "Foo", "testfoo", "testns", false),
-					Properties: &api.GatheredResourceMetadata{
-						DeletedAt: &api.Time{Time: clock.now()},
-					},
+					Resource:  getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+					DeletedAt: &api.Time{Time: clock.now()},
 				},
 			},
 		},
@@ -364,8 +360,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			},
 			expected: []*api.GatheredResource{
 				{
-					Resource:   getObject("foobar/v1", "Foo", "testfoo", "testns", false),
-					Properties: &api.GatheredResourceMetadata{},
+					Resource: getObject("foobar/v1", "Foo", "testfoo", "testns", false),
 				},
 			},
 		},
@@ -380,12 +375,10 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			},
 			expected: []*api.GatheredResource{
 				{
-					Resource:   getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
-					Properties: &api.GatheredResourceMetadata{},
+					Resource: getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
 				},
 				{
-					Resource:   getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
-					Properties: &api.GatheredResourceMetadata{},
+					Resource: getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
 				},
 			},
 		},
@@ -400,12 +393,10 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			},
 			expected: []*api.GatheredResource{
 				{
-					Resource:   getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
-					Properties: &api.GatheredResourceMetadata{},
+					Resource: getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
 				},
 				{
-					Resource:   getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
-					Properties: &api.GatheredResourceMetadata{},
+					Resource: getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
 				},
 			},
 		},
@@ -424,16 +415,12 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			},
 			expected: []*api.GatheredResource{
 				{
-					Resource: getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
-					Properties: &api.GatheredResourceMetadata{
-						DeletedAt: &api.Time{Time: clock.now()},
-					},
+					Resource:  getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
+					DeletedAt: &api.Time{Time: clock.now()},
 				},
 				{
-					Resource: getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
-					Properties: &api.GatheredResourceMetadata{
-						DeletedAt: &api.Time{Time: clock.now()},
-					},
+					Resource:  getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
+					DeletedAt: &api.Time{Time: clock.now()},
 				},
 			},
 		},
@@ -452,12 +439,10 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			},
 			expected: []*api.GatheredResource{
 				{
-					Resource:   getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
-					Properties: &api.GatheredResourceMetadata{},
+					Resource: getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
 				},
 				{
-					Resource:   getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
-					Properties: &api.GatheredResourceMetadata{},
+					Resource: getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
 				},
 			},
 		},
@@ -476,12 +461,10 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			},
 			expected: []*api.GatheredResource{
 				{
-					Resource:   getSecret("testsecret", "testns1", nil, false, false),
-					Properties: &api.GatheredResourceMetadata{},
+					Resource: getSecret("testsecret", "testns1", nil, false, false),
 				},
 				{
-					Resource:   getSecret("anothertestsecret", "testns2", nil, false, false),
-					Properties: &api.GatheredResourceMetadata{},
+					Resource: getSecret("anothertestsecret", "testns2", nil, false, false),
 				},
 			},
 		},
@@ -508,12 +491,10 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 						"tls.crt": "value",
 						"ca.crt":  "value",
 					}, true, false),
-					Properties: &api.GatheredResourceMetadata{},
 				},
 				{
 					// all other keys removed
-					Resource:   getSecret("anothertestsecret", "testns2", nil, true, false),
-					Properties: &api.GatheredResourceMetadata{},
+					Resource: getSecret("anothertestsecret", "testns2", nil, true, false),
 				},
 			},
 		},
@@ -544,10 +525,12 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			testInformer := resourceInformer.Informer()
 			testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 				DeleteFunc: func(obj interface{}) {
-					wg.Done()
+					defer wg.Done()
+					time.Sleep(100 * time.Millisecond)
 				},
 				UpdateFunc: func(old, new interface{}) {
-					wg.Done()
+					defer wg.Done()
+					time.Sleep(100 * time.Millisecond)
 				},
 			})
 			//start test Informer
@@ -600,9 +583,14 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			}
 
 			if tc.expected != nil {
-				list, ok := res.([]*api.GatheredResource)
+				items, ok := res.(map[string]interface{})
 				if !ok {
-					t.Errorf("expected result be an *api.GatheredResource but wasn't")
+					t.Errorf("expected result be an map[string]interface{} but wasn't")
+				}
+
+				list, ok := items["items"].([]*api.GatheredResource)
+				if !ok {
+					t.Errorf("expected result be an []*api.GatheredResource but wasn't")
 				}
 				// sorting list of results by name
 				sortGatheredResources(list)

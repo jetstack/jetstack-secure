@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
@@ -294,6 +295,22 @@ func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
 	return g.nodeDynamicDg.WaitForCacheSync(stopCh)
 }
 
+func (g *DataGatherer) Equals(old datagatherer.DataGatherer) bool {
+	// shallow equality
+	dg, ok := old.(*DataGatherer)
+	if !ok {
+		return false
+	}
+
+	if !reflect.DeepEqual(g.nodeArchitecture, dg.nodeArchitecture) ||
+		!reflect.DeepEqual(g.versionCheckerOptions, dg.versionCheckerOptions) ||
+		!reflect.DeepEqual(g.config, dg.config) || !g.podDynamicDg.Equals(dg.podDynamicDg) ||
+		!g.nodeDynamicDg.Equals(dg.nodeDynamicDg) {
+		return false
+	}
+	return true
+}
+
 // Fetch retrieves cluster information from GKE.
 func (g *DataGatherer) Fetch() (interface{}, error) {
 	// Get nodes information to update version-checker architecture structure
@@ -301,10 +318,20 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch nodes: %v", err)
 	}
-	nodes, ok := rawNodes.([]*api.GatheredResource)
+
+	nodeItems, ok := rawNodes.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("failed to parse nodes loaded from DataGatherer")
+		return nil, fmt.Errorf("failed to parse nodes loaded from DataGatherer, is not map[string]interface{}")
 	}
+
+	var nodes []*api.GatheredResource = []*api.GatheredResource{}
+	if items, ok := nodeItems["items"]; ok {
+		nodes, ok = items.([]*api.GatheredResource)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse nodes loaded from DataGatherer, is not []*api.GatheredResource")
+		}
+	}
+
 	for _, v := range nodes {
 		var node v1.Node
 		resource, ok := v.Resource.(*unstructured.Unstructured)
@@ -327,9 +354,17 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 		return nil, fmt.Errorf("failed to fetch pods: %v", err)
 	}
 
-	pods, ok := rawPods.([]*api.GatheredResource)
+	podItems, ok := rawPods.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("failed to parse pods loaded from DataGatherer")
+		return nil, fmt.Errorf("failed to parse pods loaded from DataGatherer, is not map[string]interface{}")
+	}
+
+	var pods []*api.GatheredResource = []*api.GatheredResource{}
+	if items, ok := podItems["items"]; ok {
+		pods, ok = items.([]*api.GatheredResource)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse pods loaded from DataGatherer, is not []*api.GatheredResource")
+		}
 	}
 
 	var results []PodResult

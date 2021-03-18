@@ -32,8 +32,7 @@ func onAdd(obj interface{}, dgCache *cache.Cache) {
 		data := metadata.(map[string]interface{})
 		if uid, ok := data["uid"]; ok {
 			cacheObject := &api.GatheredResource{
-				Resource:   obj,
-				Properties: &api.GatheredResourceMetadata{},
+				Resource: obj,
 			}
 			dgCache.Set(uid.(string), cacheObject, cache.DefaultExpiration)
 		} else {
@@ -71,7 +70,7 @@ func onDelete(obj interface{}, dgCache *cache.Cache) {
 		data := metadata.(map[string]interface{})
 		if uid, ok := data["uid"]; ok {
 			cacheObject := updateCacheGatheredResource(uid.(string), obj, dgCache)
-			cacheObject.Properties.DeletedAt = &api.Time{Time: clock.now()}
+			cacheObject.DeletedAt = &api.Time{Time: clock.now()}
 			dgCache.Set(uid.(string), cacheObject, cache.DefaultExpiration)
 		} else {
 			log.Printf("could not %q resource %q to the cache, missing uid field", "delete", data["name"].(string))
@@ -88,14 +87,13 @@ func updateCacheGatheredResource(cacheKey string, resource interface{},
 	dgCache *cache.Cache) *api.GatheredResource {
 	// updated cache object
 	cacheObject := &api.GatheredResource{
-		Resource:   resource,
-		Properties: &api.GatheredResourceMetadata{},
+		Resource: resource,
 	}
 	// update the object's properties, if it's already in the cache
 	if o, ok := dgCache.Get(cacheKey); ok {
-		cachedProperties := o.(*api.GatheredResource).Properties
-		if cachedProperties != nil {
-			cacheObject.Properties = cachedProperties
+		deletedAt := o.(*api.GatheredResource).DeletedAt
+		if deletedAt != nil {
+			cacheObject.DeletedAt = deletedAt
 		}
 	}
 	return cacheObject

@@ -18,4 +18,6 @@ type DataGatherer interface {
 	Run(stopCh <-chan struct{}) error
 	// WaitForCacheSync waits for the data gatherer's informers cache to sync.
 	WaitForCacheSync(stopCh <-chan struct{}) error
+	// Equals compares two data gatherers to check for shallow equality
+	Equals(old DataGatherer) bool
 }

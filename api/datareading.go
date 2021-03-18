@@ -25,12 +25,6 @@ type DataReading struct {
 type GatheredResource struct {
 	// Resource is a reference to a k8s object that was found by the informer
 	// should be of type unstructured.Unstructured, raw Object
-	Resource   interface{}               `json:"resource"`
-	Properties *GatheredResourceMetadata `json:"item_metadata,omitempty"`
-}
-
-// GatheredResourceMetadata boundles additional platform metadata for a
-// gathered k8s resource
-type GatheredResourceMetadata struct {
-	DeletedAt *Time `json:"deletedAt,omitempty"`
+	Resource  interface{} `json:"resource"`
+	DeletedAt *Time       `json:"deletedAt,omitempty"`
 }
