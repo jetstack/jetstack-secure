@@ -18,4 +18,6 @@ type DataGatherer interface {
 	Run(stopCh <-chan struct{}) error
 	// WaitForCacheSync waits for the data gatherer's informers cache to sync.
 	WaitForCacheSync(stopCh <-chan struct{}) error
+	// Delete, free all resources used by the data gatherer
+	Delete() error
 }

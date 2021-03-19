@@ -193,10 +193,10 @@ func gatherAndOutputData(ctx context.Context, config Config, preflightClient *cl
 }
 
 func startAndSyncDataGather(ctx context.Context, dg datagatherer.DataGatherer) error {
-	if err := dg.Run(ctx.Done()); err != nil {
+	if err := dg.Run(nil); err != nil {
 		return err
 	}
-	return dg.WaitForCacheSync(ctx.Done())
+	return dg.WaitForCacheSync(nil)
 }
 
 func gatherData(ctx context.Context, config Config, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
@@ -212,13 +212,13 @@ func gatherData(ctx context.Context, config Config, dataGatherers map[string]dat
 			// initialize data gatherer
 			newDg, err := dgConfig.Config.NewDataGatherer(ctx)
 			if err != nil {
-				log.Fatalf("failed to instantiate %s DataGatherer: %v", kind, err)
+				log.Fatalf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
 			}
 
 			// start the data gatherers and wait for the cache sync
 			err = startAndSyncDataGather(ctx, newDg)
 			if err != nil {
-				log.Printf("failed to start and cache sync %s DataGatherer: %v", kind, err)
+				log.Printf("failed to start and cache sync %q data gatherer %q: %v", kind, dgConfig.Name, err)
 			}
 			dataGatherers[dgConfig.Name] = newDg
 
@@ -296,7 +296,11 @@ func gatherData(ctx context.Context, config Config, dataGatherers map[string]dat
 	}
 
 	// clear all gatherers in the state
-	for name := range dataGatherers {
+	for name, gatherer := range dataGatherers {
+		if err := gatherer.Delete(); err != nil {
+			log.Println(err)
+			continue
+		}
 		delete(dataGatherers, name)
 	}
 

@@ -125,6 +125,16 @@ func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
 	return nil
 }
 
+func (g *DataGatherer) Delete() error {
+	for _, dynamicDg := range g.dynamicDataGatherers {
+		err := dynamicDg.Delete()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Fetch retrieves resources from the K8s API and runs Istio analysis.
 func (g *DataGatherer) Fetch() (interface{}, error) {
 

@@ -294,6 +294,20 @@ func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
 	return g.nodeDynamicDg.WaitForCacheSync(stopCh)
 }
 
+func (g *DataGatherer) Delete() error {
+	if g.podDynamicDg != nil {
+		if err := g.podDynamicDg.Delete(); err != nil {
+			return err
+		}
+	}
+	if g.nodeDynamicDg != nil {
+		if err := g.nodeDynamicDg.Delete(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Fetch retrieves cluster information from GKE.
 func (g *DataGatherer) Fetch() (interface{}, error) {
 	// Get nodes information to update version-checker architecture structure

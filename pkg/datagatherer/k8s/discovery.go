@@ -49,12 +49,20 @@ type DataGathererDiscovery struct {
 // Run starts the data gatherer's informers for resource collection.
 // Returns error if the data gatherer informer wasn't initialized
 func (g *DataGathererDiscovery) Run(stopCh <-chan struct{}) error {
-	return fmt.Errorf("data gatherer's informer was not initialized")
+	// discovery doesn't use informers underneat
+	// fmt.Errorf("data gatherer's informer was not initialized")
+	return nil
 }
 
 // WaitForCacheSync waits for the data gatherer's informers cache to sync.
 func (g *DataGathererDiscovery) WaitForCacheSync(stopCh <-chan struct{}) error {
-	return fmt.Errorf("timed out waiting for caches to sync")
+	// discovery doesn't use informers underneat
+	// fmt.Errorf("timed out waiting for caches to sync")
+	return nil
+}
+
+func (g *DataGathererDiscovery) Delete() error {
+	return nil
 }
 
 // Fetch will fetch discovery data from the apiserver, or return an error

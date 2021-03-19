@@ -3,7 +3,6 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -102,21 +101,20 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	})
 	resourceInformer := factory.ForResource(c.GroupVersionResource)
 	informer := resourceInformer.Informer()
-	if err := informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
-		// handle errors in the resource watcher, the backoff retry is embedded
-		log.Printf("unable to watch for %q resources in the data gatherer", c.GroupVersionResource)
-	}); err != nil {
-		return nil, err
-	}
+	// isHealthy tells us if the informer can receive events or there have been issues
+	isHealthy := true
 
 	informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
+			isHealthy = true
 			onAdd(obj, dgCache)
 		},
 		UpdateFunc: func(old, new interface{}) {
+			isHealthy = true
 			onUpdate(old, new, dgCache)
 		},
 		DeleteFunc: func(obj interface{}) {
+			isHealthy = true
 			onDelete(obj, dgCache)
 		},
 	})
@@ -130,6 +128,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		cache:                dgCache,
 		sharedInformer:       factory,
 		informer:             informer,
+		isHealthy:            isHealthy,
 	}, nil
 }
 
@@ -160,6 +159,10 @@ type DataGathererDynamic struct {
 	// informer watches the events around the targeted resource and updates the cache
 	informer       k8scache.SharedIndexInformer
 	sharedInformer dynamicinformer.DynamicSharedInformerFactory
+	informerCtx    context.Context
+	informerCancel context.CancelFunc
+	// isHealthy tells us if the informer can receive events or there have been issues
+	isHealthy bool
 }
 
 // Run starts the dynamic data gatherer's informers for resource collection.
@@ -168,23 +171,57 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 	if g.sharedInformer == nil {
 		return fmt.Errorf("data gatherer informer was not initialized")
 	}
-	// start shared informer
-	g.sharedInformer.Start(stopCh)
+
+	// starting a new ctx for the informer
+	// WithCancel copies the parent ctx and creates a new done() channel
+	informerCtx, cancel := context.WithCancel(g.ctx)
+	g.informerCtx = informerCtx
+	g.informerCancel = cancel
+	// attach WatchErrorHandler, it needs to be set before starting an informer
+	if err := g.informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
+		g.isHealthy = false
+		// cancel the informer ctx to stop the informer in case of error
+		cancel()
+	}); err != nil {
+		return err
+	}
+
+	if stopCh == nil {
+		// start shared informer
+		g.sharedInformer.Start(g.informerCtx.Done())
+	} else {
+		g.sharedInformer.Start(stopCh)
+	}
+
 	return nil
 }
 
 // WaitForCacheSync waits for the data gatherer's informers cache to sync before collecting the resources.
 func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
-	if !k8scache.WaitForCacheSync(stopCh, g.informer.HasSynced) {
-		return fmt.Errorf("timed out waiting for caches to sync")
+	if stopCh == nil {
+		// start shared informer
+		if !k8scache.WaitForCacheSync(g.informerCtx.Done(), g.informer.HasSynced) {
+			return fmt.Errorf("timed out waiting for caches to sync")
+		}
+	} else {
+		if !k8scache.WaitForCacheSync(stopCh, g.informer.HasSynced) {
+			return fmt.Errorf("timed out waiting for caches to sync")
+		}
 	}
+
+	return nil
+}
+
+func (g *DataGathererDynamic) Delete() error {
+	g.cache.Flush()
+	g.informerCancel()
 	return nil
 }
 
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
 func (g *DataGathererDynamic) Fetch() (interface{}, error) {
-	if g.groupVersionResource.Resource == "" {
+	if g.groupVersionResource.Resource == "" || !g.isHealthy {
 		return nil, fmt.Errorf("resource type must be specified")
 	}
 

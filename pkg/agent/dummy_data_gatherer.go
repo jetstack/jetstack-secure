@@ -40,6 +40,10 @@ func (g *dummyDataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
 	return fmt.Errorf("timed out waiting for caches to sync")
 }
 
+func (g *dummyDataGatherer) Delete() error {
+	return nil
+}
+
 func (c *dummyDataGatherer) Fetch() (interface{}, error) {
 	var err error
 	if c.attemptNumber < c.FailedAttempts {

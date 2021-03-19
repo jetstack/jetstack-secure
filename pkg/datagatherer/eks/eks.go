@@ -55,6 +55,10 @@ func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
 	return fmt.Errorf("data gatherer's informer was not initialized")
 }
 
+func (g *DataGatherer) Delete() error {
+	return nil
+}
+
 // WaitForCacheSync waits for the data gatherer's informers cache to sync.
 func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
 	return fmt.Errorf("timed out waiting for caches to sync")
