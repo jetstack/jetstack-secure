@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"reflect"
 	"strings"
 	"time"
 
@@ -293,22 +292,6 @@ func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
 		return err
 	}
 	return g.nodeDynamicDg.WaitForCacheSync(stopCh)
-}
-
-func (g *DataGatherer) Equals(old datagatherer.DataGatherer) bool {
-	// shallow equality
-	dg, ok := old.(*DataGatherer)
-	if !ok {
-		return false
-	}
-
-	if !reflect.DeepEqual(g.nodeArchitecture, dg.nodeArchitecture) ||
-		!reflect.DeepEqual(g.versionCheckerOptions, dg.versionCheckerOptions) ||
-		!reflect.DeepEqual(g.config, dg.config) || !g.podDynamicDg.Equals(dg.podDynamicDg) ||
-		!g.nodeDynamicDg.Equals(dg.nodeDynamicDg) {
-		return false
-	}
-	return true
 }
 
 // Fetch retrieves cluster information from GKE.

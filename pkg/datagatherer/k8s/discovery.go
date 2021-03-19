@@ -57,10 +57,6 @@ func (g *DataGathererDiscovery) WaitForCacheSync(stopCh <-chan struct{}) error {
 	return fmt.Errorf("timed out waiting for caches to sync")
 }
 
-func (g *DataGathererDiscovery) Equals(old datagatherer.DataGatherer) bool {
-	return false
-}
-
 // Fetch will fetch discovery data from the apiserver, or return an error
 func (g *DataGathererDiscovery) Fetch() (interface{}, error) {
 	data, err := g.cl.ServerVersion()

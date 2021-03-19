@@ -3,7 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"reflect"
+	"log"
 	"strings"
 	"time"
 
@@ -102,6 +102,13 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	})
 	resourceInformer := factory.ForResource(c.GroupVersionResource)
 	informer := resourceInformer.Informer()
+	if err := informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
+		// handle errors in the resource watcher, the backoff retry is embedded
+		log.Printf("unable to watch for %q resources in the data gatherer", c.GroupVersionResource)
+	}); err != nil {
+		return nil, err
+	}
+
 	informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			onAdd(obj, dgCache)
@@ -172,21 +179,6 @@ func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
 		return fmt.Errorf("timed out waiting for caches to sync")
 	}
 	return nil
-}
-
-func (g *DataGathererDynamic) Equals(old datagatherer.DataGatherer) bool {
-	// shallow equality
-	dg, ok := old.(*DataGathererDynamic)
-	if !ok {
-		return false
-	}
-
-	if !reflect.DeepEqual(g.groupVersionResource, dg.groupVersionResource) ||
-		!reflect.DeepEqual(g.namespaces, dg.namespaces) || !reflect.DeepEqual(g.fieldSelector, dg.fieldSelector) {
-		return false
-	}
-
-	return true
 }
 
 // Fetch will fetch the requested data from the apiserver, or return an error

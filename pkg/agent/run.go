@@ -200,41 +200,28 @@ func startAndSyncDataGather(ctx context.Context, dg datagatherer.DataGatherer) e
 }
 
 func gatherData(ctx context.Context, config Config, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
+	// initialize all gatherers for the current cycle, if non were set
+	if len(dataGatherers) == 0 {
+		for _, dgConfig := range config.DataGatherers {
+			kind := dgConfig.Kind
+			if dgConfig.DataPath != "" {
+				kind = "local"
+				log.Printf("Running data gatherer %s of type %s as Local, data-path override present", dgConfig.Name, dgConfig.Kind)
+			}
 
-	for _, dgConfig := range config.DataGatherers {
-		kind := dgConfig.Kind
-		if dgConfig.DataPath != "" {
-			kind = "local"
-			log.Printf("Running data gatherer %s of type %s as Local, data-path override present", dgConfig.Name, dgConfig.Kind)
-		}
+			// initialize data gatherer
+			newDg, err := dgConfig.Config.NewDataGatherer(ctx)
+			if err != nil {
+				log.Fatalf("failed to instantiate %s DataGatherer: %v", kind, err)
+			}
 
-		// initialize data gatherer
-		newDg, err := dgConfig.Config.NewDataGatherer(ctx)
-		if err != nil {
-			log.Fatalf("failed to instantiate %s DataGatherer: %v", kind, err)
-		}
-
-		dg, ok := dataGatherers[dgConfig.Name]
-		if !ok {
 			// start the data gatherers and wait for the cache sync
-			err := startAndSyncDataGather(ctx, newDg)
+			err = startAndSyncDataGather(ctx, newDg)
 			if err != nil {
 				log.Printf("failed to start and cache sync %s DataGatherer: %v", kind, err)
 			}
 			dataGatherers[dgConfig.Name] = newDg
-		} else {
-			// checking if there have been any changes to the data gatherer's config
-			// if no changes are found the keep the current datagatherer in the state map
-			// this will allow dg with caches to not be always re initialized
-			// but still allow users to edit their config at runtime
-			if !dg.Equals(newDg) {
-				// update the data gatherer
-				err := startAndSyncDataGather(ctx, newDg)
-				if err != nil {
-					log.Printf("failed to start and cache sync %s DataGatherer: %v", kind, err)
-				}
-				dataGatherers[dgConfig.Name] = newDg
-			}
+
 		}
 	}
 
@@ -306,6 +293,33 @@ func gatherData(ctx context.Context, config Config, dataGatherers map[string]dat
 		} else {
 			log.Printf("Finished gathering data")
 		}
+	}
+
+	// clear all gatherers in the state
+	for name := range dataGatherers {
+		delete(dataGatherers, name)
+	}
+
+	// initialize all gatherers for the next cycle
+	for _, dgConfig := range config.DataGatherers {
+		kind := dgConfig.Kind
+		if dgConfig.DataPath != "" {
+			kind = "local"
+			log.Printf("Running data gatherer %s of type %s as Local, data-path override present", dgConfig.Name, dgConfig.Kind)
+		}
+
+		// initialize data gatherer
+		newDg, err := dgConfig.Config.NewDataGatherer(ctx)
+		if err != nil {
+			log.Fatalf("failed to instantiate %s DataGatherer: %v", kind, err)
+		}
+
+		// start the data gatherers and wait for the cache sync
+		err = startAndSyncDataGather(ctx, newDg)
+		if err != nil {
+			log.Printf("failed to start and cache sync %s DataGatherer: %v", kind, err)
+		}
+		dataGatherers[dgConfig.Name] = newDg
 	}
 
 	return readings
