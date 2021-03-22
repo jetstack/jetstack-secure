@@ -5,9 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
@@ -108,9 +109,10 @@ func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
 	for _, dynamicDg := range g.dynamicDataGatherers {
 		err := dynamicDg.Run(stopCh)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to run datagatherer: %s", err)
 		}
 	}
+
 	return nil
 }
 

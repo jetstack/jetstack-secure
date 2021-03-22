@@ -279,11 +279,14 @@ type containerResult struct {
 // Run starts the version checker data gatherer's dynamic informers for resource collection.
 // Returns error if the pod and node data gatherers haven't been correctly initialized
 func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
-	// start dynamic dynamic data gatherers informes
+	// start dynamic dynamic data gatherers
 	if err := g.podDynamicDg.Run(stopCh); err != nil {
-		return err
+		return fmt.Errorf("failed to run pod datagatherer: %s", err)
 	}
-	return g.nodeDynamicDg.Run(stopCh)
+	if err := g.nodeDynamicDg.Run(stopCh); err != nil {
+		return fmt.Errorf("failed to run node datagatherer: %s", err)
+	}
+	return nil
 }
 
 // WaitForCacheSync waits for the data gatherer's informers cache to sync before collecting the resources.

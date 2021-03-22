@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"regexp"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -177,11 +178,18 @@ registries:
 		t.Fatalf("failed create new dg %s", err)
 	}
 
+	stopChannelContext, _ := context.WithTimeout(ctx, 500*time.Millisecond)
+
 	vcDg := dg.(*DataGatherer)
-	vcDg.Run(ctx.Done())
-	err = vcDg.WaitForCacheSync(ctx.Done())
+
+	err = vcDg.Run(stopChannelContext.Done())
 	if err != nil {
-		t.Fatalf("unexpected client error: %+v", err)
+		t.Fatalf("unexpected dg Run error: %+v", err)
+	}
+
+	err = vcDg.WaitForCacheSync(stopChannelContext.Done())
+	if err != nil {
+		t.Fatalf("unexpected dg WaitForCacheSync error: %+v", err)
 	}
 
 	rawResults, err := vcDg.Fetch()
