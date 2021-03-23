@@ -93,15 +93,20 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	if err := c.validate(); err != nil {
 		return nil, err
 	}
+
+	// init shared informer for selected namespaces
 	fieldSelector := generateFieldSelector(c.ExcludeNamespaces)
-	// init cache
-	dgCache := cache.New(5*time.Minute, 30*time.Second)
-	// init shared informer
-	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(cl, 30*time.Second, metav1.NamespaceAll, func(options *metav1.ListOptions) {
-		options.FieldSelector = fieldSelector
-	})
+	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+		cl,
+		60*time.Second,
+		metav1.NamespaceAll,
+		func(options *metav1.ListOptions) { options.FieldSelector = fieldSelector },
+	)
 	resourceInformer := factory.ForResource(c.GroupVersionResource)
 	informer := resourceInformer.Informer()
+
+	// init cache to store gathered resources
+	dgCache := cache.New(5*time.Minute, 30*time.Second)
 
 	newDataGatherer := &DataGathererDynamic{
 		ctx:                  ctx,
@@ -167,7 +172,6 @@ type DataGathererDynamic struct {
 // Run starts the dynamic data gatherer's informers for resource collection.
 // Returns error if the data gatherer informer wasn't initialized
 func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
-	log.Printf("RUN %q", g.groupVersionResource)
 	if g.sharedInformer == nil {
 		return fmt.Errorf("informer was not initialized, impossible to start")
 	}
@@ -189,11 +193,7 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 	}
 
 	// start shared informer
-	if stopCh == nil {
-		g.sharedInformer.Start(g.informerCtx.Done())
-	} else {
-		g.sharedInformer.Start(stopCh)
-	}
+	g.sharedInformer.Start(stopCh)
 
 	return nil
 }
@@ -201,7 +201,6 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 // WaitForCacheSync waits for the data gatherer's informers cache to sync
 // before collecting the resources.
 func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
-	log.Printf("WAIT %q", g.groupVersionResource)
 	if stopCh == nil {
 		if !k8scache.WaitForCacheSync(g.informerCtx.Done(), g.informer.HasSynced) {
 			return fmt.Errorf("timed out waiting for caches to sync, no parent stop channel")

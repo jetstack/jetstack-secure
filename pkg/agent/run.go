@@ -216,8 +216,6 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 func gatherAndOutputData(ctx context.Context, config Config, preflightClient *client.PreflightClient, dataGatherers map[string]datagatherer.DataGatherer) {
 	var readings []*api.DataReading
 
-	log.Printf("GATHER")
-
 	// Input/OutputPath flag overwrites agent.yaml configuration
 	if InputPath == "" {
 		InputPath = config.InputPath
