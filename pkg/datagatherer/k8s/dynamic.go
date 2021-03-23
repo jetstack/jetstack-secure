@@ -205,14 +205,8 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 // WaitForCacheSync waits for the data gatherer's informers cache to sync
 // before collecting the resources.
 func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
-	if stopCh == nil {
-		if !k8scache.WaitForCacheSync(g.informerCtx.Done(), g.informer.HasSynced) {
-			return fmt.Errorf("timed out waiting for caches to sync, no parent stop channel")
-		}
-	} else {
-		if !k8scache.WaitForCacheSync(stopCh, g.informer.HasSynced) {
-			return fmt.Errorf("timed out waiting for caches to sync, using parent stop channel")
-		}
+	if !k8scache.WaitForCacheSync(stopCh, g.informer.HasSynced) {
+		return fmt.Errorf("timed out waiting for caches to sync, using parent stop channel")
 	}
 
 	return nil
