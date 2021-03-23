@@ -184,7 +184,11 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 
 	// attach WatchErrorHandler, it needs to be set before starting an informer
 	err := g.informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
-		log.Printf("informer for %q failed and is backing off: %s", g.groupVersionResource, err)
+		if strings.Contains(fmt.Sprintf("%s", err), "the server could not find the requested resource") {
+			log.Printf("server missing resource for datagatherer of %q ", g.groupVersionResource)
+		} else {
+			log.Printf("datagatherer informer for %q hash failed and is backing off due to error: %s", g.groupVersionResource, err)
+		}
 		// cancel the informer ctx to stop the informer in case of error
 		cancel()
 	})
