@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -48,13 +49,80 @@ var StrictMode bool
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
-	ctx := context.Background()
-	// map of the current data gatherers that were configured in the config
-	// this will dgs to live outside the fetching cycle
-	dataGatherers := map[string]datagatherer.DataGatherer{}
-	for {
-		config, preflightClient := getConfiguration(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	config, preflightClient := getConfiguration(ctx)
 
+	dataGatherers := map[string]datagatherer.DataGatherer{}
+	var wg sync.WaitGroup
+
+	// load datagatherer config and boot each one
+	for _, dgConfig := range config.DataGatherers {
+		kind := dgConfig.Kind
+		if dgConfig.DataPath != "" {
+			kind = "local"
+			log.Fatalf("running data gatherer %s of type %s as Local, data-path override present: %s", dgConfig.Name, dgConfig.Kind, dgConfig.DataPath)
+		}
+
+		newDg, err := dgConfig.Config.NewDataGatherer(ctx)
+		if err != nil {
+			log.Fatalf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
+		}
+
+		wg.Add(1)
+
+		go func() {
+			log.Printf("starting %q datagatherer", dgConfig.Name)
+
+			// start the data gatherers and wait for the cache sync
+			if err := newDg.Run(ctx.Done()); err != nil {
+				log.Printf("failed to start %q data gatherer %q: %v", kind, dgConfig.Name, err)
+			}
+
+			// bootCtx is a context with a timeout to allow the informer 5
+			// seconds to perform an initial sync. It may fail, and that's fine
+			// too, it will backoff and retry of its own accord. Initial boot
+			// will only be delayed by a max of 5 seconds.
+			bootCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+
+			// wait for the informer to complete an initial sync, we do this to
+			// attempt to have an initial set of data for the first upload of
+			// the run.
+			if err := newDg.WaitForCacheSync(bootCtx.Done()); err != nil {
+				// log sync failure, this might recover in future
+				log.Printf("failed to complete initial sync of %q data gatherer %q: %v", kind, dgConfig.Name, err)
+			}
+
+			// regardless of success, this dataGatherers has been given a
+			// chance to sync its cache and we will now continue as normal. We
+			// assume at the informers will either recover or the log messages
+			// above will help operators correct the issue.
+			wg.Done()
+		}()
+
+		dataGatherers[dgConfig.Name] = newDg
+	}
+
+	// wait for initial sync period to complete. if unsuccessful, then crash
+	// and restart.
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		log.Printf("waiting for datagatherers to complete inital syncs")
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		log.Printf("datagatherers inital sync completed")
+	case <-time.After(60 * time.Second):
+		log.Fatalf("datagatherers inital sync failed due to timeout of 60 seconds")
+	}
+
+	// begin the datagathering loop, periodically sending data to the
+	// configured output using data in datagatherer caches or refreshing from
+	// APIs each cycle depending on datagatherer implementation
+	for {
 		// if period is set in the config, then use that if not already set
 		if Period == 0 && config.Period > 0 {
 			log.Printf("Using period from config %s", config.Period)
@@ -148,6 +216,8 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 func gatherAndOutputData(ctx context.Context, config Config, preflightClient *client.PreflightClient, dataGatherers map[string]datagatherer.DataGatherer) {
 	var readings []*api.DataReading
 
+	log.Printf("GATHER")
+
 	// Input/OutputPath flag overwrites agent.yaml configuration
 	if InputPath == "" {
 		InputPath = config.InputPath
@@ -203,133 +273,48 @@ func startAndSyncDataGather(ctx context.Context, dg datagatherer.DataGatherer) e
 }
 
 func gatherData(ctx context.Context, config Config, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
-	// initialize all gatherers for the current cycle, if non were set
-	if len(dataGatherers) == 0 {
-		for _, dgConfig := range config.DataGatherers {
-			kind := dgConfig.Kind
-			if dgConfig.DataPath != "" {
-				kind = "local"
-				log.Printf("Running data gatherer %s of type %s as Local, data-path override present", dgConfig.Name, dgConfig.Kind)
-			}
-
-			// initialize data gatherer
-			newDg, err := dgConfig.Config.NewDataGatherer(ctx)
-			if err != nil {
-				log.Fatalf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
-			}
-
-			// start the data gatherers and wait for the cache sync
-			err = startAndSyncDataGather(ctx, newDg)
-			if err != nil {
-				log.Printf("failed to start and cache sync %q data gatherer %q: %v", kind, dgConfig.Name, err)
-			}
-			dataGatherers[dgConfig.Name] = newDg
-
-		}
-	}
-
-	//TODO Change backoff parameters to those desired
-	backOff := backoff.NewExponentialBackOff()
-	backOff.MaxElapsedTime = BackoffMaxTime
 	readings := []*api.DataReading{}
-	completedDataGatherers := make(map[string]bool, len(dataGatherers))
 
-	// Fetch from all datagatherers
-	getReadings := func() error {
-		var dgError *multierror.Error
-		for k, dg := range dataGatherers {
-			if completedDataGatherers[k] {
-				log.Printf("datagatherer %s was already fetched, skipping...", k)
-				continue
-			}
-			dgData, err := dg.Fetch()
-			if err != nil {
-				if _, ok := err.(*dgerror.ConfigError); ok {
-					if StrictMode {
-						err = fmt.Errorf("%s: %v", k, err)
-						dgError = multierror.Append(dgError, err)
-					} else {
-						log.Printf("%s: %v", k, err)
-					}
+	var dgError *multierror.Error
+	for k, dg := range dataGatherers {
+		dgData, err := dg.Fetch()
+		if err != nil {
+			if _, ok := err.(*dgerror.ConfigError); ok {
+				if StrictMode {
+					dgError = multierror.Append(dgError, fmt.Errorf("%s: %v", k, err))
 				} else {
-					err = fmt.Errorf("%s: %v", k, err)
-					dgError = multierror.Append(dgError, err)
+					log.Printf("config error in %q datagatherer: %v", k, err)
 				}
-				continue
 			} else {
-				completedDataGatherers[k] = true
-
-				log.Printf("Successfully gathered data for %q", k)
-				now := time.Now()
-
-				readings = append(readings, &api.DataReading{
-					ClusterID:    config.ClusterID,
-					DataGatherer: k,
-					Timestamp:    api.Time{Time: now},
-					Data:         dgData,
-				})
+				dgError = multierror.Append(dgError, fmt.Errorf("error in datagatherer %q: %v", k, err))
 			}
-		}
-		if dgError != nil {
-			dgError.ErrorFormat = func(es []error) string {
-				points := make([]string, len(es))
-				for i, err := range es {
-					points[i] = fmt.Sprintf("* %s", err)
-				}
-				return fmt.Sprintf(
-					"The following %d data gatherer(s) have failed:\n\t%s",
-					len(es), strings.Join(points, "\n\t"))
-			}
-		}
-		return dgError.ErrorOrNil()
-	}
-
-	if StrictMode {
-		err := getReadings()
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-	} else {
-		err := backoff.RetryNotify(getReadings, backOff, func(err error, t time.Duration) {
-			log.Printf("retrying in %v after error: %s", t, err)
-		})
-		if err != nil {
-			log.Println(err)
-			log.Printf("This will not be retried")
-		} else {
-			log.Printf("Finished gathering data")
-		}
-	}
-
-	// clear all gatherers in the state
-	for name, gatherer := range dataGatherers {
-		if err := gatherer.Delete(); err != nil {
-			log.Println(err)
 			continue
+		} else {
+			log.Printf("successfully gathered data from %q datagatherer", k)
+
+			readings = append(readings, &api.DataReading{
+				ClusterID:    config.ClusterID,
+				DataGatherer: k,
+				Timestamp:    api.Time{Time: time.Now()},
+				Data:         dgData,
+			})
 		}
-		delete(dataGatherers, name)
 	}
 
-	// initialize all gatherers for the next cycle
-	for _, dgConfig := range config.DataGatherers {
-		kind := dgConfig.Kind
-		if dgConfig.DataPath != "" {
-			kind = "local"
-			log.Printf("Running data gatherer %s of type %s as Local, data-path override present", dgConfig.Name, dgConfig.Kind)
+	if dgError != nil {
+		dgError.ErrorFormat = func(es []error) string {
+			points := make([]string, len(es))
+			for i, err := range es {
+				points[i] = fmt.Sprintf("* %s", err)
+			}
+			return fmt.Sprintf(
+				"The following %d data gatherer(s) have failed:\n\t%s",
+				len(es), strings.Join(points, "\n\t"))
 		}
+	}
 
-		// initialize data gatherer
-		newDg, err := dgConfig.Config.NewDataGatherer(ctx)
-		if err != nil {
-			log.Fatalf("failed to instantiate %s DataGatherer: %v", kind, err)
-		}
-
-		// start the data gatherers and wait for the cache sync
-		err = startAndSyncDataGather(ctx, newDg)
-		if err != nil {
-			log.Printf("failed to start and cache sync %s DataGatherer: %v", kind, err)
-		}
-		dataGatherers[dgConfig.Name] = newDg
+	if StrictMode && dgError.ErrorOrNil() != nil {
+		log.Fatalf("halting datagathering in strict mode due to error: %s", dgError.ErrorOrNil())
 	}
 
 	return readings

@@ -106,19 +106,19 @@ type Info struct {
 	Cluster *aks.ManagedCluster
 }
 
-// Run starts the data gatherer's informers for resource collection.
-// Returns error if the data gatherer informer wasn't initialized
 func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
-	return fmt.Errorf("data gatherer's informer was not initialized")
-}
-
-func (g *DataGatherer) Delete() error {
+	// no async functionality, see Fetch
 	return nil
 }
 
-// WaitForCacheSync waits for the data gatherer's informers cache to sync.
+func (g *DataGatherer) Delete() error {
+	// no async functionality, see Fetch
+	return nil
+}
+
 func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
-	return fmt.Errorf("timed out waiting for caches to sync")
+	// no async functionality, see Fetch
+	return nil
 }
 
 // Fetch retrieves cluster information from AKS.

@@ -112,20 +112,16 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		cache:                dgCache,
 		sharedInformer:       factory,
 		informer:             informer,
-		isInitialized:        false,
 	}
 
 	informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			newDataGatherer.isInitialized = true
 			onAdd(obj, dgCache)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			newDataGatherer.isInitialized = true
 			onUpdate(old, new, dgCache)
 		},
 		DeleteFunc: func(obj interface{}) {
-			newDataGatherer.isInitialized = true
 			onDelete(obj, dgCache)
 		},
 	})
@@ -171,6 +167,7 @@ type DataGathererDynamic struct {
 // Run starts the dynamic data gatherer's informers for resource collection.
 // Returns error if the data gatherer informer wasn't initialized
 func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
+	log.Printf("RUN %q", g.groupVersionResource)
 	if g.sharedInformer == nil {
 		return fmt.Errorf("informer was not initialized, impossible to start")
 	}
@@ -180,6 +177,7 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 	informerCtx, cancel := context.WithCancel(g.ctx)
 	g.informerCtx = informerCtx
 	g.informerCancel = cancel
+
 	// attach WatchErrorHandler, it needs to be set before starting an informer
 	err := g.informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
 		log.Printf("informer for %q failed and is backing off: %s", g.groupVersionResource, err)
@@ -203,6 +201,7 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 // WaitForCacheSync waits for the data gatherer's informers cache to sync
 // before collecting the resources.
 func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
+	log.Printf("WAIT %q", g.groupVersionResource)
 	if stopCh == nil {
 		if !k8scache.WaitForCacheSync(g.informerCtx.Done(), g.informer.HasSynced) {
 			return fmt.Errorf("timed out waiting for caches to sync, no parent stop channel")
@@ -229,9 +228,6 @@ func (g *DataGathererDynamic) Delete() error {
 func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 	if g.groupVersionResource.String() == "" {
 		return nil, fmt.Errorf("resource type must be specified")
-	}
-	if !g.isInitialized {
-		return nil, fmt.Errorf("datagatherer cache is not yet initialized")
 	}
 
 	var list = map[string]interface{}{}
