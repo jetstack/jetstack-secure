@@ -62,9 +62,11 @@ func Run(cmd *cobra.Command, args []string) {
 		}
 
 		gatherAndOutputData(ctx, config, preflightClient, dataGatherers)
+
 		if OneShot {
 			break
 		}
+
 		time.Sleep(Period)
 	}
 }
@@ -155,16 +157,15 @@ func gatherAndOutputData(ctx context.Context, config Config, preflightClient *cl
 	}
 
 	if InputPath != "" {
-		log.Println("Reading data from", InputPath)
+		log.Printf("Reading data from local file: %s", InputPath)
 		data, err := ioutil.ReadFile(InputPath)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("failed to read local data file: %s", err)
 		}
 		err = json.Unmarshal(data, &readings)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("failed to unmarshal local data file: %s", err)
 		}
-		log.Println("Data read successfully.")
 	} else {
 		readings = gatherData(ctx, config, dataGatherers)
 	}
@@ -173,9 +174,9 @@ func gatherAndOutputData(ctx context.Context, config Config, preflightClient *cl
 		data, err := json.MarshalIndent(readings, "", "  ")
 		err = ioutil.WriteFile(OutputPath, data, 0644)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("failed to output to local file: %s", err)
 		}
-		log.Println("Data saved locally to", OutputPath)
+		log.Printf("Data saved to local file: %s", OutputPath)
 	} else {
 		backOff := backoff.NewExponentialBackOff()
 		backOff.InitialInterval = 30 * time.Second
@@ -184,7 +185,9 @@ func gatherAndOutputData(ctx context.Context, config Config, preflightClient *cl
 		post := func() error {
 			return postData(config, preflightClient, readings)
 		}
-		err := backoff.RetryNotify(post, backOff, notify)
+		err := backoff.RetryNotify(post, backOff, func(err error, t time.Duration) {
+			log.Printf("retrying in %v after error: %s", t, err)
+		})
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -236,6 +239,7 @@ func gatherData(ctx context.Context, config Config, dataGatherers map[string]dat
 		var dgError *multierror.Error
 		for k, dg := range dataGatherers {
 			if completedDataGatherers[k] {
+				log.Printf("datagatherer %s was already fetched, skipping...", k)
 				continue
 			}
 			dgData, err := dg.Fetch()
@@ -286,7 +290,9 @@ func gatherData(ctx context.Context, config Config, dataGatherers map[string]dat
 			log.Fatalf("%v", err)
 		}
 	} else {
-		err := backoff.RetryNotify(func() error { return getReadings() }, backOff, notify)
+		err := backoff.RetryNotify(getReadings, backOff, func(err error, t time.Duration) {
+			log.Printf("retrying in %v after error: %s", t, err)
+		})
 		if err != nil {
 			log.Println(err)
 			log.Printf("This will not be retried")
@@ -327,10 +333,6 @@ func gatherData(ctx context.Context, config Config, dataGatherers map[string]dat
 	}
 
 	return readings
-}
-
-func notify(err error, t time.Duration) {
-	log.Println(err, "\nRetrying...")
 }
 
 func postData(config Config, preflightClient *client.PreflightClient, readings []*api.DataReading) error {
