@@ -178,7 +178,8 @@ registries:
 		t.Fatalf("failed create new dg %s", err)
 	}
 
-	stopChannelContext, _ := context.WithTimeout(ctx, 500*time.Millisecond)
+	stopChannelContext, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
 
 	vcDg := dg.(*DataGatherer)
 
