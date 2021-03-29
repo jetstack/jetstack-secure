@@ -1,6 +1,9 @@
 package api
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // DataReadingsPost is the payload in the upload request.
 type DataReadingsPost struct {
@@ -25,6 +28,23 @@ type DataReading struct {
 type GatheredResource struct {
 	// Resource is a reference to a k8s object that was found by the informer
 	// should be of type unstructured.Unstructured, raw Object
-	Resource  interface{} `json:"resource"`
-	DeletedAt *Time       `json:"deletedAt,omitempty"`
+	Resource  interface{}
+	DeletedAt Time
+}
+
+func (v GatheredResource) MarshalJSON() ([]byte, error) {
+	dateString := ""
+	if !v.DeletedAt.IsZero() {
+		dateString = v.DeletedAt.Format(TimeFormat)
+	}
+
+	data := struct {
+		Resource  interface{} `json:"resource"`
+		DeletedAt string      `json:"deleted_at,omitempty"`
+	}{
+		Resource:  v.Resource,
+		DeletedAt: dateString,
+	}
+
+	return json.Marshal(data)
 }

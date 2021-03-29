@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func makeGatheredResource(obj runtime.Object, deletedAt *api.Time) *api.GatheredResource {
+func makeGatheredResource(obj runtime.Object, deletedAt api.Time) *api.GatheredResource {
 	return &api.GatheredResource{
 		Resource:  obj,
 		DeletedAt: deletedAt,
@@ -32,9 +32,9 @@ func TestOnAddCache(t *testing.T) {
 				getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
 			},
 			expected: []*api.GatheredResource{
-				makeGatheredResource(getObject("foobar/v1", "Foo", "testfoo", "testns", false), nil),
-				makeGatheredResource(getObject("v1", "Service", "testservice", "testns", false), nil),
-				makeGatheredResource(getObject("foobar/v1", "NotFoo", "notfoo", "testns", false), nil),
+				makeGatheredResource(getObject("foobar/v1", "Foo", "testfoo", "testns", false), api.Time{}),
+				makeGatheredResource(getObject("v1", "Service", "testservice", "testns", false), api.Time{}),
+				makeGatheredResource(getObject("foobar/v1", "NotFoo", "notfoo", "testns", false), api.Time{}),
 			},
 		},
 		"delete all objects. All objects should have the deletedAt flag": {
@@ -51,14 +51,17 @@ func TestOnAddCache(t *testing.T) {
 			},
 			eventFunc: func(old, new interface{}, dgCache *cache.Cache) { onDelete(old, dgCache) },
 			expected: []*api.GatheredResource{
-				makeGatheredResource(getObject("foobar/v1", "Foo", "testfoo", "testns", false),
-					&api.Time{Time: clock.now()},
+				makeGatheredResource(
+					getObject("foobar/v1", "Foo", "testfoo", "testns", false),
+					api.Time{Time: clock.now()},
 				),
-				makeGatheredResource(getObject("v1", "Service", "testservice", "testns", false),
-					&api.Time{Time: clock.now()},
+				makeGatheredResource(
+					getObject("v1", "Service", "testservice", "testns", false),
+					api.Time{Time: clock.now()},
 				),
-				makeGatheredResource(getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
-					&api.Time{Time: clock.now()},
+				makeGatheredResource(
+					getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
+					api.Time{Time: clock.now()},
 				),
 			},
 		},
@@ -76,9 +79,18 @@ func TestOnAddCache(t *testing.T) {
 			},
 			eventFunc: onUpdate,
 			expected: []*api.GatheredResource{
-				makeGatheredResource(getObject("foobar/v1", "Foo", "testfoo", "testns1", false), nil),
-				makeGatheredResource(getObject("v1", "Service", "testservice", "testns1", false), nil),
-				makeGatheredResource(getObject("foobar/v1", "NotFoo", "notfoo", "testns1", false), nil),
+				makeGatheredResource(
+					getObject("foobar/v1", "Foo", "testfoo", "testns1", false),
+					api.Time{},
+				),
+				makeGatheredResource(
+					getObject("v1", "Service", "testservice", "testns1", false),
+					api.Time{},
+				),
+				makeGatheredResource(
+					getObject("foobar/v1", "NotFoo", "notfoo", "testns1", false),
+					api.Time{},
+				),
 			},
 		},
 	}

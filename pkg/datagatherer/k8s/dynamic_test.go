@@ -345,7 +345,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			expected: []*api.GatheredResource{
 				{
 					Resource:  getObject("foobar/v1", "Foo", "testfoo", "testns", false),
-					DeletedAt: &api.Time{Time: clock.now()},
+					DeletedAt: api.Time{Time: clock.now()},
 				},
 			},
 		},
@@ -416,11 +416,11 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			expected: []*api.GatheredResource{
 				{
 					Resource:  getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
-					DeletedAt: &api.Time{Time: clock.now()},
+					DeletedAt: api.Time{Time: clock.now()},
 				},
 				{
 					Resource:  getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
-					DeletedAt: &api.Time{Time: clock.now()},
+					DeletedAt: api.Time{Time: clock.now()},
 				},
 			},
 		},
