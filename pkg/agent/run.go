@@ -47,6 +47,14 @@ var BackoffMaxTime time.Duration
 // StrictMode flag causes the agent to fail at the first attempt
 var StrictMode bool
 
+// schema version of the data sent by the agent.
+// The new default version is v2.
+// In v2 the agent posts data readings using api.gathereredResources
+// Any requests without a schema version set will be interpreted
+// as using v1 by the backend. In v1 the agent sends
+// raw resource data of unstructuredList
+const schemaVersion string = "v2.0.0"
+
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -291,10 +299,11 @@ func gatherData(ctx context.Context, config Config, dataGatherers map[string]dat
 			log.Printf("successfully gathered data from %q datagatherer", k)
 
 			readings = append(readings, &api.DataReading{
-				ClusterID:    config.ClusterID,
-				DataGatherer: k,
-				Timestamp:    api.Time{Time: time.Now()},
-				Data:         dgData,
+				ClusterID:     config.ClusterID,
+				DataGatherer:  k,
+				Timestamp:     api.Time{Time: time.Now()},
+				Data:          dgData,
+				SchemaVersion: schemaVersion,
 			})
 		}
 	}
