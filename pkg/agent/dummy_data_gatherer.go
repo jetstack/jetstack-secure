@@ -29,6 +29,21 @@ type dummyDataGatherer struct {
 	FailedAttempts int
 }
 
+func (g *dummyDataGatherer) Run(stopCh <-chan struct{}) error {
+	// no async functionality, see Fetch
+	return nil
+}
+
+func (g *dummyDataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+	// no async functionality, see Fetch
+	return nil
+}
+
+func (g *dummyDataGatherer) Delete() error {
+	// no async functionality, see Fetch
+	return nil
+}
+
 func (c *dummyDataGatherer) Fetch() (interface{}, error) {
 	var err error
 	if c.attemptNumber < c.FailedAttempts {

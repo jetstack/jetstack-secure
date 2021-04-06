@@ -13,4 +13,11 @@ type Config interface {
 type DataGatherer interface {
 	// Fetch retrieves data.
 	Fetch() (interface{}, error)
+	// Run starts the data gatherer's informers for resource collection.
+	// Returns error if the data gatherer informer wasn't initialized
+	Run(stopCh <-chan struct{}) error
+	// WaitForCacheSync waits for the data gatherer's informers cache to sync.
+	WaitForCacheSync(stopCh <-chan struct{}) error
+	// Delete, clear the cache of the DataGatherer if one is being used
+	Delete() error
 }

@@ -38,6 +38,21 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	}, nil
 }
 
+func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
+	// no async functionality, see Fetch
+	return nil
+}
+
+func (g *DataGatherer) Delete() error {
+	// no async functionality, see Fetch
+	return nil
+}
+
+func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+	// no async functionality, see Fetch
+	return nil
+}
+
 // Fetch loads and returns the data from the LocalDatagatherer's dataPath
 func (g *DataGatherer) Fetch() (interface{}, error) {
 	dataBytes, err := ioutil.ReadFile(g.dataPath)

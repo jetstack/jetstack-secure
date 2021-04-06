@@ -106,6 +106,21 @@ type Info struct {
 	Cluster *aks.ManagedCluster
 }
 
+func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
+	// no async functionality, see Fetch
+	return nil
+}
+
+func (g *DataGatherer) Delete() error {
+	// no async functionality, see Fetch
+	return nil
+}
+
+func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+	// no async functionality, see Fetch
+	return nil
+}
+
 // Fetch retrieves cluster information from AKS.
 func (g *DataGatherer) Fetch() (interface{}, error) {
 	client := &http.Client{}

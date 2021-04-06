@@ -46,6 +46,21 @@ type DataGathererDiscovery struct {
 	cl discovery.DiscoveryClient
 }
 
+func (g *DataGathererDiscovery) Run(stopCh <-chan struct{}) error {
+	// no async functionality, see Fetch
+	return nil
+}
+
+func (g *DataGathererDiscovery) WaitForCacheSync(stopCh <-chan struct{}) error {
+	// no async functionality, see Fetch
+	return nil
+}
+
+func (g *DataGathererDiscovery) Delete() error {
+	// no async functionality, see Fetch
+	return nil
+}
+
 // Fetch will fetch discovery data from the apiserver, or return an error
 func (g *DataGathererDiscovery) Fetch() (interface{}, error) {
 	data, err := g.cl.ServerVersion()

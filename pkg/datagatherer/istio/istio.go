@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"istio.io/istio/galley/pkg/config/analysis/analyzers"
 	"istio.io/istio/galley/pkg/config/analysis/local"
@@ -100,6 +102,41 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	}, nil
 }
 
+// Run starts the istio data gatherer's dynamic informers for resource collection.
+// Returns error if the pod and node data gatherers haven't been correctly initialized
+func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
+	// start dynamic dynamic data gatherers informers
+	for _, dynamicDg := range g.dynamicDataGatherers {
+		err := dynamicDg.Run(stopCh)
+		if err != nil {
+			return fmt.Errorf("failed to run datagatherer: %s", err)
+		}
+	}
+
+	return nil
+}
+
+// WaitForCacheSync waits for the data gatherer's informers cache to sync before collecting the resources.
+func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+	for _, dynamicDg := range g.dynamicDataGatherers {
+		err := dynamicDg.WaitForCacheSync(stopCh)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (g *DataGatherer) Delete() error {
+	for _, dynamicDg := range g.dynamicDataGatherers {
+		err := dynamicDg.Delete()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Fetch retrieves resources from the K8s API and runs Istio analysis.
 func (g *DataGatherer) Fetch() (interface{}, error) {
 
@@ -119,11 +156,26 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 			}
 			return nil, err
 		}
-		resources, ok := rawResources.(*unstructured.UnstructuredList)
+		resourceItems, ok := rawResources.(map[string]interface{})
 		if !ok {
 			return nil, fmt.Errorf("failed to parse resources loaded from DataGatherer")
 		}
-		allResources = append(allResources, resources.Items...)
+
+		var resources []*api.GatheredResource = []*api.GatheredResource{}
+		if items, ok := resourceItems["items"]; ok {
+			resources, ok = items.([]*api.GatheredResource)
+			if !ok {
+				return nil, fmt.Errorf("failed to parse nodes loaded from DataGatherer, is not []*api.GatheredResource")
+			}
+		}
+
+		for _, item := range resources {
+			resource, ok := item.Resource.(*unstructured.Unstructured)
+			if !ok {
+				return nil, fmt.Errorf("failed to parse istio resource")
+			}
+			allResources = append(allResources, *resource)
+		}
 	}
 
 	// Convert the slice of Unstructured resources into a string of YAML documents.

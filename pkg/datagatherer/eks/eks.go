@@ -49,6 +49,22 @@ type Info struct {
 	Cluster *eks.Cluster
 }
 
+func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
+	// no async functionality, see Fetch
+	return nil
+}
+
+func (g *DataGatherer) Delete() error {
+	// no async functionality, see Fetch
+	return nil
+}
+
+// WaitForCacheSync waits for the data gatherer's informers cache to sync.
+func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+	// no async functionality, see Fetch
+	return nil
+}
+
 // Fetch retrieves cluster information from EKS.
 func (g *DataGatherer) Fetch() (interface{}, error) {
 	input := &eks.DescribeClusterInput{

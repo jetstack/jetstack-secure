@@ -38,19 +38,27 @@ func TestFetch(t *testing.T) {
 	}
 	defer os.Remove(kubeConfigPath)
 
+	ctx := context.Background()
 	// Create the Config for the test.
 	config := Config{}
 	err = yaml.Unmarshal([]byte(fmt.Sprintf(configString, kubeConfigPath)), &config)
 	if err != nil {
 		t.Fatalf("unexpected error: %+v", err)
 	}
-	dataGatherer, err := config.NewDataGatherer(context.TODO())
+	dataGatherer, err := config.NewDataGatherer(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error creating data gatherer: %+v", err)
 	}
 
+	istioDg := dataGatherer.(*DataGatherer)
+	istioDg.Run(ctx.Done())
+	err = istioDg.WaitForCacheSync(ctx.Done())
+	if err != nil {
+		t.Fatalf("unexpected client error: %+v", err)
+	}
+
 	// Fetch analysis result from the data gatherer.
-	rawAnalysisResult, err := dataGatherer.Fetch()
+	rawAnalysisResult, err := istioDg.Fetch()
 	if err != nil {
 		t.Fatalf("unexpected error fetching results: %+v", err)
 	}
@@ -133,10 +141,20 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 	var localServer *httptest.Server
 	localServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var responseContent []byte
+		params := r.URL.Query()
+		isWatch := true
+		if params.Get("watch") == "" {
+			isWatch = false
+		}
 
 		switch r.URL.Path {
 		case "/api/v1/namespaces":
-			responseContent = []byte(testNamespaces)
+			if isWatch {
+				responseContent = []byte(watchString)
+			} else {
+				responseContent = []byte(testNamespaces)
+			}
+			w.Header().Set("Content-Type", "application/json")
 		default:
 			t.Fatalf("Unexpected URL was called: %s", r.URL.Path)
 		}
@@ -147,22 +165,42 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 	return localServer
 }
 
+var watchString = `
+{
+    "type":"ADDED",
+    "object":{
+        "kind":"Namespace",
+        "apiVersion":"v1",
+        "metadata":{
+            "name":"default",
+            "uid":"d966826d-e63c-487c-a769-cb02098b95fd"
+        },
+        "spec":{
+            
+        },
+        "status":{
+            "phase":"Active"
+        }
+    }
+}
+`
 var testNamespaces = `
 {
-  "apiVersion": "v1",
-  "items": [
-    {
-      "apiVersion": "v1",
-      "kind": "Namespace",
-      "metadata": {
-        "name": "default"
-      }
+    "apiVersion":"v1",
+    "items":[
+        {
+            "apiVersion":"v1",
+            "kind":"Namespace",
+            "metadata":{
+                "name":"default",
+                "uid":"d966826d-e63c-487c-a769-cb02098b95fd"
+            }
+        }
+    ],
+    "kind":"List",
+    "metadata":{
+        "resourceVersion":"",
+        "selfLink":""
     }
-  ],
-  "kind": "List",
-  "metadata": {
-    "resourceVersion": "",
-    "selfLink": ""
-  }
 }
 `

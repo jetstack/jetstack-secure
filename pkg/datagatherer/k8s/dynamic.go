@@ -3,18 +3,22 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
+	"time"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
-	dgerror "github.com/jetstack/preflight/pkg/datagatherer/error"
 	"github.com/pkg/errors"
-	statusError "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/pmylund/go-cache"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes/scheme"
+	k8scache "k8s.io/client-go/tools/cache"
 )
 
 // ConfigDynamic contains the configuration for the data-gatherer.
@@ -90,13 +94,44 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		return nil, err
 	}
 
-	return &DataGathererDynamic{
+	// init shared informer for selected namespaces
+	fieldSelector := generateFieldSelector(c.ExcludeNamespaces)
+	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+		cl,
+		60*time.Second,
+		metav1.NamespaceAll,
+		func(options *metav1.ListOptions) { options.FieldSelector = fieldSelector },
+	)
+	resourceInformer := factory.ForResource(c.GroupVersionResource)
+	informer := resourceInformer.Informer()
+
+	// init cache to store gathered resources
+	dgCache := cache.New(5*time.Minute, 30*time.Second)
+
+	newDataGatherer := &DataGathererDynamic{
 		ctx:                  ctx,
 		cl:                   cl,
 		groupVersionResource: c.GroupVersionResource,
-		fieldSelector:        generateFieldSelector(c.ExcludeNamespaces),
+		fieldSelector:        fieldSelector,
 		namespaces:           c.IncludeNamespaces,
-	}, nil
+		cache:                dgCache,
+		sharedInformer:       factory,
+		informer:             informer,
+	}
+
+	informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			onAdd(obj, dgCache)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			onUpdate(old, new, dgCache)
+		},
+		DeleteFunc: func(obj interface{}) {
+			onDelete(obj, dgCache)
+		},
+	})
+
+	return newDataGatherer, nil
 }
 
 // DataGathererDynamic is a generic gatherer for Kubernetes. It knows how to request
@@ -120,63 +155,129 @@ type DataGathererDynamic struct {
 	// returned by the Kubernetes API.
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/
 	fieldSelector string
+	// cache holds all resources watched by the data gatherer, default object expiry time 5 minutes
+	// 30 seconds purge time https://pkg.go.dev/github.com/patrickmn/go-cache
+	cache *cache.Cache
+	// informer watches the events around the targeted resource and updates the cache
+	informer       k8scache.SharedIndexInformer
+	sharedInformer dynamicinformer.DynamicSharedInformerFactory
+	informerCtx    context.Context
+	informerCancel context.CancelFunc
+
+	// isInitialized is set to true when data is first collected, prior to
+	// this the fetch method will return an error
+	isInitialized bool
+}
+
+// Run starts the dynamic data gatherer's informers for resource collection.
+// Returns error if the data gatherer informer wasn't initialized
+func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
+	if g.sharedInformer == nil {
+		return fmt.Errorf("informer was not initialized, impossible to start")
+	}
+
+	// starting a new ctx for the informer
+	// WithCancel copies the parent ctx and creates a new done() channel
+	informerCtx, cancel := context.WithCancel(g.ctx)
+	g.informerCtx = informerCtx
+	g.informerCancel = cancel
+
+	// attach WatchErrorHandler, it needs to be set before starting an informer
+	err := g.informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
+		if strings.Contains(fmt.Sprintf("%s", err), "the server could not find the requested resource") {
+			log.Printf("server missing resource for datagatherer of %q ", g.groupVersionResource)
+		} else {
+			log.Printf("datagatherer informer for %q hash failed and is backing off due to error: %s", g.groupVersionResource, err)
+		}
+		// cancel the informer ctx to stop the informer in case of error
+		cancel()
+	})
+	if err != nil {
+		return fmt.Errorf("failed to SetWatchErrorHandler on informer: %s", err)
+	}
+
+	// start shared informer
+	g.sharedInformer.Start(stopCh)
+
+	return nil
+}
+
+// WaitForCacheSync waits for the data gatherer's informers cache to sync
+// before collecting the resources.
+func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
+	if !k8scache.WaitForCacheSync(stopCh, g.informer.HasSynced) {
+		return fmt.Errorf("timed out waiting for caches to sync, using parent stop channel")
+	}
+
+	return nil
+}
+
+// Delete will flush the cache being used to stored resources gathered by the
+// informer
+func (g *DataGathererDynamic) Delete() error {
+	g.cache.Flush()
+	g.informerCancel()
+	return nil
 }
 
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
 func (g *DataGathererDynamic) Fetch() (interface{}, error) {
-	if g.groupVersionResource.Resource == "" {
+	if g.groupVersionResource.String() == "" {
 		return nil, fmt.Errorf("resource type must be specified")
 	}
 
-	var list unstructured.UnstructuredList
+	var list = map[string]interface{}{}
+	var items = []*api.GatheredResource{}
 
 	fetchNamespaces := g.namespaces
 	if len(fetchNamespaces) == 0 {
 		// then they must have been looking for all namespaces
-		fetchNamespaces = []string{""}
+		fetchNamespaces = []string{metav1.NamespaceAll}
 	}
 
-	for _, namespace := range fetchNamespaces {
-		resourceInterface := namespaceResourceInterface(g.cl.Resource(g.groupVersionResource), namespace)
-		namespaceList, err := resourceInterface.List(g.ctx, metav1.ListOptions{
-			FieldSelector: g.fieldSelector,
-		})
-		if err != nil {
-			if statusErr, ok := err.(*statusError.StatusError); ok {
-				if statusErr.Status().Code == 404 {
-					return nil, &dgerror.ConfigError{Err: err.Error()}
-				}
-			}
-			return nil, err
+	//delete expired items from the cache
+	g.cache.DeleteExpired()
+	for _, item := range g.cache.Items() {
+		// filter cache items by namespace
+		cacheObject := item.Object.(*api.GatheredResource)
+		resource, ok := cacheObject.Resource.(*unstructured.Unstructured)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse cached resource")
 		}
-		list.Object = namespaceList.Object
-		list.Items = append(list.Items, namespaceList.Items...)
+		namespace := resource.GetNamespace()
+		if isIncludedNamespace(namespace, fetchNamespaces) {
+			items = append(items, cacheObject)
+		}
 	}
 
 	// Redact Secret data
-	err := redactList(&list)
+	err := redactList(items)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	return &list, nil
+	// add gathered resources to items
+	list["items"] = items
+
+	return list, nil
 }
 
-func redactList(list *unstructured.UnstructuredList) error {
-	for i := range list.Items {
+func redactList(list []*api.GatheredResource) error {
+	for i := range list {
+		item := list[i].Resource.(*unstructured.Unstructured)
 		// Determine the kind of items in case this is a generic 'mixed' list.
-		gvks, _, err := scheme.Scheme.ObjectKinds(&list.Items[i])
+		gvks, _, err := scheme.Scheme.ObjectKinds(item)
 		if err != nil {
 			return errors.WithStack(err)
 		}
 
-		resource := list.Items[i]
+		resource := item
 
 		for _, gvk := range gvks {
 			// If this item is a Secret then we need to redact it.
 			if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
-				Select(SecretSelectedFields, &resource)
+				Select(SecretSelectedFields, resource)
 
 				// break when the object has been processed as a secret, no
 				// other kinds have redact modifications
@@ -186,10 +287,8 @@ func redactList(list *unstructured.UnstructuredList) error {
 		}
 
 		// remove managedFields from all resources
-		Redact(RedactFields, &resource)
+		Redact(RedactFields, resource)
 
-		// update the object in the list
-		list.Items[i] = resource
 	}
 	return nil
 }
@@ -215,4 +314,16 @@ func generateFieldSelector(excludeNamespaces []string) string {
 		fieldSelector = fields.AndSelectors(fields.OneTermNotEqualSelector("metadata.namespace", excludeNamespace), fieldSelector)
 	}
 	return fieldSelector.String()
+}
+
+func isIncludedNamespace(namespace string, namespaces []string) bool {
+	if namespaces[0] == metav1.NamespaceAll {
+		return true
+	}
+	for _, current := range namespaces {
+		if namespace == current {
+			return true
+		}
+	}
+	return false
 }

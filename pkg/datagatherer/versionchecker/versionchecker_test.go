@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"regexp"
 	"testing"
+	"time"
 
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -166,17 +167,33 @@ registries:
 `, kubeConfigPath, hostConfigPath)
 
 	config := Config{}
+	ctx := context.Background()
 	err = yaml.Unmarshal([]byte(textCfg), &config)
 	if err != nil {
 		t.Fatalf("failed to load config: %+v", err)
 	}
 
-	dg, err := config.NewDataGatherer(context.Background())
+	dg, err := config.NewDataGatherer(ctx)
 	if err != nil {
 		t.Fatalf("failed create new dg %s", err)
 	}
 
-	rawResults, err := dg.Fetch()
+	stopChannelContext, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
+
+	vcDg := dg.(*DataGatherer)
+
+	err = vcDg.Run(stopChannelContext.Done())
+	if err != nil {
+		t.Fatalf("unexpected dg Run error: %+v", err)
+	}
+
+	err = vcDg.WaitForCacheSync(stopChannelContext.Done())
+	if err != nil {
+		t.Fatalf("unexpected dg WaitForCacheSync error: %+v", err)
+	}
+
+	rawResults, err := vcDg.Fetch()
 	if err != nil {
 		t.Fatalf("failed fetch data: %s", err)
 	}
