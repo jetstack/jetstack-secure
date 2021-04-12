@@ -55,9 +55,14 @@ lint: vet
 .PHONY: ./builds/preflight-$(GOOS)-$(GOARCH)
 ./builds/preflight-$(GOOS)-$(GOARCH):
 	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO_BUILD) -o ./builds/preflight-$(GOOS)-$(GOARCH) .
+.PHONY: ./builds/preflight-$(GOOS)-$(GOARCH)-v$(GOARM)
+./builds/preflight-$(GOOS)-$(GOARCH)-v$(GOARM):
+	GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) $(GO_BUILD) -o ./builds/preflight-$(GOOS)-$(GOARCH)-v$(GOARM) .
 
 build-all-platforms:
 	$(MAKE) GOOS=linux   GOARCH=amd64 ./builds/preflight-linux-amd64
+	$(MAKE) GOOS=linux   GOARCH=arm64 ./builds/preflight-linux-arm64
+	$(MAKE) GOOS=linux   GOARCH=arm GOARM=7 ./builds/preflight-linux-arm-v7
 	$(MAKE) GOOS=darwin  GOARCH=amd64 ./builds/preflight-darwin-amd64
 	$(MAKE) GOOS=windows GOARCH=amd64 ./builds/preflight-windows-amd64
 
@@ -76,23 +81,26 @@ bundle-all-platforms:
 	$(MAKE) GOOS=windows GOARCH=amd64 ./bundles/preflight-bundle-windows-amd64.tgz
 
 # Docker image
+PLATFORMS?=linux/arm/v7,linux/arm64/v8,linux/amd64
+BUILDX_EXTRA_ARGS?=
 
-build-docker-image:
-	docker build --tag $(DOCKER_IMAGE_TAG) \
+push_buildx_args=--tag $(DOCKER_IMAGE):latest --push $(BUILDX_EXTRA_ARGS)
+push-canary_buildx_args=--tag $(DOCKER_IMAGE):canary --push $(BUILDX_EXTRA_ARGS)
+build_buildx_args=$(BUILDX_EXTRA_ARGS)
+
+.PHONY: _docker-%
+_docker-%:
+	docker buildx build --platform $(PLATFORMS) \
 	--build-arg oauth_client_id=$(OAUTH_CLIENT_ID) \
 	--build-arg oauth_client_secret=$(OAUTH_CLIENT_SECRET) \
 	--build-arg oauth_auth_server_domain=$(OAUTH_AUTH_SERVER_DOMAIN) \
+	--tag $(DOCKER_IMAGE_TAG) \
+	$($*_buildx_args) \
 	.
 
-push-docker-image:
-	docker tag $(DOCKER_IMAGE_TAG) $(DOCKER_IMAGE):latest
-	docker push $(DOCKER_IMAGE_TAG)
-	docker push $(DOCKER_IMAGE):latest
-
-push-docker-image-canary:
-	docker tag $(DOCKER_IMAGE_TAG) $(DOCKER_IMAGE):canary
-	docker push $(DOCKER_IMAGE_TAG)
-	docker push $(DOCKER_IMAGE):canary
+build-docker-image: _docker-build
+push-docker-image: _docker-push
+push-docker-image-canary: _docker-push-canary
 
 # CI
 

@@ -17,6 +17,7 @@ ARG oauth_client_id
 ARG oauth_client_secret
 ARG oauth_auth_server_domain
 
+# RUN CGO_ENABLED=0 go install .
 RUN make install \
   OAUTH_CLIENT_ID=${oauth_client_id} \
   OAUTH_CLIENT_SECRET=${oauth_client_secret} \
