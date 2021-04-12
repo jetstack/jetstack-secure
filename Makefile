@@ -7,6 +7,8 @@ GOVERSION:=$(shell go version | awk '{print $$3 " " $$4}')
 GOOS:=$(shell go env GOOS)
 GOARCH:=$(shell go env GOARCH)
 
+BIN_NAME:=preflight
+
 DOCKER_IMAGE?=quay.io/jetstack/preflight
 DOCKER_IMAGE_TAG?=$(DOCKER_IMAGE):$(VERSION)
 
@@ -52,19 +54,19 @@ vet:
 lint: vet
 	cd $(ROOT_DIR) && golint
 
-.PHONY: ./builds/preflight-$(GOOS)-$(GOARCH)
-./builds/preflight-$(GOOS)-$(GOARCH):
-	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO_BUILD) -o ./builds/preflight-$(GOOS)-$(GOARCH) .
-.PHONY: ./builds/preflight-$(GOOS)-$(GOARCH)-v$(GOARM)
-./builds/preflight-$(GOOS)-$(GOARCH)-v$(GOARM):
+.PHONY: ./builds/$(GOOS)/$(GOARCH)/$(BIN_NAME)
+./builds/$(GOOS)/$(GOARCH)/$(BIN_NAME):
+	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO_BUILD) -o ./builds/$(GOOS)/$(GOARCH)/$(BIN_NAME) .
+.PHONY: ./builds/$(GOOS)/$(GOARCH)/v$(GOARM)/$(BIN_NAME)
+./builds/$(GOOS)/$(GOARCH)/v$(GOARM)/$(BIN_NAME):
 	GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) $(GO_BUILD) -o ./builds/preflight-$(GOOS)-$(GOARCH)-v$(GOARM) .
 
 build-all-platforms:
-	$(MAKE) GOOS=linux   GOARCH=amd64 ./builds/preflight-linux-amd64
-	$(MAKE) GOOS=linux   GOARCH=arm64 ./builds/preflight-linux-arm64
-	$(MAKE) GOOS=linux   GOARCH=arm GOARM=7 ./builds/preflight-linux-arm-v7
-	$(MAKE) GOOS=darwin  GOARCH=amd64 ./builds/preflight-darwin-amd64
-	$(MAKE) GOOS=windows GOARCH=amd64 ./builds/preflight-windows-amd64
+	$(MAKE) GOOS=linux   GOARCH=amd64       ./builds/linux/amd64/$(BIN_NAME)
+	$(MAKE) GOOS=linux   GOARCH=arm64       ./builds/linux/arm64/$(BIN_NAME)
+	$(MAKE) GOOS=linux   GOARCH=arm GOARM=7 ./builds/linux/arm/v7/$(BIN_NAME)
+	$(MAKE) GOOS=darwin  GOARCH=amd64       ./builds/darwin/amd64/$(BIN_NAME)
+	$(MAKE) GOOS=windows GOARCH=amd64       ./builds/windows/amd64/$(BIN_NAME)
 
 # Bundles
 
@@ -89,7 +91,7 @@ push-canary_buildx_args=--tag $(DOCKER_IMAGE):canary --push $(BUILDX_EXTRA_ARGS)
 build_buildx_args=$(BUILDX_EXTRA_ARGS)
 
 .PHONY: _docker-%
-_docker-%:
+_docker-%: build-all-platforms
 	docker buildx build --platform $(PLATFORMS) \
 	--build-arg oauth_client_id=$(OAUTH_CLIENT_ID) \
 	--build-arg oauth_client_secret=$(OAUTH_CLIENT_SECRET) \
