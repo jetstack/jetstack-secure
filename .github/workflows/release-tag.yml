@@ -1,13 +1,10 @@
 # if changing this name, also update promotion.yaml
-name: test
+name: release-tag
 
 on:
   push:
-    branches-ignore:
-      - master
-  pull_request:
-    branches:
-      - "*"
+    tags:
+      - v*
 
 jobs:
   golint:
@@ -49,4 +46,4 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
     - name: Build images
-      run: make build-docker-image
+      run: make push-docker-image
