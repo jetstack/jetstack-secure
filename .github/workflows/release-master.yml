@@ -51,5 +51,7 @@ jobs:
         registry: quay.io
         username: ${{ secrets.QUAY_USER }}
         password: ${{ secrets.QUAY_PASSWORD }}
-    - name: Build images
-      run: make push-docker-image-canary
+    - name: Build and push
+      run: make push-docker-image
+    - name: Tag
+      run: make create-docker-image-tag NEW_TAG=canary

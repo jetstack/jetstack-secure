@@ -7,24 +7,7 @@ on:
       - v*
 
 jobs:
-  golint:
-    name: vet fmt and lint
-    runs-on: ubuntu-20.04
-    container: golang:1.13.7
-    steps:
-    - uses: actions/checkout@v2.3.3
-    - name: Install golint
-      run: go get -u golang.org/x/lint/golint
-    - run: make lint
-      shell: bash
-  gotest:
-    name: go test
-    runs-on: ubuntu-20.04
-    container: golang:1.13.7
-    steps:
-    - uses: actions/checkout@v2.3.3
-    - run: make test
-  docker_build:
+  docker_tag:
     name: docker_build
     runs-on: ubuntu-20.04
     container:
@@ -41,6 +24,8 @@ jobs:
     - name: Install Tools
       run: apk add --update make git jq rsync curl
     - uses: actions/checkout@v2.3.3
+    - name: Capture tag in env
+      run: echo "TAG_LABEL=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
     - name: Set up Docker Buildx
@@ -51,5 +36,7 @@ jobs:
         registry: quay.io
         username: ${{ secrets.QUAY_USER }}
         password: ${{ secrets.QUAY_PASSWORD }}
-    - name: Build images
-      run: make push-docker-image
+    - name: Tag latest
+      run: make create-docker-image-tag NEW_TAG=latest
+    - name: Tag with git tag
+      run: make create-docker-image-tag NEW_TAG=${{ env.TAG_LEVEL }}

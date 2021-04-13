@@ -10,7 +10,7 @@ GOARCH:=$(shell go env GOARCH)
 BIN_NAME:=preflight
 
 DOCKER_IMAGE?=quay.io/jetstack/preflight
-DOCKER_IMAGE_TAG?=$(DOCKER_IMAGE):$(VERSION)
+DOCKER_IMAGE_TAG?=$(DOCKER_IMAGE):$(COMMIT)
 
 # BUILD_IN decides if the binaries will be built in `docker` or in the `host`.
 BUILD_IN?=docker
@@ -90,7 +90,7 @@ build-all-platforms-in-docker:
 PLATFORMS?=linux/arm/v7,linux/arm64/v8,linux/amd64
 BUILDX_EXTRA_ARGS?=
 
-push_buildx_args=--tag $(DOCKER_IMAGE):latest --push $(BUILDX_EXTRA_ARGS)
+push_buildx_args=--push $(BUILDX_EXTRA_ARGS)
 push-canary_buildx_args=--tag $(DOCKER_IMAGE):canary --push $(BUILDX_EXTRA_ARGS)
 build_buildx_args=$(BUILDX_EXTRA_ARGS)
 
@@ -103,7 +103,10 @@ _docker-%: build-all-platforms
 
 build-docker-image: _docker-build
 push-docker-image: _docker-push
-push-docker-image-canary: _docker-push-canary
+
+NEW_TAG?=latest
+create-docker-image-tag:
+	docker buildx imagetools create $(DOCKER_IMAGE):$(COMMIT) --tag $(DOCKER_IMAGE):$(NEW_TAG)
 
 # CI
 
