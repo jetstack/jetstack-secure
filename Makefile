@@ -7,8 +7,13 @@ GOVERSION:=$(shell go version | awk '{print $$3 " " $$4}')
 GOOS:=$(shell go env GOOS)
 GOARCH:=$(shell go env GOARCH)
 
+BIN_NAME:=preflight
+
 DOCKER_IMAGE?=quay.io/jetstack/preflight
-DOCKER_IMAGE_TAG?=$(DOCKER_IMAGE):$(VERSION)
+DOCKER_IMAGE_TAG?=$(DOCKER_IMAGE):$(COMMIT)
+
+# BUILD_IN decides if the binaries will be built in `docker` or in the `host`.
+BUILD_IN?=docker
 
 # OAuth2 config for the agent to work with platform.jetstack.io
 OAUTH_CLIENT_ID?=k3TrDbfLhCgnpAbOiiT2kIE1AbovKzjo
@@ -52,57 +57,69 @@ vet:
 lint: vet
 	cd $(ROOT_DIR) && golint
 
-.PHONY: ./builds/preflight-$(GOOS)-$(GOARCH)
-./builds/preflight-$(GOOS)-$(GOARCH):
-	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO_BUILD) -o ./builds/preflight-$(GOOS)-$(GOARCH) .
 
-build-all-platforms:
-	$(MAKE) GOOS=linux   GOARCH=amd64 ./builds/preflight-linux-amd64
-	$(MAKE) GOOS=darwin  GOARCH=amd64 ./builds/preflight-darwin-amd64
-	$(MAKE) GOOS=windows GOARCH=amd64 ./builds/preflight-windows-amd64
+.PHONY: ./builds/$(GOOS)/$(GOARCH)/$(BIN_NAME)
+./builds/$(GOOS)/$(GOARCH)/$(BIN_NAME):
+	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO_BUILD) -o ./builds/$(GOOS)/$(GOARCH)/$(BIN_NAME) .
+.PHONY: ./builds/$(GOOS)/$(GOARCH)/v$(GOARM)/$(BIN_NAME)
+./builds/$(GOOS)/$(GOARCH)/v$(GOARM)/$(BIN_NAME):
+	GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) $(GO_BUILD) -o ./builds/$(GOOS)/$(GOARCH)/v$(GOARM)/$(BIN_NAME) .
 
-# Bundles
+build-all-platforms: build-all-platforms-in-$(BUILD_IN)
 
-./bundles/preflight-bundle-$(GOOS)-$(GOARCH).tgz: ./builds/preflight-$(GOOS)-$(GOARCH)
-	cd $(ROOT_DIR) && \
-	mkdir -p ./bundles && \
-	tar --transform "s/builds\/preflight-$(GOOS)-$(GOARCH)/preflight/" -rvf $@.tmp $< && \
-	gzip < $@.tmp > $@ && \
-	rm $@.tmp
+build-all-platforms-in-host:
+	$(MAKE) GOOS=linux   GOARCH=amd64       ./builds/linux/amd64/$(BIN_NAME)
+	$(MAKE) GOOS=linux   GOARCH=arm64       ./builds/linux/arm64/$(BIN_NAME)
+	$(MAKE) GOOS=linux   GOARCH=arm GOARM=7 ./builds/linux/arm/v7/$(BIN_NAME)
+	$(MAKE) GOOS=darwin  GOARCH=amd64       ./builds/darwin/amd64/$(BIN_NAME)
+	$(MAKE) GOOS=windows GOARCH=amd64       ./builds/windows/amd64/$(BIN_NAME)
 
-bundle-all-platforms:
-	$(MAKE) GOOS=linux   GOARCH=amd64 ./bundles/preflight-bundle-linux-amd64.tgz
-	$(MAKE) GOOS=darwin  GOARCH=amd64 ./bundles/preflight-bundle-darwin-amd64.tgz
-	$(MAKE) GOOS=windows GOARCH=amd64 ./bundles/preflight-bundle-windows-amd64.tgz
+build-all-platforms-in-docker:
+	rm -rf ./builds
+	docker build --rm -t preflight-bin -f ./builder.dockerfile \
+		--build-arg oauth_client_id=$(OAUTH_CLIENT_ID) \
+		--build-arg oauth_client_secret=$(OAUTH_CLIENT_SECRET) \
+		--build-arg oauth_auth_server_domain=$(OAUTH_AUTH_SERVER_DOMAIN) \
+		.
+	docker create --rm --name=preflight-bin-container preflight-bin
+	docker cp preflight-bin-container:/go/github.com/jetstack/preflight/builds ./builds
+	docker rm preflight-bin-container
+	docker rmi preflight-bin
 
 # Docker image
+PLATFORMS?=linux/arm/v7,linux/arm64/v8,linux/amd64
+BUILDX_EXTRA_ARGS?=
 
-build-docker-image:
-	docker build --tag $(DOCKER_IMAGE_TAG) \
-	--build-arg oauth_client_id=$(OAUTH_CLIENT_ID) \
-	--build-arg oauth_client_secret=$(OAUTH_CLIENT_SECRET) \
-	--build-arg oauth_auth_server_domain=$(OAUTH_AUTH_SERVER_DOMAIN) \
+push_buildx_args=--push $(BUILDX_EXTRA_ARGS)
+push-canary_buildx_args=--tag $(DOCKER_IMAGE):canary --push $(BUILDX_EXTRA_ARGS)
+build_buildx_args=$(BUILDX_EXTRA_ARGS)
+
+.PHONY: _docker-%
+_docker-%: build-all-platforms
+	docker buildx build --platform $(PLATFORMS) \
+	--tag $(DOCKER_IMAGE_TAG) \
+	$($*_buildx_args) \
 	.
 
-push-docker-image:
-	docker tag $(DOCKER_IMAGE_TAG) $(DOCKER_IMAGE):latest
-	docker push $(DOCKER_IMAGE_TAG)
-	docker push $(DOCKER_IMAGE):latest
+build-docker-image: _docker-build
+push-docker-image: _docker-push
 
-push-docker-image-canary:
-	docker tag $(DOCKER_IMAGE_TAG) $(DOCKER_IMAGE):canary
-	docker push $(DOCKER_IMAGE_TAG)
-	docker push $(DOCKER_IMAGE):canary
+NEW_TAG?=latest
+create-docker-image-tag:
+	docker buildx imagetools create $(DOCKER_IMAGE):$(COMMIT) --tag $(DOCKER_IMAGE):$(NEW_TAG)
 
 # CI
 
 export PATH:=$(GOPATH)/bin:$(PATH)
 
 ci-deps:
+	echo "ci-deps is going to be disabled. We are adopting Github actions"
 	go install golang.org/x/lint/golint
 
 ci-test: ci-deps test lint
 
 ci-build: ci-test build build-docker-image build-all-platforms bundle-all-platforms push-docker-image-canary
+	echo "ci-build is going to be disabled. We are adopting Github actions"
 
 ci-publish: ci-build push-docker-image
+	echo "ci-publish is going to be disabled. We are adopting Github actions"

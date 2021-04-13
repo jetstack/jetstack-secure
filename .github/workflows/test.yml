@@ -1,0 +1,52 @@
+# if changing this name, also update promotion.yaml
+name: test
+
+on:
+  push:
+    branches-ignore:
+      - master
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  golint:
+    name: vet fmt and lint
+    runs-on: ubuntu-20.04
+    container: golang:1.13.7
+    steps:
+    - uses: actions/checkout@v2.3.3
+    - name: Install golint
+      run: go get -u golang.org/x/lint/golint
+    - run: make lint
+      shell: bash
+  gotest:
+    name: go test
+    runs-on: ubuntu-20.04
+    container: golang:1.13.7
+    steps:
+    - uses: actions/checkout@v2.3.3
+    - run: make test
+  docker_build:
+    name: docker_build
+    runs-on: ubuntu-20.04
+    container:
+      image: docker:20.10.5
+      options: -t
+    # Setting up dind service container
+    services:
+      docker:
+        image: docker:20.10.5-dind
+        env:
+          DOCKER_DRIVER: overlay
+          DOCKER_HOST: tcp://localhost:2375
+    steps:
+    - name: Install Tools
+      run: apk add --update make git jq rsync curl
+    - uses: actions/checkout@v2.3.3
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    - name: Build images
+      run: make build-docker-image
