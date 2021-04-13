@@ -110,10 +110,13 @@ push-docker-image-canary: _docker-push-canary
 export PATH:=$(GOPATH)/bin:$(PATH)
 
 ci-deps:
+	echo "ci-deps is going to be disabled. We are adopting Github actions"
 	go install golang.org/x/lint/golint
 
 ci-test: ci-deps test lint
 
 ci-build: ci-test build build-docker-image build-all-platforms bundle-all-platforms push-docker-image-canary
+	echo "ci-build is going to be disabled. We are adopting Github actions"
 
 ci-publish: ci-build push-docker-image
+	echo "ci-publish is going to be disabled. We are adopting Github actions"
