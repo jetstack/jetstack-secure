@@ -4,6 +4,8 @@ FROM gcr.io/distroless/base:nonroot
 # Ref: https://docs.docker.com/buildx/working-with-buildx/
 ARG TARGETPLATFORM
 
+USER preflight
+
 COPY ./builds/${TARGETPLATFORM}/preflight /bin/preflight
 # load in an example config file
 ADD ./agent.yaml /etc/preflight/agent.yaml
