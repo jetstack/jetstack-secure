@@ -5,55 +5,61 @@ on:
   push:
     branches:
       - master
+    tags:
+      - v*
 
 jobs:
   golint:
-    name: vet fmt and lint
-    runs-on: ubuntu-20.04
+    name: Lint
+    runs-on: ubuntu-latest
     container: golang:1.13.7
     steps:
-    - uses: actions/checkout@v2.3.3
-    - name: Install golint
-      run: go get -u golang.org/x/lint/golint
-    - run: make lint
-      shell: bash
+      - uses: actions/checkout@v2.3.3
+      - name: Install golint
+        run: go get -u golang.org/x/lint/golint
+      - run: make lint
+        shell: bash
+
   gotest:
-    name: go test
-    runs-on: ubuntu-20.04
+    name: Test
+    runs-on: ubuntu-latest
     container: golang:1.13.7
     steps:
-    - uses: actions/checkout@v2.3.3
-    - run: make test
+      - uses: actions/checkout@v2.3.3
+      - run: make test
+
+  # Job that compiles multi-arch binaries and pushes multi-arch docker images.
   docker_build:
-    name: docker_build
-    runs-on: ubuntu-20.04
-    container:
-      image: docker:20.10.5
-      options: -t
-    # Setting up dind service container
-    services:
-      docker:
-        image: docker:20.10.5-dind
-        env:
-          DOCKER_DRIVER: overlay
-          DOCKER_HOST: tcp://localhost:2375
+    name: Docker
+    runs-on: ubuntu-latest
     steps:
-    - name: Install Tools
-      run: apk add --update make git jq rsync curl
-    - uses: actions/checkout@v2.3.3
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-      with:
-        driver-opts: image=moby/buildkit:master
-    - name: Login to registry
-      uses: docker/login-action@v1
-      with:
-        registry: quay.io
-        username: ${{ secrets.QUAY_USER }}
-        password: ${{ secrets.QUAY_PASSWORD }}
-    - name: Build and push
-      run: make push-docker-image
-    - name: Tag
-      run: make create-docker-image-tag NEW_TAG=canary
+      # Pull down source code
+      - name: Checkout
+        uses: actions/checkout@v2.3.3
+
+      # Set up docker-buildx for multi-arch images
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to registry
+        uses: docker/login-action@v1
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USER }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      # Install golang 1.13
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.13.7
+
+      # Compile multi-arch binaries
+      - name: Compile binaries
+        run: make build
+
+      # Build & push docker images. If we're on a git tag, the git tag will be used as the image tag. Otherwise, the
+      # current commit hash is used.
+      - name: Build and push
+        run: make docker

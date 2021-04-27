@@ -11,8 +11,8 @@ on:
 
 jobs:
   golint:
-    name: vet fmt and lint
-    runs-on: ubuntu-20.04
+    name: Lint
+    runs-on: ubuntu-latest
     container: golang:1.13.7
     steps:
     - uses: actions/checkout@v2.3.3
@@ -20,35 +20,39 @@ jobs:
       run: go get -u golang.org/x/lint/golint
     - run: make lint
       shell: bash
+
   gotest:
-    name: go test
-    runs-on: ubuntu-20.04
+    name: Test
+    runs-on: ubuntu-latest
     container: golang:1.13.7
     steps:
     - uses: actions/checkout@v2.3.3
     - run: make test
+
   docker_build:
-    name: docker_build
-    runs-on: ubuntu-20.04
-    container:
-      image: docker:20.10.5
-      options: -t
-    # Setting up dind service container
-    services:
-      docker:
-        image: docker:20.10.5-dind
-        env:
-          DOCKER_DRIVER: overlay
-          DOCKER_HOST: tcp://localhost:2375
+    name: Docker
+    runs-on: ubuntu-latest
     steps:
-    - name: Install Tools
-      run: apk add --update make git jq rsync curl
-    - uses: actions/checkout@v2.3.3
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-      with:
-        driver-opts: image=moby/buildkit:master
-    - name: Build images
-      run: make build-docker-image
+      # Pull down source code
+      - name: Checkout
+        uses: actions/checkout@v2.3.3
+
+      # Set up docker-buildx for multi-arch images
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      # Install golang 1.13
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.13.7
+
+      # Compile multi-arch binaries
+      - name: Compile binaries
+        run: make build
+
+      # Ensure docker image builds for linux/amd64
+      - name: Build docker image
+        run: make docker-test
