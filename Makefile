@@ -5,9 +5,11 @@ export GO111MODULE=on
 clean:
 	cd $(ROOT_DIR) && rm -rf ./builds ./bundles
 
-.PHONY: build
 build:
-	./hack/build.sh
+	./hack/build.sh compile
+
+multi-arch:
+	./hack/build.sh compile_all
 
 test:
 	cd $(ROOT_DIR) && go test ./...
@@ -21,5 +23,5 @@ lint: vet
 docker:
 	./hack/docker.sh
 
-docker-test:
+docker-test: build
 	docker buildx build --platform linux/amd64 -t preflight .

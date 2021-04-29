@@ -49,10 +49,6 @@ jobs:
         with:
           go-version: 1.13.7
 
-      # Compile multi-arch binaries
-      - name: Compile binaries
-        run: make build
-
       # Ensure docker image builds for linux/amd64
       - name: Build docker image
         run: make docker-test

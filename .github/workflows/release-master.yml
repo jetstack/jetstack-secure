@@ -57,7 +57,7 @@ jobs:
 
       # Compile multi-arch binaries
       - name: Compile binaries
-        run: make build
+        run: make multi-arch
 
       # Build & push docker images. If we're on a git tag, the git tag will be used as the image tag. Otherwise, the
       # current commit hash is used.

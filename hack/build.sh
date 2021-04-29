@@ -16,9 +16,9 @@ OAUTH_CLIENT_ID=k3TrDbfLhCgnpAbOiiT2kIE1AbovKzjo
 OAUTH_CLIENT_SECRET=f39w_3KT9Vp0VhzcPzvh-uVbudzqCFmHER3Huj0dvHgJwVrjxsoOQPIw_1SDiCfa
 OAUTH_AUTH_SERVER_DOMAIN=auth.jetstack.io
 
-GOOS=""
-GOARCH=""
-GOARM=""
+GOOS=$(go env GOOS)
+GOARCH=$(go env GOARCH)
+GOARM=$(go env GOARM)
 
 function compile_all() {
   compile_linux_amd64
@@ -46,8 +46,8 @@ function compile_linux_armv7() {
   GOOS=linux
   GOARCH=arm
   GOARM=7
+
   compile
-  GOARM=""
 }
 
 function compile_linux_arm64() {
@@ -83,6 +83,8 @@ function compile() {
 "-X 'github.com/jetstack/preflight/pkg/client.ClientSecret=${OAUTH_CLIENT_SECRET}'"\
 "-X 'github.com/jetstack/preflight/pkg/client.AuthServerDomain=${OAUTH_AUTH_SERVER_DOMAIN}'" \
   -o "${OUTPUT}"
+
+  GOARM=""
 }
 
-compile_all
+"$@"
