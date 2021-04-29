@@ -1,4 +1,4 @@
-FROM gcr.io/distroless/base:nonroot
+FROM gcr.io/distroless/static
 
 # TARGETPLATFORM comes from the buildx context and it will be something like `linux/arm64/v8` or `linux/amd64`.
 # Ref: https://docs.docker.com/buildx/working-with-buildx/
