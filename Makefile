@@ -97,16 +97,14 @@ build_buildx_args=$(BUILDX_EXTRA_ARGS)
 .PHONY: _docker-%
 _docker-%: build-all-platforms
 	docker buildx build --platform $(PLATFORMS) \
-	--tag $(DOCKER_IMAGE_TAG) \
+	--tag $(DOCKER_IMAGE):$(VERSION) \
+	--tag $(DOCKER_IMAGE):latest \
+	--tag $(DOCKER_IMAGE):canary \
 	$($*_buildx_args) \
 	.
 
 build-docker-image: _docker-build
 push-docker-image: _docker-push
-
-NEW_TAG?=latest
-create-docker-image-tag:
-	docker buildx imagetools create $(DOCKER_IMAGE):$(COMMIT) --tag $(DOCKER_IMAGE):$(NEW_TAG)
 
 # CI
 
