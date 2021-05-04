@@ -5,7 +5,8 @@ on:
   push:
     branches:
       - master
-
+    tags:
+      - v*
 jobs:
   golint:
     name: vet fmt and lint
@@ -55,5 +56,3 @@ jobs:
         password: ${{ secrets.QUAY_PASSWORD }}
     - name: Build and push
       run: make push-docker-image
-    - name: Tag
-      run: make create-docker-image-tag NEW_TAG=canary
