@@ -332,7 +332,7 @@ func postData(config Config, preflightClient *client.PreflightClient, readings [
 	var err error
 
 	log.Println("Running Agent...")
-	log.Println("Posting data to ", baseURL)
+	log.Println("Posting data to:", baseURL)
 	if config.OrganizationID == "" {
 		data, err := json.Marshal(readings)
 		if err != nil {
@@ -357,11 +357,13 @@ func postData(config Config, preflightClient *client.PreflightClient, readings [
 
 			return fmt.Errorf("Received response with status code %d. Body: %s", code, errorContent)
 		}
+		log.Println("Data sent successfully.")
 	} else {
 		err := preflightClient.PostDataReadings(config.OrganizationID, readings)
 		if err != nil {
 			return fmt.Errorf("Post to server failed: %+v", err)
 		}
+		log.Println("Data sent successfully.")
 	}
 	return err
 }
