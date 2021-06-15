@@ -1,11 +1,6 @@
-<p align="center">
-<a href="https://prow.build-infra.jetstack.net/?job=post-preflight-release-canary">
-<!-- prow build badge, godoc, and go report card-->
-<img alt="Build Status" src="https://prow.build-infra.jetstack.net/badge.svg?jobs=post-preflight-release-canary">
-</a>
-<a href="https://godoc.org/github.com/jetstack/preflight"><img src="https://godoc.org/github.com/jetstack/preflight?status.svg"></a>
-<a href="https://goreportcard.com/report/github.com/jetstack/preflight"><img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/jetstack/preflight" /></a>
-</p>
+[![release-master](https://github.com/jetstack/preflight/actions/workflows/release-master.yml/badge.svg)](https://github.com/jetstack/preflight/actions/workflows/release-master.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/jetstack/preflight.svg)](https://pkg.go.dev/github.com/jetstack/preflight)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jetstack/preflight)](https://goreportcard.com/report/github.com/jetstack/preflight)
 
 # Jetstack Secure Agent
 
