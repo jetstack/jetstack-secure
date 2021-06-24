@@ -2,7 +2,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/jetstack/preflight.svg)](https://pkg.go.dev/github.com/jetstack/preflight)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jetstack/preflight)](https://goreportcard.com/report/github.com/jetstack/preflight)
 
-# Jetstack Secure
+![Jetstack Secure](./docs/images/js.png)
 
 [Jetstack Secure](https://www.jetstack.io/jetstack-secure/) manages your machine identities across Cloud Native Kubernetes and OpenShift environments and builds a detailed view of the enterprise security posture.
 
