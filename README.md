@@ -9,7 +9,7 @@
 This repo contains the open source in-cluster agent of Jetstack Secure, that sends data to the [Jetstack Secure
 SaaS](https://platform.jetstack.io).
 
-> **Wondering about Preflight?** Preflight was the name for the project that was the foundation for the Jetstack Secure platform. It was a tool to perform configuration checks on a Kubernetes cluster using OPA's REGO policy. We decided to incorporate that functionality to the Jetstack Secure SaaS service, making the agent be much simpler. You can find the old Preflight Check functionality in the git history ( tagged as `preflight-local-check` and you also check [this documentation](https://github.com/jetstack/jetstack-secure/blob/preflight-local-check/docs/check.md).
+> **Wondering about Preflight?** Preflight was the name for the project that was the foundation for the Jetstack Secure platform. It was a tool to perform configuration checks on a Kubernetes cluster using OPA's REGO policy. We decided to incorporate that functionality as part of the Jetstack Secure SaaS service, making this component a basic agent. You can find the old Preflight Check functionality in the git history ( tagged as `preflight-local-check` and you also check [this documentation](https://github.com/jetstack/jetstack-secure/blob/preflight-local-check/docs/check.md).
 
 ## Installation
 
