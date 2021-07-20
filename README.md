@@ -1,6 +1,6 @@
-[![release-master](https://github.com/jetstack/preflight/actions/workflows/release-master.yml/badge.svg)](https://github.com/jetstack/preflight/actions/workflows/release-master.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/jetstack/preflight.svg)](https://pkg.go.dev/github.com/jetstack/preflight)
-[![Go Report Card](https://goreportcard.com/badge/github.com/jetstack/preflight)](https://goreportcard.com/report/github.com/jetstack/preflight)
+[![release-master](https://github.com/jetstack/jetstack-secure/actions/workflows/release-master.yml/badge.svg)](https://github.com/jetstack/jetstack-secure/actions/workflows/release-master.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/jetstack/jetstack-secure.svg)](https://pkg.go.dev/github.com/jetstack/jetstack-secure)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jetstack/jetstack-secure)](https://goreportcard.com/report/github.com/jetstack/jetstack-secure)
 
 ![Jetstack Secure](./docs/images/js.png)
 
