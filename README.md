@@ -21,7 +21,7 @@ the agent on to get started.
 To build and run a version from master:
 
 ```bash
-go run main.go agent --agent-config-file ./path/to/agent/config/file.yaml -p 0h1m0s
+go run main.go agent --agent-config-file ./path/to/agent/config/file.yaml
 ```
 
 You can find the example agent file
