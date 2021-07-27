@@ -1,6 +1,8 @@
 server: "http://localhost:8080"
 organization_id: "my-organization"
 cluster_id: "my_cluster"
+period: "0h1m0s"
+
 data-gatherers:
 - kind: "dummy"
   name: "dummy"
