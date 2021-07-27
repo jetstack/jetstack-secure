@@ -50,7 +50,7 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println("-----")
 
-	// reutrn successful response to the agent
+	// return successful response to the agent
 	fmt.Fprintf(w, `{ "status": "ok" }`)
 	w.Header().Set("Content-Type", "application/json")
 }
