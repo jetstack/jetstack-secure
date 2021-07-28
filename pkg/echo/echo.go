@@ -45,9 +45,7 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 
 	// print the data sent to the echo server to the console
 
-	// this should be in color1
 	color.Green("-- %s %s -> created %d\n", r.Method, r.URL.Path, http.StatusCreated)
-	// this can stay in default color
 	fmt.Printf("received %d readings:\n", len(payload.DataReadings))
 	for i, r := range payload.DataReadings {
 		if i%2 == 0 {
@@ -56,7 +54,6 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 			color.Cyan("Reading:\n%s\n", prettyPrint(r))
 		}
 	}
-	// this should be in color1
 	color.Green("-----")
 
 	// return successful response to the agent
