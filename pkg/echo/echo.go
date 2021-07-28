@@ -51,9 +51,9 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("received %d readings:\n", len(payload.DataReadings))
 	for i, r := range payload.DataReadings {
 		if i%2 == 0 {
-			color.Yellow("%+v\n", r)
+			color.Yellow("Reading:\n%s\n", prettyPrint(r))
 		} else {
-			color.Cyan("%+v\n", r)
+			color.Cyan("Reading:\n%s\n", prettyPrint(r))
 		}
 	}
 	// this should be in color1
@@ -89,4 +89,13 @@ func writeError(w http.ResponseWriter, err string, code int) {
 	fmt.Printf("-- error %d -> %s\n", code, err)
 	w.Header().Set("Content-Type", "application/json")
 	http.Error(w, fmt.Sprintf(`{ "error": "%s", "code": %d }`, err, code), code)
+}
+
+func prettyPrint(reading *api.DataReading) string {
+	return fmt.Sprintf(`ClusterID: %s
+Data gatherer: %s
+Timestamp: %s
+SchemaVersion: %s
+Data: %+v`,
+		reading.ClusterID, reading.DataGatherer, reading.Timestamp, reading.SchemaVersion, reading.Data)
 }
