@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/jetstack/preflight/api"
 	"github.com/spf13/cobra"
 )
@@ -43,12 +44,20 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// print the data sent to the echo server to the console
-	fmt.Printf("-- %s %s -> created %d\n", r.Method, r.URL.Path, http.StatusCreated)
+
+	// this should be in color1
+	color.Green("-- %s %s -> created %d\n", r.Method, r.URL.Path, http.StatusCreated)
+	// this can stay in default color
 	fmt.Printf("received %d readings:\n", len(payload.DataReadings))
-	for _, r := range payload.DataReadings {
-		fmt.Printf("%+v\n", r)
+	for i, r := range payload.DataReadings {
+		if i%2 == 0 {
+			color.Yellow("Reading:\n%s\n", prettyPrint(r))
+		} else {
+			color.Cyan("Reading:\n%s\n", prettyPrint(r))
+		}
 	}
-	fmt.Println("-----")
+	// this should be in color1
+	color.Green("-----")
 
 	// return successful response to the agent
 	fmt.Fprintf(w, `{ "status": "ok" }`)
@@ -80,4 +89,13 @@ func writeError(w http.ResponseWriter, err string, code int) {
 	fmt.Printf("-- error %d -> %s\n", code, err)
 	w.Header().Set("Content-Type", "application/json")
 	http.Error(w, fmt.Sprintf(`{ "error": "%s", "code": %d }`, err, code), code)
+}
+
+func prettyPrint(reading *api.DataReading) string {
+	return fmt.Sprintf(`ClusterID: %s
+Data gatherer: %s
+Timestamp: %s
+SchemaVersion: %s
+Data: %+v`,
+		reading.ClusterID, reading.DataGatherer, reading.Timestamp, reading.SchemaVersion, reading.Data)
 }

@@ -12,6 +12,7 @@ require (
 	github.com/aws/aws-sdk-go v1.36.19
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/d4l3k/messagediff v1.2.1
+	github.com/fatih/color v1.12.0 // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/jetstack/version-checker v0.2.2-0.20201118163251-4bab9ef088ef
