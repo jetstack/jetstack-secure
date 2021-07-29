@@ -47,13 +47,16 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 
 	color.Green("-- %s %s -> created %d\n", r.Method, r.URL.Path, http.StatusCreated)
 	fmt.Printf("received %d readings:\n", len(payload.DataReadings))
+
 	for i, r := range payload.DataReadings {
+		c := color.New(color.FgYellow)
 		if i%2 == 0 {
-			color.Yellow("Reading:\n%s\n", prettyPrint(r))
-		} else {
-			color.Cyan("Reading:\n%s\n", prettyPrint(r))
+			c = color.New(color.FgCyan)
 		}
+
+		c.Printf("%v:\n%s\n", i, prettyPrint(r))
 	}
+
 	color.Green("-----")
 
 	// return successful response to the agent
