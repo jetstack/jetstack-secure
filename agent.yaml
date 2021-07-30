@@ -1,4 +1,4 @@
-server: "http://localhost:8080"
+server: "https://platform.jetstack.io"
 organization_id: "my-organization"
 cluster_id: "my_cluster"
 period: "0h1m0s"
@@ -11,11 +11,3 @@ data-gatherers:
     name: "dummy-fail"
     config:
       always-fail: true
-  - kind: "local"
-    name: "local1"
-    config:
-      data-path: ./examples/echo/example.json
-  - kind: "local"
-    name: "local2"
-    config:
-      data-path: ./examples/echo/example2.json
