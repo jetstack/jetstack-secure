@@ -14,6 +14,8 @@ import (
 
 var EchoListen, AllowedToken string
 
+var Compact bool
+
 func Echo(cmd *cobra.Command, args []string) {
 	http.HandleFunc("/", echoHandler)
 	fmt.Println("Listening to requests at ", EchoListen)
@@ -45,19 +47,27 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 
 	// print the data sent to the echo server to the console
 
-	color.Green("-- %s %s -> created %d\n", r.Method, r.URL.Path, http.StatusCreated)
-	fmt.Printf("received %d readings:\n", len(payload.DataReadings))
+	if Compact {
+		fmt.Printf("-- %s %s -> created %d\n", r.Method, r.URL.Path, http.StatusCreated)
+		fmt.Printf("received %d readings:\n", len(payload.DataReadings))
+		for _, r := range payload.DataReadings {
+			fmt.Printf("%+v\n", r)
+		}
+	} else {
+		color.Green("-- %s %s -> created %d\n", r.Method, r.URL.Path, http.StatusCreated)
+		fmt.Printf("received %d readings:\n", len(payload.DataReadings))
 
-	for i, r := range payload.DataReadings {
-		c := color.New(color.FgYellow)
-		if i%2 == 0 {
-			c = color.New(color.FgCyan)
+		for i, r := range payload.DataReadings {
+			c := color.New(color.FgYellow)
+			if i%2 == 0 {
+				c = color.New(color.FgCyan)
+			}
+
+			c.Printf("%v:\n%s\n", i, prettyPrint(r))
 		}
 
-		c.Printf("%v:\n%s\n", i, prettyPrint(r))
+		color.Green("-----")
 	}
-
-	color.Green("-----")
 
 	// return successful response to the agent
 	fmt.Fprintf(w, `{ "status": "ok" }`)
