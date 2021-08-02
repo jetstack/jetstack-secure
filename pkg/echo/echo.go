@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/fatih/color"
 	"github.com/jetstack/preflight/api"
 	"github.com/spf13/cobra"
 )
 
-var EchoListen, AllowedToken string
+var EchoListen string
 
 var Compact bool
 
@@ -26,12 +25,6 @@ func Echo(cmd *cobra.Command, args []string) {
 }
 
 func echoHandler(w http.ResponseWriter, r *http.Request) {
-	code, err := checkAuthorization(w, r)
-	if err != nil {
-		writeError(w, err.Error(), code)
-		return
-	}
-
 	if r.Method != http.MethodPost {
 		writeError(w, fmt.Sprintf("invalid method. Expected POST, received %s", r.Method), http.StatusBadRequest)
 		return
@@ -39,7 +32,7 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 
 	// decode all data, however only datareadings are printed below
 	var payload api.DataReadingsPost
-	err = json.NewDecoder(r.Body).Decode(&payload)
+	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
 		writeError(w, fmt.Sprintf("decoding body: %+v", err), http.StatusBadRequest)
 		return
@@ -72,27 +65,6 @@ func echoHandler(w http.ResponseWriter, r *http.Request) {
 	// return successful response to the agent
 	fmt.Fprintf(w, `{ "status": "ok" }`)
 	w.Header().Set("Content-Type", "application/json")
-}
-
-func checkAuthorization(w http.ResponseWriter, r *http.Request) (int, error) {
-	if AllowedToken != "" {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="Echo"`)
-
-		s := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
-		if len(s) != 2 {
-			return 400, fmt.Errorf("bad request: malformed Authorization header")
-		}
-
-		if s[0] != "Bearer" {
-			return 401, fmt.Errorf("not authorized")
-		}
-
-		if s[1] != AllowedToken {
-			return 401, fmt.Errorf("not authorized")
-		}
-	}
-
-	return 0, nil
 }
 
 func writeError(w http.ResponseWriter, err string, code int) {
