@@ -29,4 +29,11 @@ func init() {
 		"",
 		"If provided, will only authorize requests authenticated with the token.",
 	)
+	echoCmd.PersistentFlags().BoolVarP(
+		&echo.Compact,
+		"compact",
+		"",
+		false,
+		"Prints compact output.",
+	)
 }
