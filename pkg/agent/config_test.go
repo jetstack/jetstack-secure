@@ -35,7 +35,7 @@ func TestValidConfigLoad(t *testing.T) {
 		Period:         time.Hour,
 		OrganizationID: "example",
 		ClusterID:      "example-cluster",
-		DataGatherers: []dataGatherer{
+		DataGatherers: []DataGatherer{
 			{
 				Name: "d1",
 				Kind: "dummy",
@@ -82,8 +82,8 @@ func TestValidConfigWithEndpointLoad(t *testing.T) {
 		Schedule:       "* * * * *",
 		OrganizationID: "example",
 		ClusterID:      "example-cluster",
-		DataGatherers: []dataGatherer{
-			dataGatherer{
+		DataGatherers: []DataGatherer{
+			{
 				Name: "d1",
 				Kind: "dummy",
 				Config: &dummyConfig{
