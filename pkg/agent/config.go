@@ -44,9 +44,9 @@ type Endpoint struct {
 }
 
 type DataGatherer struct {
-	Kind     string
-	Name     string
-	DataPath string
+	Kind     string `yaml:"kind"`
+	Name     string `yaml:"name"`
+	DataPath string `yaml:"data_path"`
 	Config   datagatherer.Config
 }
 
