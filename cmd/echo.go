@@ -22,13 +22,7 @@ func init() {
 		":8080",
 		"Address where to listen.",
 	)
-	echoCmd.PersistentFlags().StringVarP(
-		&echo.AllowedToken,
-		"allowed-token",
-		"t",
-		"",
-		"If provided, will only authorize requests authenticated with the token.",
-	)
+
 	echoCmd.PersistentFlags().BoolVarP(
 		&echo.Compact,
 		"compact",
