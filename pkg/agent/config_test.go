@@ -103,7 +103,7 @@ func TestInvalidConfigError(t *testing.T) {
 
 	_, parseError := ParseConfig([]byte(configFileContents))
 
-	expectedError := fmt.Errorf("yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `things` into []agent.dataGatherer")
+	expectedError := fmt.Errorf("yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `things` into []agent.DataGatherer")
 
 	if parseError.Error() != expectedError.Error() {
 		t.Fatalf("got != want;\ngot=%s,\nwant=%s", parseError, expectedError)
