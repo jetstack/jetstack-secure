@@ -30,7 +30,7 @@ type Config struct {
 	OrganizationID string `yaml:"organization_id"`
 	// ClusterID is the cluster that the agent is scanning.
 	ClusterID     string         `yaml:"cluster_id"`
-	DataGatherers []dataGatherer `yaml:"data-gatherers"`
+	DataGatherers []DataGatherer `yaml:"data-gatherers"`
 	// InputPath replaces DataGatherers with input data file
 	InputPath string `yaml:"input-path"`
 	// OutputPath replaces Server with output data file
@@ -43,10 +43,10 @@ type Endpoint struct {
 	Path     string `yaml:"path"`
 }
 
-type dataGatherer struct {
-	Kind     string
-	Name     string
-	DataPath string
+type DataGatherer struct {
+	Kind     string `yaml:"kind"`
+	Name     string `yaml:"name"`
+	DataPath string `yaml:"data_path"`
 	Config   datagatherer.Config
 }
 
@@ -65,7 +65,7 @@ func reMarshal(rawConfig interface{}, config datagatherer.Config) error {
 }
 
 // UnmarshalYAML unmarshals a dataGatherer resolving the type according to Kind.
-func (dg *dataGatherer) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (dg *DataGatherer) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	aux := struct {
 		Kind      string      `yaml:"kind"`
 		Name      string      `yaml:"name"`

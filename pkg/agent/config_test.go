@@ -35,7 +35,7 @@ func TestValidConfigLoad(t *testing.T) {
 		Period:         time.Hour,
 		OrganizationID: "example",
 		ClusterID:      "example-cluster",
-		DataGatherers: []dataGatherer{
+		DataGatherers: []DataGatherer{
 			{
 				Name: "d1",
 				Kind: "dummy",
@@ -82,8 +82,8 @@ func TestValidConfigWithEndpointLoad(t *testing.T) {
 		Schedule:       "* * * * *",
 		OrganizationID: "example",
 		ClusterID:      "example-cluster",
-		DataGatherers: []dataGatherer{
-			dataGatherer{
+		DataGatherers: []DataGatherer{
+			{
 				Name: "d1",
 				Kind: "dummy",
 				Config: &dummyConfig{
@@ -103,7 +103,7 @@ func TestInvalidConfigError(t *testing.T) {
 
 	_, parseError := ParseConfig([]byte(configFileContents))
 
-	expectedError := fmt.Errorf("yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `things` into []agent.dataGatherer")
+	expectedError := fmt.Errorf("yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `things` into []agent.DataGatherer")
 
 	if parseError.Error() != expectedError.Error() {
 		t.Fatalf("got != want;\ngot=%s,\nwant=%s", parseError, expectedError)
