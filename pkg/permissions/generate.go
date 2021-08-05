@@ -33,5 +33,7 @@ rules:
 ---`, accumulator, metaName, dyConfig.GroupVersionResource.Group, dyConfig.GroupVersionResource.Resource)
 	}
 
-	return strings.TrimPrefix(accumulator, "\n")
+	s := strings.TrimPrefix(accumulator, "\n")
+	ss := strings.TrimSuffix(s, "---")
+	return strings.TrimSuffix(ss, "\n")
 }
