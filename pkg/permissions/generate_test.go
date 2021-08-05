@@ -48,8 +48,7 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["secrets"]
-  verbs: ["get", "list", "watch"]
----`
+  verbs: ["get", "list", "watch"]`
 
 	if output := Generate(inputDatagatherers); output != expectedOutput {
 		t.Fatalf("unexpected output \n%s \n expected: \n%s", output, expectedOutput)
