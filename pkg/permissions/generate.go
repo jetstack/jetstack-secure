@@ -6,6 +6,8 @@ import (
 
 	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
+	rbac "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func Generate(dataGatherers []agent.DataGatherer) string {
@@ -36,4 +38,40 @@ rules:
 	s := strings.TrimPrefix(accumulator, "\n")
 	ss := strings.TrimSuffix(s, "---")
 	return strings.TrimSuffix(ss, "\n")
+}
+
+func GenerateRoles(dataGatherer []agent.DataGatherer) []rbac.ClusterRole {
+	// make (out := []rbac.ClusterRole{}, length(dataGatherer))
+	out := []rbac.ClusterRole{}
+
+	for _, g := range dataGatherer {
+		if g.Kind != "k8s-dynamic" {
+			continue
+		}
+
+		genericConfig := g.Config
+		dyConfig := genericConfig.(*k8s.ConfigDynamic)
+
+		metaName := fmt.Sprint(dyConfig.GroupVersionResource.Resource)
+
+		out = append(out, rbac.ClusterRole{
+			metav1.TypeMeta{
+				Kind:       "ClusterRole",
+				APIVersion: "v1",
+			},
+			metav1.ObjectMeta{
+				Name: fmt.Sprintf("jetstack-secure-agent-%s-reader", metaName),
+			},
+			[]rbac.PolicyRule{
+				{
+					Verbs:     []string{"get", "list", "watch"},
+					APIGroups: []string{fmt.Sprint(dyConfig.GroupVersionResource.Group)},
+					Resources: []string{fmt.Sprintf(metaName)},
+				},
+			},
+			nil,
+		})
+
+	}
+	return out
 }
