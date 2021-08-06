@@ -56,55 +56,52 @@ func TestGenerateRBAC(t *testing.T) {
 			},
 			expectedClusterRoles: []rbac.ClusterRole{
 				{
-					metav1.TypeMeta{
+					TypeMeta: metav1.TypeMeta{
 						Kind:       "ClusterRole",
-						APIVersion: "v1",
+						APIVersion: "rbac.authorization.k8s.io/v1",
 					},
-					metav1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "jetstack-secure-agent-pods-reader",
 					},
-					[]rbac.PolicyRule{
+					Rules: []rbac.PolicyRule{
 						{
 							Verbs:     []string{"get", "list", "watch"},
 							APIGroups: []string{""},
 							Resources: []string{"pods"},
 						},
 					},
-					nil,
 				},
 				{
-					metav1.TypeMeta{
+					TypeMeta: metav1.TypeMeta{
 						Kind:       "ClusterRole",
-						APIVersion: "v1",
+						APIVersion: "rbac.authorization.k8s.io/v1",
 					},
-					metav1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "jetstack-secure-agent-secrets-reader",
 					},
-					[]rbac.PolicyRule{
+					Rules: []rbac.PolicyRule{
 						{
 							Verbs:     []string{"get", "list", "watch"},
 							APIGroups: []string{""},
 							Resources: []string{"secrets"},
 						},
 					},
-					nil,
 				},
 				{
-					metav1.TypeMeta{
+					TypeMeta: metav1.TypeMeta{
 						Kind:       "ClusterRole",
-						APIVersion: "v1",
+						APIVersion: "rbac.authorization.k8s.io/v1",
 					},
-					metav1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "jetstack-secure-agent-awspcaissuers-reader",
 					},
-					[]rbac.PolicyRule{
+					Rules: []rbac.PolicyRule{
 						{
 							Verbs:     []string{"get", "list", "watch"},
 							APIGroups: []string{"awspca.cert-manager.io"},
 							Resources: []string{"awspcaissuers"},
 						},
 					},
-					nil,
 				},
 			},
 		},

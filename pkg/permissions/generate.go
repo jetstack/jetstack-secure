@@ -55,21 +55,20 @@ func GenerateRoles(dataGatherer []agent.DataGatherer) []rbac.ClusterRole {
 		metaName := fmt.Sprint(dyConfig.GroupVersionResource.Resource)
 
 		out = append(out, rbac.ClusterRole{
-			metav1.TypeMeta{
+			TypeMeta: metav1.TypeMeta{
 				Kind:       "ClusterRole",
-				APIVersion: "v1",
+				APIVersion: "rbac.authorization.k8s.io/v1",
 			},
-			metav1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name: fmt.Sprintf("jetstack-secure-agent-%s-reader", metaName),
 			},
-			[]rbac.PolicyRule{
+			Rules: []rbac.PolicyRule{
 				{
 					Verbs:     []string{"get", "list", "watch"},
-					APIGroups: []string{fmt.Sprint(dyConfig.GroupVersionResource.Group)},
-					Resources: []string{fmt.Sprintf(metaName)},
+					APIGroups: []string{dyConfig.GroupVersionResource.Group},
+					Resources: []string{metaName},
 				},
 			},
-			nil,
 		})
 
 	}
