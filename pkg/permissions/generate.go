@@ -41,7 +41,6 @@ rules:
 }
 
 func GenerateRoles(dataGatherer []agent.DataGatherer) []rbac.ClusterRole {
-	// make (out := []rbac.ClusterRole{}, length(dataGatherer))
 	out := []rbac.ClusterRole{}
 
 	for _, g := range dataGatherer {
@@ -52,7 +51,7 @@ func GenerateRoles(dataGatherer []agent.DataGatherer) []rbac.ClusterRole {
 		genericConfig := g.Config
 		dyConfig := genericConfig.(*k8s.ConfigDynamic)
 
-		metaName := fmt.Sprint(dyConfig.GroupVersionResource.Resource)
+		metaName := dyConfig.GroupVersionResource.Resource
 
 		out = append(out, rbac.ClusterRole{
 			TypeMeta: metav1.TypeMeta{
