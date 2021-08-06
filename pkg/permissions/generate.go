@@ -73,3 +73,39 @@ func GenerateRoles(dataGatherer []agent.DataGatherer) []rbac.ClusterRole {
 	}
 	return out
 }
+
+// func SelectNamespace(all, include, exclude) selected {
+
+// }
+
+func GenerateBindings(clusterRoles []rbac.ClusterRole) []rbac.ClusterRoleBinding {
+	out := []rbac.ClusterRoleBinding{}
+	for _, cr := range clusterRoles {
+		out = append(out, rbac.ClusterRoleBinding{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ClusterRoleBinding",
+				APIVersion: "rbac.authorization.k8s.io/v1",
+			},
+
+			ObjectMeta: metav1.ObjectMeta{
+				Name: fmt.Sprintf("jetstack-secure-agent-%s-reader", cr.TypeMeta.Kind),
+			},
+
+			Subjects: []rbac.Subject{
+				{
+					Kind:      "ServiceAccount",
+					Name:      "agent",
+					Namespace: "jetstack-secure",
+				},
+			},
+
+			RoleRef: rbac.RoleRef{
+				Kind:     "ClusterRole",
+				Name:     cr.ObjectMeta.Name,
+				APIGroup: "rbac.authorization.k8s.io",
+			},
+		})
+
+	}
+	return out
+}
