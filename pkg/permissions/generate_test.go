@@ -18,7 +18,7 @@ func TestGenerateAgentRBACManifests(t *testing.T) {
 		expectedAgentRBACManifests AgentRBACManifests
 	}{
 		{
-			description: "Generate ClusterRole and ClusterRoleBinding for simple pod dg case",
+			description: "Generate ClusterRole and ClusterRoleBinding for simple pod dg use case",
 			dataGatherers: []agent.DataGatherer{
 				{
 					Name: "k8s/pods",
@@ -58,6 +58,88 @@ func TestGenerateAgentRBACManifests(t *testing.T) {
 						},
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "jetstack-secure-agent-pods-reader",
+						},
+						Subjects: []rbac.Subject{
+							{
+								Kind:      "ServiceAccount",
+								Name:      "agent",
+								Namespace: "jetstack-secure",
+							},
+						},
+						RoleRef: rbac.RoleRef{
+							Kind:     "ClusterRole",
+							Name:     "jetstack-secure-agent-pods-reader",
+							APIGroup: "rbac.authorization.k8s.io",
+						},
+					},
+				},
+			},
+		},
+		{
+			description: "Generate RBAC config for simple pod dg use case where single namespace is set",
+			dataGatherers: []agent.DataGatherer{
+				{
+					Name: "k8s/pods",
+					Kind: "k8s-dynamic",
+					Config: &k8s.ConfigDynamic{
+						GroupVersionResource: schema.GroupVersionResource{
+							Version:  "v1",
+							Resource: "pods",
+						},
+						IncludeNamespaces: []string{"example", "foobar"},
+					},
+				},
+			},
+			expectedAgentRBACManifests: AgentRBACManifests{
+				ClusterRoles: []rbac.ClusterRole{
+					{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "ClusterRole",
+							APIVersion: "rbac.authorization.k8s.io/v1",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "jetstack-secure-agent-pods-reader",
+						},
+						Rules: []rbac.PolicyRule{
+							{
+								Verbs:     []string{"get", "list", "watch"},
+								APIGroups: []string{""},
+								Resources: []string{"pods"},
+							},
+						},
+					},
+				},
+				RoleBindings: []rbac.RoleBinding{
+					{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "RoleBinding",
+							APIVersion: "rbac.authorization.k8s.io/v1",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "jetstack-secure-agent-pods-reader",
+							Namespace: "example",
+						},
+						Subjects: []rbac.Subject{
+							{
+								Kind:      "ServiceAccount",
+								Name:      "agent",
+								Namespace: "jetstack-secure",
+							},
+						},
+						RoleRef: rbac.RoleRef{
+							Kind:     "ClusterRole",
+							Name:     "jetstack-secure-agent-pods-reader",
+							APIGroup: "rbac.authorization.k8s.io",
+						},
+					},
+					{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "RoleBinding",
+							APIVersion: "rbac.authorization.k8s.io/v1",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "jetstack-secure-agent-pods-reader",
+							Namespace: "foobar",
 						},
 						Subjects: []rbac.Subject{
 							{
