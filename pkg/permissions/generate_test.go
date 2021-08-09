@@ -3,9 +3,9 @@ package permissions
 import (
 	"testing"
 
-	"github.com/d4l3k/messagediff"
 	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
+	"github.com/maxatome/go-testdeep/td"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -35,17 +35,14 @@ func TestGenerateRBAC(t *testing.T) {
 				},
 			},
 			expectedClusterRoleBindings: []rbac.ClusterRoleBinding{
-
 				{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "ClusterRoleBinding",
 						APIVersion: "rbac.authorization.k8s.io/v1",
 					},
-
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "jetstack-secure-agent-ClusterRole-reader",
 					},
-
 					Subjects: []rbac.Subject{
 						{
 							Kind:      "ServiceAccount",
@@ -53,10 +50,9 @@ func TestGenerateRBAC(t *testing.T) {
 							Namespace: "jetstack-secure",
 						},
 					},
-
 					RoleRef: rbac.RoleRef{
 						Kind:     "ClusterRole",
-						Name:     "jetstack-secure-agent-secret-reader",
+						Name:     "jetstack-secure-agent-secrets-reader",
 						APIGroup: "rbac.authorization.k8s.io",
 					},
 				},
@@ -68,9 +64,7 @@ func TestGenerateRBAC(t *testing.T) {
 	for _, input := range testCases {
 		got := GenerateRoles(input.dataGatherers)
 		toBeTest := GenerateBindings(got)
-		if diff, equal := messagediff.PrettyDiff(input.expectedClusterRoleBindings, toBeTest); !equal {
-			t.Errorf("%s:\n%s", input.description, diff)
-			t.Fatalf("unexpected difference in RBAC cluster role: \ngot \n%v\nwant\n%v", got, input.expectedClusterRoleBindings)
-		}
+
+		td.Cmp(t, input.expectedClusterRoleBindings, toBeTest)
 	}
 }
