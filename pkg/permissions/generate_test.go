@@ -11,16 +11,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func TestGenerateRBAC(t *testing.T) {
-	// Use these test cases to check if Generate function is correct
+func TestGenerateAgentRBACManifests(t *testing.T) {
 	testCases := []struct {
-		expectedClusterRoles        []rbac.ClusterRole
-		expectedClusterRoleBindings []rbac.ClusterRoleBinding
-		dataGatherers               []agent.DataGatherer
-		description                 string
+		description                string
+		dataGatherers              []agent.DataGatherer
+		expectedAgentRBACManifests AgentRBACManifests
 	}{
 		{
-			description: "Generate RBAC struct for pods datagatherer",
+			description: "Generate ClusterRole and ClusterRoleBinding for simple pod dg case",
 			dataGatherers: []agent.DataGatherer{
 				{
 					Name: "k8s/pods",
@@ -32,140 +30,47 @@ func TestGenerateRBAC(t *testing.T) {
 						},
 					},
 				},
-				{
-					Name: "k8s/secrets",
-					Kind: "k8s-dynamic",
-					Config: &k8s.ConfigDynamic{
-						GroupVersionResource: schema.GroupVersionResource{
-							Version:  "v1",
-							Resource: "secrets",
-						},
-					},
-				},
-				{
-					Name: "k8s/awspcaissuer",
-					Kind: "k8s-dynamic",
-					Config: &k8s.ConfigDynamic{
-						GroupVersionResource: schema.GroupVersionResource{
-							Group:    "awspca.cert-manager.io",
-							Version:  "v1",
-							Resource: "awspcaissuers",
-						},
-					},
-				},
 			},
-			expectedClusterRoles: []rbac.ClusterRole{
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "ClusterRole",
-						APIVersion: "rbac.authorization.k8s.io/v1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "jetstack-secure-agent-pods-reader",
-					},
-					Rules: []rbac.PolicyRule{
-						{
-							Verbs:     []string{"get", "list", "watch"},
-							APIGroups: []string{""},
-							Resources: []string{"pods"},
+			expectedAgentRBACManifests: AgentRBACManifests{
+				ClusterRoles: []rbac.ClusterRole{
+					{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "ClusterRole",
+							APIVersion: "rbac.authorization.k8s.io/v1",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "jetstack-secure-agent-pods-reader",
+						},
+						Rules: []rbac.PolicyRule{
+							{
+								Verbs:     []string{"get", "list", "watch"},
+								APIGroups: []string{""},
+								Resources: []string{"pods"},
+							},
 						},
 					},
 				},
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "ClusterRole",
-						APIVersion: "rbac.authorization.k8s.io/v1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "jetstack-secure-agent-secrets-reader",
-					},
-					Rules: []rbac.PolicyRule{
-						{
-							Verbs:     []string{"get", "list", "watch"},
-							APIGroups: []string{""},
-							Resources: []string{"secrets"},
+				ClusterRoleBindings: []rbac.ClusterRoleBinding{
+					{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "ClusterRoleBinding",
+							APIVersion: "rbac.authorization.k8s.io/v1",
 						},
-					},
-				},
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "ClusterRole",
-						APIVersion: "rbac.authorization.k8s.io/v1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "jetstack-secure-agent-awspcaissuers-reader",
-					},
-					Rules: []rbac.PolicyRule{
-						{
-							Verbs:     []string{"get", "list", "watch"},
-							APIGroups: []string{"awspca.cert-manager.io"},
-							Resources: []string{"awspcaissuers"},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "jetstack-secure-agent-pods-reader",
 						},
-					},
-				},
-			},
-			expectedClusterRoleBindings: []rbac.ClusterRoleBinding{
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "ClusterRoleBinding",
-						APIVersion: "rbac.authorization.k8s.io/v1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "jetstack-secure-agent-pods-reader",
-					},
-					Subjects: []rbac.Subject{
-						{
-							Kind:      "ServiceAccount",
-							Name:      "agent",
-							Namespace: "jetstack-secure",
+						Subjects: []rbac.Subject{
+							{
+								Kind:      "ServiceAccount",
+								Name:      "agent",
+								Namespace: "jetstack-secure",
+							},
 						},
-					},
-					RoleRef: rbac.RoleRef{
-						Kind:     "ClusterRole",
-						Name:     "jetstack-secure-agent-pods-reader",
-						APIGroup: "rbac.authorization.k8s.io",
-					},
-				},
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "ClusterRoleBinding",
-						APIVersion: "rbac.authorization.k8s.io/v1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "jetstack-secure-agent-secrets-reader",
-					},
-					Subjects: []rbac.Subject{
-						{
-							Kind:      "ServiceAccount",
-							Name:      "agent",
-							Namespace: "jetstack-secure",
+						RoleRef: rbac.RoleRef{
+							Kind:     "ClusterRole",
+							Name:     "jetstack-secure-agent-pods-reader",
+							APIGroup: "rbac.authorization.k8s.io",
 						},
-					},
-					RoleRef: rbac.RoleRef{
-						Kind:     "ClusterRole",
-						Name:     "jetstack-secure-agent-secrets-reader",
-						APIGroup: "rbac.authorization.k8s.io",
-					},
-				},
-				{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "ClusterRoleBinding",
-						APIVersion: "rbac.authorization.k8s.io/v1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "jetstack-secure-agent-awspcaissuers-reader",
-					},
-					Subjects: []rbac.Subject{
-						{
-							Kind:      "ServiceAccount",
-							Name:      "agent",
-							Namespace: "jetstack-secure",
-						},
-					},
-					RoleRef: rbac.RoleRef{
-						Kind:     "ClusterRole",
-						Name:     "jetstack-secure-agent-awspcaissuers-reader",
-						APIGroup: "rbac.authorization.k8s.io",
 					},
 				},
 			},
@@ -173,10 +78,8 @@ func TestGenerateRBAC(t *testing.T) {
 	}
 
 	for _, input := range testCases {
-		gotClusterRoles := GenerateClusterRoles(input.dataGatherers)
-		gotClusterRoleBindings := GenerateClusterRoleBindings(gotClusterRoles)
+		got := GenerateAgentRBACManifests(input.dataGatherers)
 
-		td.Cmp(t, input.expectedClusterRoles, gotClusterRoles)
-		td.Cmp(t, input.expectedClusterRoleBindings, gotClusterRoleBindings)
+		td.Cmp(t, input.expectedAgentRBACManifests, got)
 	}
 }
