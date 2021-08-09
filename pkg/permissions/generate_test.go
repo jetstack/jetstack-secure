@@ -14,7 +14,7 @@ import (
 func TestGenerateRBAC(t *testing.T) {
 	// Use these test cases to check if Generate function is correct
 	testCases := []struct {
-		// expectedClusterRoles is the collection of ClusterRole
+		expectedClusterRoles        []rbac.ClusterRole
 		expectedClusterRoleBindings []rbac.ClusterRoleBinding
 		dataGatherers               []agent.DataGatherer
 		description                 string
@@ -22,7 +22,6 @@ func TestGenerateRBAC(t *testing.T) {
 		{
 			description: "Generate RBAC struct for pods datagatherer",
 			dataGatherers: []agent.DataGatherer{
-
 				{
 					Name: "k8s/secrets",
 					Kind: "k8s-dynamic",
@@ -30,6 +29,24 @@ func TestGenerateRBAC(t *testing.T) {
 						GroupVersionResource: schema.GroupVersionResource{
 							Version:  "v1",
 							Resource: "secrets",
+						},
+					},
+				},
+			},
+			expectedClusterRoles: []rbac.ClusterRole{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "ClusterRole",
+						APIVersion: "rbac.authorization.k8s.io/v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "jetstack-secure-agent-secrets-reader",
+					},
+					Rules: []rbac.PolicyRule{
+						{
+							Verbs:     []string{"get", "list", "watch"},
+							APIGroups: []string{""},
+							Resources: []string{"secrets"},
 						},
 					},
 				},
@@ -62,9 +79,10 @@ func TestGenerateRBAC(t *testing.T) {
 	}
 
 	for _, input := range testCases {
-		got := GenerateRoles(input.dataGatherers)
-		toBeTest := GenerateBindings(got)
+		gotClusterRoles := GenerateClusterRoles(input.dataGatherers)
+		gotClusterRoleBindings := GenerateClusterRoleBindings(gotClusterRoles)
 
-		td.Cmp(t, input.expectedClusterRoleBindings, toBeTest)
+		td.Cmp(t, input.expectedClusterRoleBindings, gotClusterRoleBindings)
+		td.Cmp(t, input.expectedClusterRoles, gotClusterRoles)
 	}
 }

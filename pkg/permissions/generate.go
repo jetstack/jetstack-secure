@@ -40,7 +40,7 @@ rules:
 	return strings.TrimSuffix(ss, "\n")
 }
 
-func GenerateRoles(dataGatherer []agent.DataGatherer) []rbac.ClusterRole {
+func GenerateClusterRoles(dataGatherer []agent.DataGatherer) []rbac.ClusterRole {
 	out := []rbac.ClusterRole{}
 
 	for _, g := range dataGatherer {
@@ -78,7 +78,7 @@ func GenerateRoles(dataGatherer []agent.DataGatherer) []rbac.ClusterRole {
 
 // }
 
-func GenerateBindings(clusterRoles []rbac.ClusterRole) []rbac.ClusterRoleBinding {
+func GenerateClusterRoleBindings(clusterRoles []rbac.ClusterRole) []rbac.ClusterRoleBinding {
 	out := []rbac.ClusterRoleBinding{}
 	for _, cr := range clusterRoles {
 		out = append(out, rbac.ClusterRoleBinding{
