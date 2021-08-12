@@ -22,7 +22,6 @@ type AgentRBACManifests struct {
 const agentNamespace = "jetstack-secure"
 const agentSubjectName = "agent"
 
-//func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer, konwnNamespaces []string) AgentRBACManifests {
 func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACManifests {
 	// create a new AgentRBACManifest struct
 	var AgentRBACManifests AgentRBACManifests
