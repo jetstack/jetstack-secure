@@ -2,7 +2,6 @@ package permissions
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
@@ -10,66 +9,107 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func Generate(dataGatherers []agent.DataGatherer) string {
-	var accumulator string = ""
-
-	for _, g := range dataGatherers {
-		if g.Kind != "k8s-dynamic" {
-			continue
-		}
-
-		genericConfig := g.Config
-		dyConfig := genericConfig.(*k8s.ConfigDynamic)
-
-		metaName := fmt.Sprint(dyConfig.GroupVersionResource.Resource)
-
-		accumulator = fmt.Sprintf(`%s
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: jetstack-secure-agent-%s-reader
-rules:
-- apiGroups: ["%s"]
-  resources: ["%s"]
-  verbs: ["get", "list", "watch"]
----`, accumulator, metaName, dyConfig.GroupVersionResource.Group, dyConfig.GroupVersionResource.Resource)
-	}
-
-	s := strings.TrimPrefix(accumulator, "\n")
-	ss := strings.TrimSuffix(s, "---")
-	return strings.TrimSuffix(ss, "\n")
+// AgentRBACManifests is a wrapper around the various RBAC structs needed to grant the agent fine-grained permissions as per its dg configs
+type AgentRBACManifests struct {
+	// ClusterRoles is a list of roles for resources the agent will collect
+	ClusterRoles []rbac.ClusterRole
+	// ClusterRoleBindings is a list of crbs for resources which have no include/exclude ns configured
+	ClusterRoleBindings []rbac.ClusterRoleBinding
+	// RoleBindings is a list of namespaced bindings to grant permissions when include/exclude ns set
+	RoleBindings []rbac.RoleBinding
 }
 
-func GenerateRoles(dataGatherer []agent.DataGatherer) []rbac.ClusterRole {
-	out := []rbac.ClusterRole{}
+const agentNamespace = "jetstack-secure"
+const agentSubjectName = "agent"
 
-	for _, g := range dataGatherer {
-		if g.Kind != "k8s-dynamic" {
+func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACManifests {
+	// create a new AgentRBACManifest struct
+	var AgentRBACManifests AgentRBACManifests
+
+	for _, dg := range dataGatherers {
+		if dg.Kind != "k8s-dynamic" {
 			continue
 		}
 
-		genericConfig := g.Config
-		dyConfig := genericConfig.(*k8s.ConfigDynamic)
+		dyConfig := dg.Config.(*k8s.ConfigDynamic)
+		metadataName := fmt.Sprintf("%s-agent-%s-reader", agentNamespace, dyConfig.GroupVersionResource.Resource)
 
-		metaName := dyConfig.GroupVersionResource.Resource
-
-		out = append(out, rbac.ClusterRole{
+		AgentRBACManifests.ClusterRoles = append(AgentRBACManifests.ClusterRoles, rbac.ClusterRole{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ClusterRole",
 				APIVersion: "rbac.authorization.k8s.io/v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("jetstack-secure-agent-%s-reader", metaName),
+				Name: metadataName,
 			},
 			Rules: []rbac.PolicyRule{
 				{
 					Verbs:     []string{"get", "list", "watch"},
 					APIGroups: []string{dyConfig.GroupVersionResource.Group},
-					Resources: []string{metaName},
+					Resources: []string{dyConfig.GroupVersionResource.Resource},
 				},
 			},
 		})
 
+		// if dyConfig.IncludeNamespaces has more than 0 items in it
+		//   then, for each namespace create a rbac.RoleBinding in that namespace
+		if len(dyConfig.IncludeNamespaces) != 0 {
+			for _, ns := range dyConfig.IncludeNamespaces {
+				AgentRBACManifests.RoleBindings = append(AgentRBACManifests.RoleBindings, rbac.RoleBinding{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "RoleBinding",
+						APIVersion: "rbac.authorization.k8s.io/v1",
+					},
+
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      metadataName,
+						Namespace: ns,
+					},
+
+					Subjects: []rbac.Subject{
+						{
+							Kind:      "ServiceAccount",
+							Name:      agentSubjectName,
+							Namespace: agentNamespace,
+						},
+					},
+
+					RoleRef: rbac.RoleRef{
+						Kind:     "ClusterRole",
+						Name:     metadataName,
+						APIGroup: "rbac.authorization.k8s.io",
+					},
+				})
+			}
+		} else {
+			// only do this if the dg does not have IncludeNamespaces set
+			AgentRBACManifests.ClusterRoleBindings = append(AgentRBACManifests.ClusterRoleBindings, rbac.ClusterRoleBinding{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ClusterRoleBinding",
+					APIVersion: "rbac.authorization.k8s.io/v1",
+				},
+
+				ObjectMeta: metav1.ObjectMeta{
+					Name: metadataName,
+				},
+
+				Subjects: []rbac.Subject{
+					{
+						Kind:      "ServiceAccount",
+						Name:      agentSubjectName,
+						Namespace: agentNamespace,
+					},
+				},
+
+				RoleRef: rbac.RoleRef{
+					Kind:     "ClusterRole",
+					Name:     metadataName,
+					APIGroup: "rbac.authorization.k8s.io",
+				},
+			})
+		}
+
 	}
-	return out
+
+	return AgentRBACManifests
 }
