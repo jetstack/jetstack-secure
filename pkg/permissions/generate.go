@@ -19,6 +19,9 @@ type AgentRBACManifests struct {
 	RoleBindings []rbac.RoleBinding
 }
 
+const agentNamespace = "jetstack-secure"
+const agentSubjectName = "agent"
+
 //func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer, konwnNamespaces []string) AgentRBACManifests {
 func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACManifests {
 	// create a new AgentRBACManifest struct
@@ -30,9 +33,8 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 		}
 
 		dyConfig := dg.Config.(*k8s.ConfigDynamic)
-		metadataName := fmt.Sprintf("jetstack-secure-agent-%s-reader", dyConfig.GroupVersionResource.Resource)
+		metadataName := fmt.Sprintf("%s-agent-%s-reader", agentNamespace, dyConfig.GroupVersionResource.Resource)
 
-		// always do this...
 		AgentRBACManifests.ClusterRoles = append(AgentRBACManifests.ClusterRoles, rbac.ClusterRole{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "ClusterRole",
@@ -52,7 +54,6 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 
 		// if dyConfig.IncludeNamespaces has more than 0 items in it
 		//   then, for each namespace create a rbac.RoleBinding in that namespace
-		// AgentRBACManifests.RoleBindings = append(...)
 		if len(dyConfig.IncludeNamespaces) != 0 {
 			for _, ns := range dyConfig.IncludeNamespaces {
 				AgentRBACManifests.RoleBindings = append(AgentRBACManifests.RoleBindings, rbac.RoleBinding{
@@ -69,8 +70,8 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 					Subjects: []rbac.Subject{
 						{
 							Kind:      "ServiceAccount",
-							Name:      "agent",
-							Namespace: "jetstack-secure",
+							Name:      agentSubjectName,
+							Namespace: agentNamespace,
 						},
 					},
 
@@ -96,8 +97,8 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 				Subjects: []rbac.Subject{
 					{
 						Kind:      "ServiceAccount",
-						Name:      "agent",
-						Namespace: "jetstack-secure",
+						Name:      agentSubjectName,
+						Namespace: agentNamespace,
 					},
 				},
 
