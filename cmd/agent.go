@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jetstack/preflight/pkg/agent"
+	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +26,14 @@ var agentInfoCmd = &cobra.Command{
 		fmt.Println()
 		printOAuth2Config()
 	},
+}
+
+var agentRBACCmd = &cobra.Command{
+	Use:   "rbac",
+	Short: "print RBAC",
+	Long:  `Print RBAC string by reading GVRs`,
+	Run:    out := generateFullManifest(agent.DataGatherer)
+			fmt.Sprintf(out)
 }
 
 func init() {
