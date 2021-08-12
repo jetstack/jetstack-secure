@@ -113,3 +113,7 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 
 	return AgentRBACManifests
 }
+
+func generateFullManifest(dataGatherers []agent.DataGatherer) string {
+
+}

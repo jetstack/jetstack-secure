@@ -11,6 +11,99 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+func TestGenerateAgentRBACManifestsString(t *testing.T) {
+	testCases := []struct {
+		description           string
+		dataGatherers         []agent.DataGatherer
+		expectedRBACManifests string
+	}{
+		{
+			description: "Generate ClusterRole and ClusterRoleBinding for simple pod dg use case",
+			dataGatherers: []agent.DataGatherer{
+				{
+					Name: "k8s/pods",
+					Kind: "k8s-dynamic",
+					Config: &k8s.ConfigDynamic{
+						GroupVersionResource: schema.GroupVersionResource{
+							Version:  "v1",
+							Resource: "pods",
+						},
+					},
+				},
+			},
+			expectedRBACManifests: `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+	name: jetstack-secure-agent-pods-reader
+rules:
+- apiGroups: [""]
+	resources: ["pods"]
+	verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jetstack-secure-agent-pods-reader
+roleRef:
+  kind: ClusterRole
+  name: jetstack-secure-agent-pods-reader
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: jetstack-secure
+`,
+		},
+		{
+			description: "Generate ClusterRole and RoleBinding for simple pod dg with include namespace \"foobar\"",
+			dataGatherers: []agent.DataGatherer{
+				{
+					Name: "k8s/pods",
+					Kind: "k8s-dynamic",
+					Config: &k8s.ConfigDynamic{
+						IncludeNamespaces: []string{"foobar"},
+						GroupVersionResource: schema.GroupVersionResource{
+							Version:  "v1",
+							Resource: "pods",
+						},
+					},
+				},
+			},
+			expectedRBACManifests: `
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+	name: jetstack-secure-agent-pods-reader
+rules:
+- apiGroups: [""]
+	resources: ["pods"]
+	verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jetstack-secure-agent-pods-reader
+  namespace: foobar
+roleRef:
+  kind: ClusterRole
+  name: jetstack-secure-agent-pods-reader
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: jetstack-secure
+`,
+		},
+	}
+
+	for _, input := range testCases {
+		got := generateFullManifest(input.dataGatherers)
+
+		td.Cmp(t, input.expectedRBACManifests, got)
+	}
+}
+
 func TestGenerateAgentRBACManifests(t *testing.T) {
 	testCases := []struct {
 		description                string
