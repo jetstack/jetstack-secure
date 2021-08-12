@@ -76,7 +76,7 @@ func TestGenerateAgentRBACManifests(t *testing.T) {
 			},
 		},
 		{
-			description: "Generate RBAC config for simple pod dg use case where single namespace is set",
+			description: "Generate RBAC config for simple pod dg use case where only two namespace are included",
 			dataGatherers: []agent.DataGatherer{
 				{
 					Name: "k8s/pods",
