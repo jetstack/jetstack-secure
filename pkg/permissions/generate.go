@@ -1,6 +1,7 @@
 package permissions
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/jetstack/preflight/pkg/agent"
@@ -115,5 +116,14 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 }
 
 func generateFullManifest(dataGatherers []agent.DataGatherer) string {
-
+	agentRBACManifestsStruct := GenerateAgentRBACManifests(dataGatherers)
+	agentRBACString, err := json.Marshal(agentRBACManifestsStruct)
+	if err != nil {
+		fmt.Print(err)
+	}
+	var out string
+	for _, s := range agentRBACString {
+		out += string(s)
+	}
+	return out
 }
