@@ -70,8 +70,7 @@ subjects:
 					},
 				},
 			},
-			expectedRBACManifests: `
-apiVersion: rbac.authorization.k8s.io/v1
+			expectedRBACManifests: `apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
 	name: jetstack-secure-agent-pods-reader
@@ -97,13 +96,20 @@ subjects:
 		},
 	}
 
+	// for _, input := range testCases {
+	// 	got := GenerateFullManifest(input.dataGatherers)
+	// 	// if input.expectedRBACManifests != got {
+	// 	// 	t.Errorf("value mismatch, expected: %q \n got:%q", input.expectedRBACManifests, got)
+	// 	// }
+
+	// 	td.Cmp(t, input.expectedRBACManifests, got)
 	for _, input := range testCases {
 		got := GenerateFullManifest(input.dataGatherers)
-		// if input.expectedRBACManifests != got {
-		// 	t.Errorf("value mismatch, expected: %q \n got:%q", input.expectedRBACManifests, got)
-		// }
+		if input.expectedRBACManifests != got {
+			t.Errorf("value mismatch, expected: %s \n got:%s", input.expectedRBACManifests, got)
+		}
 
-		td.Cmp(t, input.expectedRBACManifests, got)
+		//td.Cmp(t, input.expectedRBACManifests, got)
 		//if diff, equal := messagediff.PrettyDiff(input.expectedRBACManifests, got); !equal {
 		//	t.Fatalf("unexpected difference in RBAC cluster role: %v", diff)
 	}

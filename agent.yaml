@@ -11,3 +11,9 @@ data-gatherers:
     name: "dummy-fail"
     config:
       always-fail: true
+  - kind: "k8s-dynamic"
+    name: "k8s/pods"
+    config:
+      resource-type:
+         resource: pods
+         version: v1
