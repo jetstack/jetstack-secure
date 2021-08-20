@@ -1,8 +1,8 @@
 package permissions
 
 import (
-	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
@@ -19,6 +19,81 @@ type AgentRBACManifests struct {
 	// RoleBindings is a list of namespaced bindings to grant permissions when include/exclude ns set
 	RoleBindings []rbac.RoleBinding
 }
+
+//*******************************
+func AgentCLR(clusterRole []rbac.ClusterRole) string {
+	var got []string
+	for _, clr := range clusterRole {
+		var aG, rC, vB string
+		for _, rule := range clr.Rules {
+			aG = strings.Join(rule.APIGroups, " -\n")
+			rC = strings.Join(rule.Resources, " -\n")
+			vB = strings.Join(rule.Verbs, " -\n")
+		}
+
+		got = append(got, fmt.Sprintf(
+			`apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+	name: jetstack-secure-agent-pods-reader
+rules:
+- apiGroups: 
+	-%s
+	resources: 
+	-%s
+	verbs: 
+	-%s`, aG, rC, vB))
+	}
+	out := strings.Join(got, "\n")
+	return out
+}
+
+//*******************************
+func AgentCLRB(CLRB []rbac.ClusterRoleBinding) string {
+	var got []string
+	for _, clrb := range CLRB {
+		got = append(got, fmt.Sprintf(
+			`apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: %s
+roleRef:
+  kind: ClusterRole
+  name: %s
+  apiGroup: 
+subjects:
+- kind: %s
+  name: %s
+  namespace: %s`, clrb.ObjectMeta.Name, clrb.RoleRef.Name, clrb.Subjects[0].Kind, clrb.Subjects[0].Name, clrb.Subjects[0].Namespace))
+	}
+	out := strings.Join(got, "\n")
+	return out
+}
+
+//*******************************
+func AgentRB(RB []rbac.RoleBinding) string {
+	var got []string
+	for _, rb := range RB {
+		got = append(got, fmt.Sprintf(
+			`apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: %s
+  namespaces:%s
+roleRef:
+  kind: ClusterRole
+  name: %s
+  apiGroup: 
+subjects:
+- kind: %s
+  name: %s
+  namespace: %s`, rb.ObjectMeta.Name, rb.ObjectMeta.Namespace, rb.RoleRef.Name, rb.Subjects[0].Kind, rb.Subjects[0].Name, rb.Subjects[0].Namespace))
+	}
+	out := strings.Join(got, "\n")
+	return out
+}
+
+//*******************************
 
 const agentNamespace = "jetstack-secure"
 const agentSubjectName = "agent"
@@ -115,15 +190,37 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 	return AgentRBACManifests
 }
 
-func generateFullManifest(dataGatherers []agent.DataGatherer) string {
+// func generateFullManifest(dataGatherers []agent.DataGatherer) string {
+// 	agentRBACManifestsStruct := GenerateAgentRBACManifests(dataGatherers)
+// 	//agentRBACString, err := json.Marshal(agentRBACManifestsStruct)
+// 	if err != nil {
+// 		fmt.Print(err)
+// 	}
+// 	var out string
+// 	for _, s := range agentRBACString {
+
+// 		out += s.String()
+// 	}
+// 	return out
+// }
+
+func GenerateFullManifest(dataGatherers []agent.DataGatherer) string {
 	agentRBACManifestsStruct := GenerateAgentRBACManifests(dataGatherers)
-	agentRBACString, err := json.Marshal(agentRBACManifestsStruct)
-	if err != nil {
-		fmt.Print(err)
-	}
+	agentCLR := AgentCLR(agentRBACManifestsStruct.ClusterRoles)
+	agentCLRB := AgentCLRB(agentRBACManifestsStruct.ClusterRoleBindings)
+	agentRB := AgentRB(agentRBACManifestsStruct.RoleBindings)
+
+	// fmt.Print(agentCLR)
+	// fmt.Print(agentCLRB)
+	// fmt.Print(agentRB)
+
 	var out string
-	for _, s := range agentRBACString {
-		out += string(s)
-	}
+	out = fmt.Sprintf(
+		`%s
+---
+%s
+---
+%s`, agentCLR, agentCLRB, agentRB)
+
 	return out
 }
