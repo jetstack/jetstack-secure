@@ -3,7 +3,6 @@ package permissions
 import (
 	"testing"
 
-	"github.com/d4l3k/messagediff"
 	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/maxatome/go-testdeep/td"
@@ -99,15 +98,14 @@ subjects:
 	}
 
 	for _, input := range testCases {
-		got := generateFullManifest(input.dataGatherers)
+		got := GenerateFullManifest(input.dataGatherers)
 		// if input.expectedRBACManifests != got {
 		// 	t.Errorf("value mismatch, expected: %q \n got:%q", input.expectedRBACManifests, got)
 		// }
 
-		//td.Cmp(t, input.expectedRBACManifests, got)
-		if diff, equal := messagediff.PrettyDiff(input.expectedRBACManifests, got); !equal {
-			t.Fatalf("unexpected difference in RBAC cluster role: %v", diff)
-		}
+		td.Cmp(t, input.expectedRBACManifests, got)
+		//if diff, equal := messagediff.PrettyDiff(input.expectedRBACManifests, got); !equal {
+		//	t.Fatalf("unexpected difference in RBAC cluster role: %v", diff)
 	}
 }
 
