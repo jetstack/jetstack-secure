@@ -26,9 +26,9 @@ func AgentCLR(clusterRole []rbac.ClusterRole) string {
 	for _, clr := range clusterRole {
 		var aG, rC, vB string
 		for _, rule := range clr.Rules {
-			aG = strings.Join(rule.APIGroups, " -\n")
-			rC = strings.Join(rule.Resources, " -\n")
-			vB = strings.Join(rule.Verbs, " -\n")
+			aG = strings.Join(rule.APIGroups, "\", \"")
+			rC = strings.Join(rule.Resources, "\", \"")
+			vB = strings.Join(rule.Verbs, "\", \"")
 		}
 
 		got = append(got, fmt.Sprintf(
@@ -37,12 +37,9 @@ kind: ClusterRole
 metadata:
 	name: jetstack-secure-agent-pods-reader
 rules:
-- apiGroups: 
-	-%s
-	resources: 
-	-%s
-	verbs: 
-	-%s`, aG, rC, vB))
+- apiGroups: ["%s"]
+	resources: ["%s"]
+	verbs: ["%s"]`, aG, rC, vB))
 	}
 	out := strings.Join(got, "\n")
 	return out
@@ -76,7 +73,7 @@ func AgentRB(RB []rbac.RoleBinding) string {
 	for _, rb := range RB {
 		got = append(got, fmt.Sprintf(
 			`apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   name: %s
   namespaces:%s
