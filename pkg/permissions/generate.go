@@ -50,18 +50,19 @@ func AgentCLRB(CLRB []rbac.ClusterRoleBinding) string {
 	var got []string
 	for _, clrb := range CLRB {
 		got = append(got, fmt.Sprintf(
-			`apiVersion: rbac.authorization.k8s.io/v1
+			`---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: %s
 roleRef:
   kind: ClusterRole
   name: %s
-  apiGroup: 
+  apiGroup: %s
 subjects:
 - kind: %s
   name: %s
-  namespace: %s`, clrb.ObjectMeta.Name, clrb.RoleRef.Name, clrb.Subjects[0].Kind, clrb.Subjects[0].Name, clrb.Subjects[0].Namespace))
+  namespace: %s`, clrb.ObjectMeta.Name, clrb.RoleRef.Name, clrb.RoleRef.APIGroup, clrb.Subjects[0].Kind, clrb.Subjects[0].Name, clrb.Subjects[0].Namespace))
 	}
 	out := strings.Join(got, "\n")
 	return out
@@ -72,19 +73,20 @@ func AgentRB(RB []rbac.RoleBinding) string {
 	var got []string
 	for _, rb := range RB {
 		got = append(got, fmt.Sprintf(
-			`apiVersion: rbac.authorization.k8s.io/v1
+			`---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: %s
-  namespaces:%s
+  namespace: %s
 roleRef:
   kind: ClusterRole
   name: %s
-  apiGroup: 
+  apiGroup: %s
 subjects:
 - kind: %s
   name: %s
-  namespace: %s`, rb.ObjectMeta.Name, rb.ObjectMeta.Namespace, rb.RoleRef.Name, rb.Subjects[0].Kind, rb.Subjects[0].Name, rb.Subjects[0].Namespace))
+  namespace: %s`, rb.ObjectMeta.Name, rb.ObjectMeta.Namespace, rb.RoleRef.Name, rb.RoleRef.APIGroup, rb.Subjects[0].Kind, rb.Subjects[0].Name, rb.Subjects[0].Namespace))
 	}
 	out := strings.Join(got, "\n")
 	return out
@@ -187,36 +189,15 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 	return AgentRBACManifests
 }
 
-// func generateFullManifest(dataGatherers []agent.DataGatherer) string {
-// 	agentRBACManifestsStruct := GenerateAgentRBACManifests(dataGatherers)
-// 	//agentRBACString, err := json.Marshal(agentRBACManifestsStruct)
-// 	if err != nil {
-// 		fmt.Print(err)
-// 	}
-// 	var out string
-// 	for _, s := range agentRBACString {
-
-// 		out += s.String()
-// 	}
-// 	return out
-// }
-
 func GenerateFullManifest(dataGatherers []agent.DataGatherer) string {
 	agentRBACManifestsStruct := GenerateAgentRBACManifests(dataGatherers)
 	agentCLR := AgentCLR(agentRBACManifestsStruct.ClusterRoles)
 	agentCLRB := AgentCLRB(agentRBACManifestsStruct.ClusterRoleBindings)
 	agentRB := AgentRB(agentRBACManifestsStruct.RoleBindings)
 
-	// fmt.Print(agentCLR)
-	// fmt.Print(agentCLRB)
-	// fmt.Print(agentRB)
-
-	var out string
-	out = fmt.Sprintf(
+	out := fmt.Sprintf(
 		`%s
----
 %s
----
 %s`, agentCLR, agentCLRB, agentRB)
 
 	return out

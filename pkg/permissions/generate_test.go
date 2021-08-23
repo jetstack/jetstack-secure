@@ -31,8 +31,7 @@ func TestGenerateAgentRBACManifestsString(t *testing.T) {
 					},
 				},
 			},
-			expectedRBACManifests: `
-apiVersion: rbac.authorization.k8s.io/v1
+			expectedRBACManifests: `apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
 	name: jetstack-secure-agent-pods-reader
@@ -52,8 +51,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: agent
-  namespace: jetstack-secure
-`,
+  namespace: jetstack-secure`,
 		},
 		{
 			description: "Generate ClusterRole and RoleBinding for simple pod dg with include namespace \"foobar\"",
@@ -91,8 +89,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: agent
-  namespace: jetstack-secure
-`,
+  namespace: jetstack-secure`,
 		},
 	}
 
