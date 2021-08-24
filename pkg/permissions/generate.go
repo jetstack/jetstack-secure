@@ -21,14 +21,14 @@ type AgentRBACManifests struct {
 }
 
 //*******************************
-func AgentCLR(clusterRole []rbac.ClusterRole) string {
+func AgentCLR(clusterRoles []rbac.ClusterRole) string {
 	var got []string
-	for _, clr := range clusterRole {
-		var aG, rC, vB string
+	for _, clr := range clusterRoles {
+		var apiGroups, resources, verbs string
 		for _, rule := range clr.Rules {
-			aG = strings.Join(rule.APIGroups, "\", \"")
-			rC = strings.Join(rule.Resources, "\", \"")
-			vB = strings.Join(rule.Verbs, "\", \"")
+			apiGroups = strings.Join(rule.APIGroups, "\", \"")
+			resources = strings.Join(rule.Resources, "\", \"")
+			verbs = strings.Join(rule.Verbs, "\", \"")
 		}
 
 		got = append(got, fmt.Sprintf(
@@ -39,16 +39,16 @@ metadata:
 rules:
 - apiGroups: ["%s"]
 	resources: ["%s"]
-	verbs: ["%s"]`, aG, rC, vB))
+	verbs: ["%s"]`, apiGroups, resources, verbs))
 	}
 	out := strings.Join(got, "\n")
 	return out
 }
 
 //*******************************
-func AgentCLRB(CLRB []rbac.ClusterRoleBinding) string {
+func AgentCLRB(clusterRoleBindings []rbac.ClusterRoleBinding) string {
 	var got []string
-	for _, clrb := range CLRB {
+	for _, clrb := range clusterRoleBindings {
 		got = append(got, fmt.Sprintf(
 			`---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -69,9 +69,9 @@ subjects:
 }
 
 //*******************************
-func AgentRB(RB []rbac.RoleBinding) string {
+func AgentRB(RoleBindings []rbac.RoleBinding) string {
 	var got []string
-	for _, rb := range RB {
+	for _, rb := range RoleBindings {
 		got = append(got, fmt.Sprintf(
 			`---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -197,8 +197,7 @@ func GenerateFullManifest(dataGatherers []agent.DataGatherer) string {
 
 	out := fmt.Sprintf(
 		`%s
-%s
-%s`, agentCLR, agentCLRB, agentRB)
+%s%s`, agentCLR, agentCLRB, agentRB)
 
 	return out
 }
