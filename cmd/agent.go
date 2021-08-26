@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"time"
 
 	"github.com/jetstack/preflight/pkg/agent"
@@ -33,21 +32,14 @@ var agentInfoCmd = &cobra.Command{
 
 var agentRBACCmd = &cobra.Command{
 	Use:   "rbac",
-	Short: "print RBAC",
+	Short: "print the agent's minimal RBAC manifest",
 	Long:  `Print RBAC string by reading GVRs`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		file, err := os.Open(agent.ConfigFilePath)
-		if err != nil {
-			log.Fatalf("Failed to load config file for agent from: %s", agent.ConfigFilePath)
-		}
-		defer file.Close()
-
-		b, err := ioutil.ReadAll(file)
+		b, err := ioutil.ReadAll(agent.ConfigFilePath)
 		if err != nil {
 			log.Fatalf("Failed to read config file: %s", err)
 		}
-
 		config, err := agent.ParseConfig(b)
 		if err != nil {
 			log.Fatalf("Failed to parse config file: %s", err)

@@ -8,6 +8,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 // AgentRBACManifests is a wrapper around the various RBAC structs needed to grant the agent fine-grained permissions as per its dg configs
@@ -19,80 +20,6 @@ type AgentRBACManifests struct {
 	// RoleBindings is a list of namespaced bindings to grant permissions when include/exclude ns set
 	RoleBindings []rbac.RoleBinding
 }
-
-//*******************************
-func AgentCLR(clusterRoles []rbac.ClusterRole) string {
-	var got []string
-	for _, clr := range clusterRoles {
-		var apiGroups, resources, verbs string
-		for _, rule := range clr.Rules {
-			apiGroups = strings.Join(rule.APIGroups, "\", \"")
-			resources = strings.Join(rule.Resources, "\", \"")
-			verbs = strings.Join(rule.Verbs, "\", \"")
-		}
-
-		got = append(got, fmt.Sprintf(
-			`apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-	name: jetstack-secure-agent-pods-reader
-rules:
-- apiGroups: ["%s"]
-	resources: ["%s"]
-	verbs: ["%s"]`, apiGroups, resources, verbs))
-	}
-	out := strings.Join(got, "\n")
-	return out
-}
-
-//*******************************
-func AgentCLRB(clusterRoleBindings []rbac.ClusterRoleBinding) string {
-	var got []string
-	for _, clrb := range clusterRoleBindings {
-		got = append(got, fmt.Sprintf(
-			`---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: %s
-roleRef:
-  kind: ClusterRole
-  name: %s
-  apiGroup: %s
-subjects:
-- kind: %s
-  name: %s
-  namespace: %s`, clrb.ObjectMeta.Name, clrb.RoleRef.Name, clrb.RoleRef.APIGroup, clrb.Subjects[0].Kind, clrb.Subjects[0].Name, clrb.Subjects[0].Namespace))
-	}
-	out := strings.Join(got, "\n")
-	return out
-}
-
-//*******************************
-func AgentRB(RoleBindings []rbac.RoleBinding) string {
-	var got []string
-	for _, rb := range RoleBindings {
-		got = append(got, fmt.Sprintf(
-			`---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: %s
-  namespace: %s
-roleRef:
-  kind: ClusterRole
-  name: %s
-  apiGroup: %s
-subjects:
-- kind: %s
-  name: %s
-  namespace: %s`, rb.ObjectMeta.Name, rb.ObjectMeta.Namespace, rb.RoleRef.Name, rb.RoleRef.APIGroup, rb.Subjects[0].Kind, rb.Subjects[0].Name, rb.Subjects[0].Namespace))
-	}
-	out := strings.Join(got, "\n")
-	return out
-}
-
-//*******************************
 
 const agentNamespace = "jetstack-secure"
 const agentSubjectName = "agent"
@@ -189,15 +116,72 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 	return AgentRBACManifests
 }
 
-func GenerateFullManifest(dataGatherers []agent.DataGatherer) string {
+func GenerateFullManifest0(dataGatherers []agent.DataGatherer) string {
 	agentRBACManifestsStruct := GenerateAgentRBACManifests(dataGatherers)
-	agentCLR := AgentCLR(agentRBACManifestsStruct.ClusterRoles)
-	agentCLRB := AgentCLRB(agentRBACManifestsStruct.ClusterRoleBindings)
-	agentRB := AgentRB(agentRBACManifestsStruct.RoleBindings)
+	agentCLR := agentCLR(agentRBACManifestsStruct.ClusterRoles)
+	agentCLRB := agentCLRB(agentRBACManifestsStruct.ClusterRoleBindings)
+	agentRB := agentRB(agentRBACManifestsStruct.RoleBindings)
 
 	out := fmt.Sprintf(
 		`%s
 %s%s`, agentCLR, agentCLRB, agentRB)
 
 	return out
+}
+
+func agentCLR(clusterRoles []rbac.ClusterRole) string {
+	var builder strings.Builder
+	for _, cb := range clusterRoles {
+		data, err := yaml.Marshal(cb)
+		if err != nil {
+			fmt.Print("Cluster Role fails to marshal")
+		}
+
+		builder.Write(data)
+		builder.WriteString("\n---\n")
+	}
+
+	return builder.String()
+}
+func agentRB(roleBindings []rbac.RoleBinding) string {
+	var builder strings.Builder
+	for _, cb := range roleBindings {
+		data, err := yaml.Marshal(cb)
+		if err != nil {
+			fmt.Print("Role Binding fails to marshal")
+		}
+
+		builder.Write(data)
+		builder.WriteString("\n---\n")
+	}
+
+	return builder.String()
+}
+func agentCLRB(clusterRoleBindings []rbac.ClusterRoleBinding) string {
+	var builder strings.Builder
+	for _, cb := range clusterRoleBindings {
+		data, err := yaml.Marshal(cb)
+		if err != nil {
+			fmt.Print("Cluster Role Binding fails to marshal")
+		}
+
+		builder.Write(data)
+		builder.WriteString("\n---\n")
+	}
+
+	return builder.String()
+}
+
+func GenerateFullManifest(dataGatherers []agent.DataGatherer) string {
+	agentRBACManifestsStruct := GenerateAgentRBACManifests(dataGatherers)
+	agentCLR := agentCLR(agentRBACManifestsStruct.ClusterRoles)
+	agentCLRB := agentCLRB(agentRBACManifestsStruct.ClusterRoleBindings)
+	agentRB := agentRB(agentRBACManifestsStruct.RoleBindings)
+
+	out := fmt.Sprintf(
+		`%s
+%s%s`, agentCLR, agentCLRB, agentRB)
+
+	return out
+
 }
