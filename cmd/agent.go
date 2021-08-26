@@ -36,7 +36,7 @@ var agentRBACCmd = &cobra.Command{
 	Long:  `Print RBAC string by reading GVRs`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		b, err := ioutil.ReadAll(agent.ConfigFilePath)
+		b, err := ioutil.ReadFile(agent.ConfigFilePath)
 		if err != nil {
 			log.Fatalf("Failed to read config file: %s", err)
 		}
