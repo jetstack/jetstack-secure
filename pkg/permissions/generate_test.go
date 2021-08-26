@@ -34,24 +34,35 @@ func TestGenerateAgentRBACManifestsString(t *testing.T) {
 			expectedRBACManifests: `apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-	name: jetstack-secure-agent-pods-reader
+  creationTimestamp: null
+  name: jetstack-secure-agent-pods-reader
 rules:
-- apiGroups: [""]
-	resources: ["pods"]
-	verbs: ["get", "list", "watch"]
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
+  creationTimestamp: null
   name: jetstack-secure-agent-pods-reader
 roleRef:
+  apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: jetstack-secure-agent-pods-reader
-  apiGroup: rbac.authorization.k8s.io
 subjects:
 - kind: ServiceAccount
   name: agent
-  namespace: jetstack-secure`,
+  namespace: jetstack-secure
+
+---`,
 		},
 		{
 			description: "Generate ClusterRole and RoleBinding for simple pod dg with include namespace \"foobar\"",
@@ -107,7 +118,7 @@ subjects:
 	for _, input := range testCases {
 		got := GenerateFullManifest(input.dataGatherers)
 		if input.expectedRBACManifests != got {
-			t.Errorf("value mismatch, expected: %s \n got:%s", input.expectedRBACManifests, got)
+			t.Errorf("value mismatch, expected: %s\n got: %s", input.expectedRBACManifests, got)
 		}
 
 		//td.Cmp(t, input.expectedRBACManifests, got)
