@@ -71,35 +71,39 @@ subjects:
 			expectedRBACManifests: `apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-	name: jetstack-secure-agent-pods-reader
+  creationTimestamp: null
+  name: jetstack-secure-agent-pods-reader
 rules:
-- apiGroups: [""]
-	resources: ["pods"]
-	verbs: ["get", "list", "watch"]
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  creationTimestamp: null
   name: jetstack-secure-agent-pods-reader
   namespace: foobar
 roleRef:
+  apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: jetstack-secure-agent-pods-reader
-  apiGroup: rbac.authorization.k8s.io
 subjects:
 - kind: ServiceAccount
   name: agent
-  namespace: jetstack-secure`,
+  namespace: jetstack-secure
+
+---`,
 		},
 	}
 
-	// for _, input := range testCases {
-	// 	got := GenerateFullManifest(input.dataGatherers)
-	// 	// if input.expectedRBACManifests != got {
-	// 	// 	t.Errorf("value mismatch, expected: %q \n got:%q", input.expectedRBACManifests, got)
-	// 	// }
-
-	// 	td.Cmp(t, input.expectedRBACManifests, got)
 	for _, input := range testCases {
 		got := GenerateFullManifest(input.dataGatherers)
 		if input.expectedRBACManifests != got {
