@@ -1,6 +1,6 @@
 module github.com/jetstack/preflight
 
-go 1.13
+go 1.16
 
 require (
 	github.com/Azure/aks-engine v0.56.0
