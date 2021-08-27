@@ -2,11 +2,13 @@ package permissions
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 // AgentRBACManifests is a wrapper around the various RBAC structs needed to grant the agent fine-grained permissions as per its dg configs
@@ -112,4 +114,65 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 	}
 
 	return AgentRBACManifests
+}
+
+func createClusterRoleString(clusterRoles []rbac.ClusterRole) string {
+	var builder strings.Builder
+	for _, cb := range clusterRoles {
+		data, err := yaml.Marshal(cb)
+		if err != nil {
+			fmt.Print("Cluster Role fails to marshal")
+		}
+
+		builder.WriteString("\n")
+		builder.Write(data)
+		builder.WriteString("---")
+	}
+
+	return builder.String()
+}
+func createRoleBindingString(roleBindings []rbac.RoleBinding) string {
+	var builder strings.Builder
+	for _, cb := range roleBindings {
+		data, err := yaml.Marshal(cb)
+		if err != nil {
+			fmt.Print("Role Binding fails to marshal")
+		}
+
+		builder.WriteString("\n")
+		builder.Write(data)
+		builder.WriteString("---")
+	}
+
+	return builder.String()
+}
+func createClusterRoleBindingString(clusterRoleBindings []rbac.ClusterRoleBinding) string {
+	var builder strings.Builder
+	for _, cb := range clusterRoleBindings {
+		data, err := yaml.Marshal(cb)
+		if err != nil {
+			fmt.Print("Cluster Role Binding fails to marshal")
+		}
+
+		builder.WriteString("\n")
+		builder.Write(data)
+		builder.WriteString("---")
+	}
+
+	return builder.String()
+}
+
+func GenerateFullManifest(dataGatherers []agent.DataGatherer) string {
+	agentRBACManifestsStruct := GenerateAgentRBACManifests(dataGatherers)
+	agentCLR := createClusterRoleString(agentRBACManifestsStruct.ClusterRoles)
+	agentCLRB := createClusterRoleBindingString(agentRBACManifestsStruct.ClusterRoleBindings)
+	agentRB := createRoleBindingString(agentRBACManifestsStruct.RoleBindings)
+
+	out := fmt.Sprintf(`%s%s%s`, agentCLR, agentCLRB, agentRB)
+	out = strings.TrimPrefix(out, "\n")
+	out = strings.TrimSpace(out)
+	out = strings.ReplaceAll(out, "\n  creationTimestamp: null", "")
+
+	return out
+
 }

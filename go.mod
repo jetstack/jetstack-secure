@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go v1.36.19
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/d4l3k/messagediff v1.2.1
-	github.com/fatih/color v1.12.0 // indirect
+	github.com/fatih/color v1.12.0
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/jetstack/version-checker v0.2.2-0.20201118163251-4bab9ef088ef
@@ -21,7 +21,7 @@ require (
 	github.com/juju/testing v0.0.0-20191001232224-ce9dec17d28b // indirect
 	github.com/kylelemons/godebug v1.1.0
 	github.com/leodido/go-urn v1.2.0 // indirect
-	github.com/maxatome/go-testdeep v1.9.2 // indirect
+	github.com/maxatome/go-testdeep v1.9.2
 	github.com/pkg/errors v0.9.1
 	github.com/pmylund/go-cache v2.1.0+incompatible
 	github.com/sirupsen/logrus v1.7.0
@@ -39,6 +39,7 @@ require (
 	k8s.io/apimachinery v0.20.1
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
+	sigs.k8s.io/yaml v1.2.0
 )
 
 replace k8s.io/client-go => k8s.io/client-go v0.20.1
