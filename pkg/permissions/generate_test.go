@@ -189,10 +189,6 @@ subjects:
 		if input.expectedRBACManifests != got {
 			t.Errorf("value mismatch, \n**********expected:******************************\n%s\n**********got:******************************\n%s", input.expectedRBACManifests, got)
 		}
-
-		//td.Cmp(t, input.expectedRBACManifests, got)
-		//if diff, equal := messagediff.PrettyDiff(input.expectedRBACManifests, got); !equal {
-		//	t.Fatalf("unexpected difference in RBAC cluster role: %v", diff)
 	}
 }
 
