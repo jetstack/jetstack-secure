@@ -34,7 +34,6 @@ func TestGenerateAgentRBACManifestsString(t *testing.T) {
 			expectedRBACManifests: `apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: jetstack-secure-agent-pods-reader
 rules:
 - apiGroups:
@@ -45,13 +44,10 @@ rules:
   - get
   - list
   - watch
-
 ---
-
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  creationTimestamp: null
   name: jetstack-secure-agent-pods-reader
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -61,7 +57,6 @@ subjects:
 - kind: ServiceAccount
   name: agent
   namespace: jetstack-secure
-
 ---`,
 		},
 		{
@@ -82,7 +77,6 @@ subjects:
 			expectedRBACManifests: `apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: jetstack-secure-agent-pods-reader
 rules:
 - apiGroups:
@@ -93,13 +87,10 @@ rules:
   - get
   - list
   - watch
-
 ---
-
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  creationTimestamp: null
   name: jetstack-secure-agent-pods-reader
   namespace: foobar
 roleRef:
@@ -110,7 +101,85 @@ subjects:
 - kind: ServiceAccount
   name: agent
   namespace: jetstack-secure
-
+---`,
+		},
+		{
+			description: "Generate multiple ClusterRoles and ClusterRoleBindings for simple pod and nodes dg use case",
+			dataGatherers: []agent.DataGatherer{
+				{
+					Name: "k8s/pods",
+					Kind: "k8s-dynamic",
+					Config: &k8s.ConfigDynamic{
+						GroupVersionResource: schema.GroupVersionResource{
+							Version:  "v1",
+							Resource: "pods",
+						},
+					},
+				},
+				{
+					Name: "k8s/nodes",
+					Kind: "k8s-dynamic",
+					Config: &k8s.ConfigDynamic{
+						GroupVersionResource: schema.GroupVersionResource{
+							Version:  "v1",
+							Resource: "nodes",
+						},
+					},
+				},
+			},
+			expectedRBACManifests: `apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: jetstack-secure-agent-pods-reader
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: jetstack-secure-agent-nodes-reader
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jetstack-secure-agent-pods-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: jetstack-secure-agent-pods-reader
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: jetstack-secure
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: jetstack-secure-agent-nodes-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: jetstack-secure-agent-nodes-reader
+subjects:
+- kind: ServiceAccount
+  name: agent
+  namespace: jetstack-secure
 ---`,
 		},
 	}
@@ -118,7 +187,7 @@ subjects:
 	for _, input := range testCases {
 		got := GenerateFullManifest(input.dataGatherers)
 		if input.expectedRBACManifests != got {
-			t.Errorf("value mismatch, expected: %s\n got: %s", input.expectedRBACManifests, got)
+			t.Errorf("value mismatch, \n**********expected:******************************\n%s\n**********got:******************************\n%s", input.expectedRBACManifests, got)
 		}
 
 		//td.Cmp(t, input.expectedRBACManifests, got)
