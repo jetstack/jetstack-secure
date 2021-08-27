@@ -116,20 +116,7 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 	return AgentRBACManifests
 }
 
-func GenerateFullManifest0(dataGatherers []agent.DataGatherer) string {
-	agentRBACManifestsStruct := GenerateAgentRBACManifests(dataGatherers)
-	agentCLR := agentCLR(agentRBACManifestsStruct.ClusterRoles)
-	agentCLRB := agentCLRB(agentRBACManifestsStruct.ClusterRoleBindings)
-	agentRB := agentRB(agentRBACManifestsStruct.RoleBindings)
-
-	out := fmt.Sprintf(
-		`%s
-%s%s`, agentCLR, agentCLRB, agentRB)
-
-	return out
-}
-
-func agentCLR(clusterRoles []rbac.ClusterRole) string {
+func createClusterRoleString(clusterRoles []rbac.ClusterRole) string {
 	var builder strings.Builder
 	for _, cb := range clusterRoles {
 		data, err := yaml.Marshal(cb)
@@ -137,13 +124,14 @@ func agentCLR(clusterRoles []rbac.ClusterRole) string {
 			fmt.Print("Cluster Role fails to marshal")
 		}
 
+		builder.WriteString("\n")
 		builder.Write(data)
-		builder.WriteString("\n---\n")
+		builder.WriteString("---")
 	}
 
 	return builder.String()
 }
-func agentRB(roleBindings []rbac.RoleBinding) string {
+func createRoleBindingString(roleBindings []rbac.RoleBinding) string {
 	var builder strings.Builder
 	for _, cb := range roleBindings {
 		data, err := yaml.Marshal(cb)
@@ -151,13 +139,14 @@ func agentRB(roleBindings []rbac.RoleBinding) string {
 			fmt.Print("Role Binding fails to marshal")
 		}
 
+		builder.WriteString("\n")
 		builder.Write(data)
-		builder.WriteString("\n---\n")
+		builder.WriteString("---")
 	}
 
 	return builder.String()
 }
-func agentCLRB(clusterRoleBindings []rbac.ClusterRoleBinding) string {
+func createClusterRoleBindingString(clusterRoleBindings []rbac.ClusterRoleBinding) string {
 	var builder strings.Builder
 	for _, cb := range clusterRoleBindings {
 		data, err := yaml.Marshal(cb)
@@ -165,8 +154,9 @@ func agentCLRB(clusterRoleBindings []rbac.ClusterRoleBinding) string {
 			fmt.Print("Cluster Role Binding fails to marshal")
 		}
 
+		builder.WriteString("\n")
 		builder.Write(data)
-		builder.WriteString("\n---\n")
+		builder.WriteString("---")
 	}
 
 	return builder.String()
@@ -174,13 +164,14 @@ func agentCLRB(clusterRoleBindings []rbac.ClusterRoleBinding) string {
 
 func GenerateFullManifest(dataGatherers []agent.DataGatherer) string {
 	agentRBACManifestsStruct := GenerateAgentRBACManifests(dataGatherers)
-	agentCLR := agentCLR(agentRBACManifestsStruct.ClusterRoles)
-	agentCLRB := agentCLRB(agentRBACManifestsStruct.ClusterRoleBindings)
-	agentRB := agentRB(agentRBACManifestsStruct.RoleBindings)
+	agentCLR := createClusterRoleString(agentRBACManifestsStruct.ClusterRoles)
+	agentCLRB := createClusterRoleBindingString(agentRBACManifestsStruct.ClusterRoleBindings)
+	agentRB := createRoleBindingString(agentRBACManifestsStruct.RoleBindings)
 
-	out := fmt.Sprintf(
-		`%s
-%s%s`, agentCLR, agentCLRB, agentRB)
+	out := fmt.Sprintf(`%s%s%s`, agentCLR, agentCLRB, agentRB)
+	out = strings.TrimPrefix(out, "\n")
+	out = strings.TrimSpace(out)
+	out = strings.ReplaceAll(out, "\n  creationTimestamp: null", "")
 
 	return out
 
