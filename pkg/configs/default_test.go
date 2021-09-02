@@ -21,24 +21,22 @@ func TestParseDatagatherers(t *testing.T) {
 - kind: "k8s-dynamic"
   name: "k8s/pods"
   config:
-	resource-type:
-	   resource: pods
-	   version: v1
-# gather services for pod readiness probe rules
+    resource-type:
+      resource: pods
+      version: v1
 - kind: "k8s-dynamic"
   name: "k8s/services"
   config:
-	resource-type:
-	   resource: services
-	   version: v1`,
+    resource-type:
+      resource: services
+      version: v1
+`,
 			expectedAgentDataGatherers: []agent.DataGatherer{
 				{
 					Kind:     "k8s-dynamic",
 					Name:     "k8s/pods",
 					DataPath: "",
 					Config: &k8s.ConfigDynamic{
-						ExcludeNamespaces:    []string{""},
-						IncludeNamespaces:    []string{""},
 						GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
 					},
 				},
@@ -47,8 +45,6 @@ func TestParseDatagatherers(t *testing.T) {
 					Name:     "k8s/services",
 					DataPath: "",
 					Config: &k8s.ConfigDynamic{
-						ExcludeNamespaces:    []string{""},
-						IncludeNamespaces:    []string{""},
 						GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"},
 					},
 				},
@@ -59,8 +55,9 @@ func TestParseDatagatherers(t *testing.T) {
 	for _, input := range testCases {
 		got, err := getDataGatherers(([]byte(input.inputYaml)))
 		if err != nil {
-			t.Errorf("unexpected error: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
+
 		td.Cmp(t, input.expectedAgentDataGatherers, got)
 	}
 }

@@ -21,10 +21,7 @@ func GetDefaultDataGatherers() ([]agent.DataGatherer, error) {
 		fmt.Print("fail to read the file")
 	}
 
-	var dataGatherer []agent.DataGatherer
-	err = yaml.Unmarshal(defaultYAML, &dataGatherer)
-
-	return dataGatherer, err
+	return getDataGatherers(defaultYAML)
 }
 
 func getDataGatherers(yamlFile []byte) ([]agent.DataGatherer, error) {
