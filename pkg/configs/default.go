@@ -34,15 +34,8 @@ func getDataGatherers(yamlFile []byte) ([]agent.DataGatherer, error) {
 	// if err != nil {
 	// 	fmt.Print("fail to read the file")
 	// }
+	var dataGatherer []agent.DataGatherer
+	err := yaml.Unmarshal(yamlFile, &dataGatherer)
 
-	type ConfigAgentRBACManifests struct {
-		ClusterRoles []rbac.ClusterRole
-		// ClusterRoleBindings is a list of crbs for resources which have no include/exclude ns configured
-		ClusterRoleBindings []rbac.ClusterRoleBinding
-		// RoleBindings is a list of namespaced bindings to grant permissions when include/exclude ns set
-		RoleBindings []rbac.RoleBinding
-	}
-
-	var configAgentRBACManifests ConfigAgentRBACManifests
-	yaml.Unmarshal(yamlFile, configAgentRBACManifests)
+	return dataGatherer, err
 }
