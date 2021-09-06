@@ -56,6 +56,13 @@ func init() {
 	agentCmd.AddCommand(agentRBACCmd)
 	agentCmd.PersistentFlags().StringVarP(
 		&agent.ConfigFilePath,
+		"config-path",
+		"c",
+		"",
+		"User gives path to config alternative to default config",
+	)
+	agentCmd.PersistentFlags().StringVarP(
+		&agent.ConfigFilePath,
 		"agent-config-file",
 		"c",
 		"./agent.yaml",

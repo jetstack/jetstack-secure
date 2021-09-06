@@ -35,6 +35,8 @@ type Config struct {
 	InputPath string `yaml:"input-path"`
 	// OutputPath replaces Server with output data file
 	OutputPath string `yaml:"output-path"`
+	// ConfigPath leads to the default config file when there is no user's config path
+	ConfigPath string `yaml:"config-path"`
 }
 
 type Endpoint struct {
