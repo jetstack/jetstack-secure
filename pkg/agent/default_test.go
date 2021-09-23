@@ -1,9 +1,8 @@
-package configs
+package agent
 
 import (
 	"testing"
 
-	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/maxatome/go-testdeep/td"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -12,7 +11,7 @@ import (
 func TestParseDatagatherers(t *testing.T) {
 	testCases := []struct {
 		description                string
-		expectedAgentDataGatherers []agent.DataGatherer
+		expectedAgentDataGatherers []DataGatherer
 		inputYaml                  string
 	}{
 		{
@@ -31,7 +30,7 @@ func TestParseDatagatherers(t *testing.T) {
       resource: services
       version: v1
 `,
-			expectedAgentDataGatherers: []agent.DataGatherer{
+			expectedAgentDataGatherers: []DataGatherer{
 				{
 					Kind:     "k8s-dynamic",
 					Name:     "k8s/pods",

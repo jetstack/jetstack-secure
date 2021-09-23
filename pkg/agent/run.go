@@ -47,6 +47,9 @@ var BackoffMaxTime time.Duration
 // StrictMode flag causes the agent to fail at the first attempt
 var StrictMode bool
 
+// DataGatherersFilePath is where the agent will try and load a user defined datagather config
+var DataGatherersFilePath string
+
 // schema version of the data sent by the agent.
 // The new default version is v2.
 // In v2 the agent posts data readings using api.gathereredResources
@@ -60,6 +63,28 @@ func Run(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	config, preflightClient := getConfiguration(ctx)
+
+	if config.DataGatherersConfigPath == "" && DataGatherersFilePath == "" {
+		// load default data gatherers
+		log.Printf("missing data gatherers configuration file, using default configuration")
+		dgs, err := GetDefaultDataGatherers()
+		if err != nil {
+			log.Fatalf("failed to load default data gatherer set: %s", err)
+		}
+		config.DataGatherers = dgs
+		log.Printf("successfully loaded default set of data gatherers: %v", config.DataGatherers)
+	} else {
+		//load them from the path the in the user input
+		if DataGatherersFilePath != "" {
+			config.DataGatherersConfigPath = DataGatherersFilePath
+		}
+
+		dgs, err := LoadDataGatherers(config.DataGatherersConfigPath)
+		if err != nil {
+			log.Fatalf("failed to load data gatherers from %q: %s", config.DataGatherersConfigPath, err)
+		}
+		config.DataGatherers = dgs
+	}
 
 	dataGatherers := map[string]datagatherer.DataGatherer{}
 	var wg sync.WaitGroup

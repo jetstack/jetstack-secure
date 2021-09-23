@@ -35,8 +35,8 @@ type Config struct {
 	InputPath string `yaml:"input-path"`
 	// OutputPath replaces Server with output data file
 	OutputPath string `yaml:"output-path"`
-	// ConfigPath leads to the default config file when there is no user's config path
-	ConfigPath string `yaml:"config-path"`
+	// DataGatherersConfigPath points to the location of the file containing the set of datagatherers
+	DataGatherersConfigPath string `yaml:"data-gatherers-config-path"`
 }
 
 type Endpoint struct {

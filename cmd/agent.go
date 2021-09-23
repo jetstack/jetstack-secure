@@ -55,11 +55,11 @@ func init() {
 	agentCmd.AddCommand(agentInfoCmd)
 	agentCmd.AddCommand(agentRBACCmd)
 	agentCmd.PersistentFlags().StringVarP(
-		&agent.ConfigFilePath,
-		"config-path",
-		"c",
+		&agent.DataGatherersFilePath,
+		"datagatherer-config-file",
 		"",
-		"User gives path to config alternative to default config",
+		"",
+		"Config file containing an alternative datagatheres definition.",
 	)
 	agentCmd.PersistentFlags().StringVarP(
 		&agent.ConfigFilePath,
