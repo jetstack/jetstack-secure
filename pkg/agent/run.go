@@ -329,7 +329,6 @@ func gatherData(ctx context.Context, config Config, dataGatherers map[string]dat
 
 func postData(config Config, preflightClient *client.PreflightClient, readings []*api.DataReading) error {
 	baseURL := config.Server
-	var err error
 
 	log.Println("Running Agent...")
 	log.Println("Posting data to:", baseURL)
@@ -358,12 +357,18 @@ func postData(config Config, preflightClient *client.PreflightClient, readings [
 			return fmt.Errorf("Received response with status code %d. Body: %s", code, errorContent)
 		}
 		log.Println("Data sent successfully.")
-	} else {
-		err := preflightClient.PostDataReadings(config.OrganizationID, readings)
-		if err != nil {
-			return fmt.Errorf("Post to server failed: %+v", err)
-		}
-		log.Println("Data sent successfully.")
+		return err
 	}
-	return err
+
+	if config.ClusterID == "" {
+		return fmt.Errorf("Post to server failed: missing clusterID from agent configuration")
+	}
+
+	err := preflightClient.PostDataReadings(config.OrganizationID, config.ClusterID, readings)
+	if err != nil {
+		return fmt.Errorf("Post to server failed: %+v", err)
+	}
+	log.Println("Data sent successfully.")
+
+	return nil
 }

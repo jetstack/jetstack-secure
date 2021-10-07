@@ -76,7 +76,7 @@ func (c *PreflightClient) usingOAuth2() bool {
 }
 
 // PostDataReadings sends a slice of readings to Preflight.
-func (c *PreflightClient) PostDataReadings(orgID string, readings []*api.DataReading) error {
+func (c *PreflightClient) PostDataReadings(orgID, clusterID string, readings []*api.DataReading) error {
 	payload := api.DataReadingsPost{
 		AgentMetadata:  c.agentMetadata,
 		DataGatherTime: time.Now().UTC(),
@@ -87,7 +87,7 @@ func (c *PreflightClient) PostDataReadings(orgID string, readings []*api.DataRea
 		return err
 	}
 
-	res, err := c.Post(filepath.Join("/api/v1/org", orgID, "datareadings"), bytes.NewBuffer(data))
+	res, err := c.Post(filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
