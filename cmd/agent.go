@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"github.com/jetstack/preflight/pkg/agent"
@@ -110,5 +111,10 @@ func init() {
 		false,
 		"Runs agent in strict mode. No retry attempts will be made for a missing data gatherer's data.",
 	)
-
+	agentCmd.PersistentFlags().StringVar(
+		&agent.APIToken,
+		"api-token",
+		os.Getenv("API_TOKEN"),
+		"Token used for authentication when API tokens are in use on the backend",
+	)
 }
