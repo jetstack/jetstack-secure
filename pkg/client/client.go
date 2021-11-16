@@ -1,107 +1,98 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
-	"time"
+	"io"
+	"net/http"
+	"strings"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/jetstack/preflight/api"
 )
 
-// These variables are injected at build time.
-var ClientID string
-var ClientSecret string
-var AuthServerDomain string
+var (
+	// ClientID is the auth0 client identifier (injected at build time)
+	ClientID string
 
-// PreflightClient can be used to talk to the Preflight backend.
-type PreflightClient struct {
-	// OAuth2
-	credentials *Credentials
-	// accessToken is the current OAuth access token.
-	accessToken *accessToken
+	// ClientSecret is the auth0 client secret (injected at build time)
+	ClientSecret string
 
-	baseURL string
+	// AuthServerDomain is the auth0 domain (injected at build time)
+	AuthServerDomain string
+)
 
-	agentMetadata *api.AgentMetadata
-}
-
-// NewWithNoAuth creates a new client with no authentication.
-func NewWithNoAuth(agentMetadata *api.AgentMetadata, baseURL string) (*PreflightClient, error) {
-	if baseURL == "" {
-		return nil, fmt.Errorf("cannot create PreflightClient: baseURL cannot be empty")
+type (
+	// The Client interface describes types that perform requests against the Jetstack Secure backend.
+	Client interface {
+		PostDataReadings(orgID, clusterID string, readings []*api.DataReading) error
+		Post(path string, body io.Reader) (*http.Response, error)
 	}
 
-	return &PreflightClient{
-		agentMetadata: agentMetadata,
-		baseURL:       baseURL,
-	}, nil
-}
-
-// New creates a new client that uses OAuth2.
-func New(agentMetadata *api.AgentMetadata, credentials *Credentials, baseURL string) (*PreflightClient, error) {
-	if err := credentials.validate(); err != nil {
-		return nil, fmt.Errorf("cannot create PreflightClient: %v", err)
+	// Credentials defines the format of the credentials.json file.
+	Credentials struct {
+		// UserID is the ID or email for the user or service account.
+		UserID string `json:"user_id"`
+		// UserSecret is the secret for the user or service account.
+		UserSecret string `json:"user_secret"`
+		// The following fields are optional as the default behaviour
+		// is to use the equivalent variables defined at package level
+		// and injected at build time.
+		// ClientID is the oauth2 client ID.
+		ClientID string `json:"client_id,omitempty"`
+		// ClientSecret is the oauth2 client secret.
+		ClientSecret string `json:"client_secret,omitempty"`
+		// AuthServerDomain is the domain for the auth server.
+		AuthServerDomain string `json:"auth_server_domain,omitempty"`
 	}
-	if baseURL == "" {
-		return nil, fmt.Errorf("cannot create PreflightClient: baseURL cannot be empty")
-	}
+)
 
-	if !credentials.IsClientSet() {
-		credentials.ClientID = ClientID
-		credentials.ClientSecret = ClientSecret
-		credentials.AuthServerDomain = AuthServerDomain
-	}
+// ParseCredentials reads credentials into a struct used. Performs validations.
+func ParseCredentials(data []byte) (*Credentials, error) {
+	var credentials Credentials
 
-	if !credentials.IsClientSet() {
-		return nil, fmt.Errorf("cannot create PreflightClient: invalid OAuth2 client configuration")
-	}
-
-	return &PreflightClient{
-		agentMetadata: agentMetadata,
-		credentials:   credentials,
-		baseURL:       baseURL,
-		accessToken:   &accessToken{},
-	}, nil
-}
-
-func (c *PreflightClient) usingOAuth2() bool {
-	if c.credentials == nil {
-		return false
-	}
-
-	return c.credentials.UserID != ""
-}
-
-// PostDataReadings sends a slice of readings to Preflight.
-func (c *PreflightClient) PostDataReadings(orgID, clusterID string, readings []*api.DataReading) error {
-	payload := api.DataReadingsPost{
-		AgentMetadata:  c.agentMetadata,
-		DataGatherTime: time.Now().UTC(),
-		DataReadings:   readings,
-	}
-	data, err := json.Marshal(payload)
+	err := json.Unmarshal(data, &credentials)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	res, err := c.Post(filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
-	if err != nil {
-		return err
+	if err = credentials.validate(); err != nil {
+		return nil, err
 	}
 
-	if code := res.StatusCode; code < 200 || code >= 300 {
-		errorContent := ""
-		body, err := ioutil.ReadAll(res.Body)
-		if err == nil {
-			errorContent = string(body)
-		}
-		defer res.Body.Close()
+	return &credentials, nil
+}
 
-		return fmt.Errorf("received response with status code %d. Body: %s", code, errorContent)
+// IsClientSet returns whether the client credentials are set or not.
+func (c *Credentials) IsClientSet() bool {
+	return c.ClientID != "" && c.ClientSecret != "" && c.AuthServerDomain != ""
+}
+
+func (c *Credentials) validate() error {
+	var result *multierror.Error
+
+	if c == nil {
+		return fmt.Errorf("credentials are nil")
 	}
 
-	return nil
+	if c.UserID == "" {
+		result = multierror.Append(result, fmt.Errorf("user_id cannot be empty"))
+	}
+
+	if c.UserSecret == "" {
+		result = multierror.Append(result, fmt.Errorf("user_secret cannot be empty"))
+	}
+
+	return result.ErrorOrNil()
+}
+
+func fullURL(baseURL, path string) string {
+	base := baseURL
+	for strings.HasSuffix(base, "/") {
+		base = strings.TrimSuffix(base, "/")
+	}
+	for strings.HasPrefix(path, "/") {
+		path = strings.TrimPrefix(path, "/")
+	}
+	return fmt.Sprintf("%s/%s", base, path)
 }
