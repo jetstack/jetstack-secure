@@ -47,6 +47,9 @@ var BackoffMaxTime time.Duration
 // StrictMode flag causes the agent to fail at the first attempt
 var StrictMode bool
 
+// APIToken is an authentication token used for the backend API as an alternative to oauth flows.
+var APIToken string
+
 // schema version of the data sent by the agent.
 // The new default version is v2.
 // In v2 the agent posts data readings using api.gathereredResources
@@ -59,7 +62,7 @@ const schemaVersion string = "v2.0.0"
 func Run(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	config, preflightClient := getConfiguration(ctx)
+	config, preflightClient := getConfiguration()
 
 	dataGatherers := map[string]datagatherer.DataGatherer{}
 	var wg sync.WaitGroup
@@ -137,7 +140,7 @@ func Run(cmd *cobra.Command, args []string) {
 			Period = config.Period
 		}
 
-		gatherAndOutputData(ctx, config, preflightClient, dataGatherers)
+		gatherAndOutputData(config, preflightClient, dataGatherers)
 
 		if OneShot {
 			break
@@ -147,7 +150,7 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 }
 
-func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
+func getConfiguration() (Config, client.Client) {
 	log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
 	file, err := os.Open(ConfigFilePath)
 	if err != nil {
@@ -203,25 +206,28 @@ func getConfiguration(ctx context.Context) (Config, *client.PreflightClient) {
 		Version:   version.PreflightVersion,
 		ClusterID: config.ClusterID,
 	}
-	var preflightClient *client.PreflightClient
-	if credentials != nil {
-		log.Printf("A credentials file was specified. Using OAuth2 authentication...")
-		preflightClient, err = client.New(agentMetadata, credentials, baseURL)
-		if err != nil {
-			log.Fatalf("Error creating preflight client: %+v", err)
-		}
-	} else {
-		log.Printf("No credentials file was specified. Starting client with no authentication...")
-		preflightClient, err = client.NewWithNoAuth(agentMetadata, baseURL)
-		if err != nil {
-			log.Fatalf("Error creating preflight client: %+v", err)
-		}
+
+	var preflightClient client.Client
+	switch {
+	case credentials != nil:
+		log.Println("A credentials file was specified, using oauth authentication.")
+		preflightClient, err = client.NewOAuthClient(agentMetadata, credentials, baseURL)
+	case APIToken != "":
+		log.Println("An API token was specified, using API token authentication.")
+		preflightClient, err = client.NewAPITokenClient(agentMetadata, APIToken, baseURL)
+	default:
+		log.Println("No credentials were specified, using with no authentication.")
+		preflightClient, err = client.NewUnauthenticatedClient(agentMetadata, baseURL)
+	}
+
+	if err != nil {
+		log.Fatalf("failed to create client: %v", err)
 	}
 
 	return config, preflightClient
 }
 
-func gatherAndOutputData(ctx context.Context, config Config, preflightClient *client.PreflightClient, dataGatherers map[string]datagatherer.DataGatherer) {
+func gatherAndOutputData(config Config, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) {
 	var readings []*api.DataReading
 
 	// Input/OutputPath flag overwrites agent.yaml configuration
@@ -243,7 +249,7 @@ func gatherAndOutputData(ctx context.Context, config Config, preflightClient *cl
 			log.Fatalf("failed to unmarshal local data file: %s", err)
 		}
 	} else {
-		readings = gatherData(ctx, config, dataGatherers)
+		readings = gatherData(config, dataGatherers)
 	}
 
 	if OutputPath != "" {
@@ -271,14 +277,7 @@ func gatherAndOutputData(ctx context.Context, config Config, preflightClient *cl
 	}
 }
 
-func startAndSyncDataGather(ctx context.Context, dg datagatherer.DataGatherer) error {
-	if err := dg.Run(nil); err != nil {
-		return err
-	}
-	return dg.WaitForCacheSync(nil)
-}
-
-func gatherData(ctx context.Context, config Config, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
+func gatherData(config Config, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
 	readings := []*api.DataReading{}
 
 	var dgError *multierror.Error
@@ -327,7 +326,7 @@ func gatherData(ctx context.Context, config Config, dataGatherers map[string]dat
 	return readings
 }
 
-func postData(config Config, preflightClient *client.PreflightClient, readings []*api.DataReading) error {
+func postData(config Config, preflightClient client.Client, readings []*api.DataReading) error {
 	baseURL := config.Server
 
 	log.Println("Running Agent...")
