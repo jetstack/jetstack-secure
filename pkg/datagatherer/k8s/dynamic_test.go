@@ -61,31 +61,17 @@ func getSecret(name, namespace string, data map[string]interface{}, isTLS bool, 
 	}
 
 	metadata, _ := object.Object["metadata"].(map[string]interface{})
+	annotations := make(map[string]interface{})
 
 	// if we're creating a 'raw' secret as scraped that was applied by kubectl
 	if withLastApplied {
 		jsonData, _ := json.Marshal(data)
-		metadata["annotations"] = map[string]interface{}{
-			"kubectl.kubernetes.io/last-applied-configuration": string(jsonData),
-		}
+		annotations["kubectl.kubernetes.io/last-applied-configuration"] = string(jsonData)
 	}
+
+	metadata["annotations"] = annotations
 
 	return object
-}
-
-func asUnstructuredList(items ...*unstructured.Unstructured) *unstructured.UnstructuredList {
-	itemsNonPtr := make([]unstructured.Unstructured, len(items))
-	for i, u := range items {
-		itemsNonPtr[i] = *u
-	}
-	return &unstructured.UnstructuredList{
-		Object: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"resourceVersion": "",
-			},
-		},
-		Items: itemsNonPtr,
-	}
 }
 
 func sortGatheredResources(list []*api.GatheredResource) {
