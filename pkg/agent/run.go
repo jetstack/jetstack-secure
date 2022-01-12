@@ -159,6 +159,9 @@ func getConfiguration() (Config, client.Client) {
 	defer file.Close()
 
 	b, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatalf("Failed to read config file: %s", err)
+	}
 
 	config, err := ParseConfig(b)
 	if err != nil {
@@ -195,7 +198,9 @@ func getConfiguration() (Config, client.Client) {
 		defer file.Close()
 
 		b, err = ioutil.ReadAll(file)
-
+		if err != nil {
+			log.Fatalf("Failed to read credentials file: %v", err)
+		}
 		credentials, err = client.ParseCredentials(b)
 		if err != nil {
 			log.Fatalf("Failed to parse credentials file: %s", err)
@@ -254,6 +259,9 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 
 	if OutputPath != "" {
 		data, err := json.MarshalIndent(readings, "", "  ")
+		if err != nil {
+			log.Fatal("failed to marshal JSON")
+		}
 		err = ioutil.WriteFile(OutputPath, data, 0644)
 		if err != nil {
 			log.Fatalf("failed to output to local file: %s", err)
