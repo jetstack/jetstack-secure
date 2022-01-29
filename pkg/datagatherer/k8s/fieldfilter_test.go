@@ -120,7 +120,7 @@ func TestSelect(t *testing.T) {
 		"route":  {routeResource, routeFieldsToSelect, routeExpectedJSON},
 	}
 
-	for resource, test := range tests {
+	for name, test := range tests {
 		err := Select(test.fieldsToSelect, test.resource)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -128,9 +128,11 @@ func TestSelect(t *testing.T) {
 
 		bytes, err := json.MarshalIndent(test.resource, "", "    ")
 
-		if string(bytes) != test.expectedJSON {
-			t.Fatalf("%s test failed, unexpected JSON: \ngot \n%s\nwant\n%s", resource, string(bytes), test.expectedJSON)
-		}
+		t.Run(name, func(t *testing.T) {
+			if string(bytes) != test.expectedJSON {
+				t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), test.expectedJSON)
+			}
+		})
 	}
 }
 
