@@ -281,15 +281,11 @@ func redactList(list []*api.GatheredResource) error {
 			if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
 				Select(SecretSelectedFields, resource)
 
-				// break when the object has been processed as a secret, no
-				// other kinds have redact modifications
-				break
-
 				// route object
-			} else if gvk.Kind == "Route" && (gvk.Group == "core" || gvk.Group == "") {
+			} else if gvk.Kind == "Route" && gvk.Group == "apiextensions.k8s.io" {
 				Select(RouteSelectedFields, resource)
 
-				// break when the object has been processed as a Route, no
+				// break once a Secret or Route object has been processed as, no
 				// other kinds have redact modifications
 				break
 			}
