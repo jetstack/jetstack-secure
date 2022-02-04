@@ -38,11 +38,16 @@ var RouteSelectedFields = []string{
 	"metadata.uid",
 	"spec.host",
 	"spec.to.kind",
+	"spec.to.port",
 	"spec.to.name",
+	"spec.to.weight",
 	"spec.tls.termination",
 	"spec.tls.certificate",
 	"spec.tls.caCertificate",
 	"spec.tls.destinationCACertificate",
+	"spec.tls.insecureEdgeTerminationPolicy",
+	"spec.wildcardPolicy",
+	"status",
 }
 
 // RedactFields are removed from all objects
