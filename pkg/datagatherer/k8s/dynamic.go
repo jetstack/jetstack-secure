@@ -285,7 +285,6 @@ func redactList(list []*api.GatheredResource) error {
 			} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io" {
 				Select(RouteSelectedFields, resource)
 			}
-
 		}
 
 		// remove managedFields from all resources
