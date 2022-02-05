@@ -284,10 +284,6 @@ func redactList(list []*api.GatheredResource) error {
 				// route object
 			} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io" {
 				Select(RouteSelectedFields, resource)
-
-				// break once a Secret or Route object has been processed as, no
-				// other kinds have redact modifications
-				break
 			}
 
 		}
