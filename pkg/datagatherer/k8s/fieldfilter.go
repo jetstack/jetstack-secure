@@ -25,6 +25,31 @@ var SecretSelectedFields = []string{
 	"/data/ca.crt",
 }
 
+// RouteSelectedFields is the list of fields sent from OpenShift Route objects to the
+// backend
+var RouteSelectedFields = []string{
+	"kind",
+	"apiVersion",
+	"metadata.annotations",
+	"metadata.name",
+	"metadata.namespace",
+	"metadata.ownerReferences",
+	"metadata.selfLink",
+	"metadata.uid",
+	"spec.host",
+	"spec.to.kind",
+	"spec.to.port",
+	"spec.to.name",
+	"spec.to.weight",
+	"spec.tls.termination",
+	"spec.tls.certificate",
+	"spec.tls.caCertificate",
+	"spec.tls.destinationCACertificate",
+	"spec.tls.insecureEdgeTerminationPolicy",
+	"spec.wildcardPolicy",
+	"status",
+}
+
 // RedactFields are removed from all objects
 var RedactFields = []string{
 	"metadata.managedFields",

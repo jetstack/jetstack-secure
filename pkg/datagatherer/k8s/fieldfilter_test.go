@@ -8,7 +8,8 @@ import (
 )
 
 func TestSelect(t *testing.T) {
-	resource := &unstructured.Unstructured{
+	// secret objects
+	secretResource := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "v1",
 			"kind":       "Secret",
@@ -27,7 +28,7 @@ func TestSelect(t *testing.T) {
 		},
 	}
 
-	fieldsToSelect := []string{
+	secretFieldsToSelect := []string{
 		"apiVersion",
 		"kind",
 		"metadata.name",
@@ -36,13 +37,7 @@ func TestSelect(t *testing.T) {
 		"/data/tls.crt",
 	}
 
-	err := Select(fieldsToSelect, resource)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
-	bytes, err := json.MarshalIndent(resource, "", "    ")
-	expectedJSON := `{
+	secretExpectedJSON := `{
     "apiVersion": "v1",
     "data": {
         "tls.crt": "cert data"
@@ -54,8 +49,90 @@ func TestSelect(t *testing.T) {
     },
     "type": "kubernetes.io/tls"
 }`
-	if string(bytes) != expectedJSON {
-		t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), expectedJSON)
+	// route objects
+	routeResource := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Route",
+			"metadata": map[string]interface{}{
+				"name": "example",
+				"annotations": map[string]string{
+					"kubectl.kubernetes.io/last-applied-configuration": "secret",
+				},
+			},
+			"spec": map[string]interface{}{
+				"host": "www.example.com",
+				"to": map[string]string{
+					"kind": "Service",
+					"name": "frontend",
+				},
+				"tls": map[string]interface{}{
+					"termination":              "reencrypt",
+					"key":                      "secret",
+					"certificate":              "cert data",
+					"caCertificate":            "caCert data",
+					"destinationCACertificate": "destinationCaCert data",
+				},
+			},
+		},
+	}
+
+	routeFieldsToSelect := []string{
+		"apiVersion",
+		"kind",
+		"metadata.name",
+		"spec.host",
+		"spec.to.kind",
+		"spec.to.name",
+		"spec.tls.termination",
+		"spec.tls.certificate",
+		"spec.tls.caCertificate",
+		"spec.tls.destinationCACertificate",
+	}
+
+	routeExpectedJSON := `{
+    "apiVersion": "v1",
+    "kind": "Route",
+    "metadata": {
+        "name": "example"
+    },
+    "spec": {
+        "host": "www.example.com",
+        "tls": {
+            "caCertificate": "caCert data",
+            "certificate": "cert data",
+            "destinationCACertificate": "destinationCaCert data",
+            "termination": "reencrypt"
+        },
+        "to": {
+            "kind": "Service",
+            "name": "frontend"
+        }
+    }
+}`
+
+	tests := map[string]struct {
+		resource       *unstructured.Unstructured
+		fieldsToSelect []string
+		expectedJSON   string
+	}{
+		"secret": {secretResource, secretFieldsToSelect, secretExpectedJSON},
+		"route":  {routeResource, routeFieldsToSelect, routeExpectedJSON},
+	}
+
+	for name, test := range tests {
+		err := Select(test.fieldsToSelect, test.resource)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		bytes, err := json.MarshalIndent(test.resource, "", "    ")
+
+		t.Run(name, func(t *testing.T) {
+			if string(bytes) != test.expectedJSON {
+				t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), test.expectedJSON)
+			}
+		})
 	}
 }
 

@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jetstack/preflight/api"
-	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/pkg/errors"
 	"github.com/pmylund/go-cache"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,6 +17,9 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/kubernetes/scheme"
 	k8scache "k8s.io/client-go/tools/cache"
+
+	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/datagatherer"
 )
 
 // ConfigDynamic contains the configuration for the data-gatherer.
@@ -274,16 +275,16 @@ func redactList(list []*api.GatheredResource) error {
 
 		resource := item
 
+		// Redact item if it is a:
 		for _, gvk := range gvks {
-			// If this item is a Secret then we need to redact it.
+			// secret object
 			if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
 				Select(SecretSelectedFields, resource)
 
-				// break when the object has been processed as a secret, no
-				// other kinds have redact modifications
-				break
+				// route object
+			} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io" {
+				Select(RouteSelectedFields, resource)
 			}
-
 		}
 
 		// remove managedFields from all resources
