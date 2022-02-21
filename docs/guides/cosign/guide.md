@@ -38,7 +38,7 @@ The `Subject` in the output should be
 `https://github.com/jetstack/jetstack-secure/.github/workflows/release-master.yaml@<ref>`,
 where `<ref>` is either the `master` branch or a release tag, i.e:
 
-- `refs/branch/master`
+- `refs/heads/master`
 - `refs/tags/v0.1.35`
 
 ## SLSA Provenance Attestation
@@ -83,7 +83,7 @@ The `Subject` in the output should be
 `https://github.com/jetstack/jetstack-secure/.github/workflows/release-master.yaml@<ref>`,
 where `<ref>` is either the `master` branch or a release tag, i.e:
 
-- `refs/branch/master`
+- `refs/heads/master`
 - `refs/tags/v0.1.35`
 
 4. Download the SBOM
