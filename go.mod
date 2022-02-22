@@ -14,7 +14,7 @@ require (
 	github.com/d4l3k/messagediff v1.2.1
 	github.com/fatih/color v1.12.0
 	github.com/go-playground/universal-translator v0.17.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.0
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jetstack/version-checker v0.2.2-0.20201118163251-4bab9ef088ef
 	github.com/juju/errors v0.0.0-20190930114154-d42613fe1ab9
 	github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8 // indirect
