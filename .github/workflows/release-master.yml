@@ -38,9 +38,22 @@ jobs:
         env:
           DOCKER_DRIVER: overlay
           DOCKER_HOST: tcp://localhost:2375
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     steps:
     - name: Install Tools
-      run: apk add --update make git jq rsync curl
+      # Installing 'bash' because it's required by the 'cosign-installer' action
+      # and 'coreutils' because the 'slsa-provenance-action' requires a version
+      # of 'base64' that supports the -w flag.
+      run: apk add --update make git jq rsync curl bash coreutils
+    - name: Install cosign
+      uses: sigstore/cosign-installer@51f8e5c6fce54e46006ae97d73b2b6315f518752
+      with:
+        cosign-release: v1.5.2
+    - name: Install Syft
+      uses: anchore/sbom-action/download-syft@3626d7d7b13e87ee6c6f9ded3940dea05a3967bc
     - uses: actions/checkout@v2.4.0
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
@@ -48,11 +61,39 @@ jobs:
       uses: docker/setup-buildx-action@v1
       with:
         driver-opts: image=moby/buildkit:master
-    - name: Login to registry
+    - name: Login to quay.io
       uses: docker/login-action@v1
       with:
         registry: quay.io
         username: ${{ secrets.QUAY_USER }}
         password: ${{ secrets.QUAY_PASSWORD }}
+    - name: Login to ghcr.io
+      uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     - name: Build and push
       run: make push-docker-image
+    - name: Sign
+      run: make sign-docker-image
+    - name: SBOM
+      run: make sbom-docker-image
+    # The slsa-provenance-action generates a full attestation from an artifact
+    # as the subject. However, cosign only expects the predicate portion of
+    # the attestation and figures out the subject itself from the image.
+    #
+    # So, we generate a fake artifact and then strip everything but the
+    # predicate out from the generated attestation.
+    - name: Create mock artifact
+      run: echo "foobar" > mock
+    - name: Generate provenance
+      uses: philips-labs/SLSA-Provenance-Action@dddb40e199ae28d4cd2f17bad7f31545556fdd3d
+      with:
+        command: generate
+        subcommand: files
+        arguments: --artifact-path mock
+    - name: Extract predicate
+      run: jq '.predicate' provenance.json > predicate.json
+    - name: Attest
+      run: make attest-docker-image
