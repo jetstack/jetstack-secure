@@ -21,7 +21,7 @@ require (
 	github.com/juju/testing v0.0.0-20191001232224-ce9dec17d28b // indirect
 	github.com/kylelemons/godebug v1.1.0
 	github.com/leodido/go-urn v1.2.0 // indirect
-	github.com/maxatome/go-testdeep v1.9.2
+	github.com/maxatome/go-testdeep v1.11.0
 	github.com/pkg/errors v0.9.1
 	github.com/pmylund/go-cache v2.1.0+incompatible
 	github.com/sirupsen/logrus v1.7.0
