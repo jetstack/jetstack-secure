@@ -16,6 +16,13 @@ SaaS](https://platform.jetstack.io).
 Please [review the documentation](https://platform.jetstack.io/docs/agent) for
 the agent on to get started.
 
+The released container images are cryptographically signed by
+[`cosign`](https://github.com/sigstore/cosign), with
+[SLSA provenance](https://slsa.dev/provenance/v0.2) and a
+[CycloneDX SBOM](https://cyclonedx.org/) attached. For instructions on how to
+verify those signatures and attachments, refer to
+[this guide](docs/guides/cosign).
+
 ## Local Execution
 
 To build and run a version from master:

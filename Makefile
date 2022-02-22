@@ -106,6 +106,23 @@ _docker-%: build-all-platforms
 build-docker-image: _docker-build
 push-docker-image: _docker-push
 
+export COSIGN_REPOSITORY?=ghcr.io/jetstack/jetstack-secure/cosign
+export COSIGN_EXPERIMENTAL=1
+
+.PHONY: sign-docker-image
+sign-docker-image:
+	@cosign sign $(DOCKER_IMAGE):$(VERSION)
+
+.PHONY: sbom-docker-image
+sbom-docker-image:
+	@syft $(DOCKER_IMAGE):$(VERSION) -o cyclonedx > bom.xml
+	@cosign attach sbom --sbom bom.xml --type cyclonedx $(DOCKER_IMAGE):$(VERSION)
+	@cosign sign --attachment sbom $(DOCKER_IMAGE):$(VERSION)
+
+.PHONY: attest-docker-image
+attest-docker-image:
+	@cosign attest --type slsaprovenance --predicate predicate.json $(DOCKER_IMAGE):$(VERSION)
+
 # CI
 
 export PATH:=$(GOPATH)/bin:$(PATH)
