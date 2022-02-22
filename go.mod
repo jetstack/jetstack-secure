@@ -33,7 +33,7 @@ require (
 	gopkg.in/d4l3k/messagediff.v1 v1.2.1
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce // indirect
-	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v2 v2.4.0
 	istio.io/istio v0.0.0-20210108091755-3c1dea2cb2bb
 	k8s.io/api v0.20.1
 	k8s.io/apimachinery v0.20.1
