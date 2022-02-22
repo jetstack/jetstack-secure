@@ -44,7 +44,7 @@ jobs:
       id-token: write
     steps:
     - name: Install Tools
-      run: apk add --update make git jq rsync curl bash
+      run: apk add --update make git jq rsync curl bash coreutils
     - name: Install cosign
       uses: sigstore/cosign-installer@51f8e5c6fce54e46006ae97d73b2b6315f518752
       with:
