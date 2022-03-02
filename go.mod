@@ -28,7 +28,6 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5
-	golang.org/x/tools v0.1.5 // indirect
 	google.golang.org/api v0.36.0
 	gopkg.in/d4l3k/messagediff.v1 v1.2.1
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
@@ -36,9 +35,9 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	istio.io/istio v0.0.0-20210108091755-3c1dea2cb2bb
 	k8s.io/api v0.20.1
-	k8s.io/apimachinery v0.20.1
+	k8s.io/apimachinery v0.23.4
 	k8s.io/client-go v11.0.0+incompatible
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
+	k8s.io/utils v0.0.0-20211116205334-6203023598ed
 	sigs.k8s.io/yaml v1.3.0
 )
 
