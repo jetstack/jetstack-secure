@@ -117,4 +117,11 @@ func init() {
 		os.Getenv("API_TOKEN"),
 		"Token used for authentication when API tokens are in use on the backend",
 	)
+	agentCmd.PersistentFlags().BoolVarP(
+		&agent.Profiling,
+		"enable-pprof",
+		"",
+		false,
+		"Enables the pprof profiling server on the agent (port: 6060).",
+	)
 }

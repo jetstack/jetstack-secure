@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"strings"
@@ -50,6 +53,9 @@ var StrictMode bool
 // APIToken is an authentication token used for the backend API as an alternative to oauth flows.
 var APIToken string
 
+// Profiling flag enabled pprof endpoints to run on the agent
+var Profiling bool
+
 // schema version of the data sent by the agent.
 // The new default version is v2.
 // In v2 the agent posts data readings using api.gathereredResources
@@ -63,6 +69,16 @@ func Run(cmd *cobra.Command, args []string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	config, preflightClient := getConfiguration()
+
+	if Profiling {
+		log.Printf("pprof profiling was enabled.\nRunning profiling on port :6060")
+		go func() {
+			err := http.ListenAndServe(":6060", nil)
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Fatalf("failed to run pprof profiler: %s", err)
+			}
+		}()
+	}
 
 	dataGatherers := map[string]datagatherer.DataGatherer{}
 	var wg sync.WaitGroup
