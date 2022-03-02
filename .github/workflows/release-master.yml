@@ -11,7 +11,7 @@ jobs:
   golint:
     name: vet fmt and lint
     runs-on: ubuntu-20.04
-    container: golang:1.13.7
+    container: golang:1.17
     steps:
     - uses: actions/checkout@v2.4.0
     - name: Install golint
@@ -21,7 +21,7 @@ jobs:
   gotest:
     name: go test
     runs-on: ubuntu-20.04
-    container: golang:1.13.7
+    container: golang:1.17
     steps:
     - uses: actions/checkout@v2.4.0
     - run: make test
