@@ -49,7 +49,7 @@ jobs:
       # of 'base64' that supports the -w flag.
       run: apk add --update make git jq rsync curl bash coreutils
     - name: Install cosign
-      uses: sigstore/cosign-installer@51f8e5c6fce54e46006ae97d73b2b6315f518752
+      uses: sigstore/cosign-installer@179e0f15e70e22ca2e7254fc12d68a9fbab35614
       with:
         cosign-release: v1.5.2
     - name: Install Syft
