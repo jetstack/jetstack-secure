@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: golang:1.13.7
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v3
     - name: Install golint
       run: go get -u golang.org/x/lint/golint
     - run: make lint
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: golang:1.13.7
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v3
     - run: make test
   docker_build:
     name: docker_build
@@ -54,7 +54,7 @@ jobs:
         cosign-release: v1.5.2
     - name: Install Syft
       uses: anchore/sbom-action/download-syft@3626d7d7b13e87ee6c6f9ded3940dea05a3967bc
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v3
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
     - name: Set up Docker Buildx
