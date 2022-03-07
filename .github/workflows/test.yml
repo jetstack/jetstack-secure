@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: golang:1.13.7
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v3
     - name: Install golint
       run: go get -u golang.org/x/lint/golint
     - run: make lint
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: golang:1.13.7
     steps:
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v3
     - run: make test
   docker_build:
     name: docker_build
@@ -43,7 +43,7 @@ jobs:
     steps:
     - name: Install Tools
       run: apk add --update make git jq rsync curl
-    - uses: actions/checkout@v2.4.0
+    - uses: actions/checkout@v3
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
     - name: Set up Docker Buildx
