@@ -23,6 +23,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	dgerror "github.com/jetstack/preflight/pkg/datagatherer/error"
 	"github.com/jetstack/preflight/pkg/version"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 )
 
@@ -56,6 +57,9 @@ var APIToken string
 // Profiling flag enabled pprof endpoints to run on the agent
 var Profiling bool
 
+// Prometheus flag enabled Prometheus metrics endpoint to run on the agent
+var Prometheus bool
+
 // schema version of the data sent by the agent.
 // The new default version is v2.
 // In v2 the agent posts data readings using api.gathereredResources
@@ -76,6 +80,17 @@ func Run(cmd *cobra.Command, args []string) {
 			err := http.ListenAndServe(":6060", nil)
 			if err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Fatalf("failed to run pprof profiler: %s", err)
+			}
+		}()
+	}
+	if Prometheus {
+		log.Printf("Prometheus was enabled.\nRunning prometheus server on port :8081")
+		go func() {
+			metricsServer := http.NewServeMux()
+			metricsServer.Handle("/metrics", promhttp.Handler())
+			err := http.ListenAndServe(":8081", metricsServer)
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Fatalf("failed to run prometheus server: %s", err)
 			}
 		}()
 	}
