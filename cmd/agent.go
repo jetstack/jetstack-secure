@@ -124,4 +124,11 @@ func init() {
 		false,
 		"Enables the pprof profiling server on the agent (port: 6060).",
 	)
+	agentCmd.PersistentFlags().BoolVarP(
+		&agent.Prometheus,
+		"enable-metrics",
+		"",
+		false,
+		"Enables Prometheus metrics server on the agent (port: 8081).",
+	)
 }
