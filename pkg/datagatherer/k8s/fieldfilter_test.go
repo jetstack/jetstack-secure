@@ -127,6 +127,9 @@ func TestSelect(t *testing.T) {
 		}
 
 		bytes, err := json.MarshalIndent(test.resource, "", "    ")
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 
 		t.Run(name, func(t *testing.T) {
 			if string(bytes) != test.expectedJSON {
@@ -155,6 +158,10 @@ func TestSelectMissingSelectedField(t *testing.T) {
 	}
 
 	bytes, err := json.MarshalIndent(resource, "", "    ")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
 	expectedJSON := `{
     "kind": "Secret"
 }`
@@ -196,6 +203,9 @@ func TestRedactSecret(t *testing.T) {
 	}
 
 	bytes, err := json.MarshalIndent(resource, "", "    ")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	expectedJSON := `{
     "apiVersion": "v1",
     "data": {
@@ -240,6 +250,9 @@ func TestRedactPod(t *testing.T) {
 	}
 
 	bytes, err := json.MarshalIndent(resource, "", "    ")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 	expectedJSON := `{
     "apiVersion": "v1",
     "kind": "Pod",
@@ -274,6 +287,10 @@ func TestRedactMissingField(t *testing.T) {
 	}
 
 	bytes, err := json.MarshalIndent(resource, "", "    ")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
 	expectedJSON := `{
     "kind": "Secret"
 }`
