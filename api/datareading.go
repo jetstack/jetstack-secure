@@ -1,8 +1,9 @@
 package api
 
 import (
-	"encoding/json"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 // DataReadingsPost is the payload in the upload request.
@@ -46,5 +47,5 @@ func (v GatheredResource) MarshalJSON() ([]byte, error) {
 		DeletedAt: dateString,
 	}
 
-	return json.Marshal(data)
+	return jsoniter.Marshal(data)
 }

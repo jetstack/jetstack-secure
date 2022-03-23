@@ -3,7 +3,6 @@ package agent
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -23,6 +22,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	dgerror "github.com/jetstack/preflight/pkg/datagatherer/error"
 	"github.com/jetstack/preflight/pkg/version"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 )
@@ -142,6 +142,7 @@ func Run(cmd *cobra.Command, args []string) {
 			// above will help operators correct the issue.
 			wg.Done()
 		}()
+		wg.Wait()
 
 		dataGatherers[dgConfig.Name] = newDg
 	}
@@ -280,7 +281,7 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 		if err != nil {
 			log.Fatalf("failed to read local data file: %s", err)
 		}
-		err = json.Unmarshal(data, &readings)
+		err = jsoniter.Unmarshal(data, &readings)
 		if err != nil {
 			log.Fatalf("failed to unmarshal local data file: %s", err)
 		}
@@ -289,7 +290,7 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 	}
 
 	if OutputPath != "" {
-		data, err := json.MarshalIndent(readings, "", "  ")
+		data, err := jsoniter.MarshalIndent(readings, "", "  ")
 		if err != nil {
 			log.Fatal("failed to marshal JSON")
 		}
@@ -371,7 +372,7 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 	log.Println("Running Agent...")
 	log.Println("Posting data to:", baseURL)
 	if config.OrganizationID == "" {
-		data, err := json.Marshal(readings)
+		data, err := jsoniter.Marshal(readings)
 		if err != nil {
 			log.Fatalf("Cannot marshal readings: %+v", err)
 		}

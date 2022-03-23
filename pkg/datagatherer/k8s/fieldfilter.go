@@ -1,11 +1,11 @@
 package k8s
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/Jeffail/gabs/v2"
+	json "github.com/json-iterator/go"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -141,3 +141,64 @@ func Redact(fields []string, resource *unstructured.Unstructured) error {
 
 	return nil
 }
+
+// // Select removes all but the supplied fields from the resource
+// func Select(fields []string, asJSON []byte) ([]byte, error) {
+// 	// parse the JSON for processing in gabs
+// 	jsonParsed, err := gabs.ParseJSON(asJSON)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to parse generated json for resource: %s", err)
+// 	}
+
+// 	// craft a new object containing only selected fields
+// 	filteredObject := gabs.New()
+// 	for _, v := range fields {
+// 		// also support JSONPointers for keys containing '.' chars
+// 		if strings.HasPrefix(v, "/") {
+// 			gObject, err := jsonParsed.JSONPointer(v)
+// 			if err != nil {
+// 				// fail to select field if missing, just continue
+// 				continue
+// 			}
+// 			pathComponents, err := gabs.JSONPointerToSlice(v)
+// 			if err != nil {
+// 				return nil, fmt.Errorf("invalid JSONPointer: %s", v)
+// 			}
+// 			filteredObject.Set(gObject.Data(), pathComponents...)
+// 		} else {
+// 			if jsonParsed.ExistsP(v) {
+// 				filteredObject.SetP(jsonParsed.Path(v).Data(), v)
+// 			}
+// 		}
+// 	}
+
+// 	return filteredObject.Bytes(), nil
+// }
+
+// // Redact removes the supplied fields from the resource
+// func Redact(fields []string, asJSON []byte) ([]byte, error) {
+// 	// parse the JSON for processing in gabs
+// 	jsonParsed, err := gabs.ParseJSON(asJSON)
+// 	if err != nil {
+// 		return asJSON, fmt.Errorf("failed to parse generated json for resource: %s", err)
+// 	}
+// 	// craft a new object excluding redacted fields
+// 	for _, v := range fields {
+// 		// also support JSONPointers for keys containing '.' chars
+// 		if strings.HasPrefix(v, "/") {
+// 			pathComponents, err := gabs.JSONPointerToSlice(v)
+// 			if err != nil {
+// 				return asJSON, fmt.Errorf("invalid JSONPointer: %s", v)
+// 			}
+// 			if jsonParsed.Exists(pathComponents...) {
+// 				jsonParsed.Delete(pathComponents...)
+// 			}
+// 		} else {
+// 			if jsonParsed.ExistsP(v) {
+// 				jsonParsed.DeleteP(v)
+// 			}
+// 		}
+// 	}
+
+// 	return jsonParsed.Bytes(), nil
+// }

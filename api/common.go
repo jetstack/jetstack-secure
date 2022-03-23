@@ -2,8 +2,9 @@
 package api
 
 import (
-	"encoding/json"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 // TimeFormat defines the format used for timestamps across all this API.
@@ -22,7 +23,7 @@ func (t Time) String() string {
 // MarshalJSON marshals the timestamp with RFC3339 format
 func (t Time) MarshalJSON() ([]byte, error) {
 	str := t.String()
-	jsonStr, err := json.Marshal(str)
+	jsonStr, err := jsoniter.Marshal(str)
 	if err != nil {
 		return nil, err
 	}
