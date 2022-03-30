@@ -1,11 +1,11 @@
 package k8s
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/Jeffail/gabs/v2"
+	json "github.com/json-iterator/go"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

@@ -3,7 +3,6 @@ package agent
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -23,6 +22,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	dgerror "github.com/jetstack/preflight/pkg/datagatherer/error"
 	"github.com/jetstack/preflight/pkg/version"
+	json "github.com/json-iterator/go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 )
