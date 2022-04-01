@@ -400,7 +400,7 @@ func createLocalTestServer(t *testing.T) *httptest.Server {
 		default:
 			t.Fatalf("Unexpected URL was called: %s", r.URL.Path)
 		}
-
+		w.Header().Set("Content-Type", "application/json")
 		w.Write(responseContent)
 	}))
 

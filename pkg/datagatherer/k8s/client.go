@@ -5,6 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -41,6 +42,22 @@ func NewDiscoveryClient(kubeconfigPath string) (discovery.DiscoveryClient, error
 	}
 
 	return *discoveryClient, nil
+}
+
+// NewClientSet creates a new kubernetes clientset using the provided kubeconfig.
+// If kubeconfigPath is not set/empty, it will attempt to load configuration using
+// the default loading rules.
+func NewClientSet(kubeconfigPath string) (kubernetes.Interface, error) {
+	var clientset *kubernetes.Clientset
+	cfg, err := loadRESTConfig(kubeconfigPath)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	clientset, err = kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return clientset, nil
 }
 
 func loadRESTConfig(path string) (*rest.Config, error) {
