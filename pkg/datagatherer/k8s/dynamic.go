@@ -9,12 +9,19 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/pmylund/go-cache"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	k8scache "k8s.io/client-go/tools/cache"
 
@@ -79,24 +86,116 @@ func (c *ConfigDynamic) validate() error {
 	return nil
 }
 
+// sharedInformerFunc creates a SharedIndexInformer given a SharedInformerFactory
+type sharedInformerFunc func(informers.SharedInformerFactory) k8scache.SharedIndexInformer
+
+// kubernetesNativeResources map of the native kubernetes resources, linking each resource to a sharedInformerFunc for that resource.
+// secrets are still treated as unstructured rather than corev1.Secret, for a faster unmarshaling
+var kubernetesNativeResources = map[schema.GroupVersionResource]sharedInformerFunc{
+	corev1.SchemeGroupVersion.WithResource("pods"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Core().V1().Pods().Informer()
+	},
+	corev1.SchemeGroupVersion.WithResource("nodes"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Core().V1().Nodes().Informer()
+	},
+	corev1.SchemeGroupVersion.WithResource("services"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Core().V1().Services().Informer()
+	},
+	appsv1.SchemeGroupVersion.WithResource("deployments"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Apps().V1().Deployments().Informer()
+	},
+	appsv1.SchemeGroupVersion.WithResource("daemonsets"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Apps().V1().DaemonSets().Informer()
+	},
+	appsv1.SchemeGroupVersion.WithResource("statefulsets"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Apps().V1().StatefulSets().Informer()
+	},
+	appsv1.SchemeGroupVersion.WithResource("replicasets"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Apps().V1().ReplicaSets().Informer()
+	},
+	appsv1.SchemeGroupVersion.WithResource("replicasets"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Apps().V1().ReplicaSets().Informer()
+	},
+	admissionregistrationv1.SchemeGroupVersion.WithResource("validatingwebhookconfigurations"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Admissionregistration().V1().ValidatingWebhookConfigurations().Informer()
+	},
+	admissionregistrationv1.SchemeGroupVersion.WithResource("mutatingwebhookconfigurations"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Admissionregistration().V1().MutatingWebhookConfigurations().Informer()
+	},
+	batchv1.SchemeGroupVersion.WithResource("jobs"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Batch().V1().Jobs().Informer()
+	},
+}
+
 // NewDataGatherer constructs a new instance of the generic K8s data-gatherer for the provided
-// GroupVersionResource.
 func (c *ConfigDynamic) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	cl, err := NewDynamicClient(c.KubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
 
-	return c.newDataGathererWithClient(ctx, cl)
+	if isNativeResource(c.GroupVersionResource) {
+		clientset, err := NewClientSet(c.KubeConfigPath)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		return c.newDataGathererWithClient(ctx, nil, clientset)
+	}
+
+	return c.newDataGathererWithClient(ctx, cl, nil)
 }
 
-func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynamic.Interface) (datagatherer.DataGatherer, error) {
+func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynamic.Interface, clientset kubernetes.Interface) (datagatherer.DataGatherer, error) {
 	if err := c.validate(); err != nil {
 		return nil, err
 	}
-
 	// init shared informer for selected namespaces
 	fieldSelector := generateFieldSelector(c.ExcludeNamespaces)
+	// init cache to store gathered resources
+	dgCache := cache.New(5*time.Minute, 30*time.Second)
+
+	newDataGatherer := &DataGathererDynamic{
+		ctx:                  ctx,
+		cl:                   cl,
+		k8sClientSet:         clientset,
+		groupVersionResource: c.GroupVersionResource,
+		fieldSelector:        fieldSelector,
+		namespaces:           c.IncludeNamespaces,
+		cache:                dgCache,
+	}
+
+	// In order to reduce memory usage that might come from using Dynamic Informers
+	// * https://github.com/kyverno/kyverno/issues/1832#issuecomment-968782166
+	// * https://github.com/kubernetes/client-go/issues/832
+	// * https://github.com/kubernetes/client-go/issues/871
+	// we use SharedIndexInformer for known resources, these informers have less of an impact on the
+	// memory usage. Dynamic datagatheres will use them for some of the native resources instead of
+	// dynamic informers.
+
+	if informerFunc, ok := kubernetesNativeResources[c.GroupVersionResource]; ok {
+		factory := informers.NewSharedInformerFactoryWithOptions(clientset,
+			60*time.Second,
+			informers.WithNamespace(metav1.NamespaceAll),
+			informers.WithTweakListOptions(func(options *metav1.ListOptions) {
+				options.FieldSelector = fieldSelector
+			}))
+		newDataGatherer.nativeSharedInformer = factory
+		informer := informerFunc(factory)
+		informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				onAdd(obj, dgCache)
+			},
+			UpdateFunc: func(old, new interface{}) {
+				onUpdate(old, new, dgCache)
+			},
+			DeleteFunc: func(obj interface{}) {
+				onDelete(obj, dgCache)
+			},
+		})
+		newDataGatherer.informer = informer
+		return newDataGatherer, nil
+	}
+
 	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		cl,
 		60*time.Second,
@@ -105,21 +204,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	)
 	resourceInformer := factory.ForResource(c.GroupVersionResource)
 	informer := resourceInformer.Informer()
-
-	// init cache to store gathered resources
-	dgCache := cache.New(5*time.Minute, 30*time.Second)
-
-	newDataGatherer := &DataGathererDynamic{
-		ctx:                  ctx,
-		cl:                   cl,
-		groupVersionResource: c.GroupVersionResource,
-		fieldSelector:        fieldSelector,
-		namespaces:           c.IncludeNamespaces,
-		cache:                dgCache,
-		sharedInformer:       factory,
-		informer:             informer,
-	}
-
+	newDataGatherer.dynamicSharedInformer = factory
 	informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			onAdd(obj, dgCache)
@@ -131,6 +216,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 			onDelete(obj, dgCache)
 		},
 	})
+	newDataGatherer.informer = informer
 
 	return newDataGatherer, nil
 }
@@ -145,6 +231,8 @@ type DataGathererDynamic struct {
 	ctx context.Context
 	// The 'dynamic' client used for fetching data.
 	cl dynamic.Interface
+	// The k8s clientset used for fetching known resources.
+	k8sClientSet kubernetes.Interface
 	// groupVersionResource is the name of the API group, version and resource
 	// that should be fetched by this data gatherer.
 	groupVersionResource schema.GroupVersionResource
@@ -160,10 +248,11 @@ type DataGathererDynamic struct {
 	// 30 seconds purge time https://pkg.go.dev/github.com/patrickmn/go-cache
 	cache *cache.Cache
 	// informer watches the events around the targeted resource and updates the cache
-	informer       k8scache.SharedIndexInformer
-	sharedInformer dynamicinformer.DynamicSharedInformerFactory
-	informerCtx    context.Context
-	informerCancel context.CancelFunc
+	informer              k8scache.SharedIndexInformer
+	dynamicSharedInformer dynamicinformer.DynamicSharedInformerFactory
+	nativeSharedInformer  informers.SharedInformerFactory
+	informerCtx           context.Context
+	informerCancel        context.CancelFunc
 
 	// isInitialized is set to true when data is first collected, prior to
 	// this the fetch method will return an error
@@ -173,7 +262,7 @@ type DataGathererDynamic struct {
 // Run starts the dynamic data gatherer's informers for resource collection.
 // Returns error if the data gatherer informer wasn't initialized
 func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
-	if g.sharedInformer == nil {
+	if g.dynamicSharedInformer == nil && g.nativeSharedInformer == nil {
 		return fmt.Errorf("informer was not initialized, impossible to start")
 	}
 
@@ -188,7 +277,7 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 		if strings.Contains(fmt.Sprintf("%s", err), "the server could not find the requested resource") {
 			log.Printf("server missing resource for datagatherer of %q ", g.groupVersionResource)
 		} else {
-			log.Printf("datagatherer informer for %q hash failed and is backing off due to error: %s", g.groupVersionResource, err)
+			log.Printf("datagatherer informer for %q has failed and is backing off due to error: %s", g.groupVersionResource, err)
 		}
 		// cancel the informer ctx to stop the informer in case of error
 		cancel()
@@ -198,7 +287,13 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 	}
 
 	// start shared informer
-	g.sharedInformer.Start(stopCh)
+	if g.dynamicSharedInformer != nil {
+		g.dynamicSharedInformer.Start(stopCh)
+	}
+
+	if g.nativeSharedInformer != nil {
+		g.nativeSharedInformer.Start(stopCh)
+	}
 
 	return nil
 }
@@ -242,14 +337,14 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 	for _, item := range g.cache.Items() {
 		// filter cache items by namespace
 		cacheObject := item.Object.(*api.GatheredResource)
-		resource, ok := cacheObject.Resource.(*unstructured.Unstructured)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse cached resource")
+		if resource, ok := cacheObject.Resource.(cacheResource); ok {
+			namespace := resource.GetNamespace()
+			if isIncludedNamespace(namespace, fetchNamespaces) {
+				items = append(items, cacheObject)
+			}
+			continue
 		}
-		namespace := resource.GetNamespace()
-		if isIncludedNamespace(namespace, fetchNamespaces) {
-			items = append(items, cacheObject)
-		}
+		return nil, fmt.Errorf("failed to parse cached resource")
 	}
 
 	// Redact Secret data
@@ -266,30 +361,62 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 
 func redactList(list []*api.GatheredResource) error {
 	for i := range list {
-		item := list[i].Resource.(*unstructured.Unstructured)
-		// Determine the kind of items in case this is a generic 'mixed' list.
-		gvks, _, err := scheme.Scheme.ObjectKinds(item)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
-		resource := item
-
-		// Redact item if it is a:
-		for _, gvk := range gvks {
-			// secret object
-			if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
-				Select(SecretSelectedFields, resource)
-
-				// route object
-			} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io" {
-				Select(RouteSelectedFields, resource)
+		if item, ok := list[i].Resource.(*unstructured.Unstructured); ok {
+			// Determine the kind of items in case this is a generic 'mixed' list.
+			gvks, _, err := scheme.Scheme.ObjectKinds(item)
+			if err != nil {
+				return errors.WithStack(err)
 			}
+
+			resource := item
+
+			// Redact item if it is a:
+			for _, gvk := range gvks {
+				// secret object
+				if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
+					Select(SecretSelectedFields, resource)
+
+					// route object
+				} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io" {
+					Select(RouteSelectedFields, resource)
+				}
+			}
+
+			// remove managedFields from all resources
+			Redact(RedactFields, resource)
+			continue
 		}
 
-		// remove managedFields from all resources
-		Redact(RedactFields, resource)
+		// objectMeta interface is used to give resources from sharedIndexInformers, (core.Pod|apps.Deployment), a common interface
+		// with access to the metav1.Object
+		type objectMeta interface{ GetObjectMeta() metav1.Object }
+		// all objects fetched from sharedIndexInformers is now redacted
+		// removing the managedFields and `kubectl.kubernetes.io/last-applied-configuration` annotation
+		if item, ok := list[i].Resource.(objectMeta); ok {
+			item.GetObjectMeta().SetManagedFields(nil)
+			delete(item.GetObjectMeta().GetAnnotations(), "kubectl.kubernetes.io/last-applied-configuration")
 
+			resource := item.(runtime.Object)
+			gvks, _, err := scheme.Scheme.ObjectKinds(resource)
+			if err != nil {
+				return errors.WithStack(err)
+			}
+
+			// During the internal marshal/unmarshal the runtime.Object the metav1.TypeMeta seems to be lost
+			// this section reassigns the TypeMeta to the resource
+			for _, gvk := range gvks {
+				if len(gvk.Kind) == 0 {
+					continue
+				}
+				if len(gvk.Version) == 0 || gvk.Version == runtime.APIVersionInternal {
+					continue
+				}
+				resource.GetObjectKind().SetGroupVersionKind(gvk)
+				break
+			}
+
+			continue
+		}
 	}
 	return nil
 }
@@ -327,4 +454,9 @@ func isIncludedNamespace(namespace string, namespaces []string) bool {
 		}
 	}
 	return false
+}
+
+func isNativeResource(gvr schema.GroupVersionResource) bool {
+	_, ok := kubernetesNativeResources[gvr]
+	return ok
 }

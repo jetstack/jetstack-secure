@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	vcapi "github.com/jetstack/version-checker/pkg/api"
 	vcchecker "github.com/jetstack/version-checker/pkg/checker"
 	vcarchitecture "github.com/jetstack/version-checker/pkg/checker/architecture"
@@ -18,12 +20,8 @@ import (
 	vcclient "github.com/jetstack/version-checker/pkg/client"
 	vcselfhosted "github.com/jetstack/version-checker/pkg/client/selfhosted"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/jetstack/preflight/pkg/datagatherer"
-	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 )
 
 const (
@@ -85,15 +83,15 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	c.DynamicPod.ExcludeNamespaces = aux.Dynamic.ExcludeNamespaces
 	c.DynamicPod.IncludeNamespaces = aux.Dynamic.IncludeNamespaces
 	// gvr must be pods for the version checker dg
-	c.DynamicPod.GroupVersionResource.Group = ""
-	c.DynamicPod.GroupVersionResource.Version = "v1"
+	c.DynamicPod.GroupVersionResource.Group = corev1.SchemeGroupVersion.Group
+	c.DynamicPod.GroupVersionResource.Version = corev1.SchemeGroupVersion.Version
 	c.DynamicPod.GroupVersionResource.Resource = "pods"
 	// node dynamic dg
 	c.DynamicNode.KubeConfigPath = aux.Dynamic.KubeConfigPath
 	c.DynamicNode.ExcludeNamespaces = []string{}
 	c.DynamicNode.IncludeNamespaces = []string{}
-	c.DynamicNode.GroupVersionResource.Group = ""
-	c.DynamicNode.GroupVersionResource.Version = "v1"
+	c.DynamicNode.GroupVersionResource.Group = corev1.SchemeGroupVersion.Group
+	c.DynamicNode.GroupVersionResource.Version = corev1.SchemeGroupVersion.Version
 	c.DynamicNode.GroupVersionResource.Resource = "nodes"
 
 	c.VersionCheckerClientOptions.Selfhosted = map[string]*vcselfhosted.Options{}
@@ -333,18 +331,14 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 	}
 
 	for _, v := range nodes {
-		var node v1.Node
-		resource, ok := v.Resource.(*unstructured.Unstructured)
+		resource, ok := v.Resource.(*corev1.Node)
 		if !ok {
 			return nil, fmt.Errorf("failed to parse node resource")
 		}
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(resource.Object, &node)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse node from unstructured data: %v", err)
-		}
+
 		// update version-checker's internal representation of the current cluster's nodes,
 		// to correctly select the right OS and Architecture for the images
-		if err = g.nodeArchitecture.Add(&node); err != nil {
+		if err = g.nodeArchitecture.Add(resource); err != nil {
 			return nil, fmt.Errorf("failed to add node to version-checker architecture structure")
 		}
 	}
@@ -369,14 +363,9 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 
 	var results []PodResult
 	for _, v := range pods {
-		var pod v1.Pod
-		resource, ok := v.Resource.(*unstructured.Unstructured)
+		pod, ok := v.Resource.(*corev1.Pod)
 		if !ok {
-			return nil, fmt.Errorf("failed to parse node resource")
-		}
-		err = runtime.DefaultUnstructuredConverter.FromUnstructured(resource.Object, &pod)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse pod from unstructured data: %v", err)
+			return nil, fmt.Errorf("failed to parse pod resource")
 		}
 
 		var allContainers []v1.Container
@@ -392,7 +381,7 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 
 		var containerResults []containerResult
 		for i, c := range allContainers {
-			result, err := g.versionChecker.Container(g.ctx, g.versionCheckerLog, &pod, &c, &g.versionCheckerOptions)
+			result, err := g.versionChecker.Container(g.ctx, g.versionCheckerLog, pod, &c, &g.versionCheckerOptions)
 			if err != nil {
 				return nil, fmt.Errorf("failed to check image for container: %s", err)
 			}
@@ -407,7 +396,7 @@ func (g *DataGatherer) Fetch() (interface{}, error) {
 			)
 		}
 
-		results = append(results, PodResult{Pod: pod, Results: containerResults})
+		results = append(results, PodResult{Pod: *pod, Results: containerResults})
 	}
 
 	return results, nil
