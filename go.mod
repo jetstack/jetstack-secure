@@ -16,6 +16,7 @@ require (
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jetstack/version-checker v0.2.2-0.20201118163251-4bab9ef088ef
+	github.com/json-iterator/go v1.1.12
 	github.com/juju/errors v0.0.0-20190930114154-d42613fe1ab9
 	github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8 // indirect
 	github.com/juju/testing v0.0.0-20191001232224-ce9dec17d28b // indirect
@@ -28,9 +29,8 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5
-	golang.org/x/tools v0.1.5 // indirect
-	google.golang.org/api v0.36.0
+	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
+	google.golang.org/api v0.74.0
 	gopkg.in/d4l3k/messagediff.v1 v1.2.1
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce // indirect
@@ -39,7 +39,6 @@ require (
 	k8s.io/api v0.20.1
 	k8s.io/apimachinery v0.20.1
 	k8s.io/client-go v11.0.0+incompatible
-	github.com/json-iterator/go v1.1.12
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 	sigs.k8s.io/yaml v1.3.0
 )
