@@ -53,7 +53,7 @@ jobs:
       with:
         cosign-release: v1.5.2
     - name: Install Syft
-      uses: anchore/sbom-action/download-syft@3626d7d7b13e87ee6c6f9ded3940dea05a3967bc
+      uses: anchore/sbom-action/download-syft@2ad78246293830258e98b4e707b1fb02d0242828
     - uses: actions/checkout@v3
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
