@@ -52,16 +52,3 @@ jobs:
         driver-opts: image=moby/buildkit:master
     - name: Build images
       run: make build-docker-image
-
-    # Add trivy scanner after images have been built
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: 'quay.io/jetstack/preflight:${{ github.sha }}'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-    - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v1
-      if: always() 
-      with:
-        sarif_file: 'trivy-results.sarif'
