@@ -12,10 +12,9 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
-	"istio.io/istio/galley/pkg/config/analysis/analyzers"
-	"istio.io/istio/galley/pkg/config/analysis/local"
+	"istio.io/istio/pkg/config/analysis/analyzers"
+	"istio.io/istio/pkg/config/analysis/local"
 	"istio.io/istio/pkg/config/resource"
-	istioSchema "istio.io/istio/pkg/config/schema"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -54,7 +53,7 @@ func (c *Config) validate() error {
 
 // DataGatherer is a DataGatherer for Istio.
 type DataGatherer struct {
-	sourceAnalyzer       *local.SourceAnalyzer
+	sourceAnalyzer       *local.IstiodAnalyzer
 	dynamicDataGatherers []datagatherer.DataGatherer
 }
 
@@ -93,7 +92,7 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	}
 
 	// Create an Istio SourceAnalyzer.
-	sourceAnalyzer := local.NewSourceAnalyzer(istioSchema.MustGet(), analyzers.AllCombined(),
+	sourceAnalyzer := local.NewSourceAnalyzer(analyzers.AllCombined(),
 		"", resource.Namespace(istioNamespace), nil, true, 30*time.Second)
 
 	return &DataGatherer{

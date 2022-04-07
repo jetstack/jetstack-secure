@@ -4,9 +4,6 @@ go 1.16
 
 require (
 	github.com/Azure/aks-engine v0.56.0
-	github.com/Azure/azure-sdk-for-go v46.4.0+incompatible // indirect
-	github.com/Azure/go-autorest/autorest v0.11.8 // indirect
-	github.com/Azure/go-autorest/autorest/to v0.4.0 // indirect
 	github.com/Azure/go-autorest/autorest/validation v0.3.0 // indirect
 	github.com/Jeffail/gabs/v2 v2.6.1
 	github.com/aws/aws-sdk-go v1.36.19
@@ -25,7 +22,7 @@ require (
 	github.com/maxatome/go-testdeep v1.11.0
 	github.com/pkg/errors v0.9.1
 	github.com/pmylund/go-cache v2.1.0+incompatible
-	github.com/prometheus/client_golang v1.9.0
+	github.com/prometheus/client_golang v1.12.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
@@ -35,12 +32,12 @@ require (
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
 	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce // indirect
 	gopkg.in/yaml.v2 v2.4.0
-	istio.io/istio v0.0.0-20210108091755-3c1dea2cb2bb
-	k8s.io/api v0.20.1
-	k8s.io/apimachinery v0.20.1
-	k8s.io/client-go v11.0.0+incompatible
-	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
+	istio.io/istio v0.0.0-20220405113025-5fd92a170f50
+	k8s.io/api v0.23.5
+	k8s.io/apimachinery v0.23.5
+	k8s.io/client-go v10.0.0+incompatible
+	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 	sigs.k8s.io/yaml v1.3.0
 )
 
-replace k8s.io/client-go => k8s.io/client-go v0.20.1
+replace k8s.io/client-go => k8s.io/client-go v0.23.5
