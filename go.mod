@@ -9,13 +9,14 @@ require (
 	github.com/Azure/go-autorest/autorest/to v0.4.0 // indirect
 	github.com/Azure/go-autorest/autorest/validation v0.3.0 // indirect
 	github.com/Jeffail/gabs/v2 v2.6.1
-	github.com/aws/aws-sdk-go v1.36.19
+	github.com/aws/aws-sdk-go v1.43.45
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/d4l3k/messagediff v1.2.1
 	github.com/fatih/color v1.13.0
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jetstack/version-checker v0.2.2-0.20201118163251-4bab9ef088ef
+	github.com/json-iterator/go v1.1.12
 	github.com/juju/errors v0.0.0-20190930114154-d42613fe1ab9
 	github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8 // indirect
 	github.com/juju/testing v0.0.0-20191001232224-ce9dec17d28b // indirect
@@ -39,7 +40,6 @@ require (
 	k8s.io/api v0.20.1
 	k8s.io/apimachinery v0.20.1
 	k8s.io/client-go v11.0.0+incompatible
-	github.com/json-iterator/go v1.1.12
 	k8s.io/utils v0.0.0-20201110183641-67b214c5f920
 	sigs.k8s.io/yaml v1.3.0
 )
