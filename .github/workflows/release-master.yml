@@ -48,6 +48,9 @@ jobs:
       # and 'coreutils' because the 'slsa-provenance-action' requires a version
       # of 'base64' that supports the -w flag.
       run: apk add --update make git jq rsync curl bash coreutils
+    - name: Adding github workspace as safe directory
+      # See issue https://github.com/actions/checkout/issues/760
+      run: git config --global --add safe.directory $GITHUB_WORKSPACE
     - name: Install cosign
       uses: sigstore/cosign-installer@581838fbedd492d2350a9ecd427a95d6de1e5d01
       with:
