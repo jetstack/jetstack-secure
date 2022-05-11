@@ -54,9 +54,6 @@ test:
 vet:
 	cd $(ROOT_DIR) && go vet ./...
 
-lint: vet
-	cd $(ROOT_DIR) && golint
-
 
 .PHONY: ./builds/$(GOOS)/$(GOARCH)/$(BIN_NAME)
 ./builds/$(GOOS)/$(GOARCH)/$(BIN_NAME):

@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
-	"k8s.io/utils/diff"
 )
 
 func getObject(version, kind, name, namespace string, withManagedFields bool) *unstructured.Unstructured {
@@ -128,16 +127,16 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 	gatherer := dg.(*DataGathererDynamic)
 	// test gatherer's fields
 	if !reflect.DeepEqual(gatherer.ctx, expected.ctx) {
-		t.Errorf("unexpected ctx difference: %v", diff.ObjectDiff(dg, expected))
+		t.Errorf("expected %v, got %v", expected, dg)
 	}
 	if !reflect.DeepEqual(gatherer.cl, expected.cl) {
-		t.Errorf("unexpected client difference: %v", diff.ObjectDiff(dg, expected))
+		t.Errorf("expected %v, got %v", expected, dg)
 	}
 	if !reflect.DeepEqual(gatherer.groupVersionResource, expected.groupVersionResource) {
-		t.Errorf("unexpected gvr difference: %v", diff.ObjectDiff(dg, expected))
+		t.Errorf("expected %v, got %v", expected, dg)
 	}
 	if !reflect.DeepEqual(gatherer.namespaces, expected.namespaces) {
-		t.Errorf("unexpected namespace difference: %v", diff.ObjectDiff(dg, expected))
+		t.Errorf("expected %v, got %v", expected, dg)
 	}
 	if gatherer.cache == nil {
 		t.Errorf("unexpected cache value: %v", nil)
@@ -177,16 +176,16 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 	gatherer := dg.(*DataGathererDynamic)
 	// test gatherer's fields
 	if !reflect.DeepEqual(gatherer.ctx, expected.ctx) {
-		t.Errorf("unexpected ctx difference: %v", diff.ObjectDiff(dg, expected))
+		t.Errorf("expected %v, got %v", expected, dg)
 	}
 	if !reflect.DeepEqual(gatherer.k8sClientSet, expected.k8sClientSet) {
-		t.Errorf("unexpected client difference: %v", diff.ObjectDiff(dg, expected))
+		t.Errorf("expected %v, got %v", expected, dg)
 	}
 	if !reflect.DeepEqual(gatherer.groupVersionResource, expected.groupVersionResource) {
-		t.Errorf("unexpected gvr difference: %v", diff.ObjectDiff(dg, expected))
+		t.Errorf("expected %v, got %v", expected, dg)
 	}
 	if !reflect.DeepEqual(gatherer.namespaces, expected.namespaces) {
-		t.Errorf("unexpected namespace difference: %v", diff.ObjectDiff(dg, expected))
+		t.Errorf("expected %v, got %v", expected, dg)
 	}
 	if gatherer.cache == nil {
 		t.Errorf("unexpected cache value: %v", nil)
