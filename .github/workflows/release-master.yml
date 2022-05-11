@@ -8,20 +8,18 @@ on:
     tags:
       - v*
 jobs:
-  golint:
-    name: vet fmt and lint
+  vet:
+    name: vet
     runs-on: ubuntu-20.04
-    container: golang:1.13.7
+    container: golang:1.18
     steps:
     - uses: actions/checkout@v3
-    - name: Install golint
-      run: go get -u golang.org/x/lint/golint
-    - run: make lint
+    - run: make vet
       shell: bash
-  gotest:
+  test:
     name: go test
     runs-on: ubuntu-20.04
-    container: golang:1.13.7
+    container: golang:1.18
     steps:
     - uses: actions/checkout@v3
     - run: make test
@@ -59,19 +57,19 @@ jobs:
       uses: anchore/sbom-action/download-syft@2ad78246293830258e98b4e707b1fb02d0242828
     - uses: actions/checkout@v3
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
+      uses: docker/setup-qemu-action@v2
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v2
       with:
         driver-opts: image=moby/buildkit:master
     - name: Login to quay.io
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: quay.io
         username: ${{ secrets.QUAY_USER }}
         password: ${{ secrets.QUAY_PASSWORD }}
     - name: Login to ghcr.io
-      uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+      uses: docker/login-action@v2
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
