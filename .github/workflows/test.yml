@@ -10,20 +10,18 @@ on:
       - "*"
 
 jobs:
-  golint:
-    name: vet fmt and lint
+  vet:
+    name: vet
     runs-on: ubuntu-20.04
-    container: golang:1.13.7
+    container: golang:1.18
     steps:
     - uses: actions/checkout@v3
-    - name: Install golint
-      run: go get -u golang.org/x/lint/golint
-    - run: make lint
+    - run: make vet
       shell: bash
-  gotest:
+  test:
     name: go test
     runs-on: ubuntu-20.04
-    container: golang:1.13.7
+    container: golang:1.18
     steps:
     - uses: actions/checkout@v3
     - run: make test
