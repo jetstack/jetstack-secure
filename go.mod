@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/Azure/aks-engine v0.43.0
 	github.com/Jeffail/gabs/v2 v2.6.1
-	github.com/aws/aws-sdk-go v1.43.31
+	github.com/aws/aws-sdk-go v1.44.11
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/d4l3k/messagediff v1.2.1
 	github.com/fatih/color v1.13.0
