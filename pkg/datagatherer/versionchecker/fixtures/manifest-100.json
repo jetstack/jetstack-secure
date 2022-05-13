@@ -1,7 +1,0 @@
-{
-  "schemaVersion": 1,
-  "name": "jetstack/example",
-  "tag": "v1.0.0",
-  "architecture":"amd64",
-  "os":""
-}

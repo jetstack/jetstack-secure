@@ -7,12 +7,8 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/jetstack/preflight/pkg/datagatherer"
-	"github.com/jetstack/preflight/pkg/datagatherer/aks"
-	"github.com/jetstack/preflight/pkg/datagatherer/eks"
-	"github.com/jetstack/preflight/pkg/datagatherer/gke"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/datagatherer/local"
-	"github.com/jetstack/preflight/pkg/datagatherer/versionchecker"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
@@ -84,12 +80,6 @@ func (dg *DataGatherer) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var cfg datagatherer.Config
 
 	switch dg.Kind {
-	case "gke":
-		cfg = &gke.Config{}
-	case "eks":
-		cfg = &eks.Config{}
-	case "aks":
-		cfg = &aks.Config{}
 	case "k8s":
 		cfg = &k8s.ConfigDynamic{}
 	case "k8s-dynamic":
@@ -98,8 +88,6 @@ func (dg *DataGatherer) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		cfg = &k8s.ConfigDiscovery{}
 	case "local":
 		cfg = &local.Config{}
-	case "version-checker":
-		cfg = &versionchecker.Config{}
 	// dummy dataGatherer is just used for testing
 	case "dummy":
 		cfg = &dummyConfig{}
