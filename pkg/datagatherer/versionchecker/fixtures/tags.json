@@ -1,7 +1,0 @@
-{
-  "name": "jetstack/cert-manager-controller",
-  "tags": [
-    "v1.0.0",
-    "v1.0.1"
-  ]
-}
