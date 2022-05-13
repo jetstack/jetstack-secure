@@ -20,7 +20,6 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
-	dgerror "github.com/jetstack/preflight/pkg/datagatherer/error"
 	"github.com/jetstack/preflight/pkg/version"
 	json "github.com/json-iterator/go"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -317,33 +316,25 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 }
 
 func gatherData(config Config, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
-	readings := []*api.DataReading{}
+	var readings []*api.DataReading
 
 	var dgError *multierror.Error
 	for k, dg := range dataGatherers {
 		dgData, err := dg.Fetch()
 		if err != nil {
-			if _, ok := err.(*dgerror.ConfigError); ok {
-				if StrictMode {
-					dgError = multierror.Append(dgError, fmt.Errorf("%s: %v", k, err))
-				} else {
-					log.Printf("config error in %q datagatherer: %v", k, err)
-				}
-			} else {
-				dgError = multierror.Append(dgError, fmt.Errorf("error in datagatherer %q: %v", k, err))
-			}
-			continue
-		} else {
-			log.Printf("successfully gathered data from %q datagatherer", k)
+			dgError = multierror.Append(dgError, fmt.Errorf("error in datagatherer %s: %w", k, err))
 
-			readings = append(readings, &api.DataReading{
-				ClusterID:     config.ClusterID,
-				DataGatherer:  k,
-				Timestamp:     api.Time{Time: time.Now()},
-				Data:          dgData,
-				SchemaVersion: schemaVersion,
-			})
+			continue
 		}
+
+		log.Printf("successfully gathered data from %q datagatherer", k)
+		readings = append(readings, &api.DataReading{
+			ClusterID:     config.ClusterID,
+			DataGatherer:  k,
+			Timestamp:     api.Time{Time: time.Now()},
+			Data:          dgData,
+			SchemaVersion: schemaVersion,
+		})
 	}
 
 	if dgError != nil {
