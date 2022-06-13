@@ -50,7 +50,7 @@ jobs:
       # See issue https://github.com/actions/checkout/issues/760
       run: git config --global --add safe.directory $GITHUB_WORKSPACE
     - name: Install cosign
-      uses: sigstore/cosign-installer@536b37ec5d5b543420bdfd9b744c5965bd4d8730
+      uses: sigstore/cosign-installer@7e0881f8fe90b25e305bbf0309761e9314607e25
       with:
         cosign-release: v1.5.2
     - name: Install Syft
