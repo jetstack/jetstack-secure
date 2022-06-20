@@ -22,6 +22,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/version"
 	json "github.com/json-iterator/go"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 )
@@ -85,6 +86,7 @@ func Run(cmd *cobra.Command, args []string) {
 	if Prometheus {
 		log.Printf("Prometheus was enabled.\nRunning prometheus server on port :8081")
 		go func() {
+			prometheus.MustRegister(metricPayloadSize)
 			metricsServer := http.NewServeMux()
 			metricsServer.Handle("/metrics", promhttp.Handler())
 			err := http.ListenAndServe(":8081", metricsServer)
@@ -366,6 +368,13 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 		if err != nil {
 			log.Fatalf("Cannot marshal readings: %+v", err)
 		}
+
+		// log and collect metrics about the upload size
+		metric := metricPayloadSize.With(
+			prometheus.Labels{"organization": config.OrganizationID, "cluster": config.ClusterID},
+		)
+		metric.Set(float64(len(data)))
+		log.Printf("Data readings upload size: %d", len(data))
 		path := config.Endpoint.Path
 		if path == "" {
 			path = "/api/v1/datareadings"

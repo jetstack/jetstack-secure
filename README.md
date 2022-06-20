@@ -40,3 +40,8 @@ sends:
 ```bash
 go run main.go echo
 ```
+
+## Metrics
+
+The Jetstack-Secure agent exposes its metrics through a Prometheus server, on port 8081.
+The Prometheus server is disabled by default but can be enabled by passing the `--enable-metrics` flag to the agent binary.
