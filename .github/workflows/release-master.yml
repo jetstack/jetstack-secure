@@ -89,7 +89,7 @@ jobs:
     - name: Create mock artifact
       run: echo "foobar" > mock
     - name: Generate provenance
-      uses: philips-labs/SLSA-Provenance-Action@dddb40e199ae28d4cd2f17bad7f31545556fdd3d
+      uses: philips-labs/SLSA-Provenance-Action@752766b8a3b1ebd09d599e163eeec8fa39e677aa
       with:
         command: generate
         subcommand: files
