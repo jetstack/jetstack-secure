@@ -14,7 +14,7 @@ SaaS](https://platform.jetstack.io).
 ## Installation
 
 Please [review the documentation](https://platform.jetstack.io/documentation/installation/agent)
-for the agent to get started.
+for the agent before getting started.
 
 The released container images are cryptographically signed by
 [`cosign`](https://github.com/sigstore/cosign), with
