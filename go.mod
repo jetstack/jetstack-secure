@@ -3,7 +3,7 @@ module github.com/jetstack/preflight
 go 1.18
 
 require (
-	github.com/Jeffail/gabs/v2 v2.6.1
+	github.com/Jeffail/gabs/v2 v2.7.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/d4l3k/messagediff v1.2.1
 	github.com/fatih/color v1.14.1
