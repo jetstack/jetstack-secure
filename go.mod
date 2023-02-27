@@ -9,7 +9,7 @@ require (
 	github.com/fatih/color v1.14.1
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/json-iterator/go v1.1.12
-	github.com/juju/errors v0.0.0-20220331221717-b38fca44723b
+	github.com/juju/errors v1.0.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/maxatome/go-testdeep v1.12.0
 	github.com/pkg/errors v0.9.1
