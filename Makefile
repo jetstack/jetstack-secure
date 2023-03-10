@@ -120,6 +120,11 @@ sbom-docker-image:
 attest-docker-image:
 	@cosign attest --type slsaprovenance --predicate predicate.json $(DOCKER_IMAGE):$(VERSION)
 
+.PHONY: update-helm-docs
+update-helm-docs:
+	GO111MODULE=on go get github.com/norwoodj/helm-docs/cmd/helm-docs
+	helm-docs --chart-search-root=deploy/charts/
+
 # CI
 
 export PATH:=$(GOPATH)/bin:$(PATH)
