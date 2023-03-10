@@ -1,0 +1,13 @@
+apiVersion: v2
+name: jetstack-agent
+description: Jetstack Secure Agent
+type: application
+version: 0.1.0
+appVersion: "v0.38.0"
+home: https://github.com/jetstack/jetstack-secure
+maintainers:
+- name: JSCP and CRE Team
+  email: tls-protect-for-kubernetes@jetstack.io
+  url: https://platform.jetstack.io/documentation
+sources:
+- https://github.com/jetstack/jetstack-secure

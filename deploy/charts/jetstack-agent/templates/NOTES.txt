@@ -1,0 +1,4 @@
+1. Please make sure you have the secret "{{ .Values.authentication.secretName }}" available
+
+2. Check the application if running with the following:
+> kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}

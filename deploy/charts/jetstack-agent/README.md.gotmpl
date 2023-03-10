@@ -1,0 +1,47 @@
+{{ template "chart.header" . }}
+{{ template "chart.description" . }}
+
+{{ template "chart.versionBadge" . }}{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+## Additional Information
+
+The Jetstack secure agent helm chart installs the Kubernetes agent that connects to The TLS Protect For Kubernetes platform.
+It will require a valid JSS organisation with a license to add the new cluster.
+You should also choose a unique name for your cluster that it will appear under in the TLPK platform.
+
+## Installing the Chart
+
+First obtain your service account credential, this can be done through the UI or jsctl
+
+For example:
+```
+jsctl auth clusters create-service-account blah | tee credentials.json
+{
+  "user_id": "blah1728023974@strange-jones.platform.jetstack.io",
+  "user_secret": "REDACTED"
+}
+```
+
+To install the chart with the release name `my-release`:
+
+Method 1, create secret manually:
+```
+kubectl create secret -n jetstack-agent "<SOME_SECRET_NAME>" --from-file=credentials.json
+helm upgrade --install --create-namespace -n jetstack-agent-saas saas jetstack-agent/ --set config.organisation="strange-jones" \
+ --set config.cluster="<CLUSTER_NAME>" --set authentication.secretName="<SOME_SECRET_NAME>"
+```
+
+Method 2, Pass secret to chart as a value`, it creates the secret:
+
+```console
+# Install with secret
+# Installing by passing in secret
+helm upgrade --install --create-namespace -n jetstack-agent-saas saas jetstack-agent/ --set config.organisation="strange-jones" \
+--set config.cluster="<CLUSTER_NAME>" --set authentication.createSecret=true --set authentication.secretValue="$HELM_SECRET"
+```
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}
+
+{{ template "helm-docs.versionFooter" . }}

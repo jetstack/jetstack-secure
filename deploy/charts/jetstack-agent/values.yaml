@@ -1,0 +1,94 @@
+# Default values for jetstack-agent.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# -- default replicas, do not scale up
+replicaCount: 1
+
+# -- image settings
+image:
+  repository: eu.gcr.io/jetstack-secure/preflight
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "v0.1.38"
+
+# -- specify credentials if pulling from a customer registry
+imagePullSecrets: []
+
+# -- Helm default setting to override release name, leave blank
+nameOverride: ""
+# -- Helm default setting, use this to shorten install name
+fullnameOverride: ""
+
+
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  # @default true
+  create: true
+  # -- Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  requests:
+    memory: 200Mi
+    cpu: 200m
+  limits:
+    memory: 500Mi
+    cpu: 500m
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+authentication:
+  createSecret: false # Potentially have as true to pass in secret
+  # type can be file | token which dictates whether a credential file or token is used
+  type: file
+  secretName: agent-credentials
+  secretKey: credentials.json
+  # Base64 encoded value from Jetstack Secure Dashboard - only required when createSecret is true
+  secretValue: ""
+
+# Configuration section for the agent itself
+config:
+  # Can override the server if using a proxy between agent and Jetstack Secure
+  server: "https://platform.jetstack.io"
+  # REQUIRED - Your Jetstack Secure Organisation Name
+  organisation: ""
+  # REQUIRED - Your Jetstack Secure Cluster Name
+  cluster: ""
+  period: "0h1m0s"
+  dataGatherers:
+    default: true
+    custom: []
+    # Full list that makes up the default role
+    # - node
+    # - secret
+    # - cert-manager
+    # - googlecas
+    # - awspca
+    # - webhook
+    # - openshift
+    # - istio
