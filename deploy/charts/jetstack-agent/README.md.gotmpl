@@ -17,9 +17,9 @@ For example with `jsctl`:
 ```
 jsctl set organization <MY_ORG>
 jsctl auth login
-jsctl auth clusters create-service-account blah | tee credentials.json
+jsctl auth clusters create-service-account <CLUSTER_NAME> | tee credentials.json
 {
-  "user_id": "blah1728023974@<MY_ORG>.platform.jetstack.io",
+  "user_id": "<CLUSTER_NAME>1728023974@<MY_ORG>.platform.jetstack.io",
   "user_secret": "REDACTED"
 }
 ```
