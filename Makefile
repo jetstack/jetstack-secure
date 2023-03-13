@@ -122,7 +122,7 @@ attest-docker-image:
 
 .PHONY: update-helm-docs
 update-helm-docs:
-	GO111MODULE=on go get github.com/norwoodj/helm-docs/cmd/helm-docs
+	GO111MODULE=on go install github.com/norwoodj/helm-docs/cmd/helm-docs@latest
 	helm-docs --chart-search-root=deploy/charts/
 
 # CI

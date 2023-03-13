@@ -2,12 +2,12 @@
 
 Jetstack Secure Agent
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.38.0](https://img.shields.io/badge/AppVersion-v0.38.0-informational?style=flat-square)
+![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v1.38.0](https://img.shields.io/badge/AppVersion-v1.38.0-informational?style=flat-square)
 
 ## Additional Information
 
 The Jetstack secure agent helm chart installs the Kubernetes agent that connects to The TLS Protect For Kubernetes platform.
-It will require a valid JSS organisation with license to add the new cluster.
+It will require a valid JSS organisation with a license to add the new cluster.
 You should also choose a unique name for your cluster that it will appear under in the TLPK platform.
 
 ## Installing the Chart
@@ -29,7 +29,7 @@ Method 1, create secret manually:
 ```
 kubectl create secret -n jetstack-agent "<SOME_SECRET_NAME>" --from-file=credentials.json
 helm upgrade --install --create-namespace -n jetstack-agent-saas saas jetstack-agent/ --set config.organisation="strange-jones" \
- --set config.cluster="test_helm_2" --set authentication.secretName="<SOME_SECRET_NAME>"
+ --set config.cluster="<CLUSTER_NAME>" --set authentication.secretName="<SOME_SECRET_NAME>"
 ```
 
 Method 2, Pass secret to chart as a value`, it creates the secret:
@@ -58,7 +58,7 @@ helm upgrade --install --create-namespace -n jetstack-agent-saas saas jetstack-a
 | config.period | string | `"0h1m0s"` |  |
 | config.server | string | `"https://platform.jetstack.io"` |  |
 | fullnameOverride | string | `""` | Helm default setting, use this to shorten install name |
-| image | object | `{"pullPolicy":"IfNotPresent","repository":"eu.gcr.io/jetstack-secure/preflight","tag":"v0.1.38"}` | image settings |
+| image | object | `{"pullPolicy":"IfNotPresent","repository":"quay.io/jetstack/preflight","tag":"v0.1.38"}` | image settings |
 | imagePullSecrets | list | `[]` | specify credentials if pulling from a customer registry |
 | nameOverride | string | `""` | Helm default setting to override release name, leave blank |
 | nodeSelector | object | `{}` |  |

@@ -11,33 +11,41 @@ You should also choose a unique name for your cluster that it will appear under 
 
 ## Installing the Chart
 
-First obtain your service account credential, this can be done through the UI or jsctl
+First obtain your service account credential, this can be done through the UI or [jsctl](https://github.com/jetstack/jsctl/releases)
 
-For example:
+For example with `jsctl`:
 ```
+jsctl set organization <MY_ORG>
+jsctl auth login
 jsctl auth clusters create-service-account blah | tee credentials.json
 {
-  "user_id": "blah1728023974@strange-jones.platform.jetstack.io",
+  "user_id": "blah1728023974@<MY_ORG>.platform.jetstack.io",
   "user_secret": "REDACTED"
 }
 ```
 
-To install the chart with the release name `my-release`:
+Once credentials are obtained, there are two ways to install the chart:
 
-Method 1, create secret manually:
+Method 1: create secret manually
+
 ```
-kubectl create secret -n jetstack-agent "<SOME_SECRET_NAME>" --from-file=credentials.json
-helm upgrade --install --create-namespace -n jetstack-agent-saas saas jetstack-agent/ --set config.organisation="strange-jones" \
- --set config.cluster="<CLUSTER_NAME>" --set authentication.secretName="<SOME_SECRET_NAME>"
+# pre-create secret
+kubectl create secret -n jetstack-secure "<SOME_SECRET_NAME>" --from-file=credentials.json
+# Install refering to secret
+helm upgrade --install --create-namespace -n jetstack-secure jetstack-agent \
+  oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent \
+  --set config.organisation="strange-jones"  --set config.cluster="<CLUSTER_NAME>" \
+  --set authentication.secretName="<SOME_SECRET_NAME>"
 ```
 
-Method 2, Pass secret to chart as a value`, it creates the secret:
+Method 2: Pass secret to chart as a value, it creates the secret
 
 ```console
-# Install with secret
-# Installing by passing in secret
-helm upgrade --install --create-namespace -n jetstack-agent-saas saas jetstack-agent/ --set config.organisation="strange-jones" \
---set config.cluster="<CLUSTER_NAME>" --set authentication.createSecret=true --set authentication.secretValue="$HELM_SECRET"
+# Installing by passing in service account directly
+helm upgrade --install --create-namespace -n jetstack-secure jetstack-agent \
+  oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent \
+  --set config.organisation="strange-jones" --set config.cluster="<CLUSTER_NAME>" \
+  --set authentication.createSecret=true --set authentication.secretValue="$HELM_SECRET"
 ```
 
 {{ template "chart.requirementsSection" . }}
