@@ -7,7 +7,7 @@ replicaCount: 1
 
 # -- image settings
 image:
-  repository: eu.gcr.io/jetstack-secure/preflight
+  repository: quay.io/jetstack/preflight
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "v0.1.38"
