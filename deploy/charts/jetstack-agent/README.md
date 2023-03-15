@@ -31,7 +31,7 @@ jsctl auth clusters create-service-account <CLUSTER_NAME> | tee credentials.json
 
 Once credentials are obtained, there are two ways to install the chart:
 
-Method 1: create secret manually
+#### Method 1: create secret manually
 
 ```
 # pre-create secret
@@ -43,10 +43,10 @@ helm upgrade --install --create-namespace -n jetstack-secure jetstack-agent \
   --set authentication.secretName="<SOME_SECRET_NAME>"
 ```
 
-Method 2: Pass secret to chart as a value, it creates the secret
+#### Method 2: Pass secret to chart as a value, it creates the secret
 
-# This is loading the secret obtained from create-service-account step [above](#obtaining-credentials)  
-export HELM_SECRET="$(cat credentials.json)"
+*This is loading the secret obtained from create-service-account step [above](#obtaining-credentials)  
+`export HELM_SECRET="$(cat credentials.json)"`*
 
 ```console
 # Installing by passing in secret directly
