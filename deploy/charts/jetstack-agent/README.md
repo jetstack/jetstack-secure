@@ -7,10 +7,12 @@ Jetstack Secure Agent
 ## Additional Information
 
 The Jetstack secure agent helm chart installs the Kubernetes agent that connects to The TLS Protect For Kubernetes platform.
-It will require a valid JSS organisation with a license to add the new cluster.
+It will require a valid TLS Protect for Kubernetes organisation with a license to add the new cluster.
 You should also choose a unique name for your cluster that it will appear under in the TLPK platform.
 
 ## Installing the Chart
+
+### Obtaining credentials
 
 First obtain your service account credential, this can be done through the UI or [jsctl](https://github.com/jetstack/jsctl/releases)
 
@@ -24,6 +26,8 @@ jsctl auth clusters create-service-account <CLUSTER_NAME> | tee credentials.json
   "user_secret": "REDACTED"
 }
 ```
+
+### Deploying the chart
 
 Once credentials are obtained, there are two ways to install the chart:
 
@@ -41,8 +45,11 @@ helm upgrade --install --create-namespace -n jetstack-secure jetstack-agent \
 
 Method 2: Pass secret to chart as a value, it creates the secret
 
+# This is loading the secret obtained from create-service-account step [above](#obtaining-credentials)  
+export HELM_SECRET="$(cat credentials.json)"
+
 ```console
-# Installing by passing in service account directly
+# Installing by passing in secret directly
 helm upgrade --install --create-namespace -n jetstack-secure jetstack-agent \
   oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent \
   --set config.organisation="strange-jones" --set config.cluster="<CLUSTER_NAME>" \
