@@ -120,6 +120,8 @@ sbom-docker-image:
 attest-docker-image:
 	@cosign attest --type slsaprovenance --predicate predicate.json $(DOCKER_IMAGE):$(VERSION)
 
+# A pre-commit hook is configured on this repository and can be installed using https://pre-commit.com/#3-install-the-git-hook-scripts
+# This target can be used instead if the pre-commit hook is not desired
 .PHONY: update-helm-docs
 update-helm-docs:
 	go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.10.0
