@@ -11,7 +11,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/juju/errors v1.0.0
 	github.com/kylelemons/godebug v1.1.0
-	github.com/maxatome/go-testdeep v1.12.0
+	github.com/maxatome/go-testdeep v1.13.0
 	github.com/pkg/errors v0.9.1
 	github.com/pmylund/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.15.0
