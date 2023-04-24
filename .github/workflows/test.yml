@@ -53,3 +53,7 @@ jobs:
         driver-opts: image=moby/buildkit:master
     - name: Build images
       run: make build-docker-image
+    - name: Sign
+      run: make sign-docker-image
+    - name: SBOM
+      run: make sbom-docker-image
