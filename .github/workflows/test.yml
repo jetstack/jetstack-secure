@@ -40,7 +40,7 @@ jobs:
           DOCKER_HOST: tcp://localhost:2375
     steps:
     - name: Install Tools
-      run: apk add --update make git jq rsync curl
+      run: apk add --update make git jq rsync curl go
     - name: Adding github workspace as safe directory
       # See issue https://github.com/actions/checkout/issues/760
       run: git config --global --add safe.directory $GITHUB_WORKSPACE
@@ -53,6 +53,7 @@ jobs:
         driver-opts: image=moby/buildkit:master
     - name: Build images
       run: make build-docker-image
+    
     - name: Sign
       run: make sign-docker-image
     - name: SBOM
