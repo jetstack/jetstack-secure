@@ -10,29 +10,29 @@ on:
 jobs:
   vet:
     name: vet
-    runs-on: ubuntu-20.04
-    container: golang:1.18
+    runs-on: ubuntu-22.04
+    container: golang:1.19
     steps:
     - uses: actions/checkout@v3
     - run: make vet
       shell: bash
   test:
     name: go test
-    runs-on: ubuntu-20.04
-    container: golang:1.18
+    runs-on: ubuntu-22.04
+    container: golang:1.19
     steps:
     - uses: actions/checkout@v3
     - run: make test
   docker_build:
     name: docker_build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
-      image: docker:20.10.5
+      image: docker:23
       options: -t
     # Setting up dind service container
     services:
       docker:
-        image: docker:20.10.5-dind
+        image: docker:23-dind
         env:
           DOCKER_DRIVER: overlay
           DOCKER_HOST: tcp://localhost:2375
