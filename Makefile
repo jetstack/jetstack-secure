@@ -108,17 +108,17 @@ export COSIGN_EXPERIMENTAL=1
 
 .PHONY: sign-docker-image
 sign-docker-image:
-	@cosign sign $(DOCKER_IMAGE):$(VERSION)
+	@cosign sign -y $(DOCKER_IMAGE):$(VERSION)
 
 .PHONY: sbom-docker-image
 sbom-docker-image:
 	@syft $(DOCKER_IMAGE):$(VERSION) -o cyclonedx > bom.xml
-	@cosign attach sbom --sbom bom.xml --type cyclonedx $(DOCKER_IMAGE):$(VERSION)
-	@cosign sign --attachment sbom $(DOCKER_IMAGE):$(VERSION)
+	@cosign attach sbom -y --sbom bom.xml --type cyclonedx $(DOCKER_IMAGE):$(VERSION)
+	@cosign sign -y --attachment sbom $(DOCKER_IMAGE):$(VERSION)
 
 .PHONY: attest-docker-image
 attest-docker-image:
-	@cosign attest --type slsaprovenance --predicate predicate.json $(DOCKER_IMAGE):$(VERSION)
+	@cosign attest -y --type slsaprovenance --predicate predicate.json $(DOCKER_IMAGE):$(VERSION)
 
 # A pre-commit hook is configured on this repository and can be installed using https://pre-commit.com/#3-install-the-git-hook-scripts
 # This target can be used instead if the pre-commit hook is not desired
