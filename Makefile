@@ -113,7 +113,7 @@ sign-docker-image:
 .PHONY: sbom-docker-image
 sbom-docker-image:
 	@syft $(DOCKER_IMAGE):$(VERSION) -o cyclonedx > bom.xml
-	@cosign attach sbom -y --sbom bom.xml --type cyclonedx $(DOCKER_IMAGE):$(VERSION)
+	@cosign attach sbom --sbom bom.xml --type cyclonedx $(DOCKER_IMAGE):$(VERSION)
 	@cosign sign -y --attachment sbom $(DOCKER_IMAGE):$(VERSION)
 
 .PHONY: attest-docker-image
