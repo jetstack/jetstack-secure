@@ -2,8 +2,8 @@ apiVersion: v2
 name: jetstack-agent
 description: Jetstack Secure Agent
 type: application
-version: 0.1.0
-appVersion: "v1.38.0"
+version: 0.2.0
+appVersion: "v1.39.0"
 home: https://github.com/jetstack/jetstack-secure
 maintainers:
 - name: JSCP and CRE Team
