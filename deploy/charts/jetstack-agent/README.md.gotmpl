@@ -39,8 +39,12 @@ To validate you registry credentials are working with `helm`, we can use it to
 show us the full list of values available to configure the chart:
 
 ```shell
-helm show values oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent --registry-config "${TLSPK_DOCKER_CONFIG_FILE}"
+export TLSPK_REGISTRY="eu.gcr.io/jetstack-secure-enterprise"
+helm show values oci://${TLSPK_REGISTRY}/charts/jetstack-agent --registry-config "${TLSPK_DOCKER_CONFIG_FILE}"
 ```
+
+**Note**: Feel free to alter the registry to the US equivalent if that is closer
+to you, for example: `export TLSPK_REGISTRY="us.gcr.io/jetstack-secure-enterprise"`
 
 ### 2) Obtaining TLSPK agent credentials:
 
@@ -80,7 +84,7 @@ Install the chart with the basic configuration:
 
 ```shell
 helm upgrade --install --create-namespace -n jetstack-secure jetstack-agent \
-  oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent \
+  oci://${TLSPK_REGISTRY}/charts/jetstack-agent \
   --registry-config "${TLSPK_DOCKER_CONFIG_FILE}" \
   --set config.organisation="${TLSPK_ORG}" \
   --set config.cluster="${TLSPK_CLUSTER_NAME}"
@@ -99,7 +103,7 @@ credential, read from the environment variable just set:
 
 ```shell
 helm upgrade --install --create-namespace -n jetstack-secure jetstack-agent \
-  oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent \
+  oci://${TLSPK_REGISTRY}/charts/jetstack-agent \
   --registry-config "${TLSPK_DOCKER_CONFIG_FILE}" \
   --set config.organisation="${TLSPK_ORG}" \
   --set config.cluster="${TLSPK_CLUSTER_NAME}" \
