@@ -189,3 +189,19 @@ data:
           group: route.openshift.io
           resource: routes
 {{- end }}
+{{- if or .Values.config.dataGatherers.default (has "venafienhancedissuer" .Values.config.dataGatherers.custom) }}
+    - kind: "k8s-dynamic"
+      name: "k8s/venaficlusterissuers"
+      config:
+        resource-type:
+          group: jetstack.io
+          version: v1alpha1
+          resource: venaficlusterissuers
+    - kind: "k8s-dynamic"
+      name: "k8s/venafiissuers"
+      config:
+        resource-type:
+          group: jetstack.io
+          version: v1alpha1
+          resource: venafiissuers
+{{- end }}
