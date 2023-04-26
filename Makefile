@@ -124,7 +124,7 @@ attest-docker-image:
 # This target can be used instead if the pre-commit hook is not desired
 .PHONY: update-helm-docs
 update-helm-docs:
-	go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.10.0
+	go install github.com/norwoodj/helm-docs/cmd/helm-docs@v1.11.0
 	helm-docs --chart-search-root=deploy/charts/
 
 # CI
