@@ -77,6 +77,8 @@ spec:
         - name: config
           configMap:
             name: agent-config
+            options: false
         - name: credentials
           secret:
             secretName: {{ default "agent-credentials" .Values.authentication.secretName }}
+            optional: false
