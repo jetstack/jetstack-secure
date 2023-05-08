@@ -14,7 +14,7 @@ require (
 	github.com/maxatome/go-testdeep v1.13.0
 	github.com/pkg/errors v0.9.1
 	github.com/pmylund/go-cache v2.1.0+incompatible
-	github.com/prometheus/client_golang v1.15.0
+	github.com/prometheus/client_golang v1.15.1
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	gopkg.in/d4l3k/messagediff.v1 v1.2.1
