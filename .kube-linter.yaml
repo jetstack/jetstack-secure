@@ -1,0 +1,16 @@
+checks:
+  addAllBuiltIn: true
+  exclude:
+    - "use-namespace"
+    - "access-to-secrets" # Requires this to discover certs
+    - "required-annotation-email" # No really applicable for OTS software
+    - "required-label-owner" # No really applicable for OTS software
+    - "no-rolling-update-strategy" # Only one agent required to run - potentially replace instead
+    - "no-node-affinity" # Can run anywhere in the cluster
+    - "minimum-three-replicas" # Only one replica required, not sure if greater replicas would cause issues
+    - "dnsconfig-options" # Hard to determine for customer environment, so default seems sensible here
+    # https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-policy
+    # TODO: Fix the ones below soon
+    - "non-isolated-pod" # Network policy could be implemented - ignoring for now
+    - "no-liveness-probe" # Needs fixed, this is a temporary exclusion
+    - "no-readiness-probe" # Needs fixed, this is a temporary exclusion
