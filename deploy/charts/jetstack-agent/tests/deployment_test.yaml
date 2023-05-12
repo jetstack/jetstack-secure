@@ -1,0 +1,18 @@
+suite: General sanity checks
+templates:
+  - deployment.yaml
+tests:
+  - it: should work
+    set:
+      config.organisation: jetstack-test
+      config.cluster: helm_unittest_cluster
+    asserts:
+      - isKind:
+          of: Deployment
+      # Probably changes if using fullnameOverride flag but that should be fairly minimal
+      - matchRegex:
+          path: metadata.name
+          pattern: ^jetstack-agent-
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: quay.io/jetstack/preflight:v0.1.39

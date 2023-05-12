@@ -1,0 +1,4 @@
+checks:
+  tagNotSpecified: ignore
+  runAsRootAllowed: danger
+  pullPolicyNotAlways: warning

@@ -1,0 +1,43 @@
+name: Chart Testing
+
+on:
+  push:
+    branches-ignore:
+      - master
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  polaris:
+    name: polairs
+    runs-on: ubuntu-22.04
+    # container:
+    #   image: docker:23
+    #   options: -t
+    # Setting up dind service container
+    # services:
+    #   docker:
+    #     image: docker:23-dind
+    #     env:
+    #       DOCKER_DRIVER: overlay
+    #       DOCKER_HOST: tcp://localhost:2375
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup polaris
+        uses: fairwindsops/polaris/.github/actions/setup-polaris@master
+        with:
+          version: 7.4.1
+      - name: Check Version
+        run: polaris version
+
+  # kubeconform:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: login to Github Packages
+  #       run: echo "${{ github.token }}" | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
+  #     - uses: actions/checkout@v2
+  #     - uses: docker://ghcr.io/yannh/kubeconform:master
+  #       with:
+  #         entrypoint: '/kubeconform'
+  #         args: "-summary -output json kubeconfigs/"
