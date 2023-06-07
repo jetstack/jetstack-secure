@@ -98,12 +98,10 @@ func TestValidConfigWithEndpointLoad(t *testing.T) {
 	}
 }
 
-func TestValidTLSProtectCloudConfigLoad(t *testing.T) {
+func TestValidVenafiCloudConfigLoad(t *testing.T) {
 	configFileContents := `
       server: "http://localhost:8080"
       period: 1h
-      upload_id: test-agent
-      upload_path: "/testing/path"
       data-gatherers:
       - name: d1
         kind: dummy
@@ -111,6 +109,9 @@ func TestValidTLSProtectCloudConfigLoad(t *testing.T) {
           always-fail: false
       input-path: "/home"
       output-path: "/nothome"
+      venafi-cloud: 
+        upload_id: test-agent
+        upload_path: "/testing/path"
 `
 
 	loadedConfig, err := ParseConfig([]byte(configFileContents))
@@ -132,10 +133,12 @@ func TestValidTLSProtectCloudConfigLoad(t *testing.T) {
 				},
 			},
 		},
-		InputPath:                 "/home",
-		OutputPath:                "/nothome",
-		TLSProtectCloudkUploadID:  "test-agent",
-		TLSProtectCloudUploadPath: "/testing/path",
+		InputPath:  "/home",
+		OutputPath: "/nothome",
+		VenafiCloud: &VenafiCloudConfig{
+			UploadID:   "test-agent",
+			UploadPath: "/testing/path",
+		},
 	}
 
 	if diff, equal := messagediff.PrettyDiff(expected, loadedConfig); !equal {

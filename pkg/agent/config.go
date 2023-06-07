@@ -30,12 +30,8 @@ type Config struct {
 	// InputPath replaces DataGatherers with input data file
 	InputPath string `yaml:"input-path"`
 	// OutputPath replaces Server with output data file
-	OutputPath string `yaml:"output-path"`
-	// TLSProtectCloudkUploadID is the upload ID that will be used when
-	// creating a cluster connection
-	TLSProtectCloudkUploadID string `yaml:"upload_id,omitempty"`
-	// TLSProtectCloudUploadPath is the endpoint path for the upload API.
-	TLSProtectCloudUploadPath string `yaml:"upload_path,omitempty"`
+	OutputPath  string             `yaml:"output-path"`
+	VenafiCloud *VenafiCloudConfig `yaml:"venafi-cloud,omitempty"`
 }
 
 type Endpoint struct {
@@ -49,6 +45,14 @@ type DataGatherer struct {
 	Name     string `yaml:"name"`
 	DataPath string `yaml:"data_path"`
 	Config   datagatherer.Config
+}
+
+type VenafiCloudConfig struct {
+	// UploadID is the upload ID that will be used when
+	// creating a cluster connection
+	UploadID string `yaml:"upload_id,omitempty"`
+	// UploadPath is the endpoint path for the upload API.
+	UploadPath string `yaml:"upload_path,omitempty"`
 }
 
 func reMarshal(rawConfig interface{}, config datagatherer.Config) error {
@@ -125,16 +129,16 @@ func (c *Config) Dump() (string, error) {
 func (c *Config) validate() error {
 	var result *multierror.Error
 
-	// configured for TLS Protect Cloud
-	if c.TLSProtectCloudkUploadID != "" || c.TLSProtectCloudUploadPath != "" {
-		if c.TLSProtectCloudkUploadID == "" {
-			result = multierror.Append(result, fmt.Errorf("upload_id is required in TLS Protect Cloud mode"))
+	// configured for Venafi Cloud
+	if c.VenafiCloud != nil {
+		if c.VenafiCloud.UploadID == "" {
+			result = multierror.Append(result, fmt.Errorf("upload_id is required in Venafi Cloud mode"))
 		}
-		if c.TLSProtectCloudUploadPath == "" {
-			result = multierror.Append(result, fmt.Errorf("upload_path is required in TLS Protect Cloud mode"))
+		if c.VenafiCloud.UploadPath == "" {
+			result = multierror.Append(result, fmt.Errorf("upload_path is required in Venafi Cloud mode"))
 		}
 
-		if _, err := url.Parse(c.TLSProtectCloudUploadPath); err != nil {
+		if _, err := url.Parse(c.VenafiCloud.UploadPath); err != nil {
 			result = multierror.Append(result, fmt.Errorf("upload_path is not a valid URL"))
 		}
 	} else {

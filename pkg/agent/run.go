@@ -39,8 +39,8 @@ var OneShot bool
 // CredentialsPath is where the agent will try to loads the credentials. (Experimental)
 var CredentialsPath string
 
-// TLSProtectCloudCredentialsPath is where the agent will try to loads the TLSPK credentials
-var TLSProtectCloudCredentialsPath string
+// VenafiSvcAccountCredentialsPath is where the agent will try to loads the Venafi Cloud service account credentials
+var VenafiSvcAccountCredentialsPath string
 
 // OutputPath is where the agent will write data to locally if specified
 var OutputPath string
@@ -71,7 +71,7 @@ var Prometheus bool
 // raw resource data of unstructuredList
 const schemaVersion string = "v2.0.0"
 
-var tlsProtectCloudMode bool = false
+var venafiCloudAuth bool = false
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
@@ -226,11 +226,11 @@ func getConfiguration() (Config, client.Client) {
 
 	log.Printf("Loaded config: \n%s", dump)
 
-	var tlsProtectCloudCredentials *client.TLSProtectCloudCredentials
-	if TLSProtectCloudCredentialsPath != "" {
-		file, err = os.Open(TLSProtectCloudCredentialsPath)
+	var venafiSvcAccountCredentials *client.VenafiSvcAccountCredentials
+	if VenafiSvcAccountCredentialsPath != "" {
+		file, err = os.Open(VenafiSvcAccountCredentialsPath)
 		if err != nil {
-			log.Fatalf("Failed to load credentials from file %s", TLSProtectCloudCredentialsPath)
+			log.Fatalf("Failed to load credentials from file %s", VenafiSvcAccountCredentialsPath)
 		}
 		defer file.Close()
 
@@ -238,11 +238,11 @@ func getConfiguration() (Config, client.Client) {
 		if err != nil {
 			log.Fatalf("Failed to read credentials file: %v", err)
 		}
-		tlsProtectCloudCredentials, err = client.ParseTLSProtectCloudCredentials(b)
+		venafiSvcAccountCredentials, err = client.ParseVenafiSvcAccountCredentials(b)
 		if err != nil {
 			log.Fatalf("Failed to parse credentials file: %s", err)
 		}
-		tlsProtectCloudMode = true
+		venafiCloudAuth = true
 	}
 
 	var credentials *client.Credentials
@@ -270,9 +270,13 @@ func getConfiguration() (Config, client.Client) {
 
 	var preflightClient client.Client
 	switch {
-	case tlsProtectCloudCredentials != nil:
-		log.Println("A TLS Protect Cloud credentials file was specified, using TLS Protect Cloud authentication.")
-		preflightClient, err = client.NewTLSProtectCloudClient(agentMetadata, tlsProtectCloudCredentials, baseURL, config.TLSProtectCloudkUploadID, config.TLSProtectCloudUploadPath)
+	case venafiSvcAccountCredentials != nil:
+		log.Println("A Venafi Service Account credentials file was specified, using Venafi Service Account authentication.")
+		// check if config has Venafi Cloud data
+		if config.VenafiCloud == nil {
+			log.Fatalf("Failed to find config for venafi-cloud: required for Venafi Cloud auth")
+		}
+		preflightClient, err = client.NewVenafiCloudClient(agentMetadata, venafiSvcAccountCredentials, baseURL, config.VenafiCloud.UploadID, config.VenafiCloud.UploadPath)
 	case credentials != nil:
 		log.Println("A credentials file was specified, using oauth authentication.")
 		preflightClient, err = client.NewOAuthClient(agentMetadata, credentials, baseURL)
@@ -391,8 +395,9 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 	log.Println("Running Agent...")
 	log.Println("Posting data to:", baseURL)
 
-	if tlsProtectCloudMode {
-		err := preflightClient.PostDataReadings(config.OrganizationID, config.ClusterID, readings)
+	if venafiCloudAuth {
+		// orgID and clusterID are not required for Venafi Cloud auth
+		err := preflightClient.PostDataReadings("", "", readings)
 		if err != nil {
 			return fmt.Errorf("Post to server failed: %+v", err)
 		}

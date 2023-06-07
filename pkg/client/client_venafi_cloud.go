@@ -30,16 +30,16 @@ import (
 )
 
 type (
-	// The TLSProtectCloudClient type is a Client implementation used to upload data readings to the TLS Protect Cloud platform
+	// The VenafiCloudClient type is a Client implementation used to upload data readings to the Venafi Cloud platform
 	// using service account authentication as its authentication method.
 	//
-	// This form of authentication follows the Private Key JWT standard found at https://oauth.net/private-key-jwt, 
+	// This form of authentication follows the Private Key JWT standard found at https://oauth.net/private-key-jwt,
 	// which is a combination of two RFCs:
 	// * RFC 7521 (Assertion Framework)
 	// * RFC 7523 (JWT Profile for Client Authentication)
-	TLSProtectCloudClient struct {
-		credentials   *TLSProtectCloudCredentials
-		accessToken   *tlsProtectCloudAccessToken
+	VenafiCloudClient struct {
+		credentials   *VenafiSvcAccountCredentials
+		accessToken   *venafiCloudAccessToken
 		baseURL       string
 		agentMetadata *api.AgentMetadata
 		client        *http.Client
@@ -51,7 +51,7 @@ type (
 		lock          sync.RWMutex
 	}
 
-	TLSProtectCloudCredentials struct {
+	VenafiSvcAccountCredentials struct {
 		// ClientID is the service account client ID
 		ClientID string `yaml:"client_id,omitempty"`
 		// PrivateKeyFile is the path to the private key file paired to
@@ -59,7 +59,7 @@ type (
 		PrivateKeyFile string `yaml:"private_key_file,omitempty"`
 	}
 
-	tlsProtectCloudAccessToken struct {
+	venafiCloudAccessToken struct {
 		accessToken    string
 		expirationTime time.Time
 	}
@@ -77,29 +77,29 @@ const (
 	requiredGrantType   = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 )
 
-// NewTLSProtectCloudClient returns a new instance of the TLSProtectCloudClient type that will perform HTTP requests using a bearer token
+// NewVenafiCloudClient returns a new instance of the VenafiCloudClient type that will perform HTTP requests using a bearer token
 // to authenticate to the backend API.
-func NewTLSProtectCloudClient(agentMetadata *api.AgentMetadata, credentials *TLSProtectCloudCredentials, baseURL string, uploadID string, uploadPath string) (*TLSProtectCloudClient, error) {
+func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiSvcAccountCredentials, baseURL string, uploadID string, uploadPath string) (*VenafiCloudClient, error) {
 	if err := credentials.validate(); err != nil {
-		return nil, fmt.Errorf("cannot create TLSProtectCloudClient: %v", err)
+		return nil, fmt.Errorf("cannot create VenafiCloudClient: %v", err)
 	}
 	privateKey, jwtSigningAlg, err := parsePrivateKeyAndExtractSigningMethod(credentials.PrivateKeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing private key file %v", err)
 	}
 	if baseURL == "" {
-		return nil, fmt.Errorf("cannot create TLSProtectCloudClient: baseURL cannot be empty")
+		return nil, fmt.Errorf("cannot create VenafiCloudClient: baseURL cannot be empty")
 	}
 
 	if !credentials.isClientSet() {
-		return nil, fmt.Errorf("cannot create TLSProtectCloudClient: invalid TLS Protect Cloud client configuration")
+		return nil, fmt.Errorf("cannot create VenafiCloudClient: invalid Venafi Cloud client configuration")
 	}
 
-	return &TLSProtectCloudClient{
+	return &VenafiCloudClient{
 		agentMetadata: agentMetadata,
 		credentials:   credentials,
 		baseURL:       baseURL,
-		accessToken:   &tlsProtectCloudAccessToken{},
+		accessToken:   &venafiCloudAccessToken{},
 		client:        &http.Client{Timeout: time.Minute},
 		uploadID:      uploadID,
 		uploadPath:    uploadPath,
@@ -108,9 +108,9 @@ func NewTLSProtectCloudClient(agentMetadata *api.AgentMetadata, credentials *TLS
 	}, nil
 }
 
-// ParseTLSProtectCloudCredentials reads credentials into a struct used. Performs validations.
-func ParseTLSProtectCloudCredentials(data []byte) (*TLSProtectCloudCredentials, error) {
-	var credentials TLSProtectCloudCredentials
+// ParseVenafiSvcAccountCredentials reads credentials into a struct used. Performs validations.
+func ParseVenafiSvcAccountCredentials(data []byte) (*VenafiSvcAccountCredentials, error) {
+	var credentials VenafiSvcAccountCredentials
 
 	err := yaml.Unmarshal(data, &credentials)
 	if err != nil {
@@ -124,7 +124,7 @@ func ParseTLSProtectCloudCredentials(data []byte) (*TLSProtectCloudCredentials, 
 	return &credentials, nil
 }
 
-func (c *TLSProtectCloudCredentials) validate() error {
+func (c *VenafiSvcAccountCredentials) validate() error {
 	var result *multierror.Error
 
 	if c == nil {
@@ -143,14 +143,14 @@ func (c *TLSProtectCloudCredentials) validate() error {
 }
 
 // IsClientSet returns whether the client credentials are set or not.
-func (c *TLSProtectCloudCredentials) isClientSet() bool {
+func (c *VenafiSvcAccountCredentials) isClientSet() bool {
 	return c.ClientID != "" && c.PrivateKeyFile != ""
 }
 
-// PostDataReadings uploads the slice of api.DataReading to the TLS Protect Cloud backend to be processed for later
+// PostDataReadings uploads the slice of api.DataReading to the Venafi Cloud backend to be processed for later
 // viewing in the user-interface.
-func (c *TLSProtectCloudClient) PostDataReadings(_ string, _ string, readings []*api.DataReading) error {
-	// orgID and clusterID are ignored due to no need for orgID and clusterID
+func (c *VenafiCloudClient) PostDataReadings(_ string, _ string, readings []*api.DataReading) error {
+	// orgID and clusterID are ignored in Venafi Cloud auth
 
 	payload := api.DataReadingsPost{
 		AgentMetadata:  c.agentMetadata,
@@ -184,7 +184,7 @@ func (c *TLSProtectCloudClient) PostDataReadings(_ string, _ string, readings []
 }
 
 // Post performs an HTTP POST request.
-func (c *TLSProtectCloudClient) Post(path string, body io.Reader) (*http.Response, error) {
+func (c *VenafiCloudClient) Post(path string, body io.Reader) (*http.Response, error) {
 	token, err := c.getValidAccessToken()
 	if err != nil {
 		return nil, err
@@ -208,7 +208,7 @@ func (c *TLSProtectCloudClient) Post(path string, body io.Reader) (*http.Respons
 // getValidAccessToken returns a valid access token. It will fetch a new access
 // token from the auth server in case the current access token does not exist
 // or it is expired.
-func (c *TLSProtectCloudClient) getValidAccessToken() (*tlsProtectCloudAccessToken, error) {
+func (c *VenafiCloudClient) getValidAccessToken() (*venafiCloudAccessToken, error) {
 	if c.accessToken == nil || time.Now().Add(time.Minute).After(c.accessToken.expirationTime) {
 		err := c.updateAccessToken()
 		if err != nil {
@@ -219,7 +219,7 @@ func (c *TLSProtectCloudClient) getValidAccessToken() (*tlsProtectCloudAccessTok
 	return c.accessToken, nil
 }
 
-func (c *TLSProtectCloudClient) updateAccessToken() error {
+func (c *VenafiCloudClient) updateAccessToken() error {
 	jwtToken, err := c.generateAndSignJwtToken()
 	if err != nil {
 		return err
@@ -251,7 +251,7 @@ func (c *TLSProtectCloudClient) updateAccessToken() error {
 	}
 
 	c.lock.Lock()
-	c.accessToken = &tlsProtectCloudAccessToken{
+	c.accessToken = &venafiCloudAccessToken{
 		accessToken:    accessToken.AccessToken,
 		expirationTime: now.Add(time.Duration(accessToken.ExpiresIn) * time.Second),
 	}
@@ -259,7 +259,7 @@ func (c *TLSProtectCloudClient) updateAccessToken() error {
 	return nil
 }
 
-func (c *TLSProtectCloudClient) sendHTTPRequest(request *http.Request, responseObject interface{}) error {
+func (c *VenafiCloudClient) sendHTTPRequest(request *http.Request, responseObject interface{}) error {
 	response, err := c.client.Do(request)
 	if err != nil {
 		return err
@@ -287,7 +287,7 @@ func (c *TLSProtectCloudClient) sendHTTPRequest(request *http.Request, responseO
 	return nil
 }
 
-func (c *TLSProtectCloudClient) generateAndSignJwtToken() (string, error) {
+func (c *VenafiCloudClient) generateAndSignJwtToken() (string, error) {
 	prodURL, err := url.Parse(vaasProdURL)
 	if err != nil {
 		return "", err
@@ -312,7 +312,7 @@ func (c *TLSProtectCloudClient) generateAndSignJwtToken() (string, error) {
 func parsePrivateKeyFromPemFile(privateKeyFilePath string) (crypto.PrivateKey, error) {
 	pkBytes, err := os.ReadFile(privateKeyFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch TLS Protect Cloud authentication private key %q: %s",
+		return nil, fmt.Errorf("failed to fetch Venafi Cloud authentication private key %q: %s",
 			privateKeyFilePath, err)
 	}
 

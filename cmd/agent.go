@@ -77,11 +77,11 @@ func init() {
 		"Location of the credentials file. For OAuth2 based authentication.",
 	)
 	agentCmd.PersistentFlags().StringVarP(
-		&agent.TLSProtectCloudCredentialsPath,
-		"tls-protect-cloud-credentials-file",
-		"t",
+		&agent.VenafiSvcAccountCredentialsPath,
+		"venafi-svc-account-credentials-file",
 		"",
-		"Location of the TLS Protect Cloud credentials file. For TLS Protect Cloud based authentication.",
+		"",
+		"Location of the Venafi Cloud service account credentials file. For Venafi Cloud service account based authentication.",
 	)
 	agentCmd.PersistentFlags().BoolVarP(
 		&agent.OneShot,
