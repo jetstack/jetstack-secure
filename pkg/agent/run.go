@@ -39,6 +39,9 @@ var OneShot bool
 // CredentialsPath is where the agent will try to loads the credentials. (Experimental)
 var CredentialsPath string
 
+// TLSProtectCloudCredentialsPath is where the agent will try to loads the TLSPK credentials
+var TLSProtectCloudCredentialsPath string
+
 // OutputPath is where the agent will write data to locally if specified
 var OutputPath string
 
@@ -67,6 +70,8 @@ var Prometheus bool
 // as using v1 by the backend. In v1 the agent sends
 // raw resource data of unstructuredList
 const schemaVersion string = "v2.0.0"
+
+var tlsProtectCloudMode bool = false
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
@@ -221,6 +226,25 @@ func getConfiguration() (Config, client.Client) {
 
 	log.Printf("Loaded config: \n%s", dump)
 
+	var tlsProtectCloudCredentials *client.TLSProtectCloudCredentials
+	if TLSProtectCloudCredentialsPath != "" {
+		file, err = os.Open(TLSProtectCloudCredentialsPath)
+		if err != nil {
+			log.Fatalf("Failed to load credentials from file %s", TLSProtectCloudCredentialsPath)
+		}
+		defer file.Close()
+
+		b, err = ioutil.ReadAll(file)
+		if err != nil {
+			log.Fatalf("Failed to read credentials file: %v", err)
+		}
+		tlsProtectCloudCredentials, err = client.ParseTLSProtectCloudCredentials(b)
+		if err != nil {
+			log.Fatalf("Failed to parse credentials file: %s", err)
+		}
+		tlsProtectCloudMode = true
+	}
+
 	var credentials *client.Credentials
 	if CredentialsPath != "" {
 		file, err = os.Open(CredentialsPath)
@@ -246,6 +270,9 @@ func getConfiguration() (Config, client.Client) {
 
 	var preflightClient client.Client
 	switch {
+	case tlsProtectCloudCredentials != nil:
+		log.Println("A TLS Protect Cloud credentials file was specified, using TLS Protect Cloud authentication.")
+		preflightClient, err = client.NewTLSProtectCloudClient(agentMetadata, tlsProtectCloudCredentials, baseURL, config.TLSProtectCloudkUploadID, config.TLSProtectCloudUploadPath)
 	case credentials != nil:
 		log.Println("A credentials file was specified, using oauth authentication.")
 		preflightClient, err = client.NewOAuthClient(agentMetadata, credentials, baseURL)
@@ -363,6 +390,17 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 
 	log.Println("Running Agent...")
 	log.Println("Posting data to:", baseURL)
+
+	if tlsProtectCloudMode {
+		err := preflightClient.PostDataReadings(config.OrganizationID, config.ClusterID, readings)
+		if err != nil {
+			return fmt.Errorf("Post to server failed: %+v", err)
+		}
+		log.Println("Data sent successfully.")
+
+		return nil
+	}
+
 	if config.OrganizationID == "" {
 		data, err := json.Marshal(readings)
 		if err != nil {

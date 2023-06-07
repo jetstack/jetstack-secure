@@ -98,6 +98,51 @@ func TestValidConfigWithEndpointLoad(t *testing.T) {
 	}
 }
 
+func TestValidTLSProtectCloudConfigLoad(t *testing.T) {
+	configFileContents := `
+      server: "http://localhost:8080"
+      period: 1h
+      upload_id: test-agent
+      upload_path: "/testing/path"
+      data-gatherers:
+      - name: d1
+        kind: dummy
+        config:
+          always-fail: false
+      input-path: "/home"
+      output-path: "/nothome"
+`
+
+	loadedConfig, err := ParseConfig([]byte(configFileContents))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expected := Config{
+		Server:         "http://localhost:8080",
+		Period:         time.Hour,
+		OrganizationID: "",
+		ClusterID:      "",
+		DataGatherers: []DataGatherer{
+			{
+				Name: "d1",
+				Kind: "dummy",
+				Config: &dummyConfig{
+					AlwaysFail: false,
+				},
+			},
+		},
+		InputPath:                 "/home",
+		OutputPath:                "/nothome",
+		TLSProtectCloudkUploadID:  "test-agent",
+		TLSProtectCloudUploadPath: "/testing/path",
+	}
+
+	if diff, equal := messagediff.PrettyDiff(expected, loadedConfig); !equal {
+		t.Errorf("Diff %s", diff)
+	}
+}
+
 func TestInvalidConfigError(t *testing.T) {
 	configFileContents := `data-gatherers: "things"`
 

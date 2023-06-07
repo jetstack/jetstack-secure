@@ -31,6 +31,11 @@ type Config struct {
 	InputPath string `yaml:"input-path"`
 	// OutputPath replaces Server with output data file
 	OutputPath string `yaml:"output-path"`
+	// TLSProtectCloudkUploadID is the upload ID that will be used when
+	// creating a cluster connection
+	TLSProtectCloudkUploadID string `yaml:"upload_id,omitempty"`
+	// TLSProtectCloudUploadPath is the endpoint path for the upload API.
+	TLSProtectCloudUploadPath string `yaml:"upload_path,omitempty"`
 }
 
 type Endpoint struct {
@@ -120,11 +125,25 @@ func (c *Config) Dump() (string, error) {
 func (c *Config) validate() error {
 	var result *multierror.Error
 
-	if c.OrganizationID == "" {
-		result = multierror.Append(result, fmt.Errorf("organization_id is required"))
-	}
-	if c.ClusterID == "" {
-		result = multierror.Append(result, fmt.Errorf("cluster_id is required"))
+	// configured for TLS Protect Cloud
+	if c.TLSProtectCloudkUploadID != "" || c.TLSProtectCloudUploadPath != "" {
+		if c.TLSProtectCloudkUploadID == "" {
+			result = multierror.Append(result, fmt.Errorf("upload_id is required in TLS Protect Cloud mode"))
+		}
+		if c.TLSProtectCloudUploadPath == "" {
+			result = multierror.Append(result, fmt.Errorf("upload_path is required in TLS Protect Cloud mode"))
+		}
+
+		if _, err := url.Parse(c.TLSProtectCloudUploadPath); err != nil {
+			result = multierror.Append(result, fmt.Errorf("upload_path is not a valid URL"))
+		}
+	} else {
+		if c.OrganizationID == "" {
+			result = multierror.Append(result, fmt.Errorf("organization_id is required"))
+		}
+		if c.ClusterID == "" {
+			result = multierror.Append(result, fmt.Errorf("cluster_id is required"))
+		}
 	}
 
 	if c.Server != "" {

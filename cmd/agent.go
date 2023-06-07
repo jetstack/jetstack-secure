@@ -76,6 +76,13 @@ func init() {
 		"",
 		"Location of the credentials file. For OAuth2 based authentication.",
 	)
+	agentCmd.PersistentFlags().StringVarP(
+		&agent.TLSProtectCloudCredentialsPath,
+		"tls-protect-cloud-credentials-file",
+		"t",
+		"",
+		"Location of the TLS Protect Cloud credentials file. For TLS Protect Cloud based authentication.",
+	)
 	agentCmd.PersistentFlags().BoolVarP(
 		&agent.OneShot,
 		"one-shot",
