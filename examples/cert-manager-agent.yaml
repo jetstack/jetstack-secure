@@ -1,3 +1,5 @@
+organization_id: "my-organization"
+cluster_id: "my_cluster"
 schedule: "* * * *"
 token: xxxx
 endpoint:
