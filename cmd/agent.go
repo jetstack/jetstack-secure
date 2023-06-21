@@ -76,12 +76,12 @@ func init() {
 		"",
 		"Location of the credentials file. For OAuth2 based authentication.",
 	)
-	agentCmd.PersistentFlags().StringVarP(
-		&agent.VenafiSvcAccountCredentialsPath,
-		"venafi-svc-account-credentials-file",
+	agentCmd.PersistentFlags().BoolVarP(
+		&agent.VenafiCloudMode,
+		"venafi-cloud",
 		"",
-		"",
-		"Location of the Venafi Cloud service account credentials file. For Venafi Cloud service account based authentication.",
+		false,
+		"Runs agent with parsing config and credentials file in Venafi Cloud format if true.",
 	)
 	agentCmd.PersistentFlags().BoolVarP(
 		&agent.OneShot,

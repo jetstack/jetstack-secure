@@ -21,7 +21,7 @@ type (
 	// The OAuthClient type is a Client implementation used to upload data readings to the Jetstack Secure platform
 	// using OAuth as its authentication method.
 	OAuthClient struct {
-		credentials   *Credentials
+		credentials   *OAuthCredentials
 		accessToken   *accessToken
 		baseURL       string
 		agentMetadata *api.AgentMetadata
@@ -33,8 +33,8 @@ type (
 		expirationDate time.Time
 	}
 
-	// Credentials defines the format of the credentials.json file.
-	Credentials struct {
+	// OAuthCredentials defines the format of the credentials.json file.
+	OAuthCredentials struct {
 		// UserID is the ID or email for the user or service account.
 		UserID string `json:"user_id"`
 		// UserSecret is the secret for the user or service account.
@@ -68,8 +68,8 @@ func (t *accessToken) needsRenew() bool {
 
 // NewOAuthClient returns a new instance of the OAuthClient type that will perform HTTP requests using OAuth to provide
 // authentication tokens to the backend API.
-func NewOAuthClient(agentMetadata *api.AgentMetadata, credentials *Credentials, baseURL string) (*OAuthClient, error) {
-	if err := credentials.validate(); err != nil {
+func NewOAuthClient(agentMetadata *api.AgentMetadata, credentials *OAuthCredentials, baseURL string) (*OAuthClient, error) {
+	if err := credentials.Validate(); err != nil {
 		return nil, fmt.Errorf("cannot create OAuthClient: %v", err)
 	}
 	if baseURL == "" {
@@ -214,16 +214,16 @@ func (c *OAuthClient) renewAccessToken() error {
 	return nil
 }
 
-// ParseCredentials reads credentials into a struct used. Performs validations.
-func ParseCredentials(data []byte) (*Credentials, error) {
-	var credentials Credentials
+// ParseOAuthCredentials reads credentials into an OAuthCredentials struct. Performs validations.
+func ParseOAuthCredentials(data []byte) (Credentials, error) {
+	var credentials OAuthCredentials
 
 	err := json.Unmarshal(data, &credentials)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = credentials.validate(); err != nil {
+	if err = credentials.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -231,11 +231,11 @@ func ParseCredentials(data []byte) (*Credentials, error) {
 }
 
 // IsClientSet returns whether the client credentials are set or not.
-func (c *Credentials) IsClientSet() bool {
+func (c *OAuthCredentials) IsClientSet() bool {
 	return c.ClientID != "" && c.ClientSecret != "" && c.AuthServerDomain != ""
 }
 
-func (c *Credentials) validate() error {
+func (c *OAuthCredentials) Validate() error {
 	var result *multierror.Error
 
 	if c == nil {

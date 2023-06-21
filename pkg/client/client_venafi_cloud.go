@@ -80,7 +80,7 @@ const (
 // NewVenafiCloudClient returns a new instance of the VenafiCloudClient type that will perform HTTP requests using a bearer token
 // to authenticate to the backend API.
 func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiSvcAccountCredentials, baseURL string, uploadID string, uploadPath string) (*VenafiCloudClient, error) {
-	if err := credentials.validate(); err != nil {
+	if err := credentials.Validate(); err != nil {
 		return nil, fmt.Errorf("cannot create VenafiCloudClient: %v", err)
 	}
 	privateKey, jwtSigningAlg, err := parsePrivateKeyAndExtractSigningMethod(credentials.PrivateKeyFile)
@@ -91,7 +91,7 @@ func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiS
 		return nil, fmt.Errorf("cannot create VenafiCloudClient: baseURL cannot be empty")
 	}
 
-	if !credentials.isClientSet() {
+	if !credentials.IsClientSet() {
 		return nil, fmt.Errorf("cannot create VenafiCloudClient: invalid Venafi Cloud client configuration")
 	}
 
@@ -108,8 +108,8 @@ func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiS
 	}, nil
 }
 
-// ParseVenafiSvcAccountCredentials reads credentials into a struct used. Performs validations.
-func ParseVenafiSvcAccountCredentials(data []byte) (*VenafiSvcAccountCredentials, error) {
+// ParseVenafiCredentials reads credentials into a VenafiSvcAccountCredentials struct. Performs validations.
+func ParseVenafiCredentials(data []byte) (Credentials, error) {
 	var credentials VenafiSvcAccountCredentials
 
 	err := yaml.Unmarshal(data, &credentials)
@@ -117,14 +117,14 @@ func ParseVenafiSvcAccountCredentials(data []byte) (*VenafiSvcAccountCredentials
 		return nil, err
 	}
 
-	if err = credentials.validate(); err != nil {
+	if err = credentials.Validate(); err != nil {
 		return nil, err
 	}
 
 	return &credentials, nil
 }
 
-func (c *VenafiSvcAccountCredentials) validate() error {
+func (c *VenafiSvcAccountCredentials) Validate() error {
 	var result *multierror.Error
 
 	if c == nil {
@@ -143,7 +143,7 @@ func (c *VenafiSvcAccountCredentials) validate() error {
 }
 
 // IsClientSet returns whether the client credentials are set or not.
-func (c *VenafiSvcAccountCredentials) isClientSet() bool {
+func (c *VenafiSvcAccountCredentials) IsClientSet() bool {
 	return c.ClientID != "" && c.PrivateKeyFile != ""
 }
 
@@ -265,10 +265,7 @@ func (c *VenafiCloudClient) sendHTTPRequest(request *http.Request, responseObjec
 		return err
 	}
 
-	defer func() {
-		if err = response.Body.Close(); err != nil {
-		}
-	}()
+	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(response.Body)

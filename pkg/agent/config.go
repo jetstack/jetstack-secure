@@ -178,7 +178,11 @@ func ParseConfig(data []byte) (Config, error) {
 	}
 
 	if config.Server == "" && config.Endpoint.Host == "" && config.Endpoint.Path == "" {
-		config.Server = "https://preflight.jetstack.io"
+		if config.VenafiCloud != nil {
+			config.Server = "https://api.venafi.cloud"
+		} else {
+			config.Server = "https://preflight.jetstack.io"
+		}
 	}
 
 	if config.Endpoint.Protocol == "" && config.Server == "" {
