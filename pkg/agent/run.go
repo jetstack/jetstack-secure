@@ -254,21 +254,7 @@ func getConfiguration() (Config, client.Client) {
 	var preflightClient client.Client
 	switch {
 	case credentials != nil:
-		switch creds := credentials.(type) {
-		case *client.VenafiSvcAccountCredentials:
-			log.Println("Venafi Cloud mode was specified, using Venafi Service Account authentication.")
-			// check if config has Venafi Cloud data
-			if config.VenafiCloud == nil {
-				log.Fatalf("Failed to find config for venafi-cloud: required for Venafi Cloud auth")
-			}
-			preflightClient, err = client.NewVenafiCloudClient(agentMetadata, creds, baseURL, config.VenafiCloud.UploadID, config.VenafiCloud.UploadPath)
-
-		case *client.OAuthCredentials:
-			log.Println("A credentials file was specified, using oauth authentication.")
-			preflightClient, err = client.NewOAuthClient(agentMetadata, creds, baseURL)
-		default:
-			err = errors.New("credentials file is in unknown format")
-		}
+		preflightClient, err = createCredentialClient(credentials, config, agentMetadata, baseURL)
 	case APIToken != "":
 		log.Println("An API token was specified, using API token authentication.")
 		preflightClient, err = client.NewAPITokenClient(agentMetadata, APIToken, baseURL)
@@ -282,6 +268,24 @@ func getConfiguration() (Config, client.Client) {
 	}
 
 	return config, preflightClient
+}
+
+func createCredentialClient(credentials client.Credentials, config Config, agentMetadata *api.AgentMetadata, baseURL string) (client.Client, error) {
+	switch creds := credentials.(type) {
+	case *client.VenafiSvcAccountCredentials:
+		log.Println("Venafi Cloud mode was specified, using Venafi Service Account authentication.")
+		// check if config has Venafi Cloud data
+		if config.VenafiCloud == nil {
+			log.Fatalf("Failed to find config for venafi-cloud: required for Venafi Cloud mode")
+		}
+		return client.NewVenafiCloudClient(agentMetadata, creds, baseURL, config.VenafiCloud.UploadID, config.VenafiCloud.UploadPath)
+
+	case *client.OAuthCredentials:
+		log.Println("A credentials file was specified, using oauth authentication.")
+		return client.NewOAuthClient(agentMetadata, creds, baseURL)
+	default:
+		return nil, errors.New("credentials file is in unknown format")
+	}
 }
 
 func gatherAndOutputData(config Config, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) {

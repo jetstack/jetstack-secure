@@ -11,7 +11,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -26,7 +25,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jetstack/preflight/api"
-	"gopkg.in/yaml.v2"
 )
 
 type (
@@ -53,10 +51,10 @@ type (
 
 	VenafiSvcAccountCredentials struct {
 		// ClientID is the service account client ID
-		ClientID string `yaml:"client_id,omitempty"`
+		ClientID string `json:"client_id,omitempty"`
 		// PrivateKeyFile is the path to the private key file paired to
 		// the public key in the service account
-		PrivateKeyFile string `yaml:"private_key_file,omitempty"`
+		PrivateKeyFile string `json:"private_key_file,omitempty"`
 	}
 
 	venafiCloudAccessToken struct {
@@ -109,10 +107,10 @@ func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiS
 }
 
 // ParseVenafiCredentials reads credentials into a VenafiSvcAccountCredentials struct. Performs validations.
-func ParseVenafiCredentials(data []byte) (Credentials, error) {
+func ParseVenafiCredentials(data []byte) (*VenafiSvcAccountCredentials, error) {
 	var credentials VenafiSvcAccountCredentials
 
-	err := yaml.Unmarshal(data, &credentials)
+	err := json.Unmarshal(data, &credentials)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +171,7 @@ func (c *VenafiCloudClient) PostDataReadings(_ string, _ string, readings []*api
 
 	if code := res.StatusCode; code < 200 || code >= 300 {
 		errorContent := ""
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		if err == nil {
 			errorContent = string(body)
 		}

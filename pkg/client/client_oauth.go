@@ -215,7 +215,7 @@ func (c *OAuthClient) renewAccessToken() error {
 }
 
 // ParseOAuthCredentials reads credentials into an OAuthCredentials struct. Performs validations.
-func ParseOAuthCredentials(data []byte) (Credentials, error) {
+func ParseOAuthCredentials(data []byte) (*OAuthCredentials, error) {
 	var credentials OAuthCredentials
 
 	err := json.Unmarshal(data, &credentials)
