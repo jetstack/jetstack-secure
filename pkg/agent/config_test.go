@@ -110,7 +110,7 @@ func TestValidVenafiCloudConfigLoad(t *testing.T) {
       input-path: "/home"
       output-path: "/nothome"
       venafi-cloud: 
-        upload_id: test-agent
+        uploader_id: test-agent
         upload_path: "/testing/path"
 `
 
@@ -136,7 +136,7 @@ func TestValidVenafiCloudConfigLoad(t *testing.T) {
 		InputPath:  "/home",
 		OutputPath: "/nothome",
 		VenafiCloud: &VenafiCloudConfig{
-			UploadID:   "test-agent",
+			UploaderID: "test-agent",
 			UploadPath: "/testing/path",
 		},
 	}

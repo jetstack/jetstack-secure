@@ -42,7 +42,7 @@ type (
 		agentMetadata *api.AgentMetadata
 		client        *http.Client
 
-		uploadID      string
+		uploaderID    string
 		uploadPath    string
 		privateKey    crypto.PrivateKey
 		jwtSigningAlg jwt.SigningMethod
@@ -77,7 +77,7 @@ const (
 
 // NewVenafiCloudClient returns a new instance of the VenafiCloudClient type that will perform HTTP requests using a bearer token
 // to authenticate to the backend API.
-func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiSvcAccountCredentials, baseURL string, uploadID string, uploadPath string) (*VenafiCloudClient, error) {
+func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiSvcAccountCredentials, baseURL string, uploaderID string, uploadPath string) (*VenafiCloudClient, error) {
 	if err := credentials.Validate(); err != nil {
 		return nil, fmt.Errorf("cannot create VenafiCloudClient: %v", err)
 	}
@@ -99,7 +99,7 @@ func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiS
 		baseURL:       baseURL,
 		accessToken:   &venafiCloudAccessToken{},
 		client:        &http.Client{Timeout: time.Minute},
-		uploadID:      uploadID,
+		uploaderID:    uploaderID,
 		uploadPath:    uploadPath,
 		privateKey:    privateKey,
 		jwtSigningAlg: jwtSigningAlg,
@@ -163,7 +163,7 @@ func (c *VenafiCloudClient) PostDataReadings(_ string, _ string, readings []*api
 	if !strings.HasSuffix(c.uploadPath, "/") {
 		c.uploadPath = fmt.Sprintf("%s/", c.uploadPath)
 	}
-	res, err := c.Post(filepath.Join(c.uploadPath, c.uploadID), bytes.NewBuffer(data))
+	res, err := c.Post(filepath.Join(c.uploadPath, c.uploaderID), bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}

@@ -48,9 +48,9 @@ type DataGatherer struct {
 }
 
 type VenafiCloudConfig struct {
-	// UploadID is the upload ID that will be used when
+	// UploaderID is the upload ID that will be used when
 	// creating a cluster connection
-	UploadID string `yaml:"upload_id,omitempty"`
+	UploaderID string `yaml:"uploader_id,omitempty"`
 	// UploadPath is the endpoint path for the upload API.
 	UploadPath string `yaml:"upload_path,omitempty"`
 }
@@ -131,7 +131,7 @@ func (c *Config) validate() error {
 
 	// configured for Venafi Cloud
 	if c.VenafiCloud != nil {
-		if c.VenafiCloud.UploadID == "" {
+		if c.VenafiCloud.UploaderID == "" {
 			result = multierror.Append(result, fmt.Errorf("upload_id is required in Venafi Cloud mode"))
 		}
 		if c.VenafiCloud.UploadPath == "" {

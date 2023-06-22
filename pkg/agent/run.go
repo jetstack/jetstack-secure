@@ -278,7 +278,7 @@ func createCredentialClient(credentials client.Credentials, config Config, agent
 		if config.VenafiCloud == nil {
 			log.Fatalf("Failed to find config for venafi-cloud: required for Venafi Cloud mode")
 		}
-		return client.NewVenafiCloudClient(agentMetadata, creds, baseURL, config.VenafiCloud.UploadID, config.VenafiCloud.UploadPath)
+		return client.NewVenafiCloudClient(agentMetadata, creds, baseURL, config.VenafiCloud.UploaderID, config.VenafiCloud.UploadPath)
 
 	case *client.OAuthCredentials:
 		log.Println("A credentials file was specified, using oauth authentication.")
