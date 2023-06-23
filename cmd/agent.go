@@ -77,6 +77,13 @@ func init() {
 		"Location of the credentials file. For OAuth2 based authentication.",
 	)
 	agentCmd.PersistentFlags().BoolVarP(
+		&agent.VenafiCloudMode,
+		"venafi-cloud",
+		"",
+		false,
+		"Runs agent with parsing config and credentials file in Venafi Cloud format if true.",
+	)
+	agentCmd.PersistentFlags().BoolVarP(
 		&agent.OneShot,
 		"one-shot",
 		"",

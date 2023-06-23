@@ -15,6 +15,12 @@ type (
 		PostDataReadings(orgID, clusterID string, readings []*api.DataReading) error
 		Post(path string, body io.Reader) (*http.Response, error)
 	}
+
+	// The Credentials interface describes methods for credential types to implement for verification.
+	Credentials interface {
+		IsClientSet() bool
+		Validate() error
+	}
 )
 
 func fullURL(baseURL, path string) string {

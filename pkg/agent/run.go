@@ -36,6 +36,9 @@ var Period time.Duration
 // OneShot flag causes agent to run once
 var OneShot bool
 
+// VenafiCloudMode flag determines which format to load for config and credential type
+var VenafiCloudMode bool
+
 // CredentialsPath is where the agent will try to loads the credentials. (Experimental)
 var CredentialsPath string
 
@@ -221,7 +224,7 @@ func getConfiguration() (Config, client.Client) {
 
 	log.Printf("Loaded config: \n%s", dump)
 
-	var credentials *client.Credentials
+	var credentials client.Credentials
 	if CredentialsPath != "" {
 		file, err = os.Open(CredentialsPath)
 		if err != nil {
@@ -233,7 +236,11 @@ func getConfiguration() (Config, client.Client) {
 		if err != nil {
 			log.Fatalf("Failed to read credentials file: %v", err)
 		}
-		credentials, err = client.ParseCredentials(b)
+		if VenafiCloudMode {
+			credentials, err = client.ParseVenafiCredentials(b)
+		} else {
+			credentials, err = client.ParseOAuthCredentials(b)
+		}
 		if err != nil {
 			log.Fatalf("Failed to parse credentials file: %s", err)
 		}
@@ -247,8 +254,7 @@ func getConfiguration() (Config, client.Client) {
 	var preflightClient client.Client
 	switch {
 	case credentials != nil:
-		log.Println("A credentials file was specified, using oauth authentication.")
-		preflightClient, err = client.NewOAuthClient(agentMetadata, credentials, baseURL)
+		preflightClient, err = createCredentialClient(credentials, config, agentMetadata, baseURL)
 	case APIToken != "":
 		log.Println("An API token was specified, using API token authentication.")
 		preflightClient, err = client.NewAPITokenClient(agentMetadata, APIToken, baseURL)
@@ -262,6 +268,24 @@ func getConfiguration() (Config, client.Client) {
 	}
 
 	return config, preflightClient
+}
+
+func createCredentialClient(credentials client.Credentials, config Config, agentMetadata *api.AgentMetadata, baseURL string) (client.Client, error) {
+	switch creds := credentials.(type) {
+	case *client.VenafiSvcAccountCredentials:
+		log.Println("Venafi Cloud mode was specified, using Venafi Service Account authentication.")
+		// check if config has Venafi Cloud data
+		if config.VenafiCloud == nil {
+			log.Fatalf("Failed to find config for venafi-cloud: required for Venafi Cloud mode")
+		}
+		return client.NewVenafiCloudClient(agentMetadata, creds, baseURL, config.VenafiCloud.UploaderID, config.VenafiCloud.UploadPath)
+
+	case *client.OAuthCredentials:
+		log.Println("A credentials file was specified, using oauth authentication.")
+		return client.NewOAuthClient(agentMetadata, creds, baseURL)
+	default:
+		return nil, errors.New("credentials file is in unknown format")
+	}
 }
 
 func gatherAndOutputData(config Config, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) {
@@ -363,6 +387,18 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 
 	log.Println("Running Agent...")
 	log.Println("Posting data to:", baseURL)
+
+	if VenafiCloudMode {
+		// orgID and clusterID are not required for Venafi Cloud auth
+		err := preflightClient.PostDataReadings("", "", readings)
+		if err != nil {
+			return fmt.Errorf("post to server failed: %+v", err)
+		}
+		log.Println("Data sent successfully.")
+
+		return nil
+	}
+
 	if config.OrganizationID == "" {
 		data, err := json.Marshal(readings)
 		if err != nil {
@@ -382,7 +418,7 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 		res, err := preflightClient.Post(path, bytes.NewBuffer(data))
 
 		if err != nil {
-			return fmt.Errorf("Failed to post data: %+v", err)
+			return fmt.Errorf("failed to post data: %+v", err)
 		}
 		if code := res.StatusCode; code < 200 || code >= 300 {
 			errorContent := ""
@@ -392,19 +428,19 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 			}
 			defer res.Body.Close()
 
-			return fmt.Errorf("Received response with status code %d. Body: %s", code, errorContent)
+			return fmt.Errorf("received response with status code %d. Body: %s", code, errorContent)
 		}
 		log.Println("Data sent successfully.")
 		return err
 	}
 
 	if config.ClusterID == "" {
-		return fmt.Errorf("Post to server failed: missing clusterID from agent configuration")
+		return fmt.Errorf("post to server failed: missing clusterID from agent configuration")
 	}
 
 	err := preflightClient.PostDataReadings(config.OrganizationID, config.ClusterID, readings)
 	if err != nil {
-		return fmt.Errorf("Post to server failed: %+v", err)
+		return fmt.Errorf("post to server failed: %+v", err)
 	}
 	log.Println("Data sent successfully.")
 

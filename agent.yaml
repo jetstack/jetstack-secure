@@ -11,3 +11,7 @@ data-gatherers:
     name: "dummy-fail"
     config:
       always-fail: true
+venafi-cloud:
+  upload_id: "example-id"
+  upload_path: "/example/endpoint/path"
+  

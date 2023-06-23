@@ -10,7 +10,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/datagatherer/local"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // Config wraps the options for a run of the agent.
@@ -30,7 +30,8 @@ type Config struct {
 	// InputPath replaces DataGatherers with input data file
 	InputPath string `yaml:"input-path"`
 	// OutputPath replaces Server with output data file
-	OutputPath string `yaml:"output-path"`
+	OutputPath  string             `yaml:"output-path"`
+	VenafiCloud *VenafiCloudConfig `yaml:"venafi-cloud,omitempty"`
 }
 
 type Endpoint struct {
@@ -44,6 +45,14 @@ type DataGatherer struct {
 	Name     string `yaml:"name"`
 	DataPath string `yaml:"data_path"`
 	Config   datagatherer.Config
+}
+
+type VenafiCloudConfig struct {
+	// UploaderID is the upload ID that will be used when
+	// creating a cluster connection
+	UploaderID string `yaml:"uploader_id,omitempty"`
+	// UploadPath is the endpoint path for the upload API.
+	UploadPath string `yaml:"upload_path,omitempty"`
 }
 
 func reMarshal(rawConfig interface{}, config datagatherer.Config) error {
@@ -120,11 +129,25 @@ func (c *Config) Dump() (string, error) {
 func (c *Config) validate() error {
 	var result *multierror.Error
 
-	if c.OrganizationID == "" {
-		result = multierror.Append(result, fmt.Errorf("organization_id is required"))
-	}
-	if c.ClusterID == "" {
-		result = multierror.Append(result, fmt.Errorf("cluster_id is required"))
+	// configured for Venafi Cloud
+	if c.VenafiCloud != nil {
+		if c.VenafiCloud.UploaderID == "" {
+			result = multierror.Append(result, fmt.Errorf("upload_id is required in Venafi Cloud mode"))
+		}
+		if c.VenafiCloud.UploadPath == "" {
+			result = multierror.Append(result, fmt.Errorf("upload_path is required in Venafi Cloud mode"))
+		}
+
+		if _, err := url.Parse(c.VenafiCloud.UploadPath); err != nil {
+			result = multierror.Append(result, fmt.Errorf("upload_path is not a valid URL"))
+		}
+	} else {
+		if c.OrganizationID == "" {
+			result = multierror.Append(result, fmt.Errorf("organization_id is required"))
+		}
+		if c.ClusterID == "" {
+			result = multierror.Append(result, fmt.Errorf("cluster_id is required"))
+		}
 	}
 
 	if c.Server != "" {
@@ -155,7 +178,11 @@ func ParseConfig(data []byte) (Config, error) {
 	}
 
 	if config.Server == "" && config.Endpoint.Host == "" && config.Endpoint.Path == "" {
-		config.Server = "https://preflight.jetstack.io"
+		if config.VenafiCloud != nil {
+			config.Server = "https://api.venafi.cloud"
+		} else {
+			config.Server = "https://preflight.jetstack.io"
+		}
 	}
 
 	if config.Endpoint.Protocol == "" && config.Server == "" {
