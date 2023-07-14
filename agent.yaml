@@ -12,6 +12,6 @@ data-gatherers:
     config:
       always-fail: true
 venafi-cloud:
-  upload_id: "example-id"
+  uploader_id: "example-id"
   upload_path: "/example/endpoint/path"
   
