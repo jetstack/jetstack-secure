@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/datagatherer/local"
@@ -126,14 +127,11 @@ func (c *Config) Dump() (string, error) {
 	return string(d), nil
 }
 
-func (c *Config) validate() error {
+func (c *Config) validate(isVenafiCloudMode bool) error {
 	var result *multierror.Error
 
 	// configured for Venafi Cloud
 	if c.VenafiCloud != nil {
-		if c.VenafiCloud.UploaderID == "" {
-			result = multierror.Append(result, fmt.Errorf("upload_id is required in Venafi Cloud mode"))
-		}
 		if c.VenafiCloud.UploadPath == "" {
 			result = multierror.Append(result, fmt.Errorf("upload_path is required in Venafi Cloud mode"))
 		}
@@ -141,7 +139,7 @@ func (c *Config) validate() error {
 		if _, err := url.Parse(c.VenafiCloud.UploadPath); err != nil {
 			result = multierror.Append(result, fmt.Errorf("upload_path is not a valid URL"))
 		}
-	} else {
+	} else if !isVenafiCloudMode {
 		if c.OrganizationID == "" {
 			result = multierror.Append(result, fmt.Errorf("organization_id is required"))
 		}
@@ -169,7 +167,7 @@ func (c *Config) validate() error {
 }
 
 // ParseConfig reads config into a struct used to configure running agents
-func ParseConfig(data []byte) (Config, error) {
+func ParseConfig(data []byte, isVenafiCloudMode bool) (Config, error) {
 	var config Config
 
 	err := yaml.Unmarshal(data, &config)
@@ -178,10 +176,9 @@ func ParseConfig(data []byte) (Config, error) {
 	}
 
 	if config.Server == "" && config.Endpoint.Host == "" && config.Endpoint.Path == "" {
+		config.Server = "https://preflight.jetstack.io"
 		if config.VenafiCloud != nil {
-			config.Server = "https://api.venafi.cloud"
-		} else {
-			config.Server = "https://preflight.jetstack.io"
+			config.Server = client.VenafiCloudProdURL
 		}
 	}
 
@@ -189,7 +186,8 @@ func ParseConfig(data []byte) (Config, error) {
 		config.Endpoint.Protocol = "http"
 	}
 
-	if err = config.validate(); err != nil {
+	err = config.validate(isVenafiCloudMode)
+	if err != nil {
 		return config, err
 	}
 

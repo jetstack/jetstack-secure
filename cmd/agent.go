@@ -41,7 +41,7 @@ var agentRBACCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("Failed to read config file: %s", err)
 		}
-		config, err := agent.ParseConfig(b)
+		config, err := agent.ParseConfig(b, false)
 		if err != nil {
 			log.Fatalf("Failed to parse config file: %s", err)
 		}

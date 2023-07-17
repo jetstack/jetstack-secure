@@ -198,9 +198,14 @@ func getConfiguration() (Config, client.Client) {
 		log.Fatalf("Failed to read config file: %s", err)
 	}
 
-	config, err := ParseConfig(b)
+	config, err := ParseConfig(b, VenafiCloudMode)
 	if err != nil {
 		log.Fatalf("Failed to parse config file: %s", err)
+	}
+
+	if VenafiCloudMode {
+		// if the venafi-cloud mode is enabled override config.Server
+		config.Server = client.VenafiCloudProdURL
 	}
 
 	baseURL := config.Server
@@ -274,11 +279,15 @@ func createCredentialClient(credentials client.Credentials, config Config, agent
 	switch creds := credentials.(type) {
 	case *client.VenafiSvcAccountCredentials:
 		log.Println("Venafi Cloud mode was specified, using Venafi Service Account authentication.")
-		// check if config has Venafi Cloud data
-		if config.VenafiCloud == nil {
-			log.Fatalf("Failed to find config for venafi-cloud: required for Venafi Cloud mode")
+		// check if config has Venafi Cloud data, use config data if it's present
+		uploaderID := creds.ClientID
+		uploadPath := ""
+		if config.VenafiCloud != nil {
+			log.Println("Loading uploader_id and upload_path from \"venafi-cloud\" configuration.")
+			uploaderID = config.VenafiCloud.UploaderID
+			uploadPath = config.VenafiCloud.UploadPath
 		}
-		return client.NewVenafiCloudClient(agentMetadata, creds, baseURL, config.VenafiCloud.UploaderID, config.VenafiCloud.UploadPath)
+		return client.NewVenafiCloudClient(agentMetadata, creds, baseURL, uploaderID, uploadPath)
 
 	case *client.OAuthCredentials:
 		log.Println("A credentials file was specified, using oauth authentication.")
