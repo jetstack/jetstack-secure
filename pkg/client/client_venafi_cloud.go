@@ -70,9 +70,11 @@ type (
 )
 
 const (
-	vaasProdURL         = "https://api.venafi.cloud"
-	accessTokenEndpoint = "/v1/oauth/token/serviceaccount"
-	requiredGrantType   = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+	// URL for the venafi-cloud backend services
+	VenafiCloudProdURL               = "https://api.venafi.cloud"
+	defaultVenafiCloudUploadEndpoint = "v1/tlspk/uploads"
+	accessTokenEndpoint              = "/v1/oauth/token/serviceaccount"
+	requiredGrantType                = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 )
 
 // NewVenafiCloudClient returns a new instance of the VenafiCloudClient type that will perform HTTP requests using a bearer token
@@ -91,6 +93,11 @@ func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiS
 
 	if !credentials.IsClientSet() {
 		return nil, fmt.Errorf("cannot create VenafiCloudClient: invalid Venafi Cloud client configuration")
+	}
+
+	if uploadPath == "" {
+		// if the uploadPath is not given, use default upload path
+		uploadPath = defaultVenafiCloudUploadEndpoint
 	}
 
 	return &VenafiCloudClient{
@@ -283,7 +290,7 @@ func (c *VenafiCloudClient) sendHTTPRequest(request *http.Request, responseObjec
 }
 
 func (c *VenafiCloudClient) generateAndSignJwtToken() (string, error) {
-	prodURL, err := url.Parse(vaasProdURL)
+	prodURL, err := url.Parse(VenafiCloudProdURL)
 	if err != nil {
 		return "", err
 	}

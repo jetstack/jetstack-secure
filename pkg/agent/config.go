@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/datagatherer/local"
@@ -131,9 +132,6 @@ func (c *Config) validate() error {
 
 	// configured for Venafi Cloud
 	if c.VenafiCloud != nil {
-		if c.VenafiCloud.UploaderID == "" {
-			result = multierror.Append(result, fmt.Errorf("upload_id is required in Venafi Cloud mode"))
-		}
 		if c.VenafiCloud.UploadPath == "" {
 			result = multierror.Append(result, fmt.Errorf("upload_path is required in Venafi Cloud mode"))
 		}
@@ -178,10 +176,9 @@ func ParseConfig(data []byte) (Config, error) {
 	}
 
 	if config.Server == "" && config.Endpoint.Host == "" && config.Endpoint.Path == "" {
+		config.Server = "https://preflight.jetstack.io"
 		if config.VenafiCloud != nil {
-			config.Server = "https://api.venafi.cloud"
-		} else {
-			config.Server = "https://preflight.jetstack.io"
+			config.Server = client.VenafiCloudProdURL
 		}
 	}
 
