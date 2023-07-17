@@ -198,11 +198,8 @@ func getConfiguration() (Config, client.Client) {
 		log.Fatalf("Failed to read config file: %s", err)
 	}
 
-	config, err := ParseConfig(b)
-	switch {
-	case err != nil && VenafiCloudMode && (config.OrganizationID == "" || config.ClusterID == ""):
-	// venafi-cloud does not require the OrganizationID or ClusterID, do not error in case they are missing
-	case err != nil:
+	config, err := ParseConfig(b, VenafiCloudMode)
+	if err != nil {
 		log.Fatalf("Failed to parse config file: %s", err)
 	}
 

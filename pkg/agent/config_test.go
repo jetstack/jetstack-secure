@@ -25,7 +25,7 @@ func TestValidConfigLoad(t *testing.T) {
       output-path: "/nothome"
 `
 
-	loadedConfig, err := ParseConfig([]byte(configFileContents))
+	loadedConfig, err := ParseConfig([]byte(configFileContents), false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestValidConfigWithEndpointLoad(t *testing.T) {
           always-fail: false
 `
 
-	loadedConfig, err := ParseConfig([]byte(configFileContents))
+	loadedConfig, err := ParseConfig([]byte(configFileContents), false)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestValidVenafiCloudConfigLoad(t *testing.T) {
         upload_path: "/testing/path"
 `
 
-	loadedConfig, err := ParseConfig([]byte(configFileContents))
+	loadedConfig, err := ParseConfig([]byte(configFileContents), false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestValidVenafiCloudConfigLoad(t *testing.T) {
 func TestInvalidConfigError(t *testing.T) {
 	configFileContents := `data-gatherers: "things"`
 
-	_, parseError := ParseConfig([]byte(configFileContents))
+	_, parseError := ParseConfig([]byte(configFileContents), false)
 
 	expectedError := fmt.Errorf("yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `things` into []agent.DataGatherer")
 
@@ -159,26 +159,35 @@ func TestInvalidConfigError(t *testing.T) {
 }
 
 func TestMissingConfigError(t *testing.T) {
-	_, parseError := ParseConfig([]byte(""))
+	t.Run("fail to parse config if organization_id or cluster_id are missing (venafi-cloud not enabled)", func(t *testing.T) {
+		_, parseError := ParseConfig([]byte(""), false)
 
-	if parseError == nil {
-		t.Fatalf("expected error, got nil")
-	}
+		if parseError == nil {
+			t.Fatalf("expected error, got nil")
+		}
 
-	expectedErrorLines := []string{
-		"2 errors occurred:",
-		"\t* organization_id is required",
-		"\t* cluster_id is required",
-		"\n",
-	}
+		expectedErrorLines := []string{
+			"2 errors occurred:",
+			"\t* organization_id is required",
+			"\t* cluster_id is required",
+			"\n",
+		}
 
-	expectedError := strings.Join(expectedErrorLines, "\n")
+		expectedError := strings.Join(expectedErrorLines, "\n")
 
-	gotError := parseError.Error()
+		gotError := parseError.Error()
 
-	if gotError != expectedError {
-		t.Errorf("\ngot=\n%v\nwant=\n%s\ndiff=\n%s", gotError, expectedError, diff.Diff(gotError, expectedError))
-	}
+		if gotError != expectedError {
+			t.Errorf("\ngot=\n%v\nwant=\n%s\ndiff=\n%s", gotError, expectedError, diff.Diff(gotError, expectedError))
+		}
+	})
+	t.Run("successfully parse config if organization_id or cluster_id are missing (venafi-cloud is enabled)", func(t *testing.T) {
+		_, parseError := ParseConfig([]byte(""), true)
+
+		if parseError != nil {
+			t.Fatalf("unxexpected error, no error should have occured when parsing configuration: %s", parseError)
+		}
+	})
 }
 
 func TestPartialMissingConfigError(t *testing.T) {
@@ -190,7 +199,7 @@ func TestPartialMissingConfigError(t *testing.T) {
       organization_id: "example"
       cluster_id: "example-cluster"
       data-gatherers:
-        - kind: dummy`))
+        - kind: dummy`), false)
 
 	if parseError == nil {
 		t.Fatalf("expected error, got nil")
@@ -218,7 +227,7 @@ func TestInvalidServerError(t *testing.T) {
       cluster_id: "my_cluster"
       data-gatherers:
         - kind: dummy
-          name: dummy`))
+          name: dummy`), false)
 
 	if parseError == nil {
 		t.Fatalf("expected error, got nil")
@@ -246,7 +255,7 @@ func TestInvalidDataGathered(t *testing.T) {
         path: /api/v1/data
       schedule: "* * * * *"
       data-gatherers:
-        - kind: "foo"`))
+        - kind: "foo"`), false)
 
 	if parseError == nil {
 		t.Fatalf("expected error, got nil")

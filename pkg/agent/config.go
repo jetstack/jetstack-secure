@@ -127,7 +127,7 @@ func (c *Config) Dump() (string, error) {
 	return string(d), nil
 }
 
-func (c *Config) validate() error {
+func (c *Config) validate(isVenafi bool) error {
 	var result *multierror.Error
 
 	// configured for Venafi Cloud
@@ -139,7 +139,7 @@ func (c *Config) validate() error {
 		if _, err := url.Parse(c.VenafiCloud.UploadPath); err != nil {
 			result = multierror.Append(result, fmt.Errorf("upload_path is not a valid URL"))
 		}
-	} else {
+	} else if !isVenafi {
 		if c.OrganizationID == "" {
 			result = multierror.Append(result, fmt.Errorf("organization_id is required"))
 		}
@@ -167,7 +167,7 @@ func (c *Config) validate() error {
 }
 
 // ParseConfig reads config into a struct used to configure running agents
-func ParseConfig(data []byte) (Config, error) {
+func ParseConfig(data []byte, isVenafi bool) (Config, error) {
 	var config Config
 
 	err := yaml.Unmarshal(data, &config)
@@ -186,7 +186,8 @@ func ParseConfig(data []byte) (Config, error) {
 		config.Endpoint.Protocol = "http"
 	}
 
-	if err = config.validate(); err != nil {
+	err = config.validate(isVenafi)
+	if err != nil {
 		return config, err
 	}
 
