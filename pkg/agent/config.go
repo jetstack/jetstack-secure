@@ -177,7 +177,7 @@ func ParseConfig(data []byte, isVenafiCloudMode bool) (Config, error) {
 
 	if config.Server == "" && config.Endpoint.Host == "" && config.Endpoint.Path == "" {
 		config.Server = "https://preflight.jetstack.io"
-		if config.VenafiCloud != nil {
+		if config.VenafiCloud != nil || isVenafiCloudMode {
 			config.Server = client.VenafiCloudProdURL
 		}
 	}

@@ -203,11 +203,6 @@ func getConfiguration() (Config, client.Client) {
 		log.Fatalf("Failed to parse config file: %s", err)
 	}
 
-	if VenafiCloudMode {
-		// if the venafi-cloud mode is enabled override config.Server
-		config.Server = client.VenafiCloudProdURL
-	}
-
 	baseURL := config.Server
 	if baseURL == "" {
 		log.Printf("Using deprecated Endpoint configuration. User Server instead.")
