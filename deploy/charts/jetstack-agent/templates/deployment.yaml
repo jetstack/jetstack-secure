@@ -40,27 +40,40 @@ spec:
                   name: {{ default "agent-credentials" .Values.authentication.secretName }}
                   key: {{ default "apitoken" .Values.authentication.secretKey }}
           {{- end }}
+          {{- if not (empty .Values.command) }}
+          command:
+          {{- range .Values.command }}
+            - {{ . | quote }}
+          {{- end }}
+          {{- end }}
           args:
             - "agent"
             - "-c"
+            {{- if .Values.config.override.enabled }}
+            - "/etc/jetstack-secure/agent/config/{{ default "config.yaml" .Values.config.override.configmap.key }}"
+            {{- else }}
             - "/etc/jetstack-secure/agent/config/config.yaml"
+            {{- end }}
             {{- if eq .Values.authentication.type "file" }}
             - "-k"
             - "/etc/jetstack-secure/agent/credentials/{{ default "credentials.json" .Values.authentication.secretKey}}"
             {{- end }}
             - "-p"
             - "0h1m0s"
+            {{- range .Values.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - name: config
               mountPath: "/etc/jetstack-secure/agent/config"
               readOnly: true
             {{- if eq .Values.authentication.type "file" }}
             - name: credentials
-              mountPath: /etc/jetstack-secure/agent/credentials
+              mountPath: "/etc/jetstack-secure/agent/credentials"
               readOnly: true
             {{- end }}
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -74,10 +87,17 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+        {{- if .Values.config.override.enabled }}
+        - name: config
+          configMap:
+            name: {{ default "agent-config" .Values.config.override.configmap.name }}
+            optional: false
+        {{- else }}
         - name: config
           configMap:
             name: agent-config
             optional: false
+        {{- end }}
         - name: credentials
           secret:
             secretName: {{ default "agent-credentials" .Values.authentication.secretName }}

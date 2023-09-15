@@ -1,0 +1,23 @@
+name: Chart Testing
+
+on:
+  push:
+    branches-ignore:
+      - master
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: d3adb5/helm-unittest-action@v2
+        with:
+          flags: "--color --strict"
+          charts: deploy/charts/jetstack-agent
+          helm-version: v3.12.3
+      # This has to be second as helm may not be installed until after above action
+      # source: https://github.com/marketplace/actions/helm-unit-tests#examples
+      - run: helm lint deploy/charts/jetstack-agent
