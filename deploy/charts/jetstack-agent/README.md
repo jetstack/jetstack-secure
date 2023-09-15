@@ -1,8 +1,8 @@
 # jetstack-agent
 
-Jetstack Secure Agent
+TLS Protect for Kubernetes Agent
 
-![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.39](https://img.shields.io/badge/AppVersion-v0.1.39-informational?style=flat-square)
+![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.40](https://img.shields.io/badge/AppVersion-v0.1.40-informational?style=flat-square)
 
 ## Additional Information
 
@@ -137,19 +137,24 @@ kubectl logs -n jetstack-secure $(kubectl get pod -n jetstack-secure -l app.kube
 | authentication.secretKey | string | `"credentials.json"` | Key name in secret |
 | authentication.secretName | string | `"agent-credentials"` | Name of the secret containing agent credentials.json |
 | authentication.secretValue | string | `""` | Base64 encoded value from Jetstack Secure Dashboard - only required when createSecret is true |
-| authentication.type | string | `"file"` | Type can be "file"/"token" which dictates whether a credential file or token is used |
-| config | object | `{"cluster":"","dataGatherers":{"custom":[],"default":true},"organisation":"","period":"0h1m0s","server":"https://platform.jetstack.io"}` | Configuration section for the Jetstack Agent itself |
+| authentication.type | string | `"file"` | Type can be "file"/"token" determining how the agent should authenticate the to the backend |
+| command | list | `[]` |  |
+| config | object | `{"cluster":"","dataGatherers":{"custom":[],"default":true},"organisation":"","override":{"config":"","configmap":{"key":"","name":""},"enabled":false},"period":"0h1m0s","server":"https://platform.jetstack.io"}` | Configuration section for the Jetstack Agent itself |
 | config.cluster | string | `""` | REQUIRED - Your Jetstack Secure Cluster Name |
 | config.dataGatherers | object | `{"custom":[],"default":true}` | Configure data that is gathered from your cluster, for full details see https://platform.jetstack.io/documentation/configuration/jetstack-agent/configuration |
 | config.dataGatherers.custom | list | `[]` | A list of data gatherers to limit agent scope |
 | config.dataGatherers.default | bool | `true` | Use the standard full set of data gatherers |
 | config.organisation | string | `""` | REQUIRED - Your Jetstack Secure Organisation Name |
+| config.override | object | `{"config":"","configmap":{"key":"","name":""},"enabled":false}` | Provide an Override to allow completely custom agent configuration |
+| config.override.config | string | `""` | Embed the agent configuration here in the chart values |
+| config.override.configmap | object | `{"key":"","name":""}` | Sepcify ConfigMap details to load config from existing ConfigMap |
+| config.override.enabled | bool | `false` | Override disabled by default |
 | config.period | string | `"0h1m0s"` | Send data back to the platform every minute unless changed |
 | config.server | string | `"https://platform.jetstack.io"` | Overrides the server if using a proxy between agent and Jetstack Secure |
 | fullnameOverride | string | `""` | Helm default setting, use this to shorten install name |
 | image.pullPolicy | string | `"IfNotPresent"` | Defaults to only pull if not already present |
 | image.repository | string | `"quay.io/jetstack/preflight"` | Default to Open Source image repository |
-| image.tag | string | `"v0.1.39"` | Overrides the image tag whose default is the chart appVersion |
+| image.tag | string | `"v0.1.40"` | Overrides the image tag whose default is the chart appVersion |
 | imagePullSecrets | list | `[]` | Specify image pull credentials if using a prviate registry |
 | nameOverride | string | `""` | Helm default setting to override release name, leave blank |
 | nodeSelector | object | `{}` |  |
