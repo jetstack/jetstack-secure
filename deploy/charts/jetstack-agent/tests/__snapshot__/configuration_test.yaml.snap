@@ -64,7 +64,7 @@ render correctly when only required config is given:
           name: "k8s/cronjobs"
           config:
             resource-type:
-              version: v1beta1
+              version: v1
               resource: cronjobs
               group: batch
         - kind: "k8s-dynamic"
