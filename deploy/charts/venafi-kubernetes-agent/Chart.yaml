@@ -1,0 +1,7 @@
+apiVersion: v2
+name: venafi-kubernetes-agent
+description: |-
+  The Venafi Kubernetes Agent connects your Kubernetes or Openshift cluster to the Venafi Control Plane.
+type: application
+version: 0.1.0
+appVersion: "v0.1.40"
