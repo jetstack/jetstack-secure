@@ -1,0 +1,90 @@
+# Default values for jetstack-agent.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# -- default replicas, do not scale up
+replicaCount: 1
+
+image:
+  # -- Default to Open Source image repository
+  repository: quay.io/jetstack/preflight
+  # -- Defaults to only pull if not already present
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion
+  tag: "v0.1.40"
+
+# -- Specify image pull credentials if using a prviate registry
+imagePullSecrets: []
+
+# -- Helm default setting to override release name, leave blank
+nameOverride: ""
+# -- Helm default setting, use this to shorten install name
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  # @default true
+  create: true
+  # -- Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  requests:
+    memory: 200Mi
+    cpu: 200m
+  limits:
+    memory: 500Mi
+    cpu: 500m
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# -- Specify the command to run overriding default
+command: []
+# -- Specify additional argument to pass to the agent
+extraArgs: []
+
+# -- Authentication details for the Venafi Kuberente Agent
+authentication:
+  # -- Name of the secret containing the privatekey
+  secretName: agent-credentials
+  # -- Key name in the references secret
+  secretKey: "privatekey.pem"
+  
+
+# -- Configuration section for the Venafi Kubernetes Agent itself
+config:
+  # -- Overrides the server if using a proxy in your environment
+  server: "https://api.venafi.cloud/"
+  ## -- The client-id returned from the Venafi Control Plane
+  clientId: ""
+  # -- Send data back to the platform every minute unless changed
+  period: "0h1m0s"
+  # -- Sepcify ConfigMap details to load config from an existing resource
+  # This should be blankby default unless you have you own config
+  configmap:
+    name: 
+    key: 
