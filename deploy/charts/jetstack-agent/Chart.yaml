@@ -1,9 +1,9 @@
 apiVersion: v2
 name: jetstack-agent
-description: Jetstack Secure Agent
+description: TLS Protect for Kubernetes Agent
 type: application
-version: 0.2.1
-appVersion: "v0.1.39"
+version: 0.3.0
+appVersion: "v0.1.40"
 home: https://github.com/jetstack/jetstack-secure
 maintainers:
 - name: JSCP and CRE Team

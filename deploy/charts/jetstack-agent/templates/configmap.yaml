@@ -1,3 +1,4 @@
+{{ if not (and .Values.config.override.enabled .Values.config.override.configmap.name) }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -6,8 +7,12 @@ metadata:
   labels:
     {{- include "jetstack-agent.labels" . | nindent 4 }}
 data:
+{{- if .Values.config.override.config }}
   config.yaml: |-
-    server: {{ .Values.config.server }}
+  {{- toYaml .Values.config.override.config | nindent 4 }}
+{{- else }}
+  config.yaml: |-
+    server: {{ .Values.config.server | quote }}
     organization_id: {{ required "Organisation is a required input value" .Values.config.organisation }}
     cluster_id: {{ required "Cluster is a required input value" .Values.config.cluster }}
     data-gatherers:
@@ -68,7 +73,7 @@ data:
       name: "k8s/cronjobs"
       config:
         resource-type:
-          version: v1beta1
+          version: v1
           resource: cronjobs
           group: batch
     - kind: "k8s-dynamic"
@@ -204,4 +209,6 @@ data:
           group: jetstack.io
           version: v1alpha1
           resource: venafiissuers
+{{- end }}
+{{- end }}
 {{- end }}

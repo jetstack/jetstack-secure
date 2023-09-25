@@ -11,7 +11,7 @@ image:
   # -- Defaults to only pull if not already present
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion
-  tag: "v0.1.39"
+  tag: "v0.1.40"
 
 # -- Specify image pull credentials if using a prviate registry
 imagePullSecrets: []
@@ -65,14 +65,17 @@ affinity: {}
 authentication:
   # -- Reccomend that you do not use this and instead creat the credential secret outside of helm
   createSecret: false 
-  # -- Type can be "file"/"token" which dictates whether a credential file or token is used
+  # -- Type can be "file"/"token" determining how the agent should authenticate the to the backend
   type: file
   # -- Name of the secret containing agent credentials.json
   secretName: agent-credentials
   # -- Key name in secret
-  secretKey: credentials.json
+  secretKey: "credentials.json"
   # -- Base64 encoded value from Jetstack Secure Dashboard - only required when createSecret is true
   secretValue: ""
+
+command: []
+extraArgs: []
 
 # -- Configuration section for the Jetstack Agent itself
 config:
@@ -84,6 +87,7 @@ config:
   cluster: ""
   # -- Send data back to the platform every minute unless changed
   period: "0h1m0s"
+
   # -- Configure data that is gathered from your cluster, for full details see https://platform.jetstack.io/documentation/configuration/jetstack-agent/configuration
   dataGatherers:
     # -- Use the standard full set of data gatherers
@@ -100,3 +104,14 @@ config:
     # - openshift
     # - istio
     # - venafienhancedissuer
+
+  # -- Provide an Override to allow completely custom agent configuration
+  override:
+    # -- Override disabled by default
+    enabled: false
+    # -- Embed the agent configuration here in the chart values
+    config: 
+    # -- Sepcify ConfigMap details to load config from existing ConfigMap
+    configmap:
+      name: 
+      key: 
