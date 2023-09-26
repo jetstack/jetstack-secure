@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -38,6 +39,12 @@ var OneShot bool
 
 // VenafiCloudMode flag determines which format to load for config and credential type
 var VenafiCloudMode bool
+
+// ClientID is the clientID in case of Venafi Cloud mode
+var ClientID string
+
+// PrivateKeyPath is the path for the service account private key in case of Venafi Cloud mode
+var PrivateKeyPath string
 
 // CredentialsPath is where the agent will try to loads the credentials. (Experimental)
 var CredentialsPath string
@@ -198,6 +205,11 @@ func getConfiguration() (Config, client.Client) {
 		log.Fatalf("Failed to read config file: %s", err)
 	}
 
+	// If the ClientID of the service account is specified, then assume we are in Venafi Cloud mode.
+	if ClientID != "" {
+		VenafiCloudMode = true
+	}
+
 	config, err := ParseConfig(b, VenafiCloudMode)
 	if err != nil {
 		log.Fatalf("Failed to parse config file: %s", err)
@@ -225,14 +237,19 @@ func getConfiguration() (Config, client.Client) {
 	log.Printf("Loaded config: \n%s", dump)
 
 	var credentials client.Credentials
-	if CredentialsPath != "" {
+	if ClientID != "" {
+		credentials = &client.VenafiSvcAccountCredentials{
+			ClientID:       ClientID,
+			PrivateKeyFile: PrivateKeyPath,
+		}
+	} else if CredentialsPath != "" {
 		file, err = os.Open(CredentialsPath)
 		if err != nil {
 			log.Fatalf("Failed to load credentials from file %s", CredentialsPath)
 		}
 		defer file.Close()
 
-		b, err = ioutil.ReadAll(file)
+		b, err = io.ReadAll(file)
 		if err != nil {
 			log.Fatalf("Failed to read credentials file: %v", err)
 		}
