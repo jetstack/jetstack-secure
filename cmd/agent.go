@@ -81,7 +81,21 @@ func init() {
 		"venafi-cloud",
 		"",
 		false,
-		"Runs agent with parsing config and credentials file in Venafi Cloud format if true.",
+		"Runs agent with parsing config (and credentials file if provided) in Venafi Cloud format if true.",
+	)
+	agentCmd.PersistentFlags().StringVarP(
+		&agent.ClientID,
+		"client-id",
+		"",
+		"",
+		"Venafi Cloud Service Account client ID. If you use this flag you don't need to use --venafi-cloud as it will assume you are authenticating against Venafi Cloud. Using this removes the need to use a credentials file with Venafi Cloud mode.",
+	)
+	agentCmd.PersistentFlags().StringVarP(
+		&agent.PrivateKeyPath,
+		"private-key-path",
+		"",
+		"/etc/venafi/agent/key/privatekey.pem",
+		"Venafi Cloud Service Account private key path.",
 	)
 	agentCmd.PersistentFlags().BoolVarP(
 		&agent.OneShot,
