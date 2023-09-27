@@ -88,7 +88,7 @@ func init() {
 		"client-id",
 		"",
 		"",
-		"Venafi Cloud Service Account client ID. If you use this flag you don't need to use --venafi-cloud as it will assume you are authentiating against Venafi Cloud. Using this removed the need to use a credentials file with Venafi Cloud mode.",
+		"Venafi Cloud Service Account client ID. If you use this flag you don't need to use --venafi-cloud as it will assume you are authenticating against Venafi Cloud. Using this removes the need to use a credentials file with Venafi Cloud mode.",
 	)
 	agentCmd.PersistentFlags().StringVarP(
 		&agent.PrivateKeyPath,
