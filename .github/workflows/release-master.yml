@@ -73,11 +73,17 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     - name: Build and push
-      run: make push-docker-image
+      run: |
+        make push-docker-image
+        make push-docker-image DOCKER_IMAGE=quay.io/jetstack/venafi-agent
     - name: Sign
-      run: make sign-docker-image
+      run: |
+        make sign-docker-image
+        make sign-docker-image DOCKER_IMAGE=quay.io/jetstack/venafi-agent
     - name: SBOM
-      run: make sbom-docker-image
+      run: |
+        make sbom-docker-image
+        make sbom-docker-image DOCKER_IMAGE=quay.io/jetstack/venafi-agent
     # The slsa-provenance-action generates a full attestation from an artifact
     # as the subject. However, cosign only expects the predicate portion of
     # the attestation and figures out the subject itself from the image.
@@ -95,4 +101,6 @@ jobs:
     - name: Extract predicate
       run: jq '.predicate' provenance.json > predicate.json
     - name: Attest
-      run: make attest-docker-image
+      run: |
+        make attest-docker-image
+        make attest-docker-image DOCKER_IMAGE=quay.io/jetstack/venafi-agent
