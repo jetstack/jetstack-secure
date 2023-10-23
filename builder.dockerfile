@@ -23,8 +23,7 @@ RUN make build-all-platforms \
     OAUTH_AUTH_SERVER_DOMAIN=${oauth_auth_server_domain}
 
 
-# c781b427440f8ea100841eefdd308e660d26d121 is the v1.0.0 tag at the time of writing. 
-RUN go install github.com/google/go-licenses@c781b427440f8ea100841eefdd308e660d26d121
+RUN go install github.com/google/go-licenses@v1.6.0
 
 # We need this '|| true' because go-licenses could fail to find a license so
 # may return a non-zero exit code and there's no way to supress it.
