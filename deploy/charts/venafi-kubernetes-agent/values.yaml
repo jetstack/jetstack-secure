@@ -11,7 +11,7 @@ image:
   # -- Defaults to only pull if not already present
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion
-  tag: "v0.1.40"
+  tag: "v0.1.43"
 
 # -- Specify image pull credentials if using a prviate registry
 imagePullSecrets: []
@@ -73,7 +73,6 @@ authentication:
   secretName: agent-credentials
   # -- Key name in the references secret
   secretKey: "privatekey.pem"
-  
 
 # -- Configuration section for the Venafi Kubernetes Agent itself
 config:

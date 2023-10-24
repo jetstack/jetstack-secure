@@ -49,8 +49,8 @@ spec:
             - "agent"
             - "-c"
             - "/etc/venafi/agent/config/{{ default "config.yaml" .Values.config.configmap.key }}"
-            - "-k"
-            - "/etc/venafi/agent/credentials/credentials.json"
+            - "--client-id"
+            - "{{ .Values.config.clientId }}"
             - "-p"
             - "0h1m0s"
             - --venafi-cloud
@@ -63,15 +63,9 @@ spec:
             - name: config
               mountPath: "/etc/venafi/agent/config"
               readOnly: true
-              # subPath: {{ default "config.yaml" .Values.config.configmap.key | quote }}
-            - name: credentials-config
-              mountPath: "/etc/venafi/agent/credentials"
-              readOnly: true
-              # subPath: "credentials.json"
             - name: credentials
               mountPath: "/etc/venafi/agent/key"
               readOnly: true
-              # subPath: {{ default "privatey.pem" .Values.authentication.secretKey | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -85,13 +79,6 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
-        - name: credentials-config
-          configMap:
-            name: agent-credentials
-            optional: false
-            # items:
-            # - key: credentials.json
-            #   path: credentials.json
         - name: config
           configMap:
             name: {{ default "agent-config" .Values.config.configmap.name }}
