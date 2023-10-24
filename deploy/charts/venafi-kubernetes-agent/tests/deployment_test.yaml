@@ -7,8 +7,7 @@ tests:
   - it: templates as expected
     set:
       image.tag: latest
-      config.organisation: test_org
-      config.cluster: test_cluster
+      config.clientId: "00000000-0000-0000-0000-000000000000"
     template: deployment.yaml
     asserts:
       - isKind:
@@ -16,7 +15,7 @@ tests:
       # Validate name matches
       - matchRegex:
           path: metadata.name
-          pattern: ^jetstack-agent-*
+          pattern: ^venafi-kubernetes-agent-*
       # Check is latest is set as tag that it uses that tag
       - equal:
           path: spec.template.spec.containers[0].image
@@ -25,8 +24,6 @@ tests:
   # Check naming works with nameOverride
   - it: Deployment name is set when nameOverride is used
     set:
-      config.organisation: test_org
-      config.cluster: test_cluster
       nameOverride: example
     template: deployment.yaml
     asserts:
@@ -35,22 +32,11 @@ tests:
       - matchRegex:
           path: metadata.name
           pattern: ^example-RELEASE-NAME$
-    # see example output as why this has to be like this. It's more subtle than 
-    # the fullnameOverride:
-      # Actual:
-			# 	agent-RELEASE-NAME
-			# Diff:
-			# 	--- Expected
-			# 	+++ Actual
-			# 	@@ -1,2 +1,2 @@
-			# 	-agent-*
-			# 	+agent-RELEASE-NAME
 
   # Check similar with fullnameOverride
   - it: Deployment name is set when fullnameOverride is used
     set:
-      config.organisation: test_org
-      config.cluster: test_cluster
+      config.clientId: "00000000-0000-0000-0000-000000000000"
       fullnameOverride: example
     template: deployment.yaml
     asserts:
@@ -63,8 +49,7 @@ tests:
   # Checking extraArgs are passed
   - it: Extra Args passed in a valid format when supplied
     set:
-      config.organisation: test_org
-      config.cluster: test_cluster
+      config.clientId: "00000000-0000-0000-0000-000000000000"
       extraArgs: ["--strict", "--one-shot"]
     template: deployment.yaml
     asserts:
@@ -80,8 +65,7 @@ tests:
   # Check command is present when configured
   - it: Command passes to deployment manifest
     set:
-      config.organisation: test_org
-      config.cluster: test_cluster
+      config.clientId: "00000000-0000-0000-0000-000000000000"
       command: ["notpreflight"]
     template: deployment.yaml
     asserts:

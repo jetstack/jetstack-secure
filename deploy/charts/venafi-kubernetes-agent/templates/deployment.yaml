@@ -83,13 +83,7 @@ spec:
           configMap:
             name: {{ default "agent-config" .Values.config.configmap.name }}
             optional: false
-            # items:
-            # - key: {{ default "config.yaml" .Values.config.configmap.key }}
-            #   path: .
         - name: credentials
           secret:
             secretName: {{ default "agent-credentials" .Values.authentication.secretName }}
             optional: false
-            # items:
-            # - key: {{ default "privatekey.pem" .Values.authentication.secretKey }}
-            #   path: .
