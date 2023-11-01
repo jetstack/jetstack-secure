@@ -14,28 +14,34 @@ image:
   tag: "v0.1.43"
 
 # -- Specify image pull credentials if using a prviate registry
+# example: - name: my-pull-secret
 imagePullSecrets: []
 
-# -- Helm default setting to override release name, leave blank
+# -- Helm default setting to override release name, usually leave blank.
 nameOverride: ""
-# -- Helm default setting, use this to shorten install name
+
+# -- Helm default setting, use this to shorten the full install name.
 fullnameOverride: ""
 
 serviceAccount:
   # -- Specifies whether a service account should be created
-  # @default true
   create: true
-  # -- Annotations to add to the service account
+  # -- Annotations YAML to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
+  # -- The name of the service account to use.
+  # If blank and `serviceAccount.create` is true, a name is generated using the fullname template of the release.
   name: ""
 
+# -- Additional YAML annotations to add the the pod.
 podAnnotations: {}
 
+# -- Optional Pod (all containers) `SecurityContext` options, see https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod.
 podSecurityContext: {}
+  # runAsUser: 1000
+  # runAsGroup: 3000
   # fsGroup: 2000
 
+# -- Add Container specific SecurityContext settings to the container. Takes precedence over `podSecurityContext` when set. See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container
 securityContext:
   capabilities:
     drop:
@@ -44,11 +50,8 @@ securityContext:
   runAsNonRoot: true
   runAsUser: 1000
 
+# -- Set custom resourcing settings for the pod. You may not want this if you intend to use a Vertical Pod Autoscaler.
 resources:
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
   requests:
     memory: 200Mi
     cpu: 200m
@@ -56,34 +59,41 @@ resources:
     memory: 500Mi
     cpu: 500m
 
+# -- Embed YAML for nodeSelector settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/
 nodeSelector: {}
 
+# -- Embed YAML for toleration settings, see https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
 tolerations: []
 
+# -- Embed YAML for Node affinity settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes-using-node-affinity/.
 affinity: {}
 
-# -- Specify the command to run overriding default
+# -- Specify the command to run overriding default binary.
 command: []
-# -- Specify additional argument to pass to the agent
+
+# -- Specify additional arguments to pass to the agent binary.
+# For example `["--strict", "--oneshot"]`
 extraArgs: []
 
-# -- Authentication details for the Venafi Kuberente Agent
+# -- Authentication details for the Venafi Kubernetes Agent
 authentication:
   # -- Name of the secret containing the privatekey
   secretName: agent-credentials
-  # -- Key name in the references secret
+  # -- Key name in the referenced secret
   secretKey: "privatekey.pem"
 
 # -- Configuration section for the Venafi Kubernetes Agent itself
 config:
-  # -- Overrides the server if using a proxy in your environment
+  # -- Overrides the server if using a proxy in your environmen
+  # For the EU varint use: https://api.venafi.eu/
   server: "https://api.venafi.cloud/"
-  ## -- The client-id returned from the Venafi Control Plane
+  # -- The client-id returned from the Venafi Control Plane
   clientId: ""
   # -- Send data back to the platform every minute unless changed
   period: "0h1m0s"
-  # -- Sepcify ConfigMap details to load config from an existing resource
-  # This should be blankby default unless you have you own config
+
+  # -- Specify ConfigMap details to load config from an existing resource.
+  # This should be blank by default unless you have you own config. 
   configmap:
     name: 
     key: 

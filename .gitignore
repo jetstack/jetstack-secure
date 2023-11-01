@@ -11,4 +11,5 @@ bom.xml
 predicate.json
 *.pem
 *.pub
+*.tgz
 

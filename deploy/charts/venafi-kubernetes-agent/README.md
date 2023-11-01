@@ -125,38 +125,33 @@ You can also check inb the Venafi Control Plane to see when the "Last Check In" 
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| affinity | object | `{}` |  |
-| authentication | object | `{"secretKey":"privatekey.pem","secretName":"agent-credentials"}` | Authentication details for the Venafi Kuberente Agent |
-| authentication.secretKey | string | `"privatekey.pem"` | Key name in the references secret |
+| affinity | object | `{}` | Embed YAML for Node affinity settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes-using-node-affinity/. |
+| authentication | object | `{"secretKey":"privatekey.pem","secretName":"agent-credentials"}` | Authentication details for the Venafi Kubernetes Agent |
+| authentication.secretKey | string | `"privatekey.pem"` | Key name in the referenced secret |
 | authentication.secretName | string | `"agent-credentials"` | Name of the secret containing the privatekey |
-| command | list | `[]` | Specify the command to run overriding default |
+| command | list | `[]` | Specify the command to run overriding default binary. |
 | config | object | `{"clientId":"","configmap":{"key":null,"name":null},"period":"0h1m0s","server":"https://api.venafi.cloud/"}` | Configuration section for the Venafi Kubernetes Agent itself |
-| config.configmap | object | `{"key":null,"name":null}` | Sepcify ConfigMap details to load config from an existing resource This should be blankby default unless you have you own config |
+| config.clientId | string | `""` | The client-id returned from the Venafi Control Plane |
+| config.configmap | object | `{"key":null,"name":null}` | Specify ConfigMap details to load config from an existing resource. This should be blank by default unless you have you own config.  |
 | config.period | string | `"0h1m0s"` | Send data back to the platform every minute unless changed |
-| config.server | string | `"https://api.venafi.cloud/"` | Overrides the server if using a proxy in your environment |
-| extraArgs | list | `[]` | Specify additional argument to pass to the agent |
-| fullnameOverride | string | `""` | Helm default setting, use this to shorten install name |
+| config.server | string | `"https://api.venafi.cloud/"` | Overrides the server if using a proxy in your environmen For the EU varint use: https://api.venafi.eu/ |
+| extraArgs | list | `[]` | Specify additional arguments to pass to the agent binary. For example `["--strict", "--oneshot"]` |
+| fullnameOverride | string | `""` | Helm default setting, use this to shorten the full install name. |
 | image.pullPolicy | string | `"IfNotPresent"` | Defaults to only pull if not already present |
 | image.repository | string | `"quay.io/jetstack/preflight"` | Default to Open Source image repository |
 | image.tag | string | `"v0.1.43"` | Overrides the image tag whose default is the chart appVersion |
-| imagePullSecrets | list | `[]` | Specify image pull credentials if using a prviate registry |
-| nameOverride | string | `""` | Helm default setting to override release name, leave blank |
-| nodeSelector | object | `{}` |  |
-| podAnnotations | object | `{}` |  |
-| podSecurityContext | object | `{}` |  |
+| imagePullSecrets | list | `[]` | Specify image pull credentials if using a prviate registry example: - name: my-pull-secret |
+| nameOverride | string | `""` | Helm default setting to override release name, usually leave blank. |
+| nodeSelector | object | `{}` | Embed YAML for nodeSelector settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/ |
+| podAnnotations | object | `{}` | Additional YAML annotations to add the the pod. |
+| podSecurityContext | object | `{}` | Optional Pod (all containers) `SecurityContext` options, see https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod. |
 | replicaCount | int | `1` | default replicas, do not scale up |
-| resources.limits.cpu | string | `"500m"` |  |
-| resources.limits.memory | string | `"500Mi"` |  |
-| resources.requests.cpu | string | `"200m"` |  |
-| resources.requests.memory | string | `"200Mi"` |  |
-| securityContext.capabilities.drop[0] | string | `"ALL"` |  |
-| securityContext.readOnlyRootFilesystem | bool | `true` |  |
-| securityContext.runAsNonRoot | bool | `true` |  |
-| securityContext.runAsUser | int | `1000` |  |
-| serviceAccount.annotations | object | `{}` | Annotations to add to the service account |
-| serviceAccount.create | bool | `true` | Specifies whether a service account should be created @default true |
-| serviceAccount.name | string | `""` |  |
-| tolerations | list | `[]` |  |
+| resources | object | `{"limits":{"cpu":"500m","memory":"500Mi"},"requests":{"cpu":"200m","memory":"200Mi"}}` | Set custom resourcing settings for the pod. You may not want this if you intend to use a Vertical Pod Autoscaler. |
+| securityContext | object | `{"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":1000}` | Add Container specific SecurityContext settings to the container. Takes precedence over `podSecurityContext` when set. See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container |
+| serviceAccount.annotations | object | `{}` | Annotations YAML to add to the service account |
+| serviceAccount.create | bool | `true` | Specifies whether a service account should be created |
+| serviceAccount.name | string | `""` | The name of the service account to use. If blank and `serviceAccount.create` is true, a name is generated using the fullname template of the release. |
+| tolerations | list | `[]` | Embed YAML for toleration settings, see https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.11.3](https://github.com/norwoodj/helm-docs/releases/v1.11.3)
