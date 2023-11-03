@@ -1,0 +1,76 @@
+suite: test deployment
+templates:
+  - deployment.yaml
+
+tests:
+  # Basic checks on deployment
+  - it: templates as expected
+    set:
+      image.tag: latest
+      config.clientId: "00000000-0000-0000-0000-000000000000"
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      # Validate name matches
+      - matchRegex:
+          path: metadata.name
+          pattern: ^venafi-kubernetes-agent-*
+      # Check is latest is set as tag that it uses that tag
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: quay.io/jetstack/preflight:latest
+
+  # Check naming works with nameOverride
+  - it: Deployment name is set when nameOverride is used
+    set:
+      nameOverride: example
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - matchRegex:
+          path: metadata.name
+          pattern: ^example-RELEASE-NAME$
+
+  # Check similar with fullnameOverride
+  - it: Deployment name is set when fullnameOverride is used
+    set:
+      config.clientId: "00000000-0000-0000-0000-000000000000"
+      fullnameOverride: example
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: example
+
+  # Checking extraArgs are passed
+  - it: Extra Args passed in a valid format when supplied
+    set:
+      config.clientId: "00000000-0000-0000-0000-000000000000"
+      extraArgs: ["--strict", "--one-shot"]
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --strict
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --one-shot
+
+  # Check command is present when configured
+  - it: Command passes to deployment manifest
+    set:
+      config.clientId: "00000000-0000-0000-0000-000000000000"
+      command: ["notpreflight"]
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].command
+          content: notpreflight

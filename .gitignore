@@ -9,5 +9,7 @@ terraform.tfstate
 terraform.tfstate.backup
 bom.xml
 predicate.json
-privatekey.pem
+*.pem
+*.pub
+*.tgz
 

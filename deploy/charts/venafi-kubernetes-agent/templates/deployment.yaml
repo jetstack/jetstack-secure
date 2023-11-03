@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "venafi-kubernetes-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "venafi-kubernetes-agent.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if  eq .Values.authentication.type "token" }}
+          env:
+            - name: API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default "agent-credentials" .Values.authentication.secretName }}
+                  key: {{ default "apitoken" .Values.authentication.secretKey }}
+          {{- end }}
+          {{- if not (empty .Values.command) }}
+          command:
+          {{- range .Values.command }}
+            - {{ . | quote }}
+          {{- end }}
+          {{- end }}
+          args:
+            - "agent"
+            - "-c"
+            - "/etc/venafi/agent/config/{{ default "config.yaml" .Values.config.configmap.key }}"
+            - "--client-id"
+            - "{{ .Values.config.clientId }}"
+            - "-p"
+            - "0h1m0s"
+            - --venafi-cloud
+            {{- range .Values.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/venafi/agent/config"
+              readOnly: true
+            - name: credentials
+              mountPath: "/etc/venafi/agent/key"
+              readOnly: true
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ default "agent-config" .Values.config.configmap.name }}
+            optional: false
+        - name: credentials
+          secret:
+            secretName: {{ default "agent-credentials" .Values.authentication.secretName }}
+            optional: false
