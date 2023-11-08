@@ -155,7 +155,7 @@ kubectl logs -n jetstack-secure $(kubectl get pod -n jetstack-secure -l app.kube
 | fullnameOverride | string | `""` | Helm default setting, use this to shorten install name |
 | image.pullPolicy | string | `"IfNotPresent"` | Defaults to only pull if not already present |
 | image.repository | string | `"quay.io/jetstack/preflight"` | Default to Open Source image repository |
-| image.tag | string | `"v0.1.40"` | Overrides the image tag whose default is the chart appVersion |
+| image.tag | string | `"v0.1.43"` | Overrides the image tag whose default is the chart appVersion |
 | imagePullSecrets | list | `[]` | Specify image pull credentials if using a prviate registry |
 | nameOverride | string | `""` | Helm default setting to override release name, leave blank |
 | nodeSelector | object | `{}` |  |
