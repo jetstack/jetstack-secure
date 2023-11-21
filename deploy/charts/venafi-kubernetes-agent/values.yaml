@@ -11,7 +11,7 @@ image:
   # -- Defaults to only pull if not already present
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion
-  tag: "v0.1.43"
+  # tag: "v0.0.0"
 
 # -- Specify image pull credentials if using a private registry
 # example: - name: my-pull-secret
@@ -93,7 +93,7 @@ config:
   period: "0h1m0s"
 
   # -- Specify ConfigMap details to load config from an existing resource.
-  # This should be blank by default unless you have you own config. 
+  # This should be blank by default unless you have you own config.
   configmap:
-    name: 
-    key: 
+    name:
+    key:

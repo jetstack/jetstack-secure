@@ -1,9 +1,10 @@
 apiVersion: v2
 name: jetstack-agent
-description: TLS Protect for Kubernetes Agent
+description: |-
+  The Jetstack Agent connects your Kubernetes or Openshift cluster to the jetstack-secure control plane.
 type: application
-version: 0.3.1
-appVersion: "v0.1.43"
+version: 0.0.0
+appVersion: "v0.0.0"
 home: https://github.com/jetstack/jetstack-secure
 maintainers:
 - name: JSCP and CRE Team

@@ -11,7 +11,7 @@ image:
   # -- Defaults to only pull if not already present
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion
-  tag: "v0.1.43"
+  # tag: "v0.0.0"
 
 # -- Specify image pull credentials if using a prviate registry
 imagePullSecrets: []
@@ -64,7 +64,7 @@ affinity: {}
 
 authentication:
   # -- Reccomend that you do not use this and instead creat the credential secret outside of helm
-  createSecret: false 
+  createSecret: false
   # -- Type can be "file"/"token" determining how the agent should authenticate the to the backend
   type: file
   # -- Name of the secret containing agent credentials.json
@@ -110,8 +110,8 @@ config:
     # -- Override disabled by default
     enabled: false
     # -- Embed the agent configuration here in the chart values
-    config: 
+    config:
     # -- Sepcify ConfigMap details to load config from existing ConfigMap
     configmap:
-      name: 
-      key: 
+      name:
+      key:
