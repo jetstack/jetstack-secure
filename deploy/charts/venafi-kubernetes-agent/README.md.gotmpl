@@ -101,7 +101,7 @@ Check the agent logs to ensure you see a similar entry to the following:
 You can do this with the following command:
 
 ```shell
-kubectl logs -n ${VENAFI_NAMESPACE} $(kubectl get pod -n ${VENAFI_NAMESPACE} -l app.kubernetes.io/instance={{ .Release.Name }} -o jsonpath='{.items[0].metadata.name}')
+kubectl logs -n ${VENAFI_NAMESPACE} $(kubectl get pod -n ${VENAFI_NAMESPACE} -l app.kubernetes.io/instance=venafi-kubernetes-agent -o jsonpath='{.items[0].metadata.name}')
 ```
 
 You can also check in the Venafi Control Plane to see when the "Last Check In" was for your cluster.
