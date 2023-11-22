@@ -45,3 +45,74 @@ go run main.go echo
 
 The Jetstack-Secure agent exposes its metrics through a Prometheus server, on port 8081.
 The Prometheus server is disabled by default but can be enabled by passing the `--enable-metrics` flag to the agent binary.
+
+## Release Process
+
+The release process is semi-automated.
+It starts with the following manual steps:
+
+1. Choose the next semver version number.
+   This project has only ever incremented the "patch" number (never the "minor" number) regardless of the scope of the changes.
+1. Create a branch.
+1. Increment version numbers in the `venafi-kubernetes-agent` Helm chart.
+   (the `jetstack-secure` Helm chart uses a different version scheme and is updated and released separately):
+   1. Increment the `version` value in [Chart.yaml](deploy/charts/venafi-kubernetes-agent/Chart.yaml).
+      DO NOT use a `v` prefix.
+      The `v` prefix [breaks Helm OCI operations](https://github.com/helm/helm/issues/11107).
+   1. Increment `appVersion` value in [Chart.yaml](deploy/charts/venafi-kubernetes-agent/Chart.yaml).
+      Use a `v` prefix, to match the Docker image tag.
+   1. Increment the `image.tag` value in [values.yaml](deploy/charts/venafi-kubernetes-agent/values.yaml).
+      Use a `v` prefix.
+   1. Commit the changes.
+1. Create a pull request and wait for it to be approved.
+1. Merge the branch.
+1. Push a semver tag with a `v` prefix: `vX.Y.Z`.
+
+This will trigger the following automated processes:
+
+1. Two Docker images are built and pushed to a public `quay.io` registry, by the [release-master workflow](.github/workflows/release-master.yml):
+   * `quay.io/jetstack/preflight`: is pulled directly by tier 1 Jetstack Secure users, who do not have access to the Jetstack Enterprise Registry.
+   * `quay.io/jetstack/venafi-agent`: is mirrored to a public Venafi OCI registry for Venafi TLS Protect for Kubernetes users.
+
+2. The Docker images are mirrored by private Venafi CI pipelines, to:
+   * [Jetstack Enterprise Registry](https://platform.jetstack.io/documentation/installation/agent#1-obtain-oci-registry-credentials):
+     for Tier 2 Jetstack Secure users. Tier 2 grants users access to this registry.
+   * [Venafi private Registry](https://docs.venafi.cloud/vaas/k8s-components/th-guide-confg-access-to-tlspk-enterprise-components/):
+     for Tier 2 Venafi TLS Protect for Kubernetes users. Tier 2 grants users access to this registry.
+   * [Venafi public Registry](https://registry.venafi.cloud/public/venafi-images/venafi-kubernetes-agent):
+     for Tier 1 Venafi TLS Protect for Kubernetes users. Tier 1 users do not have access to the private registry. (TODO)
+
+### Helm Chart: venafi-kubernetes-agent
+
+The [venafi-kubernetes-agent](deploy/charts/venafi-kubernetes-agent/README.md) chart
+is released manually, as follows:
+
+```sh
+
+```
+
+### Helm Chart: jetstack-agent
+
+The [jetstack-agent](deploy/charts/jetstack-agent/README.md) chart has a different version number to the agent.
+This is because the first version of *this* chart was given version `0.1.0`,
+while the app version at the time was `0.1.38`.
+And this allows the chart to be updated and released more frequently than the Docker image if necessary.
+This chart is for [Jetstack Secure](https://platform.jetstack.io/documentation/installation/agent#jetstack-agent-helm-chart-installation).
+
+1. Create a branch
+1. Increment version numbers.
+   1. Increment the `version` value in [Chart.yaml](deploy/charts/jetstack-agent/Chart.yaml).
+      DO NOT use a `v` prefix.
+      The `v` prefix [breaks Helm OCI operations](https://github.com/helm/helm/issues/11107).
+   1. Increment the `appVersion` value in [Chart.yaml](deploy/charts/jetstack-agent/Chart.yaml).
+      Use a `v` prefix, to match the Docker image tag.
+   1. Increment the `image.tag` value in [values.yaml](deploy/charts/jetstack-agent/values.yaml).
+      Use a `v` prefix, to match the Docker image tag.
+1. Create a pull request and wait for it to be approved.
+1. Merge the branch
+1. Push a tag, using the format: `chart-vX.Y.Z`.
+   This unique tag format is recognized by the private CI pipeline that builds and publishes the chart.
+
+The chart will be published to
+the [Jetstack Enterprise Registry](https://platform.jetstack.io/documentation/installation/agent#1-obtain-oci-registry-credentials)
+by a private CI pipeline managed by Venafi.
