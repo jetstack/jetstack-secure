@@ -88,8 +88,12 @@ The [venafi-kubernetes-agent](deploy/charts/venafi-kubernetes-agent/README.md) c
 is released manually, as follows:
 
 ```sh
-
+export VERSION=0.1.43-alpha.0
+helm package deploy/charts/venafi-kubernetes-agent
+helm push venafi-kubernetes-agent-${VERSION}.tgz oci://eu.gcr.io/jetstack-secure-enterprise/charts
 ```
+
+The chart will be mirrored to
 
 ### Helm Chart: jetstack-agent
 
