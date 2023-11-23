@@ -26,12 +26,22 @@ The Helm chart is available from the following Venafi OCI registries:
 
 > Learn [how to access the private Venafi OCI registries](https://docs.venafi.cloud/vaas/k8s-components/th-guide-confg-access-to-tlspk-enterprise-components/).
 
-Before installing the chart you will need a service account key pair,
-which is used by the agent to authenticate to the Venafi Control Plane.
+Familiarise yourself with the Helm chart:
 
-First create an RSA key pair and save the private key securely.
-The private key is used by the agent and you should have a unique key for each agent you connect to the Venafi Control Plane.
-The public key will be added to the Venafi Control Plane as the service account credential and assigned to the appropriate team for ownership.
+```sh
+helm show readme oci://registry.venafi.cloud/charts/venafi-kubernetes-agent
+helm show values oci://registry.venafi.cloud/charts/venafi-kubernetes-agent
+helm template oci://registry.venafi.cloud/charts/venafi-kubernetes-agent
+```
+
+### 1) Create a Venafi service account
+
+Create a new service account in the Venafi TLS Protect Cloud web UI.
+The service account is used by the Venafi Kubernetes Agent to authenticate to the Venafi Control Plane.
+Every Venafi Kubernetes Agent should use a unique service account.
+You must create the service account **before** installing the Helm chart.
+
+First create an RSA key pair:
 
 ```shell
 export VENAFI_SERVICE_ACCOUNT="example-cluster"
@@ -50,11 +60,13 @@ Next create a service account in the Venafi Control Plane:
 - Set the validity period of your pubic key up to a maximum of 365 days.
 - Paste in the **public key** from the pair you generated.
 - Click **Save** to finish and return to the Service Account list view.
-- Find the newest entry matching the name you entered and copy the "Client ID" value.
+- Find the row matching the name you entered and copy the "Client ID" value,
+  by clicking "Copy Client ID" in the row actions menu.
+  You will need this when you install the Helm chart.
 
-### 3) Deploying the chart:
+### 2) Deploy the chart
 
-Now prepare a Namespace and a Secret containing the private key of the service account:
+Create a Namespace and then create a Secret containing the private key of the service account:
 
 ```shell
 export VENAFI_NAMESPACE="venafi"
@@ -64,10 +76,10 @@ kubectl create secret generic agent-credentials \
   --from-file=privatekey.pem=${VENAFI_SERVICE_ACCOUNT}.pem
 ```
 
-Install the chart by setting the `config.clientId` field:
+Install the chart:
 
 ```shell
-export VENAFI_CLIENT_ID="fd93a1e5-8968-11ee-916c-3e98640ed54f"
+export VENAFI_CLIENT_ID="<your-client-id>"
 helm upgrade venafi-kubernetes-agent oci://registry.venafi.cloud/charts/venafi-kubernetes-agent \
   --install \
   --namespace ${VENAFI_NAMESPACE} \
@@ -77,21 +89,28 @@ helm upgrade venafi-kubernetes-agent oci://registry.venafi.cloud/charts/venafi-k
 > To change the backend to the EU Venafi Control Plane, use the following Helm value:
 > `--set config.server="${VENAFI_SERVER_URL}"`
 
-### 4) Add Cluster in Venafi Control Plane
+### 3) Connect the cluster in Venafi Control Plane
 
-- Go to "Installations" -> "Kubernetes Clusters" [here](https://ui.venafi.cloud/clusters-inventory) and click "Connect". **Note** you may need to click [here](https://ui.venafi.eu/clusters-inventory) for the EU backend.
-- On step 1 select "Continue".
-- On step 2 select "Advanced Connection".
-- On step 3 select "Continue" to skip.
-- On step 4, fill in the details as needed:
-  - "Name" should match your service account name from before, e.g. "example-cluster".
-  - Under "Service Account" click that drop down and select the previously created service account.
-  - Then check the "The connection command has completed." box and select "continue".
-- On step 5, either wait for validation or select "Finish" to go back to the cluster list.
+- Click **Installations > Kubernetes Clusters**.
+- Click **Connect**.
+- On step 1, click **Continue**.
+- On step 2, select **Advanced Connection**.
+- On step 3, click **Continue** to skip.
+- On step 4, fill in the details as follows:
+  - Name: use the name of the service account that you created earlier. E.g. "example-cluster".
+  - Service Account: select the service account that you created earlier.
+  - Check "The connection command has completed." box and click **continue**.
+- On step 5, either wait for validation or click **Finish** to go back to the cluster list.
 
-### 5) Deployment Verification
+### 4) Verify the deployment
 
-Check the agent logs to ensure you see a similar entry to the following:
+Check the agent logs:
+
+```shell
+kubectl logs -n ${VENAFI_NAMESPACE} -l app.kubernetes.io/instance=venafi-kubernetes-agent --tail -1 | grep -A 5 "Running Agent"
+```
+
+You should see:
 
 ```console
 2023/10/24 12:10:03 Running Agent...
@@ -99,13 +118,19 @@ Check the agent logs to ensure you see a similar entry to the following:
 2023/10/24 12:10:04 Data sent successfully.
 ```
 
-You can do this with the following command:
+Check the cluster status by visiting the Clusters page in the Venafi Control Plane:
+- Click  **Installations > Kubernetes Clusters**
 
-```shell
-kubectl logs -n ${VENAFI_NAMESPACE} $(kubectl get pod -n ${VENAFI_NAMESPACE} -l app.kubernetes.io/instance=venafi-kubernetes-agent -o jsonpath='{.items[0].metadata.name}')
-```
+You should see:
+- Status: Active
+- Last Check In: ...seconds ago
 
-You can also check in the Venafi Control Plane to see when the "Last Check In" was for your cluster.
+Check the Event Log page:
+- Click **Settings > Event Log**
+
+You should see the following events for your service account:
+- Service Account Access Token Granted
+- Login Succeeded
 
 ## Values
 
