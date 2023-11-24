@@ -15,6 +15,9 @@ Upon signing up you will be redirected to one of either of the following login U
 - https://ui.venafi.cloud/ (US)
 - https://ui.venafi.eu/ (EU)
 
+> 📖 Learn more about [Venafi Kubernetes Agent network requirements](https://docs.venafi.cloud/vaas/k8s-components/c-vcp-network-requirements/),
+> in the two regions.
+
 ## Installation
 
 The Helm chart is available from the following Venafi OCI registries:
@@ -23,7 +26,9 @@ The Helm chart is available from the following Venafi OCI registries:
 - `oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent` (private, US)
 - `oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent` (private, EU)
 
-> Learn [how to access the private Venafi OCI registries](https://docs.venafi.cloud/vaas/k8s-components/th-guide-confg-access-to-tlspk-enterprise-components/).
+> ℹ️ In the following steps it is assumed that you are using the **public** registry.
+>
+> 📖 Learn [how to access the private Venafi OCI registries](https://docs.venafi.cloud/vaas/k8s-components/th-guide-confg-access-to-tlspk-enterprise-components/).
 
 Familiarise yourself with the Helm chart:
 
@@ -85,8 +90,8 @@ helm upgrade venafi-kubernetes-agent oci://registry.venafi.cloud/charts/venafi-k
   --set config.clientId="${VENAFI_CLIENT_ID}"
 ```
 
-> To change the backend to the EU Venafi Control Plane, use the following Helm value:
-> `--set config.server="${VENAFI_SERVER_URL}"`
+> ℹ️ To use the [EU Venafi Control Plane](https://docs.venafi.cloud/vaas/k8s-components/c-vcp-network-requirements/),
+> add: `--set config.server=https://api.venafi.eu/`.
 
 ### 3) Connect the cluster in Venafi Control Plane
 
