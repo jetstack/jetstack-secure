@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   # -- Default to Open Source image repository
-  repository: quay.io/jetstack/preflight
+  repository: quay.io/jetstack/venafi-agent
   # -- Defaults to only pull if not already present
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion
@@ -93,7 +93,7 @@ config:
   period: "0h1m0s"
 
   # -- Specify ConfigMap details to load config from an existing resource.
-  # This should be blank by default unless you have you own config. 
+  # This should be blank by default unless you have you own config.
   configmap:
-    name: 
-    key: 
+    name:
+    key:
