@@ -2,7 +2,7 @@
 
 The Venafi Kubernetes Agent connects your Kubernetes or Openshift cluster to the Venafi Control Plane.
 
-![Version: 0.1.43-alpha.1](https://img.shields.io/badge/Version-0.1.43--alpha.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.43](https://img.shields.io/badge/AppVersion-v0.1.43-informational?style=flat-square)
+![Version: 0.1.43](https://img.shields.io/badge/Version-0.1.43-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.43](https://img.shields.io/badge/AppVersion-v0.1.43-informational?style=flat-square)
 
 ## Additional Information
 
@@ -16,6 +16,9 @@ Upon signing up you will be redirected to one of either of the following login U
 - https://ui.venafi.cloud/ (US)
 - https://ui.venafi.eu/ (EU)
 
+> 📖 Learn more about [Venafi Kubernetes Agent network requirements](https://docs.venafi.cloud/vaas/k8s-components/c-vcp-network-requirements/),
+> in the two regions.
+
 ## Installation
 
 The Helm chart is available from the following Venafi OCI registries:
@@ -24,7 +27,9 @@ The Helm chart is available from the following Venafi OCI registries:
 - `oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent` (private, US)
 - `oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent` (private, EU)
 
-> Learn [how to access the private Venafi OCI registries](https://docs.venafi.cloud/vaas/k8s-components/th-guide-confg-access-to-tlspk-enterprise-components/).
+> ℹ️ In the following steps it is assumed that you are using the **public** registry.
+>
+> 📖 Learn [how to access the private Venafi OCI registries](https://docs.venafi.cloud/vaas/k8s-components/th-guide-confg-access-to-tlspk-enterprise-components/).
 
 Familiarise yourself with the Helm chart:
 
@@ -86,8 +91,8 @@ helm upgrade venafi-kubernetes-agent oci://registry.venafi.cloud/charts/venafi-k
   --set config.clientId="${VENAFI_CLIENT_ID}"
 ```
 
-> To change the backend to the EU Venafi Control Plane, use the following Helm value:
-> `--set config.server="${VENAFI_SERVER_URL}"`
+> ℹ️ To use the [EU Venafi Control Plane](https://docs.venafi.cloud/vaas/k8s-components/c-vcp-network-requirements/),
+> add: `--set config.server=https://api.venafi.eu/`.
 
 ### 3) Connect the cluster in Venafi Control Plane
 
@@ -143,13 +148,13 @@ You should see the following events for your service account:
 | command | list | `[]` | Specify the command to run overriding default binary. |
 | config | object | `{"clientId":"","configmap":{"key":null,"name":null},"period":"0h1m0s","server":"https://api.venafi.cloud/"}` | Configuration section for the Venafi Kubernetes Agent itself |
 | config.clientId | string | `""` | The client-id returned from the Venafi Control Plane |
-| config.configmap | object | `{"key":null,"name":null}` | Specify ConfigMap details to load config from an existing resource. This should be blank by default unless you have you own config.  |
+| config.configmap | object | `{"key":null,"name":null}` | Specify ConfigMap details to load config from an existing resource. This should be blank by default unless you have you own config. |
 | config.period | string | `"0h1m0s"` | Send data back to the platform every minute unless changed |
 | config.server | string | `"https://api.venafi.cloud/"` | Overrides the server if using a proxy in your environment For the EU variant use: https://api.venafi.eu/ |
 | extraArgs | list | `[]` | Specify additional arguments to pass to the agent binary. For example `["--strict", "--oneshot"]` |
 | fullnameOverride | string | `""` | Helm default setting, use this to shorten the full install name. |
 | image.pullPolicy | string | `"IfNotPresent"` | Defaults to only pull if not already present |
-| image.repository | string | `"quay.io/jetstack/preflight"` | Default to Open Source image repository |
+| image.repository | string | `"quay.io/jetstack/venafi-agent"` | Default to Open Source image repository |
 | image.tag | string | `"v0.1.43"` | Overrides the image tag whose default is the chart appVersion |
 | imagePullSecrets | list | `[]` | Specify image pull credentials if using a private registry example: - name: my-pull-secret |
 | nameOverride | string | `""` | Helm default setting to override release name, usually leave blank. |
