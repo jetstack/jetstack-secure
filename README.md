@@ -89,9 +89,12 @@ is released manually, as follows:
 
 ```sh
 export VERSION=0.1.43
-helm package deploy/charts/venafi-kubernetes-agent
+helm package deploy/charts/venafi-kubernetes-agent --version "${VERSION}"
 helm push venafi-kubernetes-agent-${VERSION}.tgz oci://eu.gcr.io/jetstack-secure-enterprise/charts
 ```
+
+> ℹ️ To test the Helm chart before releasing it, use a [pre-release suffix](https://semver.org/#spec-item-9). E.g.
+> `export VERSION=0.1.43-alpha.0`.
 
 The chart will be mirrored to
 
