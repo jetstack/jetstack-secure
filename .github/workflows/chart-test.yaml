@@ -12,7 +12,7 @@ jobs:
   unittest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: d3adb5/helm-unittest-action@v2
         with:
           flags: "--color --strict"

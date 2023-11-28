@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: golang:1.19
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - run: make vet
       shell: bash
   test:
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: golang:1.19
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - run: make test
   docker_build:
     name: docker_build
@@ -44,7 +44,7 @@ jobs:
     - name: Adding github workspace as safe directory
       # See issue https://github.com/actions/checkout/issues/760
       run: git config --global --add safe.directory $GITHUB_WORKSPACE
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
     - name: Set up Docker Buildx

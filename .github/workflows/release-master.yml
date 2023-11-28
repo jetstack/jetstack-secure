@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: golang:1.19
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - run: make vet
       shell: bash
   test:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-22.04
     container: golang:1.19
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - run: make test
   docker_build:
     name: docker_build
@@ -53,7 +53,7 @@ jobs:
       uses: sigstore/cosign-installer@1fc5bd396d372bee37d608f955b336615edf79c8
     - name: Install Syft
       uses: anchore/sbom-action/download-syft@fd74a6fb98a204a1ad35bbfae0122c1a302ff88b
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
     - name: Set up Docker Buildx
