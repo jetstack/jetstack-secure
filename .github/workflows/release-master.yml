@@ -52,7 +52,7 @@ jobs:
     - name: Install cosign
       uses: sigstore/cosign-installer@1fc5bd396d372bee37d608f955b336615edf79c8
     - name: Install Syft
-      uses: anchore/sbom-action/download-syft@fd74a6fb98a204a1ad35bbfae0122c1a302ff88b
+      uses: anchore/sbom-action/download-syft@5ecf649a417b8ae17dc8383dc32d46c03f2312df
     - uses: actions/checkout@v4
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
