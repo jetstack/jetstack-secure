@@ -1,4 +1,4 @@
-FROM golang:1.19.0 as builder
+FROM golang:1.21.6 as builder
 
 WORKDIR /go/github.com/jetstack/preflight
 
