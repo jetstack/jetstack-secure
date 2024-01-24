@@ -19,7 +19,7 @@ tests:
       # Check is latest is set as tag that it uses that tag
       - equal:
           path: spec.template.spec.containers[0].image
-          value: quay.io/jetstack/venafi-agent:latest
+          value: registry.venafi.cloud/venafi-agent/venafi-agent:latest
 
   # Check naming works with nameOverride
   - it: Deployment name is set when nameOverride is used

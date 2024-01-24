@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   # -- Default to Venafi Public registry.
-  # To use the open source repository set: "quay.io/jetstack/preflight".
+  # To use the open source repository set: "quay.io/jetstack/venafi-agent".
   repository: registry.venafi.cloud/venafi-agent/venafi-agent
   # -- Defaults to only pull if not already present
   pullPolicy: IfNotPresent
