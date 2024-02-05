@@ -197,5 +197,5 @@ data:
         resource-type:
           group: firefly.venafi.com
           version: v1
-          resource: firefly
-{{- end }}
+          resource: fireflyissuers
+{{- ed }}
