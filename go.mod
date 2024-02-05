@@ -13,6 +13,7 @@ require (
 	github.com/juju/errors v1.0.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/maxatome/go-testdeep v1.14.0
+	github.com/microcosm-cc/bluemonday v1.0.26
 	github.com/pkg/errors v0.9.1
 	github.com/pmylund/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.18.0
@@ -27,7 +28,9 @@ require (
 )
 
 require (
+	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/google/gnostic-models v0.6.9-0.20230804172637-c7be7c783f49 // indirect
+	github.com/gorilla/css v1.0.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 )

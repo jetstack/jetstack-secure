@@ -26,8 +26,9 @@ type Config struct {
 	// OrganizationID within Preflight that will receive the data.
 	OrganizationID string `yaml:"organization_id"`
 	// ClusterID is the cluster that the agent is scanning.
-	ClusterID     string         `yaml:"cluster_id"`
-	DataGatherers []DataGatherer `yaml:"data-gatherers"`
+	ClusterID          string         `yaml:"cluster_id"`
+	ClusterDescription string         `yaml:"cluster_description"`
+	DataGatherers      []DataGatherer `yaml:"data-gatherers"`
 	// InputPath replaces DataGatherers with input data file
 	InputPath string `yaml:"input-path"`
 	// OutputPath replaces Server with output data file

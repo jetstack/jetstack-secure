@@ -39,6 +39,12 @@ func NewAPITokenClient(agentMetadata *api.AgentMetadata, apiToken, baseURL strin
 	}, nil
 }
 
+// PostDataReadingsWithOptions uploads the slice of api.DataReading to the Jetstack Secure backend to be processed for later
+// viewing in the user-interface.
+func (c *APITokenClient) PostDataReadingsWithOptions(readings []*api.DataReading, opts Options) error {
+	return c.PostDataReadings(opts.OrgID, opts.ClusterID, readings)
+}
+
 // PostDataReadings uploads the slice of api.DataReading to the Jetstack Secure backend to be processed for later
 // viewing in the user-interface.
 func (c *APITokenClient) PostDataReadings(orgID, clusterID string, readings []*api.DataReading) error {
