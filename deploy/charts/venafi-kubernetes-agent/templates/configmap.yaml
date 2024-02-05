@@ -191,4 +191,13 @@ data:
           group: jetstack.io
           version: v1alpha1
           resource: venafiissuers
+    - kind: "k8s-dynamic"
+      name: "k8s/fireflyissuers"
+      config:
+        resource-type:
+          group: firefly.venafi.com
+          version: v1
+          resource: issuers
 {{- end }}
+
+
