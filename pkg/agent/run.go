@@ -411,7 +411,10 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 
 	if VenafiCloudMode {
 		// orgID and clusterID are not required for Venafi Cloud auth
-		err := preflightClient.PostDataReadings("", "", readings)
+		err := preflightClient.PostDataReadingsWithOptions(readings, client.Options{
+			ClusterName:        config.ClusterID,
+			ClusterDescription: config.ClusterDescription,
+		})
 		if err != nil {
 			return fmt.Errorf("post to server failed: %+v", err)
 		}

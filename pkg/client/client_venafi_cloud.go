@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jetstack/preflight/api"
+	"github.com/microcosm-cc/bluemonday"
 )
 
 type (
@@ -150,6 +152,57 @@ func (c *VenafiSvcAccountCredentials) Validate() error {
 // IsClientSet returns whether the client credentials are set or not.
 func (c *VenafiSvcAccountCredentials) IsClientSet() bool {
 	return c.ClientID != "" && c.PrivateKeyFile != ""
+}
+
+// PostDataReadingsWithOptions uploads the slice of api.DataReading to the Venafi Cloud backend to be processed.
+// The Options are then passed as URL params in the request
+func (c *VenafiCloudClient) PostDataReadingsWithOptions(readings []*api.DataReading, opts Options) error {
+	payload := api.DataReadingsPost{
+		AgentMetadata:  c.agentMetadata,
+		DataGatherTime: time.Now().UTC(),
+		DataReadings:   readings,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	if !strings.HasSuffix(c.uploadPath, "/") {
+		c.uploadPath = fmt.Sprintf("%s/", c.uploadPath)
+	}
+
+	venafiCloudUploadURL, err := url.Parse(filepath.Join(c.uploadPath, c.uploaderID))
+	if err != nil {
+		return err
+	}
+
+	// validate options and send them as URL params
+	query := venafiCloudUploadURL.Query()
+	stripHTML := bluemonday.StrictPolicy()
+	if opts.ClusterName != "" {
+		query.Add("name", stripHTML.Sanitize(opts.ClusterName))
+	}
+	if opts.ClusterDescription != "" {
+		query.Add("description", base64.RawURLEncoding.EncodeToString([]byte(stripHTML.Sanitize(opts.ClusterDescription))))
+	}
+	venafiCloudUploadURL.RawQuery = query.Encode()
+
+	res, err := c.Post(venafiCloudUploadURL.String(), bytes.NewBuffer(data))
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if code := res.StatusCode; code < 200 || code >= 300 {
+		errorContent := ""
+		body, err := io.ReadAll(res.Body)
+		if err == nil {
+			errorContent = string(body)
+		}
+		return fmt.Errorf("received response with status code %d. Body: %s", code, errorContent)
+	}
+
+	return nil
 }
 
 // PostDataReadings uploads the slice of api.DataReading to the Venafi Cloud backend to be processed for later
