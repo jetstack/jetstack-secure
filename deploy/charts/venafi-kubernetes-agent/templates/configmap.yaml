@@ -8,6 +8,8 @@ metadata:
     {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
 data:
   config.yaml: |-
+    cluster_id: {{ .Values.config.clusterName | quote }}
+    cluster_description: {{ .Values.config.clusterDescription | quote }}
     server: {{ .Values.config.server | quote }}
     venafi-cloud:
       uploader_id: "no"

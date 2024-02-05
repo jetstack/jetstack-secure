@@ -91,6 +91,10 @@ config:
   clientId: ""
   # -- Send data back to the platform every minute unless changed
   period: "0h1m0s"
+  # -- Name for the cluster resource if it needs to be created in Venafi Control Plane
+  clusterName: ""
+  # -- Description for the cluster resource if it needs to be created in Venafi Control Plane
+  clusterDescription: ""
 
   # -- Specify ConfigMap details to load config from an existing resource.
   # This should be blank by default unless you have you own config.

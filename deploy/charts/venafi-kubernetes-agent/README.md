@@ -2,7 +2,7 @@
 
 The Venafi Kubernetes Agent connects your Kubernetes or Openshift cluster to the Venafi Control Plane.
 
-![Version: 0.1.43](https://img.shields.io/badge/Version-0.1.43-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.43](https://img.shields.io/badge/AppVersion-v0.1.43-informational?style=flat-square)
+![Version: 0.1.44](https://img.shields.io/badge/Version-0.1.44-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.44](https://img.shields.io/badge/AppVersion-v0.1.44-informational?style=flat-square)
 
 ## Additional Information
 
@@ -146,8 +146,10 @@ You should see the following events for your service account:
 | authentication.secretKey | string | `"privatekey.pem"` | Key name in the referenced secret |
 | authentication.secretName | string | `"agent-credentials"` | Name of the secret containing the private key |
 | command | list | `[]` | Specify the command to run overriding default binary. |
-| config | object | `{"clientId":"","configmap":{"key":null,"name":null},"period":"0h1m0s","server":"https://api.venafi.cloud/"}` | Configuration section for the Venafi Kubernetes Agent itself |
+| config | object | `{"clientId":"","clusterDescription":"","clusterName":"","configmap":{"key":null,"name":null},"period":"0h1m0s","server":"https://api.venafi.cloud/"}` | Configuration section for the Venafi Kubernetes Agent itself |
 | config.clientId | string | `""` | The client-id returned from the Venafi Control Plane |
+| config.clusterDescription | string | `""` | Description for the cluster resource if it needs to be created in Venafi Control Plane |
+| config.clusterName | string | `""` | Name for the cluster resource if it needs to be created in Venafi Control Plane |
 | config.configmap | object | `{"key":null,"name":null}` | Specify ConfigMap details to load config from an existing resource. This should be blank by default unless you have you own config. |
 | config.period | string | `"0h1m0s"` | Send data back to the platform every minute unless changed |
 | config.server | string | `"https://api.venafi.cloud/"` | Overrides the server if using a proxy in your environment For the EU variant use: https://api.venafi.eu/ |
