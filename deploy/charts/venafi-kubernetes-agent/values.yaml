@@ -11,7 +11,7 @@ image:
   # -- Defaults to only pull if not already present
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion
-  tag: "v0.1.43"
+  tag: "v0.1.45"
 
 # -- Specify image pull credentials if using a private registry
 # example: - name: my-pull-secret
