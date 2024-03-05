@@ -101,3 +101,20 @@ config:
   configmap:
     name:
     key:
+
+# -- Configure a PodDisruptionBudget for the agent's Deployment. If running with multiple
+# replicas, consider setting podDisruptionBudget.enabled to true.
+podDisruptionBudget:
+  # -- Enable or disable the PodDisruptionBudget resource, which helps prevent downtime
+  # during voluntary disruptions such as during a Node upgrade.
+  enabled: false
+
+  # -- Configure the minimum available pods for disruptions. Can either be set to
+  # an integer (e.g. 1) or a percentage value (e.g. 25%).
+  # Cannot be used if `maxUnavailable` is set.
+  # minAvailable: 1
+
+  # -- Configure the maximum unavailable pods for disruptions. Can either be set to
+  # an integer (e.g. 1) or a percentage value (e.g. 25%).
+  # Cannot be used if `minAvailable` is set.
+  # maxUnavailable: 1
