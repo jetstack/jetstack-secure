@@ -239,6 +239,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "venafi-kubernetes-agent.fullname" . }}-venafi-enhanced-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["jetstack.io"]
     resources:
@@ -250,6 +252,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ include "venafi-kubernetes-agent.fullname" . }}-venafi-enhanced-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
 roleRef:
   kind: ClusterRole
   name: {{ include "venafi-kubernetes-agent.fullname" . }}-venafi-enhanced-reader
