@@ -4,6 +4,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: agent-config
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
 data:
