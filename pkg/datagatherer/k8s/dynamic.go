@@ -251,8 +251,6 @@ type DataGathererDynamic struct {
 	informer              k8scache.SharedIndexInformer
 	dynamicSharedInformer dynamicinformer.DynamicSharedInformerFactory
 	nativeSharedInformer  informers.SharedInformerFactory
-	informerCtx           context.Context
-	informerCancel        context.CancelFunc
 
 	// isInitialized is set to true when data is first collected, prior to
 	// this the fetch method will return an error
@@ -266,12 +264,6 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 		return fmt.Errorf("informer was not initialized, impossible to start")
 	}
 
-	// starting a new ctx for the informer
-	// WithCancel copies the parent ctx and creates a new done() channel
-	informerCtx, cancel := context.WithCancel(g.ctx)
-	g.informerCtx = informerCtx
-	g.informerCancel = cancel
-
 	// attach WatchErrorHandler, it needs to be set before starting an informer
 	err := g.informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
 		if strings.Contains(fmt.Sprintf("%s", err), "the server could not find the requested resource") {
@@ -279,8 +271,6 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 		} else {
 			log.Printf("datagatherer informer for %q has failed and is backing off due to error: %s", g.groupVersionResource, err)
 		}
-		// cancel the informer ctx to stop the informer in case of error
-		cancel()
 	})
 	if err != nil {
 		return fmt.Errorf("failed to SetWatchErrorHandler on informer: %s", err)
@@ -312,7 +302,6 @@ func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
 // informer
 func (g *DataGathererDynamic) Delete() error {
 	g.cache.Flush()
-	g.informerCancel()
 	return nil
 }
 
