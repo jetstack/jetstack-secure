@@ -33,7 +33,7 @@ func NewDiscoveryClient(kubeconfigPath string) (discovery.DiscoveryClient, error
 
 	cfg, err := loadRESTConfig(kubeconfigPath)
 	if err != nil {
-		return *discoveryClient, errors.WithStack(err)
+		return discovery.DiscoveryClient{}, errors.WithStack(err)
 	}
 
 	discoveryClient, err = discovery.NewDiscoveryClientForConfig(cfg)
