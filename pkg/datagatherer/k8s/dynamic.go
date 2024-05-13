@@ -307,9 +307,9 @@ func (g *DataGathererDynamic) Delete() error {
 
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
-func (g *DataGathererDynamic) Fetch() (interface{}, error) {
+func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
 	if g.groupVersionResource.String() == "" {
-		return nil, fmt.Errorf("resource type must be specified")
+		return nil, -1, fmt.Errorf("resource type must be specified")
 	}
 
 	var list = map[string]interface{}{}
@@ -333,19 +333,19 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 			}
 			continue
 		}
-		return nil, fmt.Errorf("failed to parse cached resource")
+		return nil, -1, fmt.Errorf("failed to parse cached resource")
 	}
 
 	// Redact Secret data
 	err := redactList(items)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, -1, errors.WithStack(err)
 	}
 
 	// add gathered resources to items
 	list["items"] = items
 
-	return list, nil
+	return list, len(items), nil
 }
 
 func redactList(list []*api.GatheredResource) error {

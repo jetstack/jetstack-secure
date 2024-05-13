@@ -362,14 +362,18 @@ func gatherData(config Config, dataGatherers map[string]datagatherer.DataGathere
 
 	var dgError *multierror.Error
 	for k, dg := range dataGatherers {
-		dgData, err := dg.Fetch()
+		dgData, count, err := dg.Fetch()
 		if err != nil {
 			dgError = multierror.Append(dgError, fmt.Errorf("error in datagatherer %s: %w", k, err))
 
 			continue
 		}
 
-		log.Printf("successfully gathered data from %q datagatherer", k)
+		if count >= 0 {
+			log.Printf("successfully gathered %d items from %q datagatherer", count, k)
+		} else {
+			log.Printf("successfully gathered data from %q datagatherer", k)
+		}
 		readings = append(readings, &api.DataReading{
 			ClusterID:     config.ClusterID,
 			DataGatherer:  k,
