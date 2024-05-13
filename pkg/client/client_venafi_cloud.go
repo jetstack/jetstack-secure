@@ -199,7 +199,7 @@ func (c *VenafiCloudClient) PostDataReadingsWithOptions(readings []*api.DataRead
 		if err == nil {
 			errorContent = string(body)
 		}
-		return fmt.Errorf("received response with status code %d. Body: %s", code, errorContent)
+		return fmt.Errorf("received response with status code %d. Body: [%s]", code, errorContent)
 	}
 
 	return nil
@@ -235,7 +235,7 @@ func (c *VenafiCloudClient) PostDataReadings(_ string, _ string, readings []*api
 		if err == nil {
 			errorContent = string(body)
 		}
-		return fmt.Errorf("received response with status code %d. Body: %s", code, errorContent)
+		return fmt.Errorf("received response with status code %d. Body: [%s]", code, errorContent)
 	}
 
 	return nil
@@ -327,7 +327,7 @@ func (c *VenafiCloudClient) sendHTTPRequest(request *http.Request, responseObjec
 
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(response.Body)
-		return fmt.Errorf("failed to execute http request to VaaS. Request %s, status code: %d, body: %s", request.URL, response.StatusCode, body)
+		return fmt.Errorf("failed to execute http request to Venafi Control Plane. Request %s, status code: %d, body: [%s]", request.URL, response.StatusCode, body)
 	}
 
 	body, err := io.ReadAll(response.Body)

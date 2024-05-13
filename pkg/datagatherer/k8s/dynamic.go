@@ -302,7 +302,7 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 // before collecting the resources.
 func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
 	if !k8scache.WaitForCacheSync(stopCh, g.informer.HasSynced) {
-		return fmt.Errorf("timed out waiting for caches to sync, using parent stop channel")
+		return fmt.Errorf("timed out waiting for Kubernetes caches to sync")
 	}
 
 	return nil
