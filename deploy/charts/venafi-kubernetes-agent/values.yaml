@@ -11,7 +11,7 @@ image:
   # -- Defaults to only pull if not already present
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion
-  tag: "v0.1.45"
+  tag: "v0.1.47"
 
 # -- Specify image pull credentials if using a private registry
 # example: - name: my-pull-secret
@@ -40,6 +40,21 @@ podSecurityContext: {}
   # runAsUser: 1000
   # runAsGroup: 3000
   # fsGroup: 2000
+
+# Use these variables to configure the HTTP_PROXY environment variables.
+
+# Configures the HTTP_PROXY environment variable where a HTTP proxy is required.
+# +docs:property
+# http_proxy: "http://proxy:8080"
+
+# Configures the HTTPS_PROXY environment variable where a HTTP proxy is required.
+# +docs:property
+# https_proxy: "https://proxy:8080"
+
+# Configures the NO_PROXY environment variable where a HTTP proxy is required,
+# but certain domains should be excluded.
+# +docs:property
+# no_proxy: 127.0.0.1,localhost
 
 # -- Add Container specific SecurityContext settings to the container. Takes precedence over `podSecurityContext` when set. See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container
 securityContext:
