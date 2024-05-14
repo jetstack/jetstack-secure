@@ -2,7 +2,7 @@
 
 The Venafi Kubernetes Agent connects your Kubernetes or Openshift cluster to the Venafi Control Plane.
 
-![Version: 0.1.47](https://img.shields.io/badge/Version-0.1.47-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.47](https://img.shields.io/badge/AppVersion-v0.1.47-informational?style=flat-square)
+![Version: 0.1.48](https://img.shields.io/badge/Version-0.1.48-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.48](https://img.shields.io/badge/AppVersion-v0.1.48-informational?style=flat-square)
 
 ## Additional Information
 
@@ -157,7 +157,7 @@ You should see the following events for your service account:
 | fullnameOverride | string | `""` | Helm default setting, use this to shorten the full install name. |
 | image.pullPolicy | string | `"IfNotPresent"` | Defaults to only pull if not already present |
 | image.repository | string | `"registry.venafi.cloud/venafi-agent/venafi-agent"` | Default to Open Source image repository |
-| image.tag | string | `"v0.1.45"` | Overrides the image tag whose default is the chart appVersion |
+| image.tag | string | `"v0.1.48"` | Overrides the image tag whose default is the chart appVersion |
 | imagePullSecrets | list | `[]` | Specify image pull credentials if using a private registry example: - name: my-pull-secret |
 | nameOverride | string | `""` | Helm default setting to override release name, usually leave blank. |
 | nodeSelector | object | `{}` | Embed YAML for nodeSelector settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/ |
