@@ -251,8 +251,6 @@ type DataGathererDynamic struct {
 	informer              k8scache.SharedIndexInformer
 	dynamicSharedInformer dynamicinformer.DynamicSharedInformerFactory
 	nativeSharedInformer  informers.SharedInformerFactory
-	informerCtx           context.Context
-	informerCancel        context.CancelFunc
 
 	// isInitialized is set to true when data is first collected, prior to
 	// this the fetch method will return an error
@@ -266,12 +264,6 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 		return fmt.Errorf("informer was not initialized, impossible to start")
 	}
 
-	// starting a new ctx for the informer
-	// WithCancel copies the parent ctx and creates a new done() channel
-	informerCtx, cancel := context.WithCancel(g.ctx)
-	g.informerCtx = informerCtx
-	g.informerCancel = cancel
-
 	// attach WatchErrorHandler, it needs to be set before starting an informer
 	err := g.informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
 		if strings.Contains(fmt.Sprintf("%s", err), "the server could not find the requested resource") {
@@ -279,8 +271,6 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 		} else {
 			log.Printf("datagatherer informer for %q has failed and is backing off due to error: %s", g.groupVersionResource, err)
 		}
-		// cancel the informer ctx to stop the informer in case of error
-		cancel()
 	})
 	if err != nil {
 		return fmt.Errorf("failed to SetWatchErrorHandler on informer: %s", err)
@@ -302,7 +292,7 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 // before collecting the resources.
 func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
 	if !k8scache.WaitForCacheSync(stopCh, g.informer.HasSynced) {
-		return fmt.Errorf("timed out waiting for caches to sync, using parent stop channel")
+		return fmt.Errorf("timed out waiting for Kubernetes caches to sync")
 	}
 
 	return nil
@@ -312,15 +302,14 @@ func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
 // informer
 func (g *DataGathererDynamic) Delete() error {
 	g.cache.Flush()
-	g.informerCancel()
 	return nil
 }
 
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
-func (g *DataGathererDynamic) Fetch() (interface{}, error) {
+func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
 	if g.groupVersionResource.String() == "" {
-		return nil, fmt.Errorf("resource type must be specified")
+		return nil, -1, fmt.Errorf("resource type must be specified")
 	}
 
 	var list = map[string]interface{}{}
@@ -344,19 +333,19 @@ func (g *DataGathererDynamic) Fetch() (interface{}, error) {
 			}
 			continue
 		}
-		return nil, fmt.Errorf("failed to parse cached resource")
+		return nil, -1, fmt.Errorf("failed to parse cached resource")
 	}
 
 	// Redact Secret data
 	err := redactList(items)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, -1, errors.WithStack(err)
 	}
 
 	// add gathered resources to items
 	list["items"] = items
 
-	return list, nil
+	return list, len(items), nil
 }
 
 func redactList(list []*api.GatheredResource) error {

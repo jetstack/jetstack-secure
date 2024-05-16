@@ -633,7 +633,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			if waitTimeout(&wg, 30*time.Second) {
 				t.Fatalf("unexpected timeout")
 			}
-			res, err := dynamiDg.Fetch()
+			res, count, err := dynamiDg.Fetch()
 			if err != nil && !tc.err {
 				t.Errorf("expected no error but got: %v", err)
 			}
@@ -661,6 +661,10 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 					expectedJSON, _ := json.MarshalIndent(tc.expected, "", "  ")
 					gotJSON, _ := json.MarshalIndent(list, "", "  ")
 					t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
+				}
+
+				if len(list) != count {
+					t.Errorf("wrong count of resources reported: got %d, want %d", count, len(list))
 				}
 			}
 		})
@@ -922,7 +926,7 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			if waitTimeout(&wg, 5*time.Second) {
 				t.Fatalf("unexpected timeout")
 			}
-			res, err := dynamiDg.Fetch()
+			res, count, err := dynamiDg.Fetch()
 			if err != nil && !tc.err {
 				t.Errorf("expected no error but got: %v", err)
 			}
@@ -950,6 +954,10 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 					expectedJSON, _ := json.MarshalIndent(tc.expected, "", "  ")
 					gotJSON, _ := json.MarshalIndent(list, "", "  ")
 					t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
+				}
+
+				if len(list) != count {
+					t.Errorf("wrong count of resources reported: got %d, want %d", count, len(list))
 				}
 			}
 		})

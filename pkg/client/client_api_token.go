@@ -71,7 +71,7 @@ func (c *APITokenClient) PostDataReadings(orgID, clusterID string, readings []*a
 			errorContent = string(body)
 		}
 
-		return fmt.Errorf("received response with status code %d. Body: %s", code, errorContent)
+		return fmt.Errorf("received response with status code %d. Body: [%s]", code, errorContent)
 	}
 
 	return nil

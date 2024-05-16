@@ -62,10 +62,10 @@ func (g *DataGathererDiscovery) Delete() error {
 }
 
 // Fetch will fetch discovery data from the apiserver, or return an error
-func (g *DataGathererDiscovery) Fetch() (interface{}, error) {
+func (g *DataGathererDiscovery) Fetch() (interface{}, int, error) {
 	data, err := g.cl.ServerVersion()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get server version: %v", err)
+		return nil, -1, fmt.Errorf("failed to get server version: %v", err)
 	}
 
 	response := map[string]interface{}{
@@ -73,5 +73,5 @@ func (g *DataGathererDiscovery) Fetch() (interface{}, error) {
 		"server_version": data,
 	}
 
-	return response, nil
+	return response, len(response), nil
 }

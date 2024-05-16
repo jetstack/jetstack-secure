@@ -351,7 +351,7 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 			log.Printf("retrying in %v after error: %s", t, err)
 		})
 		if err != nil {
-			log.Fatalf("%v", err)
+			log.Fatalf("Exiting due to fatal error uploading: %v", err)
 		}
 
 	}
@@ -362,14 +362,18 @@ func gatherData(config Config, dataGatherers map[string]datagatherer.DataGathere
 
 	var dgError *multierror.Error
 	for k, dg := range dataGatherers {
-		dgData, err := dg.Fetch()
+		dgData, count, err := dg.Fetch()
 		if err != nil {
 			dgError = multierror.Append(dgError, fmt.Errorf("error in datagatherer %s: %w", k, err))
 
 			continue
 		}
 
-		log.Printf("successfully gathered data from %q datagatherer", k)
+		if count >= 0 {
+			log.Printf("successfully gathered %d items from %q datagatherer", count, k)
+		} else {
+			log.Printf("successfully gathered data from %q datagatherer", k)
+		}
 		readings = append(readings, &api.DataReading{
 			ClusterID:     config.ClusterID,
 			DataGatherer:  k,
@@ -401,7 +405,6 @@ func gatherData(config Config, dataGatherers map[string]datagatherer.DataGathere
 func postData(config Config, preflightClient client.Client, readings []*api.DataReading) error {
 	baseURL := config.Server
 
-	log.Println("Running Agent...")
 	log.Println("Posting data to:", baseURL)
 
 	if VenafiCloudMode {
@@ -447,7 +450,7 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 			}
 			defer res.Body.Close()
 
-			return fmt.Errorf("received response with status code %d. Body: %s", code, errorContent)
+			return fmt.Errorf("received response with status code %d. Body: [%s]", code, errorContent)
 		}
 		log.Println("Data sent successfully.")
 		return err

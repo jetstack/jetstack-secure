@@ -67,7 +67,7 @@ func (c *UnauthenticatedClient) PostDataReadings(orgID, clusterID string, readin
 			errorContent = string(body)
 		}
 
-		return fmt.Errorf("received response with status code %d. Body: %s", code, errorContent)
+		return fmt.Errorf("received response with status code %d. Body: [%s]", code, errorContent)
 	}
 
 	return nil

@@ -54,10 +54,10 @@ func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
 }
 
 // Fetch loads and returns the data from the LocalDatagatherer's dataPath
-func (g *DataGatherer) Fetch() (interface{}, error) {
+func (g *DataGatherer) Fetch() (interface{}, int, error) {
 	dataBytes, err := ioutil.ReadFile(g.dataPath)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
-	return dataBytes, nil
+	return dataBytes, -1, nil
 }
