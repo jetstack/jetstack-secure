@@ -23,6 +23,13 @@ var SecretSelectedFields = []string{
 	"type",
 	"/data/tls.crt",
 	"/data/ca.crt",
+
+	// The following keys correspond to the standard keys expected by Istio
+	// Citadel to load a custom CA certificate. The secret types may be
+	// "istio.io/ca-root" or "generic".
+	"/data/ca-cert.pem",
+	"/data/cert-chain.pem",
+	"/data/root-cert.pem",
 }
 
 // RouteSelectedFields is the list of fields sent from OpenShift Route objects to the
