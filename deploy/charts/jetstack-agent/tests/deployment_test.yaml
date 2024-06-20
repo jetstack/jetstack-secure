@@ -92,7 +92,7 @@ tests:
           content: notpreflight
 
   # Check the volumes and volumeMounts works correctly
-  - it: Volumes and VolumenMounts added correctly
+  - it: Volumes and VolumeMounts added correctly
     set:
       config.organisation: test_org
       config.cluster: test_cluster

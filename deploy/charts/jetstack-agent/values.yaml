@@ -68,10 +68,10 @@ volumes: []
 # -- Additional volume mounts to add to the jetstack-agent container.
 volumeMounts: []
 
-# -- Override the jetstack-agent entrypoint with command list
+# -- Override the jetstack-agent entrypoint with specified command.
 command: []
 
-# -- Add additional arguments to the 
+# -- Add additional arguments to the default `agent` command.
 extraArgs: []
 
 # -- Authentication section for the agent
