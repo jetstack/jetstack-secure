@@ -62,6 +62,19 @@ tolerations: []
 
 affinity: {}
 
+# -- Additional volumes to add to the jetstack-agent pod.
+volumes: []
+
+# -- Additional volume mounts to add to the jetstack-agent container.
+volumeMounts: []
+
+# -- Override the jetstack-agent entrypoint with specified command.
+command: []
+
+# -- Add additional arguments to the default `agent` command.
+extraArgs: []
+
+# -- Authentication section for the agent
 authentication:
   # -- Reccomend that you do not use this and instead creat the credential secret outside of helm
   createSecret: false 
@@ -73,9 +86,6 @@ authentication:
   secretKey: "credentials.json"
   # -- Base64 encoded value from Jetstack Secure Dashboard - only required when createSecret is true
   secretValue: ""
-
-command: []
-extraArgs: []
 
 # -- Configuration section for the Jetstack Agent itself
 config:

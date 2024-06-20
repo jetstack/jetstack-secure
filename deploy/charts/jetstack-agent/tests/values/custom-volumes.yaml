@@ -1,0 +1,11 @@
+volumes:
+  - name: cabundle
+    configmap:
+      name: cabundle
+      optional: true
+      defaultMode: 0644
+
+volumeMounts:
+  - name: cabundle
+    readOnly: true
+    mountPath: /etc/ssl/certs/

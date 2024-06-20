@@ -133,12 +133,13 @@ kubectl logs -n jetstack-secure $(kubectl get pod -n jetstack-secure -l app.kube
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
+| authentication | object | `{"createSecret":false,"secretKey":"credentials.json","secretName":"agent-credentials","secretValue":"","type":"file"}` | Authentication section for the agent |
 | authentication.createSecret | bool | `false` | Reccomend that you do not use this and instead creat the credential secret outside of helm |
 | authentication.secretKey | string | `"credentials.json"` | Key name in secret |
 | authentication.secretName | string | `"agent-credentials"` | Name of the secret containing agent credentials.json |
 | authentication.secretValue | string | `""` | Base64 encoded value from Jetstack Secure Dashboard - only required when createSecret is true |
 | authentication.type | string | `"file"` | Type can be "file"/"token" determining how the agent should authenticate the to the backend |
-| command | list | `[]` |  |
+| command | list | `[]` | Override the jetstack-agent entrypoint with specified command. |
 | config | object | `{"cluster":"","dataGatherers":{"custom":[],"default":true},"organisation":"","override":{"config":null,"configmap":{"key":null,"name":null},"enabled":false},"period":"0h1m0s","server":"https://platform.jetstack.io"}` | Configuration section for the Jetstack Agent itself |
 | config.cluster | string | `""` | REQUIRED - Your Jetstack Secure Cluster Name |
 | config.dataGatherers | object | `{"custom":[],"default":true}` | Configure data that is gathered from your cluster, for full details see https://platform.jetstack.io/documentation/configuration/jetstack-agent/configuration |
@@ -151,7 +152,7 @@ kubectl logs -n jetstack-secure $(kubectl get pod -n jetstack-secure -l app.kube
 | config.override.enabled | bool | `false` | Override disabled by default |
 | config.period | string | `"0h1m0s"` | Send data back to the platform every minute unless changed |
 | config.server | string | `"https://platform.jetstack.io"` | Overrides the server if using a proxy between agent and Jetstack Secure |
-| extraArgs | list | `[]` |  |
+| extraArgs | list | `[]` | Add additional arguments to the default `agent` command. |
 | fullnameOverride | string | `""` | Helm default setting, use this to shorten install name |
 | image.pullPolicy | string | `"IfNotPresent"` | Defaults to only pull if not already present |
 | image.repository | string | `"quay.io/jetstack/preflight"` | Default to Open Source image repository |
@@ -174,4 +175,6 @@ kubectl logs -n jetstack-secure $(kubectl get pod -n jetstack-secure -l app.kube
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created @default true |
 | serviceAccount.name | string | `""` |  |
 | tolerations | list | `[]` |  |
+| volumeMounts | list | `[]` | Additional volume mounts to add to the jetstack-agent container. |
+| volumes | list | `[]` | Additional volumes to add to the jetstack-agent pod. |
 
