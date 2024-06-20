@@ -90,3 +90,27 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].command
           content: notpreflight
+
+  # Check the volumes and volumeMounts works correctly
+  - it: Volumes and VolumenMounts added correctly
+    set:
+      config.organisation: test_org
+      config.cluster: test_cluster
+    values:
+      - ./values/custom-volumes.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          # In template this comes after credentials and agent config volumeMounts
+          path: spec.template.spec.containers[0].volumeMounts[?(@.name == "cabundle")]
+          value:
+            mountPath: /etc/ssl/certs/
+            name: cabundle
+            readOnly: true     
+      - equal:
+          path: spec.template.spec.volumes[?(@.name == "cabundle")].configmap
+          value:
+            defaultMode: 420
+            name: cabundle
+            optional: true
