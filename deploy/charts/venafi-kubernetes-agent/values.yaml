@@ -99,9 +99,6 @@ extraArgs: []
 #           name: cabundle
 #           optional: false
 #           defaultMode: 0644
-#           items:
-#             - key: cabundle
-#               path: ca-certificates.crt
 #
 # In order to create the ConfigMap, you can use the following command:
 #
@@ -110,12 +107,14 @@ extraArgs: []
 volumes: []
 
 # -- Additional volume mounts to add to the Venafi Kubernetes Agent container.
-# This is useful for mounting a custom CA bundle. For example:
+# This is useful for mounting a custom CA bundle. Any PEM certificate mounted
+# under /etc/ssl/certs will be loaded by the Venafi Kubernetes Agent. For
+# example:
 #
 #     volumeMounts:
 #       - name: cabundle
-#         mountPath: /etc/ssl/certs/ca-certificates.crt
-#         subPath: ca-certificates.crt
+#         mountPath: /etc/ssl/certs/cabundle
+#         subPath: cabundle
 #         readOnly: true
 volumeMounts: []
 
