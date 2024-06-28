@@ -166,7 +166,7 @@ You should see the following events for your service account:
 | podDisruptionBudget.enabled | bool | `false` | Enable or disable the PodDisruptionBudget resource, which helps prevent downtime during voluntary disruptions such as during a Node upgrade. |
 | podSecurityContext | object | `{}` | Optional Pod (all containers) `SecurityContext` options, see https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod. |
 | replicaCount | int | `1` | default replicas, do not scale up |
-| resources | object | `{"limits":{"cpu":"500m","memory":"500Mi"},"requests":{"cpu":"200m","memory":"200Mi"}}` | Set custom resourcing settings for the pod. You may not want this if you intend to use a Vertical Pod Autoscaler. |
+| resources | object | `{"limits":{"memory":"500Mi"},"requests":{"cpu":"200m","memory":"200Mi"}}` | Set resource requests and limits for the pod.  Read [Venafi Kubernetes components deployment best practices](https://docs.venafi.cloud/vaas/k8s-components/c-k8s-components-best-practice/#scaling) to learn how to choose suitable CPU and memory resource requests and limits. |
 | securityContext | object | `{"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":1000}` | Add Container specific SecurityContext settings to the container. Takes precedence over `podSecurityContext` when set. See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container |
 | serviceAccount.annotations | object | `{}` | Annotations YAML to add to the service account |
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created |

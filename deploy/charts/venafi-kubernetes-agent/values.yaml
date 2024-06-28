@@ -65,14 +65,16 @@ securityContext:
   runAsNonRoot: true
   runAsUser: 1000
 
-# -- Set custom resourcing settings for the pod. You may not want this if you intend to use a Vertical Pod Autoscaler.
+# -- Set resource requests and limits for the pod.
+#
+# Read [Venafi Kubernetes components deployment best practices](https://docs.venafi.cloud/vaas/k8s-components/c-k8s-components-best-practice/#scaling)
+# to learn how to choose suitable CPU and memory resource requests and limits.
 resources:
   requests:
     memory: 200Mi
     cpu: 200m
   limits:
     memory: 500Mi
-    cpu: 500m
 
 # -- Embed YAML for nodeSelector settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/
 nodeSelector: {}
