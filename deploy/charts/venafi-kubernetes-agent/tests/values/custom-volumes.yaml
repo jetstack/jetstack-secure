@@ -1,0 +1,15 @@
+volumes:
+  - name: cabundle
+    configMap:
+      name: cabundle
+      optional: false
+      defaultMode: 0644
+      items:
+        - key: cabundle
+          path: ca-certificates.crt
+
+volumeMounts:
+  - name: cabundle
+    mountPath: /etc/ssl/certs/ca-certificates.crt
+    subPath: ca-certificates.crt
+    readOnly: true

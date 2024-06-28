@@ -74,6 +74,9 @@ spec:
             - name: credentials
               mountPath: "/etc/venafi/agent/key"
               readOnly: true
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -95,3 +98,6 @@ spec:
           secret:
             secretName: {{ default "agent-credentials" .Values.authentication.secretName }}
             optional: false
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
