@@ -90,6 +90,35 @@ command: []
 # For example `["--strict", "--oneshot"]`
 extraArgs: []
 
+# -- Additional volumes to add to the Venafi Kubernetes Agent container. This is
+# useful for mounting a custom CA bundle. For example:
+#
+#     volumes:
+#       - name: cabundle
+#         configMap:
+#           name: cabundle
+#           optional: false
+#           defaultMode: 0644
+#           items:
+#             - key: cabundle
+#               path: ca-certificates.crt
+#
+# In order to create the ConfigMap, you can use the following command:
+#
+#     kubectl create configmap cabundle \
+#       --from-file=cabundle=./your/custom/ca/bundle.pem
+volumes: []
+
+# -- Additional volume mounts to add to the Venafi Kubernetes Agent container.
+# This is useful for mounting a custom CA bundle. For example:
+#
+#     volumeMounts:
+#       - name: cabundle
+#         mountPath: /etc/ssl/certs/ca-certificates.crt
+#         subPath: ca-certificates.crt
+#         readOnly: true
+volumeMounts: []
+
 # -- Authentication details for the Venafi Kubernetes Agent
 authentication:
   # -- Name of the secret containing the private key
