@@ -46,6 +46,16 @@ go run main.go echo
 The Jetstack-Secure agent exposes its metrics through a Prometheus server, on port 8081.
 The Prometheus server is disabled by default but can be enabled by passing the `--enable-metrics` flag to the agent binary.
 
+If you deploy the agent with Helm, using the venafi-kubernetes-agent Helm chart, the metrics server will be enabled by default, on port 8081.
+If you use the Prometheus Operator, you can use `--set metrics.podmonitor.enabled=true` to deploy a `PodMonitor` resource,
+which will add the venafi-kubernetes-agent metrics to your Prometheus server.
+
+The following metrics are collected:
+ * Go collector: via the [default registry](https://github.com/prometheus/client_golang/blob/34e02e282dc4a3cb55ca6441b489ec182e654d59/prometheus/registry.go#L60-L63) in Prometheus client_golang.
+ * Process collector: via the [default registry](https://github.com/prometheus/client_golang/blob/34e02e282dc4a3cb55ca6441b489ec182e654d59/prometheus/registry.go#L60-L63) in Prometheus client_golang.
+ * Agent metrics:
+  * `data_readings_upload_size`: Data readings upload size (in bytes) sent by the jscp in-cluster agent.
+
 ## Release Process
 
 The release process is semi-automated.

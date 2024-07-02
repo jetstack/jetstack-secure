@@ -159,6 +159,15 @@ You should see the following events for your service account:
 | image.repository | string | `"registry.venafi.cloud/venafi-agent/venafi-agent"` | Default to Open Source image repository |
 | image.tag | string | `"v0.1.48"` | Overrides the image tag whose default is the chart appVersion |
 | imagePullSecrets | list | `[]` | Specify image pull credentials if using a private registry example: - name: my-pull-secret |
+| metrics.enabled | bool | `true` | Enable the metrics server. If false, the metrics server will be disabled and the other metrics fields below will be ignored. |
+| metrics.podmonitor.annotations | object | `{}` | Additional annotations to add to the PodMonitor. |
+| metrics.podmonitor.enabled | bool | `false` | Create a PodMonitor to add the metrics to Prometheus, if you are using Prometheus Operator. See https://prometheus-operator.dev/docs/operator/api/#monitoring.coreos.com/v1.PodMonitor |
+| metrics.podmonitor.endpointAdditionalProperties | object | `{}` | EndpointAdditionalProperties allows setting additional properties on the endpoint such as relabelings, metricRelabelings etc.  For example:  endpointAdditionalProperties:   relabelings:   - action: replace     sourceLabels:     - __meta_kubernetes_pod_node_name     targetLabel: instance  |
+| metrics.podmonitor.honorLabels | bool | `false` | Keep labels from scraped data, overriding server-side labels. |
+| metrics.podmonitor.interval | string | `"60s"` | The interval to scrape metrics. |
+| metrics.podmonitor.labels | object | `{}` | Additional labels to add to the PodMonitor. |
+| metrics.podmonitor.prometheusInstance | string | `"default"` | Specifies the `prometheus` label on the created PodMonitor. This is used when different Prometheus instances have label selectors matching different PodMonitors. |
+| metrics.podmonitor.scrapeTimeout | string | `"30s"` | The timeout before a metrics scrape fails. |
 | nameOverride | string | `""` | Helm default setting to override release name, usually leave blank. |
 | nodeSelector | object | `{}` | Embed YAML for nodeSelector settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/ |
 | podAnnotations | object | `{}` | Additional YAML annotations to add the the pod. |
@@ -172,4 +181,6 @@ You should see the following events for your service account:
 | serviceAccount.create | bool | `true` | Specifies whether a service account should be created |
 | serviceAccount.name | string | `""` | The name of the service account to use. If blank and `serviceAccount.create` is true, a name is generated using the fullname template of the release. |
 | tolerations | list | `[]` | Embed YAML for toleration settings, see https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
+| volumeMounts | list | `[]` | Additional volume mounts to add to the Venafi Kubernetes Agent container. This is useful for mounting a custom CA bundle. Any PEM certificate mounted under /etc/ssl/certs will be loaded by the Venafi Kubernetes Agent. For example:      volumeMounts:       - name: cabundle         mountPath: /etc/ssl/certs/cabundle         subPath: cabundle         readOnly: true |
+| volumes | list | `[]` | Additional volumes to add to the Venafi Kubernetes Agent container. This is useful for mounting a custom CA bundle. For example:      volumes:       - name: cabundle         configMap:           name: cabundle           optional: false           defaultMode: 0644  In order to create the ConfigMap, you can use the following command:      kubectl create configmap cabundle \       --from-file=cabundle=./your/custom/ca/bundle.pem |
 

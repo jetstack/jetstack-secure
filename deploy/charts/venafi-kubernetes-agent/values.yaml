@@ -2,6 +2,52 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+metrics:
+  # -- Enable the metrics server.
+  # If false, the metrics server will be disabled and the other metrics fields below will be ignored.
+  enabled: true
+  podmonitor:
+    # -- Create a PodMonitor to add the metrics to Prometheus, if you are using Prometheus Operator.
+    # See https://prometheus-operator.dev/docs/operator/api/#monitoring.coreos.com/v1.PodMonitor
+    enabled: false
+
+    # -- The namespace that the pod monitor should live in.
+    # Defaults to the venafi-kubernetes-agent namespace.
+    # +docs:property
+    # namespace: venafi
+
+    # -- Specifies the `prometheus` label on the created PodMonitor.
+    # This is used when different Prometheus instances have label selectors
+    # matching different PodMonitors.
+    prometheusInstance: default
+
+    # -- The interval to scrape metrics.
+    interval: 60s
+
+    # -- The timeout before a metrics scrape fails.
+    scrapeTimeout: 30s
+
+    # -- Additional labels to add to the PodMonitor.
+    labels: {}
+
+    # -- Additional annotations to add to the PodMonitor.
+    annotations: {}
+
+    # -- Keep labels from scraped data, overriding server-side labels.
+    honorLabels: false
+
+    # -- EndpointAdditionalProperties allows setting additional properties on the endpoint such as relabelings, metricRelabelings etc.
+    #
+    # For example:
+    #  endpointAdditionalProperties:
+    #   relabelings:
+    #   - action: replace
+    #     sourceLabels:
+    #     - __meta_kubernetes_pod_node_name
+    #     targetLabel: instance
+    #
+    endpointAdditionalProperties: {}
+
 # -- default replicas, do not scale up
 replicaCount: 1
 
