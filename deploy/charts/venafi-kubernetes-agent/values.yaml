@@ -109,7 +109,6 @@ securityContext:
     - ALL
   readOnlyRootFilesystem: true
   runAsNonRoot: true
-  runAsUser: 1000
 
 # -- Set resource requests and limits for the pod.
 #
