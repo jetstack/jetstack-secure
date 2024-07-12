@@ -56,10 +56,41 @@ The following metrics are collected:
  * Agent metrics:
   * `data_readings_upload_size`: Data readings upload size (in bytes) sent by the jscp in-cluster agent.
 
+
+## Tiers, Images and Helm Charts
+
+The Docker images are:
+
+|                           Image                           | Access  |                    Tier                     |            Docs             |
+|-----------------------------------------------------------|---------|---------------------------------------------|-----------------------------|
+| `quay.io/jetstack/preflight`                              | Public  | Tier 1 and 2 of Jetstack Secure             |                             |
+| `quay.io/jetstack/venafi-agent`                           | Public  | Not meant for users, used for mirroring     |                             |
+| `registry.venafi.cloud/venafi-agent/venafi-agent`         | Public  | Tier 1 of Venafi TLS Protect for Kubernetes |                             |
+| `private-registry.venafi.cloud/venafi-agent/venafi-agent` | Private | Tier 2 of Venafi TLS Protect for Kubernetes | [Venafi Private Registry][] |
+| `private-registry.venafi.eu/venafi-agent/venafi-agent`    | Private | Tier 2 of Venafi TLS Protect for Kubernetes | [Venafi Private Registry][] |
+
+[Jetstack Enterprise Registry]: https://platform.jetstack.io/documentation/installation/agent#1-obtain-oci-registry-credentials/
+[Venafi Private Registry]: https://docs.venafi.cloud/vaas/k8s-components/th-guide-confg-access-to-tlspk-enterprise-components/
+
+The Helm charts are:
+
+|                              Helm Chart                              | Access  |                    Tier                     |          Documentation           |
+|----------------------------------------------------------------------|---------|---------------------------------------------|----------------------------------|
+| `oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`   | Private | Tier 2 of Jetstack Secure                   | [Jetstack Enterprise Registry][] |
+| `oci://us.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`   | Private | Tier 2 of Jetstack Secure                   | [Jetstack Enterprise Registry][] |
+| `oci://registry.venafi.cloud/charts/venafi-kubernetes-agent`         | Public  | Tier 1 of Venafi TLS Protect for Kubernetes |                                  |
+| `oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent` | Private | Tier 2 of Venafi TLS Protect for Kubernetes |                                  |
+| `oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent`    | Private | Tier 2 of Venafi TLS Protect for Kubernetes |                                  |
+
+
 ## Release Process
 
+> [!NOTE]
+> Before starting, let Michael McLoughlin know that a release is about to be created.
+
 The release process is semi-automated.
-It starts with the following manual steps:
+
+### Step 1: Incrementing Versions And Git Tag
 
 1. Choose the next semver version number.
    This project has only ever incremented the "patch" number (never the "minor" number) regardless of the scope of the changes.
@@ -76,23 +107,33 @@ It starts with the following manual steps:
    1. Commit the changes.
 1. Create a pull request and wait for it to be approved.
 1. Merge the branch.
-1. Push a semver tag with a `v` prefix: `vX.Y.Z`.
+1. Go to the GitHub Releases page and click "Draft a New Release".
+   - Click "Create a new tag" with the version number prefixed with `v` (e.g., `v0.1.49`).
+   - Use the title "v0.1.49",
+   - Click "Generate Release Notes"
+   - Edit the release notes to make them readable to the end-user.
+   - Click "Publish" (don't select "Draft")
 
-This will trigger the following automated processes:
+> [!WARNING]
+> 
+> Don't worry about the "signing" pipeline job failing. It hasn't be working for a while. It should be removed as we don't need the provenance steps anymore. We are now signing our image during the replication of the OCI images to Harbor using the Venafi keys.
 
-1. Two Docker images are built and pushed to a public `quay.io` registry, by the [release-master workflow](.github/workflows/release-master.yml):
-   * `quay.io/jetstack/preflight`: is pulled directly by tier 1 Jetstack Secure users, who do not have access to the Jetstack Enterprise Registry.
-   * `quay.io/jetstack/venafi-agent`: is mirrored to a public Venafi OCI registry for Venafi TLS Protect for Kubernetes users.
+> [!NOTE]
+>
+> For context, the new tag will trigger the following:
+>
+> | Image                                                     | Automation                                                                     |
+> | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+> | `quay.io/jetstack/preflight`                              | Built by GitHub Actions [release-master](.github/workflows/release-master.yml) |
+> | `quay.io/jetstack/venafi-agent`                           | Built by GitHub Actions [release-master](.github/workflows/release-master.yml) |
+> | `registry.venafi.cloud/venafi-agent/venafi-agent`         | Mirrored by a GitLab cron job                                                  |
+> | `private-registry.venafi.cloud/venafi-agent/venafi-agent` | Mirrored by a GitLab cron job                                                  |
+> | `private-registry.venafi.eu/venafi-agent/venafi-agent`    | Mirrored by a GitLab cron job                                                  |
+>
+> The above GitLab cron job is managed by David Barranco. It mirrors the image
+> `quay.io/jetstack/venafi-agent`.
 
-2. The Docker images are mirrored by private Venafi CI pipelines, to:
-   * [Jetstack Enterprise Registry](https://platform.jetstack.io/documentation/installation/agent#1-obtain-oci-registry-credentials):
-     for Tier 2 Jetstack Secure users. Tier 2 grants users access to this registry.
-   * [Venafi private Registry](https://docs.venafi.cloud/vaas/k8s-components/th-guide-confg-access-to-tlspk-enterprise-components/):
-     for Tier 2 Venafi TLS Protect for Kubernetes users. Tier 2 grants users access to this registry.
-   * [Venafi public Registry](https://registry.venafi.cloud/public/venafi-images/venafi-kubernetes-agent):
-     for Tier 1 Venafi TLS Protect for Kubernetes users. Tier 1 users do not have access to the private registry. (TODO)
-
-### Helm Chart: venafi-kubernetes-agent
+### Step 2: Release the Helm Chart "venafi-kubernetes-agent"
 
 The [venafi-kubernetes-agent](deploy/charts/venafi-kubernetes-agent/README.md) chart
 is released manually, as follows:
@@ -111,7 +152,7 @@ The chart will be mirrored to:
  * `private-registry.venafi.cloud/charts/venafi-kubernetes-agent` (Private, US)
  * `private-registry.venafi.eu/charts/venafi-kubernetes-agent` (Private, EU)
 
-### Helm Chart: jetstack-agent
+### Step 3: Release the Helm Chart "jetstack-secure"
 
 The [jetstack-agent](deploy/charts/jetstack-agent/README.md) chart has a different version number to the agent.
 This is because the first version of *this* chart was given version `0.1.0`,
@@ -136,3 +177,8 @@ This chart is for [Jetstack Secure](https://platform.jetstack.io/documentation/i
 The chart will be published to
 the [Jetstack Enterprise Registry](https://platform.jetstack.io/documentation/installation/agent#1-obtain-oci-registry-credentials)
 by a private CI pipeline managed by Venafi.
+
+### Step 4: Document the release
+
+Finally, inform Michael McLoughlin of the new release so he can update the documentation at https://docs.venafi.cloud/.
+
