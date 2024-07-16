@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
@@ -65,6 +66,24 @@ var StrictMode bool
 // APIToken is an authentication token used for the backend API as an alternative to oauth flows.
 var APIToken string
 
+// VenConnName is the name of the VenafiConnection resource to use. Using this
+// flag will enable Venafi Connection mode.
+var VenConnName string
+
+// VenConnNS is the namespace of the VenafiConnection resource to use. It is
+// only useful when the VenafiConnection isn't in the same namespace as the
+// agent.
+//
+// May be left empty to use the same namespace as the agent.
+var VenConnNS string
+
+// InstallNS is the namespace in which the agent is running in. Only needed when
+// running the agent outside of Kubernetes.
+//
+// May be left empty when running in Kubernetes. In this case, the namespace is
+// read from the file /var/run/secrets/kubernetes.io/serviceaccount/namespace.
+var InstallNS string
+
 // Profiling flag enabled pprof endpoints to run on the agent
 var Profiling bool
 
@@ -78,6 +97,8 @@ var Prometheus bool
 // as using v1 by the backend. In v1 the agent sends
 // raw resource data of unstructuredList
 const schemaVersion string = "v2.0.0"
+
+const inClusterNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
@@ -104,6 +125,19 @@ func Run(cmd *cobra.Command, args []string) {
 			if err != nil && !errors.Is(err, http.ErrServerClosed) {
 				logs.Log.Fatalf("failed to run prometheus server: %s", err)
 			}
+		}()
+	}
+
+	_, isVenConn := preflightClient.(*client.VenConnClient)
+	if isVenConn {
+		go func() {
+			err := preflightClient.(manager.Runnable).Start(ctx)
+			if err != nil {
+				log.Fatalf("failed to start a controller-runtime component: %v", err)
+			}
+
+			// The agent must stop if the controller-runtime component stops.
+			cancel()
 		}()
 	}
 
@@ -201,7 +235,7 @@ func getConfiguration() (Config, client.Client) {
 	}
 
 	// If the ClientID of the service account is specified, then assume we are in Venafi Cloud mode.
-	if ClientID != "" {
+	if ClientID != "" || VenConnName != "" {
 		VenafiCloudMode = true
 	}
 
@@ -258,6 +292,18 @@ func getConfiguration() (Config, client.Client) {
 		}
 	}
 
+	venConnMode := VenConnName != ""
+
+	if venConnMode && InstallNS == "" {
+		InstallNS, err = getInClusterNamespace()
+		if err != nil {
+			log.Fatalf("could not guess which namespace the agent is running in: %s", err)
+		}
+	}
+	if venConnMode && VenConnNS == "" {
+		VenConnNS = InstallNS
+	}
+
 	agentMetadata := &api.AgentMetadata{
 		Version:   version.PreflightVersion,
 		ClusterID: config.ClusterID,
@@ -267,6 +313,32 @@ func getConfiguration() (Config, client.Client) {
 	switch {
 	case credentials != nil:
 		preflightClient, err = createCredentialClient(credentials, config, agentMetadata, baseURL)
+	case VenConnName != "":
+		// Why wasn't this added to the createCredentialClient instead? Because
+		// the --venafi-connection mode of authentication doesn't need any
+		// secrets (or any other information for that matter) to be loaded from
+		// disk (using --credentials-path). Everything is passed as flags.
+		log.Println("Venafi Connection mode was specified, using Venafi Connection authentication.")
+
+		// The venafi-cloud.upload_path was initially meant to let users
+		// configure HTTP proxies, but it has never been used since HTTP proxies
+		// don't rewrite paths. Thus, we've disabled the ability to change this
+		// value with the new --venafi-connection flag, and this field is simply
+		// ignored.
+		if config.VenafiCloud.UploadPath != "" {
+			log.Printf(`ignoring venafi-cloud.upload_path. In Venafi Connection mode, this field is not needed.`)
+		}
+
+		// Regarding venafi-cloud.uploader_id, we found that it doesn't do
+		// anything in the backend. Since the backend requires it for historical
+		// reasons (but cannot be empty), we just ignore whatever the user has
+		// set in the config file, and set it to an arbitrary value in the
+		// client since it doesn't matter.
+		if config.VenafiCloud.UploaderID != "" {
+			log.Printf(`ignoring venafi-cloud.uploader_id. In Venafi Connection mode, this field is not needed.`)
+		}
+
+		preflightClient, err = client.NewVenConnClient(&http.Client{}, agentMetadata, baseURL, InstallNS, VenConnName, VenConnNS)
 	case APIToken != "":
 		logs.Log.Println("An API token was specified, using API token authentication.")
 		preflightClient, err = client.NewAPITokenClient(agentMetadata, APIToken, baseURL)
@@ -467,4 +539,23 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 	logs.Log.Println("Data sent successfully.")
 
 	return nil
+}
+
+// Inspired from the controller-runtime project.
+func getInClusterNamespace() (string, error) {
+	// Check whether the namespace file exists.
+	// If not, we are not running in cluster so can't guess the namespace.
+	_, err := os.Stat(inClusterNamespacePath)
+	if os.IsNotExist(err) {
+		return "", fmt.Errorf("not running in cluster, please use --install-namespace to specify the namespace in which the agent is running")
+	}
+	if err != nil {
+		return "", fmt.Errorf("error checking namespace file: %w", err)
+	}
+
+	namespace, err := os.ReadFile(inClusterNamespacePath)
+	if err != nil {
+		return "", fmt.Errorf("error reading namespace file: %w", err)
+	}
+	return string(namespace), nil
 }
