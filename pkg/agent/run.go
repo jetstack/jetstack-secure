@@ -98,7 +98,9 @@ var Prometheus bool
 // raw resource data of unstructuredList
 const schemaVersion string = "v2.0.0"
 
-const inClusterNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+const (
+	inClusterNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+)
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) {
@@ -325,7 +327,7 @@ func getConfiguration() (Config, client.Client) {
 		// don't rewrite paths. Thus, we've disabled the ability to change this
 		// value with the new --venafi-connection flag, and this field is simply
 		// ignored.
-		if config.VenafiCloud.UploadPath != "" {
+		if config.VenafiCloud != nil && config.VenafiCloud.UploadPath != "" {
 			log.Printf(`ignoring venafi-cloud.upload_path. In Venafi Connection mode, this field is not needed.`)
 		}
 
@@ -334,11 +336,11 @@ func getConfiguration() (Config, client.Client) {
 		// reasons (but cannot be empty), we just ignore whatever the user has
 		// set in the config file, and set it to an arbitrary value in the
 		// client since it doesn't matter.
-		if config.VenafiCloud.UploaderID != "" {
+		if config.VenafiCloud != nil && config.VenafiCloud.UploaderID != "" {
 			log.Printf(`ignoring venafi-cloud.uploader_id. In Venafi Connection mode, this field is not needed.`)
 		}
 
-		preflightClient, err = client.NewVenConnClient(&http.Client{}, agentMetadata, baseURL, InstallNS, VenConnName, VenConnNS)
+		preflightClient, err = client.NewVenConnClient(&http.Client{Timeout: time.Minute}, agentMetadata, baseURL, InstallNS, VenConnName, VenConnNS)
 	case APIToken != "":
 		logs.Log.Println("An API token was specified, using API token authentication.")
 		preflightClient, err = client.NewAPITokenClient(agentMetadata, APIToken, baseURL)
