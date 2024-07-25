@@ -3,14 +3,12 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -30,7 +28,7 @@ import (
 )
 
 type VenConnClient struct {
-	baseURL       string
+	baseURL       string // E.g., "https://api.venafi.cloud" (trailing slash will be removed)
 	agentMetadata *api.AgentMetadata
 	connHandler   venafi_client.ConnectionHandler
 	installNS     string       // Namespace in which the agent is running in.
@@ -105,13 +103,24 @@ func (c *VenConnClient) Start(ctx context.Context) error {
 	return c.connHandler.CacheRunnable().Start(ctx)
 }
 
+// `opts.ClusterName` and `opts.ClusterDescription` are the only values used
+// from the Options struct. OrgID and ClusterID are not used in Venafi Cloud.
 func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading, opts Options) error {
-	return c.PostDataReadings(opts.OrgID, opts.ClusterID, readings)
-}
+	if opts.ClusterName == "" {
+		return fmt.Errorf("programmer mistake: the cluster name (aka `cluster_id` in the config file) cannot be left empty")
+	}
 
-// PostDataReadings uploads the slice of api.DataReading to the Jetstack Secure backend to be processed for later
-// viewing in the user-interface.
-func (c *VenConnClient) PostDataReadings(orgID, clusterID string, readings []*api.DataReading) error {
+	_, token, err := c.connHandler.Get(context.Background(), c.installNS, auth.Scope{}, types.NamespacedName{Name: c.venConnName, Namespace: c.venConnNS})
+	if err != nil {
+		return fmt.Errorf("while loading the VenafiConnection %s/%s: %w", c.venConnNS, c.venConnName, err)
+	}
+	if token.TPPAccessToken != "" {
+		return fmt.Errorf(`VenafiConnection %s/%s: the agent cannot be used with TPP`, c.venConnNS, c.venConnName)
+	}
+	if token.VCPAPIKey == "" && token.TPPAccessToken == "" {
+		return fmt.Errorf(`programmer mistake: VenafiConnection %s/%s: no VCP API key or VCP access token was returned by connHandler.Get`, c.venConnNS, c.venConnName)
+	}
+
 	payload := api.DataReadingsPost{
 		AgentMetadata:  c.agentMetadata,
 		DataGatherTime: time.Now().UTC(),
@@ -122,7 +131,32 @@ func (c *VenConnClient) PostDataReadings(orgID, clusterID string, readings []*ap
 		return err
 	}
 
-	res, err := c.Post(filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
+	// The path parameter "no" is a dummy parameter to make the Venafi Cloud
+	// backend happy. This parameter, named `uploaderID` in the backend, is not
+	// actually used by the backend.
+	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, "/v1/tlspk/upload/clusterdata/no"), bytes.NewBuffer(data))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
+
+	if token.VCPAccessToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.VCPAccessToken))
+	}
+	if token.VCPAPIKey != "" {
+		req.Header.Set("tppl-api-key", token.VCPAPIKey)
+	}
+
+	q := req.URL.Query()
+	q.Set("name", opts.ClusterName)
+	if opts.ClusterDescription != "" {
+		q.Set("description", base64.RawURLEncoding.EncodeToString([]byte(opts.ClusterDescription)))
+	}
+	req.URL.RawQuery = q.Encode()
+
+	res, err := c.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -130,7 +164,7 @@ func (c *VenConnClient) PostDataReadings(orgID, clusterID string, readings []*ap
 
 	if code := res.StatusCode; code < 200 || code >= 300 {
 		errorContent := ""
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		if err == nil {
 			errorContent = string(body)
 		}
@@ -143,11 +177,9 @@ func (c *VenConnClient) PostDataReadings(orgID, clusterID string, readings []*ap
 
 // Post performs an HTTP POST request.
 func (c *VenConnClient) Post(path string, body io.Reader) (*http.Response, error) {
-	// The VenafiConnection must be in the same namespace as the agent. It can't
-	log.Printf("Getting Venafi connection details from %s/%s", c.venConnNS, c.venConnName)
 	_, token, err := c.connHandler.Get(context.Background(), c.installNS, auth.Scope{}, types.NamespacedName{Name: c.venConnName, Namespace: c.venConnNS})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("while loading the VenafiConnection %s/%s: %w", c.venConnNS, c.venConnName, err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, path), body)
