@@ -13,9 +13,17 @@ type (
 	// Options is the struct describing additional information pertinent to an agent that isn't a data reading
 	// These fields will then be uploaded together with data readings.
 	Options struct {
-		OrgID              string
-		ClusterID          string
-		ClusterName        string
+		// Only used with Jetstack Secure.
+		OrgID string
+
+		// Only used with Jetstack Secure.
+		ClusterID string
+
+		// Only used with Venafi Cloud. The convention is to use the agent
+		// config's `cluster_id` as ClusterName.
+		ClusterName string
+
+		// Only used with Venafi Cloud.
 		ClusterDescription string
 	}
 
