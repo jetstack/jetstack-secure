@@ -175,25 +175,19 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 	return nil
 }
 
-// Post performs an HTTP POST request.
+// PostDataReadings isn't implemented for Venafi Cloud. This is because Venafi
+// Cloud needs a `clusterName` and `clusterDescription`, but this function can
+// only pass `orgID` and `clusterID` which are both useless in Venafi Cloud. Use
+// PostDataReadingsWithOptions instead.
+func (c *VenConnClient) PostDataReadings(_orgID, _clusterID string, readings []*api.DataReading) error {
+	return fmt.Errorf("programmer mistake: PostDataReadings is not implemented for Venafi Cloud")
+}
+
+// Post isn't implemented for Venafi Cloud because /v1/tlspk/upload/clusterdata
+// requires using the query parameters `name` and `description` which can't be
+// set using Post. Use PostDataReadingsWithOptions instead.
 func (c *VenConnClient) Post(path string, body io.Reader) (*http.Response, error) {
-	_, token, err := c.connHandler.Get(context.Background(), c.installNS, auth.Scope{}, types.NamespacedName{Name: c.venConnName, Namespace: c.venConnNS})
-	if err != nil {
-		return nil, fmt.Errorf("while loading the VenafiConnection %s/%s: %w", c.venConnNS, c.venConnName, err)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, path), body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	if len(token.BearerToken) > 0 {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.BearerToken))
-	}
-
-	return c.client.Do(req)
+	return nil, fmt.Errorf("programmer mistake: Post is not implemented for Venafi Cloud")
 }
 
 func loadRESTConfig(path string) (*rest.Config, error) {
