@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - build-fix-provenance
     tags:
       - v*
 jobs:
@@ -98,6 +99,8 @@ jobs:
         command: generate
         subcommand: files
         arguments: --artifact-path mock
+      env:
+        COSIGN_EXPERIMENTAL: 0
     - name: Extract predicate
       run: jq '.predicate' provenance.json > predicate.json
     - name: Attest
