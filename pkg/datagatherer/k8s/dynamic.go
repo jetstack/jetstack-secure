@@ -151,6 +151,28 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	}
 	// init shared informer for selected namespaces
 	fieldSelector := generateFieldSelector(c.ExcludeNamespaces)
+	// Reduce the memory usage and reduce the load on the Kubernetes API server
+	// by omitting various common Secret types when listing Secrets.
+	// * https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
+	//
+	// It would be better to include only TLS and Opaque Secrets rather than excluding the other types,
+	// because we can never know all the possible Secret types that a cluster may have,
+	// but field selectors do not yet support set based operators:
+	// * https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/#supported-operators
+	// * https://github.com/kubernetes/kubernetes/issues/32946
+	if c.GroupVersionResource.Group == "" && c.GroupVersionResource.Version == "v1" && c.GroupVersionResource.Resource == "secrets" {
+		fieldSelector = fields.AndSelectors(
+			fieldSelector,
+			fields.OneTermNotEqualSelector("type", "kubernetes.io/service-account-token"),
+			fields.OneTermNotEqualSelector("type", "kubernetes.io/dockercfg"),
+			fields.OneTermNotEqualSelector("type", "kubernetes.io/dockerconfigjson"),
+			fields.OneTermNotEqualSelector("type", "kubernetes.io/basic-auth"),
+			fields.OneTermNotEqualSelector("type", "kubernetes.io/ssh-auth"),
+			fields.OneTermNotEqualSelector("type", "bootstrap.kubernetes.io/token"),
+			fields.OneTermNotEqualSelector("type", "helm.sh/release.v1"),
+		)
+	}
+
 	// init cache to store gathered resources
 	dgCache := cache.New(5*time.Minute, 30*time.Second)
 
@@ -159,7 +181,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		cl:                   cl,
 		k8sClientSet:         clientset,
 		groupVersionResource: c.GroupVersionResource,
-		fieldSelector:        fieldSelector,
+		fieldSelector:        fieldSelector.String(),
 		namespaces:           c.IncludeNamespaces,
 		cache:                dgCache,
 	}
@@ -177,7 +199,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 			60*time.Second,
 			informers.WithNamespace(metav1.NamespaceAll),
 			informers.WithTweakListOptions(func(options *metav1.ListOptions) {
-				options.FieldSelector = fieldSelector
+				options.FieldSelector = fieldSelector.String()
 			}))
 		newDataGatherer.nativeSharedInformer = factory
 		informer := informerFunc(factory)
@@ -200,7 +222,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		cl,
 		60*time.Second,
 		metav1.NamespaceAll,
-		func(options *metav1.ListOptions) { options.FieldSelector = fieldSelector },
+		func(options *metav1.ListOptions) { options.FieldSelector = fieldSelector.String() },
 	)
 	resourceInformer := factory.ForResource(c.GroupVersionResource)
 	informer := resourceInformer.Informer()
@@ -422,7 +444,7 @@ func namespaceResourceInterface(iface dynamic.NamespaceableResourceInterface, na
 
 // generateFieldSelector creates a field selector string from a list of
 // namespaces to exclude.
-func generateFieldSelector(excludeNamespaces []string) string {
+func generateFieldSelector(excludeNamespaces []string) fields.Selector {
 	fieldSelector := fields.Nothing()
 	for _, excludeNamespace := range excludeNamespaces {
 		if excludeNamespace == "" {
@@ -430,7 +452,7 @@ func generateFieldSelector(excludeNamespaces []string) string {
 		}
 		fieldSelector = fields.AndSelectors(fields.OneTermNotEqualSelector("metadata.namespace", excludeNamespace), fieldSelector)
 	}
-	return fieldSelector.String()
+	return fieldSelector
 }
 
 func isIncludedNamespace(namespace string, namespaces []string) bool {

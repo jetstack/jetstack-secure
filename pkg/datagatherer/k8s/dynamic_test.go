@@ -312,7 +312,7 @@ func TestGenerateFieldSelector(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		fieldSelector := generateFieldSelector(test.ExcludeNamespaces)
+		fieldSelector := generateFieldSelector(test.ExcludeNamespaces).String()
 		if fieldSelector != test.ExpectedFieldSelector {
 			t.Errorf("ExpectedFieldSelector does not match: got=%+v want=%+v", fieldSelector, test.ExpectedFieldSelector)
 		}
