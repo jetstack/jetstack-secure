@@ -154,7 +154,7 @@ func init() {
 		&agent.InstallNS,
 		"install-namespace",
 		"",
-		"Namespace in which the agent is running. Only needed when running the agent outside of Kubernetes.",
+		"Namespace in which the agent is running. Only needed when running the agent outside of Kubernetes. Used for testing purposes.",
 	)
 	agentCmd.PersistentFlags().BoolVarP(
 		&agent.Profiling,
