@@ -22,6 +22,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/jetstack/preflight/api"
@@ -336,11 +338,16 @@ func getConfiguration() (Config, client.Client) {
 		// reasons (but cannot be empty), we just ignore whatever the user has
 		// set in the config file, and set it to an arbitrary value in the
 		// client since it doesn't matter.
-		if config.VenafiCloud != nil && config.VenafiCloud.UploaderID != "" {
+		if config.VenafiCloud.UploaderID != "" {
 			log.Printf(`ignoring venafi-cloud.uploader_id. In Venafi Connection mode, this field is not needed.`)
 		}
 
-		preflightClient, err = client.NewVenConnClient(&http.Client{Timeout: time.Minute}, agentMetadata, baseURL, InstallNS, VenConnName, VenConnNS)
+		cfg, err := loadRESTConfig("")
+		if err != nil {
+			log.Fatalf("failed to load kubeconfig: %v", err)
+		}
+
+		preflightClient, err = client.NewVenConnClient(cfg, agentMetadata, InstallNS, VenConnName, VenConnNS, nil)
 	case APIToken != "":
 		logs.Log.Println("An API token was specified, using API token authentication.")
 		preflightClient, err = client.NewAPITokenClient(agentMetadata, APIToken, baseURL)
@@ -543,7 +550,7 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 	return nil
 }
 
-// Inspired from the controller-runtime project.
+// Inspired by the controller-runtime project.
 func getInClusterNamespace() (string, error) {
 	// Check whether the namespace file exists.
 	// If not, we are not running in cluster so can't guess the namespace.
@@ -560,4 +567,29 @@ func getInClusterNamespace() (string, error) {
 		return "", fmt.Errorf("error reading namespace file: %w", err)
 	}
 	return string(namespace), nil
+}
+
+func loadRESTConfig(path string) (*rest.Config, error) {
+	switch path {
+	// If the kubeconfig path is not provided, use the default loading rules
+	// so we read the regular KUBECONFIG variable or create a non-interactive
+	// client for agents running in cluster
+	case "":
+		loadingrules := clientcmd.NewDefaultClientConfigLoadingRules()
+		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			loadingrules, &clientcmd.ConfigOverrides{}).ClientConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
+		}
+		return cfg, nil
+	// Otherwise use the explicitly named kubeconfig file.
+	default:
+		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+			&clientcmd.ClientConfigLoadingRules{ExplicitPath: path},
+			&clientcmd.ConfigOverrides{}).ClientConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load kubeconfig from %s: %w", path, err)
+		}
+		return cfg, nil
+	}
 }

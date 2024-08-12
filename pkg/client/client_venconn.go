@@ -3,11 +3,11 @@ package client
 import (
 	"bytes"
 	"context"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -22,13 +22,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	ll "sigs.k8s.io/controller-runtime/pkg/log"
+	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type VenConnClient struct {
-	baseURL       string // E.g., "https://api.venafi.cloud" (trailing slash will be removed)
 	agentMetadata *api.AgentMetadata
 	connHandler   venafi_client.ConnectionHandler
 	installNS     string       // Namespace in which the agent is running in.
@@ -38,11 +36,22 @@ type VenConnClient struct {
 }
 
 // NewVenConnClient lets you make requests to the Venafi Cloud backend using the
-// given VenafiConnection resource. You need to call Start to start watching the
-// VenafiConnection resource. If you don't, the client will be unable to find
-// the VenafiConnection that you are referring to as its client-go cache will
-// remain empty.
-func NewVenConnClient(c *http.Client, agentMetadata *api.AgentMetadata, baseURL, installNS, venConnName, venConnNS string) (*VenConnClient, error) {
+// given VenafiConnection resource.
+//
+// You need to call Start to start watching the VenafiConnection resource. If
+// you don't, the client will be unable to find the VenafiConnection that you
+// are referring to as its client-go cache will remain empty.
+//
+// The http.Client is used for Venafi and Vault, not for Kubernetes. The
+// `installNS` is the namespace in which the agent is running in. The passed
+// `restcfg` is not mutated. `trustedCAs` is only used for connecting to Venafi
+// Cloud and Vault and can be left nil.
+func NewVenConnClient(restcfg *rest.Config, agentMetadata *api.AgentMetadata, installNS, venConnName, venConnNS string, trustedCAs *x509.CertPool) (*VenConnClient, error) {
+	// TODO(mael): The rest of the codebase uses the standard "log" package,
+	// venafi-connection-lib uses "go-logr/logr", and client-go uses "klog". We
+	// should standardize on one of them, probably "slog".
+	ctrlruntimelog.SetLogger(logr.Logger{})
+
 	if installNS == "" {
 		return nil, errors.New("programmer mistake: installNS must be provided")
 	}
@@ -53,19 +62,22 @@ func NewVenConnClient(c *http.Client, agentMetadata *api.AgentMetadata, baseURL,
 		return nil, errors.New("programmer mistake: venConnNS must be provided")
 	}
 
-	cfg, err := loadRESTConfig("")
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	cfg.Impersonate = rest.ImpersonationConfig{
+	restcfg = rest.CopyConfig(restcfg)
+	restcfg.Impersonate = rest.ImpersonationConfig{
 		UserName: fmt.Sprintf("system:serviceaccount:%s:venafi-connection", installNS),
 	}
-	restMapper, err := apiutil.NewDynamicRESTMapper(cfg, &http.Client{})
+
+	// TLS-related configuration such as root CAs and client certs are contained
+	// in the restcfg; let's create an http.Client that uses them.
+	httpCl, err := rest.HTTPClientFor(restcfg)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, fmt.Errorf("while turning the REST config into an HTTP client: %w", err)
 	}
 
-	ll.SetLogger(logr.FromSlogHandler(slog.Default().Handler()))
+	restMapper, err := apiutil.NewDynamicRESTMapper(restcfg, httpCl)
+	if err != nil {
+		return nil, fmt.Errorf("while creating the REST mapper: %w", err)
+	}
 
 	// This Kubernetes client only needs to be able to read and write the
 	// VenafiConnection resources and read Secret resources.
@@ -77,23 +89,29 @@ func NewVenConnClient(c *http.Client, agentMetadata *api.AgentMetadata, baseURL,
 		"venafi-kubernetes-agent/"+version.PreflightVersion,
 		"venafi-kubernetes-agent.jetstack.io",
 		"VenafiKubernetesAgent",
-		cfg,
+		restcfg,
 		scheme,
 		restMapper,
-		nil,
+		trustedCAs,
 	)
 	if err != nil {
 		return nil, err
 	}
 
+	vcpClient := &http.Client{}
+	if trustedCAs != nil {
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		tr.TLSClientConfig.RootCAs = trustedCAs
+		vcpClient.Transport = tr
+	}
+
 	return &VenConnClient{
-		baseURL:       baseURL,
 		agentMetadata: agentMetadata,
 		connHandler:   handler,
 		installNS:     installNS,
 		venConnName:   venConnName,
 		venConnNS:     venConnNS,
-		client:        c,
+		client:        vcpClient,
 	}, nil
 }
 
@@ -117,8 +135,14 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 	if token.TPPAccessToken != "" {
 		return fmt.Errorf(`VenafiConnection %s/%s: the agent cannot be used with TPP`, c.venConnNS, c.venConnName)
 	}
-	if token.VCPAPIKey == "" && token.TPPAccessToken == "" {
-		return fmt.Errorf(`programmer mistake: VenafiConnection %s/%s: no VCP API key or VCP access token was returned by connHandler.Get`, c.venConnNS, c.venConnName)
+	if token.VCPAPIKey != "" {
+		// Although it is technically possible to use an API key, we have
+		// decided to not allow it as it isn't recommended and will eventually
+		// be phased out.
+		return fmt.Errorf(`VenafiConnection %s/%s: the agent cannot be used with an API key`, c.venConnNS, c.venConnName)
+	}
+	if token.VCPAccessToken == "" {
+		return fmt.Errorf(`programmer mistake: VenafiConnection %s/%s: TPPAccessToken is empty in the token returned by connHandler.Get: %v`, c.venConnNS, c.venConnName, token)
 	}
 
 	payload := api.DataReadingsPost{
@@ -134,7 +158,7 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 	// The path parameter "no" is a dummy parameter to make the Venafi Cloud
 	// backend happy. This parameter, named `uploaderID` in the backend, is not
 	// actually used by the backend.
-	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, "/v1/tlspk/upload/clusterdata/no"), bytes.NewBuffer(data))
+	req, err := http.NewRequest(http.MethodPost, fullURL(token.BaseURL, "/v1/tlspk/upload/clusterdata/no"), bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -188,29 +212,4 @@ func (c *VenConnClient) PostDataReadings(_orgID, _clusterID string, readings []*
 // set using Post. Use PostDataReadingsWithOptions instead.
 func (c *VenConnClient) Post(path string, body io.Reader) (*http.Response, error) {
 	return nil, fmt.Errorf("programmer mistake: Post is not implemented for Venafi Cloud")
-}
-
-func loadRESTConfig(path string) (*rest.Config, error) {
-	switch path {
-	// If the kubeconfig path is not provided, use the default loading rules
-	// so we read the regular KUBECONFIG variable or create a non-interactive
-	// client for agents running in cluster
-	case "":
-		loadingrules := clientcmd.NewDefaultClientConfigLoadingRules()
-		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			loadingrules, &clientcmd.ConfigOverrides{}).ClientConfig()
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		return cfg, nil
-	// Otherwise use the explicitly named kubeconfig file.
-	default:
-		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			&clientcmd.ClientConfigLoadingRules{ExplicitPath: path},
-			&clientcmd.ConfigOverrides{}).ClientConfig()
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		return cfg, nil
-	}
 }
