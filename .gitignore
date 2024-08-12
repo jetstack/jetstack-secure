@@ -13,3 +13,4 @@ predicate.json
 *.pub
 *.tgz
 
+_bin

@@ -1,6 +1,9 @@
-FROM golang:1.21.6 as builder
+FROM golang:1.21.6 AS builder
 
 WORKDIR /go/github.com/jetstack/preflight
+
+RUN go install github.com/google/go-licenses@v1.6.0
+RUN apt-get update && apt-get install curl git rsync bash jq -y
 
 # Run a dependency resolve with just the go mod files present for
 # better caching
@@ -21,9 +24,6 @@ RUN make build-all-platforms \
     OAUTH_CLIENT_ID=${oauth_client_id} \
     OAUTH_CLIENT_SECRET=${oauth_client_secret} \
     OAUTH_AUTH_SERVER_DOMAIN=${oauth_auth_server_domain}
-
-
-RUN go install github.com/google/go-licenses@v1.6.0
 
 # We need this '|| true' because go-licenses could fail to find a license so
 # may return a non-zero exit code and there's no way to supress it.
