@@ -1,0 +1,14 @@
+# This klone.yaml file describes the Makefile modules and versions that are
+# cloned into the "make/_shared" folder. These modules are dynamically imported
+# by the root Makefile. The "make upgrade-klone" target can be used to pull
+# the latest version from the upstream repositories (using the repo_ref value).
+#
+# More info can be found here: https://github.com/cert-manager/makefile-modules
+
+targets:
+  make/_shared:
+    - folder_name: klone
+      repo_url: https://github.com/cert-manager/makefile-modules.git
+      repo_ref: main
+      repo_hash: 2547c81aaa2ff4aeefdda53988191b5cbe929985
+      repo_path: modules/klone

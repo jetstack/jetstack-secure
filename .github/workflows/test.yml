@@ -40,7 +40,7 @@ jobs:
           DOCKER_HOST: tcp://localhost:2375
     steps:
     - name: Install Tools
-      run: apk add --update make git jq rsync curl
+      run: apk add --update make git jq rsync curl bash
     - name: Adding github workspace as safe directory
       # See issue https://github.com/actions/checkout/issues/760
       run: git config --global --add safe.directory $GITHUB_WORKSPACE
