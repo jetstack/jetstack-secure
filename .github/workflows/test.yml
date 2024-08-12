@@ -1,100 +1,55 @@
-# if changing this name, also update promotion.yaml
-name: test
-
+# Run unit-tests
+#
+# These actions are skipped for draft PRs.
+# See https://github.community/t/dont-run-actions-on-draft-pull-requests/16817/19
+name: test-unit
 on:
   push:
-    branches-ignore:
-      - master
+    branches: [main]
   pull_request:
-    branches:
-      - "*"
-
-env:
-  GOPRIVATE: github.com/jetstack/venafi-connection-lib
-
+    types: [opened, synchronize, reopened, ready_for_review]
 jobs:
-  vet:
-    name: vet
+  unit-tests:
+    permissions:
+      contents: write
+      id-token: write
     runs-on: ubuntu-22.04
-    container: golang:1.22
+    timeout-minutes: 15
+
+    env:
+      GOPRIVATE: github.com/jetstack/venafi-connection-lib
     steps:
-    - uses: actions/checkout@v4
-    # The only reason we need to configure ~/.ssh/known_hosts is because we are
-    # using a container-based runner. Non-container runners already have the
-    # github.com fingerprints in their known_hosts file. We could use `curl
-    # --silent https://api.github.com/meta` to fetch it but golang:1.22 does not
-    # have jq installed.
-    #
-    # Remember that the container "golang:1.22.0" has two "homes": /root is the
-    # home returned by getent(), which is what the GitHub Action and SSH will
-    # use to load .ssh/config and keys under .ssh/, and $HOME is /github/home,
-    # which is where Git loads ~/.gitconfig from.
-    - name: "Add GitHub to the SSH known hosts file"
-      run: |
-        mkdir -p -m 0700 /root/.ssh
-        cat <<EOF >/root/.ssh/known_hosts
-        github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
-        github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
-        github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
-        EOF
-        chmod 600 /root/.ssh/known_hosts
-        touch /root/.ssh/config
-    - uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
-    - run: make vet
-      shell: bash
-  test:
-    name: go test
-    runs-on: ubuntu-22.04
-    container: golang:1.22
-    steps:
-    - name: "Add GitHub to the SSH known hosts file"
-      run: |
-        mkdir -p -m 0700 /root/.ssh
-        cat <<EOF >/root/.ssh/known_hosts
-        github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
-        github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
-        github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
-        EOF
-        chmod 600 /root/.ssh/known_hosts
-        touch /root/.ssh/config
-    - uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
-    - uses: actions/checkout@v4
-    - name: Adding github workspace as safe directory
-      # See issue https://github.com/actions/checkout/issues/760
-      run: git config --global --add safe.directory $GITHUB_WORKSPACE
-    - run: make test
-  docker_build:
-    name: docker_build
-    runs-on: ubuntu-22.04
-    container:
-      image: docker:23
-      options: -t
-    # Setting up dind service container
-    services:
-      docker:
-        image: docker:23-dind
-        env:
-          DOCKER_DRIVER: overlay
-          DOCKER_HOST: tcp://localhost:2375
-    steps:
-    - name: Install Tools
-      run: apk add --update make git jq rsync curl
-    - uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
-    - name: Adding github workspace as safe directory
-      # See issue https://github.com/actions/checkout/issues/760
-      run: git config --global --add safe.directory $GITHUB_WORKSPACE
-    - uses: actions/checkout@v4
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        driver-opts: image=moby/buildkit:master
-    - name: Build images
-      run: make build-docker-image
+      - name: Configure jetstack/venafi-connection-lib repo pull access
+        run: |
+          mkdir ~/.ssh
+          chmod 700 ~/.ssh
+
+          echo "${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}" > ~/.ssh/venafi_connection_lib_id
+          chmod 600 ~/.ssh/venafi_connection_lib_id
+
+          cat <<EOT >> ~/.ssh/config
+          Host venafi-connection-lib.github.com
+          HostName github.com
+          IdentityFile ~/.ssh/venafi_connection_lib_id
+          IdentitiesOnly yes
+          EOT
+
+          cat <<EOT >> ~/.gitconfig
+          [url "git@venafi-connection-lib.github.com:jetstack/venafi-connection-lib"]
+            insteadOf = https://github.com/jetstack/venafi-connection-lib
+          EOT
+
+      - uses: actions/checkout@v4
+        with:
+          # Full git history is needed to get a Git tags which are used to
+          # calculate a valid semver for the Helm chart
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/cache@v4
+        with:
+          path: _bin/downloaded
+          key: downloaded-${{ runner.os }}-${{ hashFiles('make/_shared/tools/00_mod.mk') }}-${{ hashFiles('make/_shared/kind/00_kind_image_versions.mk') }}
+      - run: make test-unit
