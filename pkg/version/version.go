@@ -13,6 +13,3 @@ var BuildDate string
 
 // GoVersion is the go version that was used to compile this
 var GoVersion string
-
-// Platform is the target platform this was compiled for
-var Platform string
