@@ -13,7 +13,7 @@ func printVersion(verbose bool) {
 	if verbose {
 		fmt.Println("  Commit: ", version.Commit)
 		fmt.Println("  Built:  ", version.BuildDate)
-		fmt.Println("  Go:     ", version.GoVersion)
+		fmt.Println("  Go:     ", runtime.Version())
 	}
 }
 
