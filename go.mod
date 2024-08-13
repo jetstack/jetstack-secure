@@ -1,6 +1,8 @@
 module github.com/jetstack/preflight
 
-go 1.22
+go 1.22.0
+
+toolchain go1.22.3
 
 require (
 	github.com/Jeffail/gabs/v2 v2.7.0
@@ -9,7 +11,7 @@ require (
 	github.com/fatih/color v1.16.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/jetstack/venafi-connection-lib v0.1.0
+	github.com/jetstack/venafi-connection-lib v0.1.1-0.20240814101135-a72cec54dc1a
 	github.com/json-iterator/go v1.1.12
 	github.com/juju/errors v1.0.0
 	github.com/kylelemons/godebug v1.1.0
@@ -22,15 +24,15 @@ require (
 	github.com/spf13/pflag v1.0.5
 	gopkg.in/d4l3k/messagediff.v1 v1.2.1
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.30.0
-	k8s.io/apimachinery v0.30.0
-	k8s.io/client-go v0.30.0
-	sigs.k8s.io/controller-runtime v0.18.2
+	k8s.io/api v0.30.3
+	k8s.io/apimachinery v0.30.3
+	k8s.io/client-go v0.30.3
+	sigs.k8s.io/controller-runtime v0.18.5
 	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
-	github.com/Venafi/vcert/v5 v5.6.5-0.20240430163638-86272e17ec45 // indirect
+	github.com/Venafi/vcert/v5 v5.7.1 // indirect
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
@@ -55,15 +57,15 @@ require (
 	golang.org/x/crypto v0.24.0 // indirect
 	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a // indirect
 	golang.org/x/net v0.26.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240125205218-1f4bbc51befe // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240125205218-1f4bbc51befe // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	k8s.io/apiextensions-apiserver v0.30.0 // indirect
-	k8s.io/apiserver v0.30.0 // indirect
-	k8s.io/component-base v0.30.0 // indirect
+	k8s.io/apiextensions-apiserver v0.30.3 // indirect
+	k8s.io/apiserver v0.30.3 // indirect
+	k8s.io/component-base v0.30.3 // indirect
 )
 
 require (
