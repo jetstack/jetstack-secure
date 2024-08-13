@@ -11,7 +11,7 @@ jobs:
   vet:
     name: vet
     runs-on: ubuntu-22.04
-    container: golang:1.19
+    container: golang:1.22
     steps:
     - uses: actions/checkout@v4
     - run: make vet
@@ -19,7 +19,7 @@ jobs:
   test:
     name: go test
     runs-on: ubuntu-22.04
-    container: golang:1.19
+    container: golang:1.22
     steps:
     - uses: actions/checkout@v4
     - run: make test
