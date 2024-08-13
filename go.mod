@@ -2,8 +2,6 @@ module github.com/jetstack/preflight
 
 go 1.22.0
 
-toolchain go1.22.6
-
 require (
 	github.com/Jeffail/gabs/v2 v2.7.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
