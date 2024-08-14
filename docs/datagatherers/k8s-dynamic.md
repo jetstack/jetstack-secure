@@ -64,7 +64,7 @@ resource referenced in the `kind` for that datagatherer.
 There is an example `ClusterRole` and `ClusterRoleBinding` which can be found in
 [`./deployment/kubernetes/base/00-rbac.yaml`](./deployment/kubernetes/base/00-rbac.yaml).
 
-# Secrets
+## Secrets
 
 Secrets can be gathered using the following config:
 
@@ -80,3 +80,29 @@ Secrets can be gathered using the following config:
 Before Secrets are sent to the Preflight backend, they are redacted so no secret data is transmitted. See [`fieldfilter.go`](./../../pkg/datagatherer/k8s/fieldfilter.go) to see the details of which fields are filteres and which ones are redacted.
 
 > **All resource other than Kubernetes Secrets are sent in full, so make sure that you don't store secret information on arbitrary resources.**
+
+
+## Field Selectors
+
+You can use [field selectors](https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/#list-of-supported-fields)
+to include or exclude certain resources.
+For example, you can reduce the memory usage of the agent and reduce the load on the Kubernetes
+API server by omitting various common [Secret types](https://kubernetes.io/docs/concepts/configuration/secret/#secret-types)
+when listing Secrets.
+
+```yaml
+- kind: "k8s-dynamic"
+  name: "k8s/secrets"
+  config:
+    resource-type:
+      version: v1
+      resource: secrets
+    field-selectors:
+    - type!=kubernetes.io/service-account-token
+    - type!=kubernetes.io/dockercfg
+    - type!=kubernetes.io/dockerconfigjson
+    - type!=kubernetes.io/basic-auth
+    - type!=kubernetes.io/ssh-auth,
+    - type!=bootstrap.kubernetes.io/token
+    - type!=helm.sh/release.v1
+```
