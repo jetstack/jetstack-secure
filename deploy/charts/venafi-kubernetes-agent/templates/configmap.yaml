@@ -89,6 +89,12 @@ data:
         resource-type:
           version: v1
           resource: secrets
+        {{- with .Values.config.ignoredSecretTypes }}
+        field-selectors:
+        {{- range . }}
+        - type!={{ . }}
+        {{- end }}
+        {{- end }}
     - kind: "k8s-dynamic"
       name: "k8s/certificates"
       config:
@@ -202,5 +208,3 @@ data:
           version: v1
           resource: issuers
 {{- end }}
-
-

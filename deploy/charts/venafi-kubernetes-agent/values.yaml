@@ -186,6 +186,22 @@ config:
   # -- Description for the cluster resource if it needs to be created in Venafi Control Plane
   clusterDescription: ""
 
+  # -- Reduce the memory usage of the agent and reduce the load on the Kubernetes
+  # API server by omitting various common Secret types when listing Secrets.
+  # These Secret types will be added to a "type!=<type>" field selector in the
+  # agent config.
+  # * https://docs.venafi.cloud/vaas/k8s-components/t-cfg-tlspk-agent/#configuration
+  # * https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
+  # * https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/#list-of-supported-fields
+  ignoredSecretTypes:
+  - kubernetes.io/service-account-token
+  - kubernetes.io/dockercfg
+  - kubernetes.io/dockerconfigjson
+  - kubernetes.io/basic-auth
+  - kubernetes.io/ssh-auth,
+  - bootstrap.kubernetes.io/token
+  - helm.sh/release.v1
+
   # -- Specify ConfigMap details to load config from an existing resource.
   # This should be blank by default unless you have you own config.
   configmap:

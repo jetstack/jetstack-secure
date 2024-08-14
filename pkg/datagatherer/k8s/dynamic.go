@@ -39,6 +39,8 @@ type ConfigDynamic struct {
 	ExcludeNamespaces []string `yaml:"exclude-namespaces"`
 	// IncludeNamespaces is a list of namespaces to include.
 	IncludeNamespaces []string `yaml:"include-namespaces"`
+	// FieldSelectors is a list of field selectors to use when listing this resource
+	FieldSelectors []string `yaml:"field-selectors"`
 }
 
 // UnmarshalYAML unmarshals the ConfigDynamic resolving GroupVersionResource.
@@ -52,6 +54,7 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		} `yaml:"resource-type"`
 		ExcludeNamespaces []string `yaml:"exclude-namespaces"`
 		IncludeNamespaces []string `yaml:"include-namespaces"`
+		FieldSelectors    []string `yaml:"field-selectors"`
 	}{}
 	err := unmarshal(&aux)
 	if err != nil {
@@ -64,6 +67,7 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	c.GroupVersionResource.Resource = aux.ResourceType.Resource
 	c.ExcludeNamespaces = aux.ExcludeNamespaces
 	c.IncludeNamespaces = aux.IncludeNamespaces
+	c.FieldSelectors = aux.FieldSelectors
 
 	return nil
 }
@@ -77,6 +81,13 @@ func (c *ConfigDynamic) validate() error {
 
 	if c.GroupVersionResource.Resource == "" {
 		errors = append(errors, "invalid configuration: GroupVersionResource.Resource cannot be empty")
+	}
+
+	for _, selectorString := range c.FieldSelectors {
+		_, err := fields.ParseSelector(selectorString)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("invalid field selector %q: %s", selectorString, err))
+		}
 	}
 
 	if len(errors) > 0 {
@@ -151,26 +162,10 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	}
 	// init shared informer for selected namespaces
 	fieldSelector := generateFieldSelector(c.ExcludeNamespaces)
-	// Reduce the memory usage and reduce the load on the Kubernetes API server
-	// by omitting various common Secret types when listing Secrets.
-	// * https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
-	//
-	// It would be better to include only TLS and Opaque Secrets rather than excluding the other types,
-	// because we can never know all the possible Secret types that a cluster may have,
-	// but field selectors do not yet support set based operators:
-	// * https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/#supported-operators
-	// * https://github.com/kubernetes/kubernetes/issues/32946
-	if c.GroupVersionResource.Group == "" && c.GroupVersionResource.Version == "v1" && c.GroupVersionResource.Resource == "secrets" {
-		fieldSelector = fields.AndSelectors(
-			fieldSelector,
-			fields.OneTermNotEqualSelector("type", "kubernetes.io/service-account-token"),
-			fields.OneTermNotEqualSelector("type", "kubernetes.io/dockercfg"),
-			fields.OneTermNotEqualSelector("type", "kubernetes.io/dockerconfigjson"),
-			fields.OneTermNotEqualSelector("type", "kubernetes.io/basic-auth"),
-			fields.OneTermNotEqualSelector("type", "kubernetes.io/ssh-auth"),
-			fields.OneTermNotEqualSelector("type", "bootstrap.kubernetes.io/token"),
-			fields.OneTermNotEqualSelector("type", "helm.sh/release.v1"),
-		)
+
+	// add any custom field selectors to the namespace selector
+	for _, selectorString := range c.FieldSelectors {
+		fieldSelector = fields.AndSelectors(fieldSelector, fields.ParseSelectorOrDie(selectorString))
 	}
 
 	// init cache to store gathered resources
