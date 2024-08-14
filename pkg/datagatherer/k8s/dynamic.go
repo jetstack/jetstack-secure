@@ -83,10 +83,13 @@ func (c *ConfigDynamic) validate() error {
 		errors = append(errors, "invalid configuration: GroupVersionResource.Resource cannot be empty")
 	}
 
-	for _, selectorString := range c.FieldSelectors {
+	for i, selectorString := range c.FieldSelectors {
+		if selectorString == "" {
+			errors = append(errors, fmt.Sprintf("invalid field selector %d: must not be empty", i))
+		}
 		_, err := fields.ParseSelector(selectorString)
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("invalid field selector %q: %s", selectorString, err))
+			errors = append(errors, fmt.Sprintf("invalid field selector %d: %s", i, err))
 		}
 	}
 
@@ -161,9 +164,11 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		return nil, err
 	}
 	// init shared informer for selected namespaces
-	fieldSelector := generateFieldSelector(c.ExcludeNamespaces)
+	fieldSelector := generateExcludedNamespacesFieldSelector(c.ExcludeNamespaces)
 
-	// add any custom field selectors to the namespace selector
+	// Add any custom field selectors to the excluded namespaces selector
+	// The selectors have already been validated, so it is safe to use
+	// ParseSelectorOrDie here.
 	for _, selectorString := range c.FieldSelectors {
 		fieldSelector = fields.AndSelectors(fieldSelector, fields.ParseSelectorOrDie(selectorString))
 	}
@@ -437,17 +442,17 @@ func namespaceResourceInterface(iface dynamic.NamespaceableResourceInterface, na
 	return iface.Namespace(namespace)
 }
 
-// generateFieldSelector creates a field selector string from a list of
-// namespaces to exclude.
-func generateFieldSelector(excludeNamespaces []string) fields.Selector {
-	fieldSelector := fields.Nothing()
+// generateExcludedNamespacesFieldSelector creates a field selector string from
+// a list of namespaces to exclude.
+func generateExcludedNamespacesFieldSelector(excludeNamespaces []string) fields.Selector {
+	var selectors []fields.Selector
 	for _, excludeNamespace := range excludeNamespaces {
 		if excludeNamespace == "" {
 			continue
 		}
-		fieldSelector = fields.AndSelectors(fields.OneTermNotEqualSelector("metadata.namespace", excludeNamespace), fieldSelector)
+		selectors = append(selectors, fields.OneTermNotEqualSelector("metadata.namespace", excludeNamespace))
 	}
-	return fieldSelector
+	return fields.AndSelectors(selectors...)
 }
 
 func isIncludedNamespace(namespace string, namespaces []string) bool {

@@ -105,8 +105,12 @@ func sortGatheredResources(list []*api.GatheredResource) {
 func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 	ctx := context.Background()
 	config := ConfigDynamic{
-		IncludeNamespaces:    []string{"a"},
+		ExcludeNamespaces:    []string{"kube-system"},
 		GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
+		FieldSelectors: []string{
+			"type!=kubernetes.io/service-account-token",
+			"type!=kubernetes.io/dockercfg",
+		},
 	}
 	cl := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	dg, err := config.newDataGathererWithClient(ctx, cl, nil)
@@ -121,7 +125,8 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 		groupVersionResource: config.GroupVersionResource,
 		// it's important that the namespaces are set as the IncludeNamespaces
 		// during initialization
-		namespaces: config.IncludeNamespaces,
+		namespaces:    config.IncludeNamespaces,
+		fieldSelector: "metadata.namespace!=kube-system,type!=kubernetes.io/service-account-token,type!=kubernetes.io/dockercfg",
 	}
 
 	gatherer := dg.(*DataGathererDynamic)
@@ -149,6 +154,9 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 	}
 	if gatherer.nativeSharedInformer != nil {
 		t.Errorf("unexpected nativeSharedInformer value: %v. should be nil", gatherer.nativeSharedInformer)
+	}
+	if !reflect.DeepEqual(gatherer.fieldSelector, expected.fieldSelector) {
+		t.Errorf("expected %v, got %v", expected.fieldSelector, gatherer.fieldSelector)
 	}
 }
 
@@ -216,6 +224,8 @@ exclude-namespaces:
 # from the config file
 include-namespaces:
 - default
+field-selectors:
+- type!=kubernetes.io/service-account-token
 `
 
 	expectedGVR := schema.GroupVersionResource{
@@ -230,6 +240,10 @@ include-namespaces:
 	}
 
 	expectedIncludeNamespaces := []string{"default"}
+
+	expectedFieldSelectors := []string{
+		"type!=kubernetes.io/service-account-token",
+	}
 
 	cfg := ConfigDynamic{}
 	err := yaml.Unmarshal([]byte(textCfg), &cfg)
@@ -250,6 +264,9 @@ include-namespaces:
 	}
 	if got, want := cfg.IncludeNamespaces, expectedIncludeNamespaces; !reflect.DeepEqual(got, want) {
 		t.Errorf("IncludeNamespaces does not match: got=%+v want=%+v", got, want)
+	}
+	if got, want := cfg.FieldSelectors, expectedFieldSelectors; !reflect.DeepEqual(got, want) {
+		t.Errorf("FieldSelectors does not match: got=%+v want=%+v", got, want)
 	}
 }
 
@@ -275,17 +292,42 @@ func TestConfigDynamicValidate(t *testing.T) {
 			},
 			ExpectedError: "cannot set excluded and included namespaces",
 		},
+		{
+			Config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Group:    "",
+					Version:  "v1",
+					Resource: "secrets",
+				},
+				FieldSelectors: []string{""},
+			},
+			ExpectedError: "invalid field selector 0: must not be empty",
+		},
+		{
+			Config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Group:    "",
+					Version:  "v1",
+					Resource: "secrets",
+				},
+				FieldSelectors: []string{"foo"},
+			},
+			ExpectedError: "invalid field selector 0: invalid selector: 'foo'; can't understand 'foo'",
+		},
 	}
 
 	for _, test := range tests {
 		err := test.Config.validate()
-		if !strings.Contains(err.Error(), test.ExpectedError) {
+		if err == nil && test.ExpectedError != "" {
+			t.Errorf("expected error: %q, got: nil", test.ExpectedError)
+		}
+		if err != nil && !strings.Contains(err.Error(), test.ExpectedError) {
 			t.Errorf("expected %s, got %s", test.ExpectedError, err.Error())
 		}
 	}
 }
 
-func TestGenerateFieldSelector(t *testing.T) {
+func TestGenerateExcludedNamespacesFieldSelector(t *testing.T) {
 	tests := []struct {
 		ExcludeNamespaces     []string
 		ExpectedFieldSelector string
@@ -300,19 +342,19 @@ func TestGenerateFieldSelector(t *testing.T) {
 			ExcludeNamespaces: []string{
 				"kube-system",
 			},
-			ExpectedFieldSelector: "metadata.namespace!=kube-system,",
+			ExpectedFieldSelector: "metadata.namespace!=kube-system",
 		},
 		{
 			ExcludeNamespaces: []string{
 				"kube-system",
 				"my-namespace",
 			},
-			ExpectedFieldSelector: "metadata.namespace!=my-namespace,metadata.namespace!=kube-system,",
+			ExpectedFieldSelector: "metadata.namespace!=kube-system,metadata.namespace!=my-namespace",
 		},
 	}
 
 	for _, test := range tests {
-		fieldSelector := generateFieldSelector(test.ExcludeNamespaces).String()
+		fieldSelector := generateExcludedNamespacesFieldSelector(test.ExcludeNamespaces).String()
 		if fieldSelector != test.ExpectedFieldSelector {
 			t.Errorf("ExpectedFieldSelector does not match: got=%+v want=%+v", fieldSelector, test.ExpectedFieldSelector)
 		}
