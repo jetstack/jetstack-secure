@@ -1,10 +1,15 @@
----
+{{- if .Values.crds.venafiConnection.include }}
+{{- if (or (semverCompare "<1.25" .Capabilities.KubeVersion.GitVersion) .Values.crds.forceRemoveValidationAnnotations) }}
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.14.0
+    # This annotation prevents the CRD from being pruned by Helm when this chart is deleted.
+    "helm.sh/resource-policy": keep
   name: venaficonnections.jetstack.io
+  labels:
+  {{- include "venafi-connection.labels" $ | nindent 4 }}
 spec:
   group: jetstack.io
   names:
@@ -1114,3 +1119,5 @@ spec:
       storage: true
       subresources:
         status: {}
+{{- end }}
+{{- end }}

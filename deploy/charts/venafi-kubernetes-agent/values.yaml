@@ -57,7 +57,7 @@ image:
   # -- Defaults to only pull if not already present
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion
-  tag: "v0.1.49"
+  # tag: "v0.0.0"
 
 # -- Specify image pull credentials if using a private registry
 # example: - name: my-pull-secret
@@ -172,6 +172,23 @@ authentication:
   # -- Key name in the referenced secret
   secretKey: "privatekey.pem"
 
+  # +docs:section=Venafi Connection
+  # -- Configure VenafiConnection authentication
+  venafiConnection:
+    # -- When set to true, the Venafi Kubernetes Agent will authenticate to
+    # Venafi using the configuration in a VenafiConnection resource.
+    # Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/).
+    # When set to true, the `authentication.secret` values will be ignored and the
+    # Secret with `authentication.secretName` will _not_ be mounted into the
+    # Venafi Kubernetes Agent Pod.
+    enabled: false
+    # -- The name of a VenafiConnection resource which contains the configuration
+    # for authenticating to Venafi.
+    name: venafi-components
+    # -- The namespace of a VenafiConnection resource which contains the
+    # configuration for authenticating to Venafi.
+    namespace: venafi
+
 # -- Configuration section for the Venafi Kubernetes Agent itself
 config:
   # -- Overrides the server if using a proxy in your environment
@@ -208,3 +225,22 @@ podDisruptionBudget:
   # an integer (e.g. 1) or a percentage value (e.g. 25%).
   # Cannot be used if `minAvailable` is set.
   # maxUnavailable: 1
+
+# +docs:section=CRDs
+# The CRDs installed by this chart are annotated with "helm.sh/resource-policy: keep", this
+# prevents them from being accidentally removed by Helm when this chart is deleted. After
+# deleting the installed chart, the user still has to manually remove the remaining CRDs.
+crds:
+  # -- The 'x-kubernetes-validations' annotation is not supported in Kubernetes 1.22 and below.
+  # This annotation is used by CEL, which is a feature introduced in Kubernetes 1.25 that
+  # improves how validation is performed.
+  # This option allows to force the 'x-kubernetes-validations' annotation to be excluded,
+  # even on Kubernetes 1.25+ clusters.
+  forceRemoveValidationAnnotations: false
+
+  # -- Optionally include the VenafiConnection CRDs
+  venafiConnection:
+    # -- When set to false, the rendered output does not contain the
+    # VenafiConnection CRDs and RBAC. This is useful for when the
+    # Venafi Connection resources are already installed separately.
+    include: false

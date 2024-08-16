@@ -1,8 +1,12 @@
-1. Check the credentials Secret exists: "{{ .Values.authentication.secretName }}"
+{{- if .Values.authentication.venafiConnection.enabled }}
+- Check the VenafiConnection exists: "{{ .Values.authentication.venafiConnection.namespace }}/{{ .Values.authentication.venafiConnection.name }}"
+> kubectl get VenafiConnection -n {{ .Values.authentication.venafiConnection.namespace }} {{ .Values.authentication.venafiConnection.name }}
+{{- else }}
+- Check the credentials Secret exists: "{{ .Values.authentication.secretName }}"
 > kubectl get secret -n {{ .Release.Namespace }} {{ .Values.authentication.secretName }}
-
-2. Check the application is running:
+{{- end }}
+- Check the application is running:
 > kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
 
-3. Check the application logs for successful connection to the platform:
+- Check the application logs for successful connection to the platform:
 > kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
