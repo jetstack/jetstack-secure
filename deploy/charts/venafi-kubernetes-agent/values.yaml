@@ -198,7 +198,7 @@ config:
   - kubernetes.io/dockercfg
   - kubernetes.io/dockerconfigjson
   - kubernetes.io/basic-auth
-  - kubernetes.io/ssh-auth,
+  - kubernetes.io/ssh-auth
   - bootstrap.kubernetes.io/token
   - helm.sh/release.v1
 
