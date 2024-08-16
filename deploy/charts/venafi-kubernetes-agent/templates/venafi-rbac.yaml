@@ -1,0 +1,31 @@
+# Copied from approver-policy-enterprise
+# https://github.com/jetstack/approver-policy-enterprise/blob/028fd7e0c57cb059d0ba7d03b6899b448285a240/deploy/charts/approver-policy-enterprise/templates/venafi-rbac.yaml
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: venafi-kubernetes-agent-impersonate-role
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+  {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+- apiGroups: [ "" ]
+  resources: [ "serviceaccounts" ]
+  verbs: [ "impersonate" ]
+  resourceNames: [ "venafi-connection" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: venafi-kubernetes-agent-impersonate-rolebinding
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+  {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: venafi-kubernetes-agent-impersonate-role
+subjects:
+- kind: ServiceAccount
+  name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+  namespace: {{ $.Release.Namespace | quote }}

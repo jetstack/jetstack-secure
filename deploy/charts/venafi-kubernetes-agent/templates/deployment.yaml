@@ -57,10 +57,15 @@ spec:
             - "agent"
             - "-c"
             - "/etc/venafi/agent/config/{{ default "config.yaml" .Values.config.configmap.key }}"
-            - "--client-id"
-            - "{{ .Values.config.clientId }}"
             - "-p"
             - "0h1m0s"
+            {{- if .Values.venafiConnection.name }}
+            - --venafi-connection
+            - {{ .Values.venafiConnection.name | quote }}
+            {{- else }}
+            - --client-id
+            - {{ .Values.config.clientId | quote }}
+            {{- end }}
             - --venafi-cloud
             {{- if .Values.metrics.enabled }}
             - --enable-metrics
@@ -74,9 +79,11 @@ spec:
             - name: config
               mountPath: "/etc/venafi/agent/config"
               readOnly: true
+            {{- with .Values.authentication }}
             - name: credentials
               mountPath: "/etc/venafi/agent/key"
               readOnly: true
+            {{- end }}
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -102,10 +109,12 @@ spec:
           configMap:
             name: {{ default "agent-config" .Values.config.configmap.name }}
             optional: false
+        {{- with .Values.authentication }}
         - name: credentials
           secret:
-            secretName: {{ default "agent-credentials" .Values.authentication.secretName }}
+            secretName: {{ .secretName }}
             optional: false
+        {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

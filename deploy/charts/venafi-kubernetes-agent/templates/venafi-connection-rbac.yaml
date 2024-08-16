@@ -1,0 +1,51 @@
+# Copied from approver-policy-enterprise
+# https://github.com/jetstack/approver-policy-enterprise/blob/main/deploy/charts/approver-policy-enterprise/templates/venafi-connection-rbac.yaml
+---
+{{- with .Values.venafiConnection }}
+{{- if .include }}
+# The 'venafi-connection' service account is used by multiple
+# controllers. When configuring which resources a VenafiConnection
+# can access, the RBAC rules you create manually must point to this SA.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: venafi-connection
+  namespace: {{ $.Release.Namespace | quote }}
+  labels:
+  {{- include "venafi-connection.labels" $ | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: venafi-connection-role
+  labels:
+  {{- include "venafi-connection.labels" $ | nindent 4 }}
+rules:
+- apiGroups: [ "" ]
+  resources: [ "namespaces" ]
+  verbs: [ "get", "list", "watch" ]
+
+- apiGroups: [ "jetstack.io" ]
+  resources: [ "venaficonnections" ]
+  verbs: [ "get", "list", "watch" ]
+
+- apiGroups: [ "jetstack.io" ]
+  resources: [ "venaficonnections/status" ]
+  verbs: [ "get", "patch" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: venafi-connection-rolebinding
+  labels:
+  {{- include "venafi-connection.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: venafi-connection-role
+subjects:
+- kind: ServiceAccount
+  name: venafi-connection
+  namespace: {{ $.Release.Namespace | quote }}
+{{- end }}
+{{- end }}
