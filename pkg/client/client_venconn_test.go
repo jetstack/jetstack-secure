@@ -268,10 +268,7 @@ func fakeTPP(t testing.TB) (*httptest.Server, *x509.Certificate) {
 func startEnvtest(t testing.TB) (_ *envtest.Environment, _ *rest.Config, kclient ctrlruntime.WithWatch) {
 	envtest := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
-		// TODO(mael): Once the automation around generating the CRD is in
-		// place, remember to update this path to
-		// deploy/charts/venafi-kubernetes-agent/crd_bases/jetstack.io_venaficonnections.yaml
-		CRDDirectoryPaths: []string{"../../deploy/charts/venafi-kubernetes-agent/templates/venafi-connection-crd.yaml"},
+		CRDDirectoryPaths:     []string{"../../deploy/charts/venafi-kubernetes-agent/crd_bases/jetstack.io_venaficonnections.yaml"},
 	}
 	restconf, err := envtest.Start()
 	require.NoError(t, err)
