@@ -1,15 +1,22 @@
-{{- if .Values.crds.venafiConnection.include }}
-{{- if (or (semverCompare "<1.25" .Capabilities.KubeVersion.GitVersion) .Values.crds.forceRemoveValidationAnnotations) }}
+{{/* DO NOT EDIT. Use 'make generate-crds-venconn' to regenerate. */}}
+{{- if .Values.crds.venafiConnection.enabled }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: "venaficonnections.jetstack.io"
+  {{- if .Values.crds.keep }}
+  annotations:
+    helm.sh/resource-policy: keep
+  {{- end }}
+  labels:
+    {{- include "preflight.labels" . | nindent 4 }}
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
-    # This annotation prevents the CRD from being pruned by Helm when this chart is deleted.
-    "helm.sh/resource-policy": keep
+    controller-gen.kubebuilder.io/version: v0.16.1
   name: venaficonnections.jetstack.io
-  labels:
-  {{- include "venafi-connection.labels" $ | nindent 4 }}
 spec:
   group: jetstack.io
   names:
@@ -141,7 +148,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: "DEPRECATED: This field does nothing and will be removed in the future."
+                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -166,7 +173,6 @@ spec:
                                 description: |-
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
-
 
                                   Example 1 (TPP, username and password): imagining that you have stored
                                   the username and password for TPP under the keys "username" and
@@ -293,7 +299,7 @@ spec:
                     - url
                   type: object
                 vaas:
-                  description: "Deprecated: The 'vaas' field is deprecated use the field called 'vcp' instead."
+                  description: 'Deprecated: The ''vaas'' field is deprecated use the field called ''vcp'' instead.'
                   properties:
                     accessToken:
                       description: |-
@@ -340,7 +346,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: "DEPRECATED: This field does nothing and will be removed in the future."
+                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -365,7 +371,6 @@ spec:
                                 description: |-
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
-
 
                                   Example 1 (TPP, username and password): imagining that you have stored
                                   the username and password for TPP under the keys "username" and
@@ -526,7 +531,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: "DEPRECATED: This field does nothing and will be removed in the future."
+                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -551,7 +556,6 @@ spec:
                                 description: |-
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
-
 
                                   Example 1 (TPP, username and password): imagining that you have stored
                                   the username and password for TPP under the keys "username" and
@@ -720,7 +724,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: "DEPRECATED: This field does nothing and will be removed in the future."
+                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -745,7 +749,6 @@ spec:
                                 description: |-
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
-
 
                                   Example 1 (TPP, username and password): imagining that you have stored
                                   the username and password for TPP under the keys "username" and
@@ -906,7 +909,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: "DEPRECATED: This field does nothing and will be removed in the future."
+                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -931,7 +934,6 @@ spec:
                                 description: |-
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
-
 
                                   Example 1 (TPP, username and password): imagining that you have stored
                                   the username and password for TPP under the keys "username" and
@@ -1119,5 +1121,4 @@ spec:
       storage: true
       subresources:
         status: {}
-{{- end }}
-{{- end }}
+{{ end }}

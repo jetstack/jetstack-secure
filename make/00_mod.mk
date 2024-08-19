@@ -19,9 +19,9 @@ go_preflight_ldflags := \
 	-X $(repo_name)/pkg/client.AuthServerDomain="auth.jetstack.io"
 
 oci_preflight_base_image_flavor := static
-oci_preflight_image_name := quay.io/jetstack/preflight
+oci_preflight_image_name := quay.io/jetstack/venafi-agent
 oci_preflight_image_tag := $(VERSION)
-oci_preflight_image_name_development := jetstack.local/preflight
+oci_preflight_image_name_development := jetstack.local/venafi-agent
 
 deploy_name := venafi-kubernetes-agent
 deploy_namespace := venafi
