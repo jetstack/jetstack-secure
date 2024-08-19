@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/hashicorp/go-multierror"
+	"github.com/jetstack/preflight/pkg/logs"
 	json "github.com/json-iterator/go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -86,23 +86,23 @@ func Run(cmd *cobra.Command, args []string) {
 	config, preflightClient := getConfiguration()
 
 	if Profiling {
-		log.Printf("pprof profiling was enabled.\nRunning profiling on port :6060")
+		logs.Log.Printf("pprof profiling was enabled.\nRunning profiling on port :6060")
 		go func() {
 			err := http.ListenAndServe(":6060", nil)
 			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				log.Fatalf("failed to run pprof profiler: %s", err)
+				logs.Log.Fatalf("failed to run pprof profiler: %s", err)
 			}
 		}()
 	}
 	if Prometheus {
-		log.Printf("Prometheus was enabled.\nRunning prometheus server on port :8081")
+		logs.Log.Printf("Prometheus was enabled.\nRunning prometheus server on port :8081")
 		go func() {
 			prometheus.MustRegister(metricPayloadSize)
 			metricsServer := http.NewServeMux()
 			metricsServer.Handle("/metrics", promhttp.Handler())
 			err := http.ListenAndServe(":8081", metricsServer)
 			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				log.Fatalf("failed to run prometheus server: %s", err)
+				logs.Log.Fatalf("failed to run prometheus server: %s", err)
 			}
 		}()
 	}
@@ -115,19 +115,19 @@ func Run(cmd *cobra.Command, args []string) {
 		kind := dgConfig.Kind
 		if dgConfig.DataPath != "" {
 			kind = "local"
-			log.Fatalf("running data gatherer %s of type %s as Local, data-path override present: %s", dgConfig.Name, dgConfig.Kind, dgConfig.DataPath)
+			logs.Log.Fatalf("running data gatherer %s of type %s as Local, data-path override present: %s", dgConfig.Name, dgConfig.Kind, dgConfig.DataPath)
 		}
 
 		newDg, err := dgConfig.Config.NewDataGatherer(ctx)
 		if err != nil {
-			log.Fatalf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
+			logs.Log.Fatalf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
 		}
 
-		log.Printf("starting %q datagatherer", dgConfig.Name)
+		logs.Log.Printf("starting %q datagatherer", dgConfig.Name)
 
 		// start the data gatherers and wait for the cache sync
 		if err := newDg.Run(ctx.Done()); err != nil {
-			log.Printf("failed to start %q data gatherer %q: %v", kind, dgConfig.Name, err)
+			logs.Log.Printf("failed to start %q data gatherer %q: %v", kind, dgConfig.Name, err)
 		}
 
 		// bootCtx is a context with a timeout to allow the informer 5
@@ -142,7 +142,7 @@ func Run(cmd *cobra.Command, args []string) {
 		// the run.
 		if err := newDg.WaitForCacheSync(bootCtx.Done()); err != nil {
 			// log sync failure, this might recover in future
-			log.Printf("failed to complete initial sync of %q data gatherer %q: %v", kind, dgConfig.Name, err)
+			logs.Log.Printf("failed to complete initial sync of %q data gatherer %q: %v", kind, dgConfig.Name, err)
 		}
 
 		// regardless of success, this dataGatherers has been given a
@@ -157,14 +157,14 @@ func Run(cmd *cobra.Command, args []string) {
 	c := make(chan struct{})
 	go func() {
 		defer close(c)
-		log.Printf("waiting for datagatherers to complete inital syncs")
+		logs.Log.Printf("waiting for datagatherers to complete inital syncs")
 		wg.Wait()
 	}()
 	select {
 	case <-c:
-		log.Printf("datagatherers inital sync completed")
+		logs.Log.Printf("datagatherers inital sync completed")
 	case <-time.After(60 * time.Second):
-		log.Fatalf("datagatherers inital sync failed due to timeout of 60 seconds")
+		logs.Log.Fatalf("datagatherers inital sync failed due to timeout of 60 seconds")
 	}
 
 	// begin the datagathering loop, periodically sending data to the
@@ -173,7 +173,7 @@ func Run(cmd *cobra.Command, args []string) {
 	for {
 		// if period is set in the config, then use that if not already set
 		if Period == 0 && config.Period > 0 {
-			log.Printf("Using period from config %s", config.Period)
+			logs.Log.Printf("Using period from config %s", config.Period)
 			Period = config.Period
 		}
 
@@ -188,16 +188,16 @@ func Run(cmd *cobra.Command, args []string) {
 }
 
 func getConfiguration() (Config, client.Client) {
-	log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
+	logs.Log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
 	file, err := os.Open(ConfigFilePath)
 	if err != nil {
-		log.Fatalf("Failed to load config file for agent from: %s", ConfigFilePath)
+		logs.Log.Fatalf("Failed to load config file for agent from: %s", ConfigFilePath)
 	}
 	defer file.Close()
 
 	b, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Fatalf("Failed to read config file: %s", err)
+		logs.Log.Fatalf("Failed to read config file: %s", err)
 	}
 
 	// If the ClientID of the service account is specified, then assume we are in Venafi Cloud mode.
@@ -207,29 +207,29 @@ func getConfiguration() (Config, client.Client) {
 
 	config, err := ParseConfig(b, VenafiCloudMode)
 	if err != nil {
-		log.Fatalf("Failed to parse config file: %s", err)
+		logs.Log.Fatalf("Failed to parse config file: %s", err)
 	}
 
 	baseURL := config.Server
 	if baseURL == "" {
-		log.Printf("Using deprecated Endpoint configuration. User Server instead.")
+		logs.Log.Printf("Using deprecated Endpoint configuration. User Server instead.")
 		baseURL = fmt.Sprintf("%s://%s", config.Endpoint.Protocol, config.Endpoint.Host)
 		_, err = url.Parse(baseURL)
 		if err != nil {
-			log.Fatalf("Failed to build URL: %s", err)
+			logs.Log.Fatalf("Failed to build URL: %s", err)
 		}
 	}
 
 	if Period == 0 && config.Period == 0 && !OneShot {
-		log.Fatalf("Failed to load period, must be set as flag or in config")
+		logs.Log.Fatalf("Failed to load period, must be set as flag or in config")
 	}
 
 	dump, err := config.Dump()
 	if err != nil {
-		log.Fatalf("Failed to dump config: %s", err)
+		logs.Log.Fatalf("Failed to dump config: %s", err)
 	}
 
-	log.Printf("Loaded config: \n%s", dump)
+	logs.Log.Printf("Loaded config: \n%s", dump)
 
 	var credentials client.Credentials
 	if ClientID != "" {
@@ -240,13 +240,13 @@ func getConfiguration() (Config, client.Client) {
 	} else if CredentialsPath != "" {
 		file, err = os.Open(CredentialsPath)
 		if err != nil {
-			log.Fatalf("Failed to load credentials from file %s", CredentialsPath)
+			logs.Log.Fatalf("Failed to load credentials from file %s", CredentialsPath)
 		}
 		defer file.Close()
 
 		b, err = io.ReadAll(file)
 		if err != nil {
-			log.Fatalf("Failed to read credentials file: %v", err)
+			logs.Log.Fatalf("Failed to read credentials file: %v", err)
 		}
 		if VenafiCloudMode {
 			credentials, err = client.ParseVenafiCredentials(b)
@@ -254,7 +254,7 @@ func getConfiguration() (Config, client.Client) {
 			credentials, err = client.ParseOAuthCredentials(b)
 		}
 		if err != nil {
-			log.Fatalf("Failed to parse credentials file: %s", err)
+			logs.Log.Fatalf("Failed to parse credentials file: %s", err)
 		}
 	}
 
@@ -268,15 +268,15 @@ func getConfiguration() (Config, client.Client) {
 	case credentials != nil:
 		preflightClient, err = createCredentialClient(credentials, config, agentMetadata, baseURL)
 	case APIToken != "":
-		log.Println("An API token was specified, using API token authentication.")
+		logs.Log.Println("An API token was specified, using API token authentication.")
 		preflightClient, err = client.NewAPITokenClient(agentMetadata, APIToken, baseURL)
 	default:
-		log.Println("No credentials were specified, using with no authentication.")
+		logs.Log.Println("No credentials were specified, using with no authentication.")
 		preflightClient, err = client.NewUnauthenticatedClient(agentMetadata, baseURL)
 	}
 
 	if err != nil {
-		log.Fatalf("failed to create client: %v", err)
+		logs.Log.Fatalf("failed to create client: %v", err)
 	}
 
 	return config, preflightClient
@@ -285,19 +285,19 @@ func getConfiguration() (Config, client.Client) {
 func createCredentialClient(credentials client.Credentials, config Config, agentMetadata *api.AgentMetadata, baseURL string) (client.Client, error) {
 	switch creds := credentials.(type) {
 	case *client.VenafiSvcAccountCredentials:
-		log.Println("Venafi Cloud mode was specified, using Venafi Service Account authentication.")
+		logs.Log.Println("Venafi Cloud mode was specified, using Venafi Service Account authentication.")
 		// check if config has Venafi Cloud data, use config data if it's present
 		uploaderID := creds.ClientID
 		uploadPath := ""
 		if config.VenafiCloud != nil {
-			log.Println("Loading uploader_id and upload_path from \"venafi-cloud\" configuration.")
+			logs.Log.Println("Loading uploader_id and upload_path from \"venafi-cloud\" configuration.")
 			uploaderID = config.VenafiCloud.UploaderID
 			uploadPath = config.VenafiCloud.UploadPath
 		}
 		return client.NewVenafiCloudClient(agentMetadata, creds, baseURL, uploaderID, uploadPath)
 
 	case *client.OAuthCredentials:
-		log.Println("A credentials file was specified, using oauth authentication.")
+		logs.Log.Println("A credentials file was specified, using oauth authentication.")
 		return client.NewOAuthClient(agentMetadata, creds, baseURL)
 	default:
 		return nil, errors.New("credentials file is in unknown format")
@@ -316,14 +316,14 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 	}
 
 	if InputPath != "" {
-		log.Printf("Reading data from local file: %s", InputPath)
+		logs.Log.Printf("Reading data from local file: %s", InputPath)
 		data, err := ioutil.ReadFile(InputPath)
 		if err != nil {
-			log.Fatalf("failed to read local data file: %s", err)
+			logs.Log.Fatalf("failed to read local data file: %s", err)
 		}
 		err = json.Unmarshal(data, &readings)
 		if err != nil {
-			log.Fatalf("failed to unmarshal local data file: %s", err)
+			logs.Log.Fatalf("failed to unmarshal local data file: %s", err)
 		}
 	} else {
 		readings = gatherData(config, dataGatherers)
@@ -332,13 +332,13 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 	if OutputPath != "" {
 		data, err := json.MarshalIndent(readings, "", "  ")
 		if err != nil {
-			log.Fatal("failed to marshal JSON")
+			logs.Log.Fatal("failed to marshal JSON")
 		}
 		err = ioutil.WriteFile(OutputPath, data, 0644)
 		if err != nil {
-			log.Fatalf("failed to output to local file: %s", err)
+			logs.Log.Fatalf("failed to output to local file: %s", err)
 		}
-		log.Printf("Data saved to local file: %s", OutputPath)
+		logs.Log.Printf("Data saved to local file: %s", OutputPath)
 	} else {
 		backOff := backoff.NewExponentialBackOff()
 		backOff.InitialInterval = 30 * time.Second
@@ -348,10 +348,10 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 			return postData(config, preflightClient, readings)
 		}
 		err := backoff.RetryNotify(post, backOff, func(err error, t time.Duration) {
-			log.Printf("retrying in %v after error: %s", t, err)
+			logs.Log.Printf("retrying in %v after error: %s", t, err)
 		})
 		if err != nil {
-			log.Fatalf("Exiting due to fatal error uploading: %v", err)
+			logs.Log.Fatalf("Exiting due to fatal error uploading: %v", err)
 		}
 
 	}
@@ -370,9 +370,9 @@ func gatherData(config Config, dataGatherers map[string]datagatherer.DataGathere
 		}
 
 		if count >= 0 {
-			log.Printf("successfully gathered %d items from %q datagatherer", count, k)
+			logs.Log.Printf("successfully gathered %d items from %q datagatherer", count, k)
 		} else {
-			log.Printf("successfully gathered data from %q datagatherer", k)
+			logs.Log.Printf("successfully gathered data from %q datagatherer", k)
 		}
 		readings = append(readings, &api.DataReading{
 			ClusterID:     config.ClusterID,
@@ -396,7 +396,7 @@ func gatherData(config Config, dataGatherers map[string]datagatherer.DataGathere
 	}
 
 	if StrictMode && dgError.ErrorOrNil() != nil {
-		log.Fatalf("halting datagathering in strict mode due to error: %s", dgError.ErrorOrNil())
+		logs.Log.Fatalf("halting datagathering in strict mode due to error: %s", dgError.ErrorOrNil())
 	}
 
 	return readings
@@ -405,7 +405,7 @@ func gatherData(config Config, dataGatherers map[string]datagatherer.DataGathere
 func postData(config Config, preflightClient client.Client, readings []*api.DataReading) error {
 	baseURL := config.Server
 
-	log.Println("Posting data to:", baseURL)
+	logs.Log.Println("Posting data to:", baseURL)
 
 	if VenafiCloudMode {
 		// orgID and clusterID are not required for Venafi Cloud auth
@@ -416,7 +416,7 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 		if err != nil {
 			return fmt.Errorf("post to server failed: %+v", err)
 		}
-		log.Println("Data sent successfully.")
+		logs.Log.Println("Data sent successfully.")
 
 		return nil
 	}
@@ -424,7 +424,7 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 	if config.OrganizationID == "" {
 		data, err := json.Marshal(readings)
 		if err != nil {
-			log.Fatalf("Cannot marshal readings: %+v", err)
+			logs.Log.Fatalf("Cannot marshal readings: %+v", err)
 		}
 
 		// log and collect metrics about the upload size
@@ -432,7 +432,7 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 			prometheus.Labels{"organization": config.OrganizationID, "cluster": config.ClusterID},
 		)
 		metric.Set(float64(len(data)))
-		log.Printf("Data readings upload size: %d", len(data))
+		logs.Log.Printf("Data readings upload size: %d", len(data))
 		path := config.Endpoint.Path
 		if path == "" {
 			path = "/api/v1/datareadings"
@@ -452,7 +452,7 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 
 			return fmt.Errorf("received response with status code %d. Body: [%s]", code, errorContent)
 		}
-		log.Println("Data sent successfully.")
+		logs.Log.Println("Data sent successfully.")
 		return err
 	}
 
@@ -464,7 +464,7 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 	if err != nil {
 		return fmt.Errorf("post to server failed: %+v", err)
 	}
-	log.Println("Data sent successfully.")
+	logs.Log.Println("Data sent successfully.")
 
 	return nil
 }

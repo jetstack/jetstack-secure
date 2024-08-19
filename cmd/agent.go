@@ -3,11 +3,11 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"time"
 
 	"github.com/jetstack/preflight/pkg/agent"
+	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/permissions"
 	"github.com/spf13/cobra"
 )
@@ -39,11 +39,11 @@ var agentRBACCmd = &cobra.Command{
 
 		b, err := ioutil.ReadFile(agent.ConfigFilePath)
 		if err != nil {
-			log.Fatalf("Failed to read config file: %s", err)
+			logs.Log.Fatalf("Failed to read config file: %s", err)
 		}
 		config, err := agent.ParseConfig(b, false)
 		if err != nil {
-			log.Fatalf("Failed to parse config file: %s", err)
+			logs.Log.Fatalf("Failed to parse config file: %s", err)
 		}
 
 		out := permissions.GenerateFullManifest(config.DataGatherers)
