@@ -7,6 +7,8 @@ GOVERSION:=$(shell go version | awk '{print $$3 " " $$4}')
 GOOS:=$(shell go env GOOS)
 GOARCH:=$(shell go env GOARCH)
 
+export GOPRIVATE=github.com/jetstack/venafi-connection-lib
+
 BIN_NAME:=preflight
 
 DOCKER_IMAGE?=quay.io/jetstack/preflight
@@ -75,11 +77,13 @@ build-all-platforms-in-host:
 
 build-all-platforms-in-docker:
 	rm -rf ./builds
-	docker build --rm -t preflight-bin -f ./builder.dockerfile \
+	docker buildx build --load --rm -t preflight-bin -f ./builder.dockerfile \
 		--build-arg oauth_client_id=$(OAUTH_CLIENT_ID) \
 		--build-arg oauth_client_secret=$(OAUTH_CLIENT_SECRET) \
 		--build-arg oauth_auth_server_domain=$(OAUTH_AUTH_SERVER_DOMAIN) \
+		--ssh default \
 		.
+	docker rm -f preflight-bin-container 2>/dev/null || true
 	docker create --rm --name=preflight-bin-container preflight-bin
 	docker cp preflight-bin-container:/go/github.com/jetstack/preflight/builds ./builds
 	docker rm preflight-bin-container
