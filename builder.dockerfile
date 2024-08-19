@@ -7,6 +7,9 @@ WORKDIR /go/github.com/jetstack/preflight
 COPY ./go.mod .
 COPY ./go.sum .
 
+# Due to https://github.com/jetstack/venafi-connection-lib being private.
+COPY ~/.ssh/ ~/.gitconfig /root/
+
 RUN go mod download
 
 ## Bring in everything else
@@ -21,7 +24,6 @@ RUN make build-all-platforms \
     OAUTH_CLIENT_ID=${oauth_client_id} \
     OAUTH_CLIENT_SECRET=${oauth_client_secret} \
     OAUTH_AUTH_SERVER_DOMAIN=${oauth_auth_server_domain}
-
 
 RUN go install github.com/google/go-licenses@v1.6.0
 

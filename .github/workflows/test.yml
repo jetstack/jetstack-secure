@@ -9,12 +9,34 @@ on:
     branches:
       - "*"
 
+env:
+  GOPRIVATE: github.com/jetstack/venafi-connection-lib
+
 jobs:
   vet:
     name: vet
     runs-on: ubuntu-22.04
     container: golang:1.22
     steps:
+    - name: Configure jetstack/venafi-connection-lib repo pull access
+      run: |
+        mkdir ~/.ssh
+        chmod 700 ~/.ssh
+
+        echo "${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}" > ~/.ssh/venafi_connection_lib_id
+        chmod 600 ~/.ssh/venafi_connection_lib_id
+
+        cat <<EOT >> ~/.ssh/config
+        Host venafi-connection-lib.github.com
+        HostName github.com
+        IdentityFile ~/.ssh/venafi_connection_lib_id
+        IdentitiesOnly yes
+        EOT
+
+        cat <<EOT >> ~/.gitconfig
+        [url "git@venafi-connection-lib.github.com:jetstack/venafi-connection-lib"]
+          insteadOf = https://github.com/jetstack/venafi-connection-lib
+        EOT
     - uses: actions/checkout@v4
     - run: make vet
       shell: bash
@@ -23,6 +45,25 @@ jobs:
     runs-on: ubuntu-22.04
     container: golang:1.22
     steps:
+    - name: Configure jetstack/venafi-connection-lib repo pull access
+      run: |
+        mkdir ~/.ssh
+        chmod 700 ~/.ssh
+
+        echo "${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}" > ~/.ssh/venafi_connection_lib_id
+        chmod 600 ~/.ssh/venafi_connection_lib_id
+
+        cat <<EOT >> ~/.ssh/config
+        Host venafi-connection-lib.github.com
+        HostName github.com
+        IdentityFile ~/.ssh/venafi_connection_lib_id
+        IdentitiesOnly yes
+        EOT
+
+        cat <<EOT >> ~/.gitconfig
+        [url "git@venafi-connection-lib.github.com:jetstack/venafi-connection-lib"]
+          insteadOf = https://github.com/jetstack/venafi-connection-lib
+        EOT
     - uses: actions/checkout@v4
     - run: make test
   docker_build:
@@ -39,6 +80,25 @@ jobs:
           DOCKER_DRIVER: overlay
           DOCKER_HOST: tcp://localhost:2375
     steps:
+    - name: Configure jetstack/venafi-connection-lib repo pull access
+      run: |
+        mkdir ~/.ssh
+        chmod 700 ~/.ssh
+
+        echo "${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}" > ~/.ssh/venafi_connection_lib_id
+        chmod 600 ~/.ssh/venafi_connection_lib_id
+
+        cat <<EOT >> ~/.ssh/config
+        Host venafi-connection-lib.github.com
+        HostName github.com
+        IdentityFile ~/.ssh/venafi_connection_lib_id
+        IdentitiesOnly yes
+        EOT
+
+        cat <<EOT >> ~/.gitconfig
+        [url "git@venafi-connection-lib.github.com:jetstack/venafi-connection-lib"]
+          insteadOf = https://github.com/jetstack/venafi-connection-lib
+        EOT
     - name: Install Tools
       run: apk add --update make git jq rsync curl
     - name: Adding github workspace as safe directory
