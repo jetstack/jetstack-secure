@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
@@ -137,7 +138,7 @@ func Run(cmd *cobra.Command, args []string) {
 		go func() {
 			err := preflightClient.(manager.Runnable).Start(ctx)
 			if err != nil {
-				log.Fatalf("failed to start a controller-runtime component: %v", err)
+				logs.Log.Fatalf("failed to start a controller-runtime component: %v", err)
 			}
 
 			// The agent must stop if the controller-runtime component stops.
