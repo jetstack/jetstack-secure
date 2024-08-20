@@ -3,10 +3,10 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
+	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/pkg/errors"
 	"github.com/pmylund/go-cache"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -267,9 +267,9 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 	// attach WatchErrorHandler, it needs to be set before starting an informer
 	err := g.informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
 		if strings.Contains(fmt.Sprintf("%s", err), "the server could not find the requested resource") {
-			log.Printf("server missing resource for datagatherer of %q ", g.groupVersionResource)
+			logs.Log.Printf("server missing resource for datagatherer of %q ", g.groupVersionResource)
 		} else {
-			log.Printf("datagatherer informer for %q has failed and is backing off due to error: %s", g.groupVersionResource, err)
+			logs.Log.Printf("datagatherer informer for %q has failed and is backing off due to error: %s", g.groupVersionResource, err)
 		}
 	})
 	if err != nil {

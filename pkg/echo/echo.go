@@ -3,11 +3,11 @@ package echo
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/fatih/color"
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,7 @@ func Echo(cmd *cobra.Command, args []string) {
 	fmt.Println("Listening to requests at ", EchoListen)
 	err := http.ListenAndServe(EchoListen, nil)
 	if err != nil {
-		log.Fatal(err)
+		logs.Log.Fatal(err)
 	}
 }
 
