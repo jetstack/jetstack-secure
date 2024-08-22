@@ -9,21 +9,63 @@ on:
     branches:
       - "*"
 
+env:
+  GOPRIVATE: github.com/jetstack/venafi-connection-lib
+
 jobs:
   vet:
     name: vet
     runs-on: ubuntu-22.04
-    container: golang:1.19
+    container: golang:1.22
     steps:
     - uses: actions/checkout@v4
+    # The only reason we need to configure ~/.ssh/known_hosts is because we are
+    # using a container-based runner. Non-container runners already have the
+    # github.com fingerprints in their known_hosts file. We could use `curl
+    # --silent https://api.github.com/meta` to fetch it but golang:1.22 does not
+    # have jq installed.
+    #
+    # Remember that the container "golang:1.22.0" has two "homes": /root is the
+    # home returned by getent(), which is what the GitHub Action and SSH will
+    # use to load .ssh/config and keys under .ssh/, and $HOME is /github/home,
+    # which is where Git loads ~/.gitconfig from.
+    - name: "Add GitHub to the SSH known hosts file"
+      run: |
+        mkdir -p -m 0700 /root/.ssh
+        cat <<EOF >/root/.ssh/known_hosts
+        github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+        github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+        github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
+        EOF
+        chmod 600 /root/.ssh/known_hosts
+        touch /root/.ssh/config
+    - uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
     - run: make vet
       shell: bash
   test:
     name: go test
     runs-on: ubuntu-22.04
-    container: golang:1.19
+    container: golang:1.22
     steps:
+    - name: "Add GitHub to the SSH known hosts file"
+      run: |
+        mkdir -p -m 0700 /root/.ssh
+        cat <<EOF >/root/.ssh/known_hosts
+        github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+        github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+        github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
+        EOF
+        chmod 600 /root/.ssh/known_hosts
+        touch /root/.ssh/config
+    - uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
     - uses: actions/checkout@v4
+    - name: Adding github workspace as safe directory
+      # See issue https://github.com/actions/checkout/issues/760
+      run: git config --global --add safe.directory $GITHUB_WORKSPACE
     - run: make test
   docker_build:
     name: docker_build
@@ -41,6 +83,9 @@ jobs:
     steps:
     - name: Install Tools
       run: apk add --update make git jq rsync curl
+    - uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
     - name: Adding github workspace as safe directory
       # See issue https://github.com/actions/checkout/issues/760
       run: git config --global --add safe.directory $GITHUB_WORKSPACE

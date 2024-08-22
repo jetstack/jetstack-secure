@@ -1,0 +1,12 @@
+config:
+  clusterName: venafi-kubernetes-agent-e2e
+  clusterDescription: |
+      A kind cluster used for testing the venafi-kubernetes-agent.
+
+authentication:
+  venafiConnection:
+    enabled: true
+
+crds:
+  venafiConnection:
+    include: true

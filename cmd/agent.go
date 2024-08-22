@@ -138,6 +138,24 @@ func init() {
 		os.Getenv("API_TOKEN"),
 		"Token used for authentication when API tokens are in use on the backend",
 	)
+	agentCmd.PersistentFlags().StringVar(
+		&agent.VenConnName,
+		"venafi-connection",
+		"",
+		"Name of the VenafiConnection to be used. Using this flag will enable the VenafiConnection mode.",
+	)
+	agentCmd.PersistentFlags().StringVar(
+		&agent.VenConnNS,
+		"venafi-connection-namespace",
+		"",
+		"Namespace of the VenafiConnection to be used. It is only useful when the VenafiConnection isn't in the same namespace as the agent. The field `allowReferencesFrom` must be present on the cross-namespace VenafiConnection for the agent to use it.",
+	)
+	agentCmd.PersistentFlags().StringVar(
+		&agent.InstallNS,
+		"install-namespace",
+		"",
+		"Namespace in which the agent is running. Only needed when running the agent outside of Kubernetes. Used for testing purposes.",
+	)
 	agentCmd.PersistentFlags().BoolVarP(
 		&agent.Profiling,
 		"enable-pprof",

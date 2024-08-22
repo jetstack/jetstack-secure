@@ -7,6 +7,8 @@ GOVERSION:=$(shell go version | awk '{print $$3 " " $$4}')
 GOOS:=$(shell go env GOOS)
 GOARCH:=$(shell go env GOARCH)
 
+export GOPRIVATE=github.com/jetstack/venafi-connection-lib
+
 BIN_NAME:=preflight
 
 DOCKER_IMAGE?=quay.io/jetstack/preflight
@@ -48,6 +50,8 @@ build:
 install:
 	cd $(ROOT_DIR) && $(GO_INSTALL)
 
+export KUBEBUILDER_ASSETS=$(ROOT_DIR)/_bin/tools
+test: _bin/tools/etcd _bin/tools/kube-apiserver
 test:
 	cd $(ROOT_DIR) && go test ./...
 
@@ -73,11 +77,13 @@ build-all-platforms-in-host:
 
 build-all-platforms-in-docker:
 	rm -rf ./builds
-	docker build --rm -t preflight-bin -f ./builder.dockerfile \
+	docker buildx build --load --rm -t preflight-bin -f ./builder.dockerfile \
 		--build-arg oauth_client_id=$(OAUTH_CLIENT_ID) \
 		--build-arg oauth_client_secret=$(OAUTH_CLIENT_SECRET) \
 		--build-arg oauth_auth_server_domain=$(OAUTH_AUTH_SERVER_DOMAIN) \
+		--ssh default \
 		.
+	docker rm -f preflight-bin-container 2>/dev/null || true
 	docker create --rm --name=preflight-bin-container preflight-bin
 	docker cp preflight-bin-container:/go/github.com/jetstack/preflight/builds ./builds
 	docker rm preflight-bin-container
@@ -142,3 +148,54 @@ ci-build: ci-test build build-docker-image build-all-platforms bundle-all-platfo
 
 ci-publish: ci-build push-docker-image
 	echo "ci-publish is going to be disabled. We are adopting Github actions"
+
+# NOTE(mael): The download targets for yq, etcd, and kube-apiserver are a lesser
+# and suboptimal version of what's in venafi-enhanced-issuer. We will migrate to
+# makefile-modules and klone soon, so I didn't want to work too hard on this.
+
+YQ_linux_amd64_SHA256SUM=bd695a6513f1196aeda17b174a15e9c351843fb1cef5f9be0af170f2dd744f08
+YQ_darwin_amd64_SHA256SUM=b2ff70e295d02695b284755b2a41bd889cfb37454e1fa71abc3a6ec13b2676cf
+YQ_darwin_arm64_SHA256SUM=e9fc15db977875de982e0174ba5dc2cf5ae4a644e18432a4262c96d4439b1686
+YQ_VERSION=v4.35.1
+
+_bin/downloaded/tools/yq@$(YQ_VERSION)_%:
+	mkdir -p _bin/downloaded/tools
+	curl -L https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$* -o $@
+	./make/util/checkhash.sh $@ $(YQ_$*_SHA256SUM)
+	chmod +x $@
+
+HOST_OS=$(shell uname | tr '[:upper:]' '[:lower:]')
+HOST_ARCH=$(shell uname -m | sed 's/x86_64/amd64/')
+
+_bin/tools/yq: _bin/downloaded/tools/yq@$(YQ_VERSION)_$(HOST_OS)_$(HOST_ARCH)
+	@mkdir -p _bin/tools
+	@cd $(dir $@) && ln -sf $(patsubst _bin/%,../%,$<) $(notdir $@)
+
+KUBEBUILDER_TOOLS_linux_amd64_SHA256SUM=f9699df7b021f71a1ab55329b36b48a798e6ae3a44d2132255fc7e46c6790d4d
+KUBEBUILDER_TOOLS_darwin_amd64_SHA256SUM=e1913674bacaa70c067e15649237e1f67d891ba53f367c0a50786b4a274ee047
+KUBEBUILDER_TOOLS_darwin_arm64_SHA256SUM=0422632a2bbb0d4d14d7d8b0f05497a4d041c11d770a07b7a55c44bcc5e8ce66
+KUBEBUILDER_ASSETS_VERSION=1.27.1
+
+_bin/downloaded/tools/etcd@$(KUBEBUILDER_ASSETS_VERSION)_%: _bin/downloaded/tools/kubebuilder_tools_$(KUBEBUILDER_ASSETS_VERSION)_%.tar.gz | _bin/downloaded/tools
+	./make/util/checkhash.sh $< $(KUBEBUILDER_TOOLS_$*_SHA256SUM)
+	@# O writes the specified file to stdout
+	tar xfO $< kubebuilder/bin/etcd > $@ && chmod 775 $@
+
+_bin/downloaded/tools/kube-apiserver@$(KUBEBUILDER_ASSETS_VERSION)_%: _bin/downloaded/tools/kubebuilder_tools_$(KUBEBUILDER_ASSETS_VERSION)_%.tar.gz | _bin/downloaded/tools
+	./make/util/checkhash.sh $< $(KUBEBUILDER_TOOLS_$*_SHA256SUM)
+	@# O writes the specified file to stdout
+	tar xfO $< kubebuilder/bin/kube-apiserver > $@ && chmod 775 $@
+
+_bin/downloaded/tools/kubebuilder_tools_$(KUBEBUILDER_ASSETS_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz: | _bin/downloaded/tools
+	curl -L https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-$(KUBEBUILDER_ASSETS_VERSION)-$(HOST_OS)-$(HOST_ARCH).tar.gz -o $@
+
+_bin/downloaded/tools:
+	@mkdir -p $@
+
+_bin/tools/etcd: _bin/downloaded/tools/etcd@$(KUBEBUILDER_ASSETS_VERSION)_$(HOST_OS)_$(HOST_ARCH)
+	@mkdir -p _bin/tools
+	@cd $(dir $@) && ln -sf $(patsubst _bin/%,../%,$<) $(notdir $@)
+
+_bin/tools/kube-apiserver: _bin/downloaded/tools/kube-apiserver@$(KUBEBUILDER_ASSETS_VERSION)_$(HOST_OS)_$(HOST_ARCH)
+	@mkdir -p _bin/tools
+	@cd $(dir $@) && ln -sf $(patsubst _bin/%,../%,$<) $(notdir $@)

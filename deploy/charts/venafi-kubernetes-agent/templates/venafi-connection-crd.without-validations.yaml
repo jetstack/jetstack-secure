@@ -1,0 +1,1123 @@
+{{- if .Values.crds.venafiConnection.include }}
+{{- if (or (semverCompare "<1.25" .Capabilities.KubeVersion.GitVersion) .Values.crds.forceRemoveValidationAnnotations) }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+    # This annotation prevents the CRD from being pruned by Helm when this chart is deleted.
+    "helm.sh/resource-policy": keep
+  name: venaficonnections.jetstack.io
+  labels:
+  {{- include "venafi-connection.labels" $ | nindent 4 }}
+spec:
+  group: jetstack.io
+  names:
+    kind: VenafiConnection
+    listKind: VenafiConnectionList
+    plural: venaficonnections
+    shortNames:
+      - vc
+    singular: venaficonnection
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: VenafiConnection is the Schema for the VenafiConnection API
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              properties:
+                allowReferencesFrom:
+                  description: |-
+                    A namespace selector that specifies what namespaces this VenafiConnection
+                    is allowed to be used from.
+                    If not set/ null, the VenafiConnection can only be used within its namespace.
+                    An empty selector ({}) matches all namespaces.
+                    If set to a non-empty selector, the VenafiConnection can only be used from
+                    namespaces that match the selector. This possibly excludes the namespace
+                    the VenafiConnection is in.
+                  properties:
+                    matchExpressions:
+                      description: matchExpressions is a list of label selector requirements. The requirements are ANDed.
+                      items:
+                        description: |-
+                          A label selector requirement is a selector that contains values, a key, and an operator that
+                          relates the key and values.
+                        properties:
+                          key:
+                            description: key is the label key that the selector applies to.
+                            type: string
+                          operator:
+                            description: |-
+                              operator represents a key's relationship to a set of values.
+                              Valid operators are In, NotIn, Exists and DoesNotExist.
+                            type: string
+                          values:
+                            description: |-
+                              values is an array of string values. If the operator is In or NotIn,
+                              the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                              the values array must be empty. This array is replaced during a strategic
+                              merge patch.
+                            items:
+                              type: string
+                            type: array
+                            x-kubernetes-list-type: atomic
+                        required:
+                          - key
+                          - operator
+                        type: object
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    matchLabels:
+                      additionalProperties:
+                        type: string
+                      description: |-
+                        matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                        map is equivalent to an element of matchExpressions, whose key field is "key", the
+                        operator is "In", and the values array contains only "value". The requirements are ANDed.
+                      type: object
+                  type: object
+                  x-kubernetes-map-type: atomic
+                tpp:
+                  properties:
+                    accessToken:
+                      description: The list of steps to retrieve a TPP access token.
+                      items:
+                        properties:
+                          hashicorpVaultLDAP:
+                            description: |-
+                              HashicorpVaultLDAP is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              ldapPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/ldap/static-cred/:role_name
+                                  or
+                                  /v1/ldap/creds/:role_name
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - ldapPath
+                            type: object
+                          hashicorpVaultOAuth:
+                            description: |-
+                              HashicorpVaultOAuth is a SecretSource that relies on a prior SecretSource
+                              step to provide an OAuth token, which this step uses to authenticate to
+                              Vault. The output of this step is a Vault token. This step allows you to use
+                              the step `HashicorpVaultSecret` afterwards.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with HashiCorp Vault. The only supported value is "OIDC".
+                                enum:
+                                  - OIDC
+                                type: string
+                              authPath:
+                                description: |-
+                                  The login URL used for obtaining the Vault token. Example:
+                                  /v1/auth/oidc/login
+                                type: string
+                              clientId:
+                                description: "DEPRECATED: This field does nothing and will be removed in the future."
+                                type: string
+                              role:
+                                description: |-
+                                  The role defined in Vault that we want to use when authenticating to
+                                  Vault.
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - authInputType
+                              - authPath
+                              - role
+                            type: object
+                          hashicorpVaultSecret:
+                            description: |-
+                              HashicorpVaultSecret is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The fields are Vault keys pointing to the secrets passed to the next
+                                  SecretSource step.
+
+
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
+                                  "password", you will want to set this field to `["username",
+                                  "password"]`. The username is expected to be given first, the password
+                                  second.
+                                items:
+                                  type: string
+                                type: array
+                              secretPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/secret/data/application-team-a/tpp-username-password
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - fields
+                              - secretPath
+                            type: object
+                          secret:
+                            description: |-
+                              Secret is a SecretSource step meant to be the first step. It retrieves secret
+                              values from a Kubernetes Secret, and passes them to the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The names of the fields we want to extract from the Kubernetes secret.
+                                  These fields are passed to the next step in the chain.
+                                items:
+                                  type: string
+                                type: array
+                              name:
+                                description: The name of the Kubernetes secret.
+                                type: string
+                            required:
+                              - fields
+                              - name
+                            type: object
+                          serviceAccountToken:
+                            description: |-
+                              ServiceAccountToken is a SecretSource step meant to be the first step. It
+                              uses the Kubernetes TokenRequest API to retrieve a token for a given service
+                              account, and passes it to the next step.
+                            properties:
+                              audiences:
+                                description: |-
+                                  Audiences are the intendend audiences of the token. A recipient of a
+                                  token must identify themself with an identifier in the list of
+                                  audiences of the token, and otherwise should reject the token. A
+                                  token issued for multiple audiences may be used to authenticate
+                                  against any of the audiences listed but implies a high degree of
+                                  trust between the target audiences.
+                                items:
+                                  type: string
+                                type: array
+                              expirationSeconds:
+                                description: |-
+                                  ExpirationSeconds is the requested duration of validity of the request. The
+                                  token issuer may return a token with a different validity duration so a
+                                  client needs to check the 'expiration' field in a response.
+                                format: int64
+                                type: integer
+                              name:
+                                description: The name of the Kubernetes service account.
+                                type: string
+                            required:
+                              - audiences
+                              - name
+                            type: object
+                          tppOAuth:
+                            description: |-
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              step is meant to be the last step and requires a prior step that depends
+                              on the `authInputType`.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                enum:
+                                  - UsernamePassword
+                                  - JWT
+                                type: string
+                              clientId:
+                                default: cert-manager.io
+                                description: ClientID is the clientId used to authenticate with TPP.
+                                type: string
+                              url:
+                                description: |-
+                                  The URL to connect to the Venafi TPP instance. The two URLs
+                                  https://tpp.example.com and https://tpp.example.com/vedsdk are
+                                  equivalent. The ending `/vedsdk` is optional and is stripped out
+                                  by our client.
+                                  If not set, defaults to the URL defined at the top-level of the
+                                  TPP configuration.
+                                type: string
+                            required:
+                              - authInputType
+                            type: object
+                          vcpOAuth:
+                            description: |-
+                              VCPOAuth is a SecretSource step that authenticates to the Venafi Control
+                              Plane. This step is meant to be the last step and requires a prior step
+                              that outputs a JWT token.
+                            properties:
+                              tenantID:
+                                description: TenantID is the tenant ID used to authenticate with VCP.
+                                type: string
+                            type: object
+                        type: object
+                      maxItems: 50
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    url:
+                      description: |-
+                        The URL to connect to the Venafi TPP instance. The two URLs
+                        https://tpp.example.com and https://tpp.example.com/vedsdk are
+                        equivalent. The ending `/vedsdk` is optional and is stripped out by
+                        venafi-connection-lib.
+                      type: string
+                  required:
+                    - url
+                  type: object
+                vaas:
+                  description: "Deprecated: The 'vaas' field is deprecated use the field called 'vcp' instead."
+                  properties:
+                    accessToken:
+                      description: |-
+                        The list of steps to retrieve the Access Token that will be used to connect
+                        to VCP.
+                      items:
+                        properties:
+                          hashicorpVaultLDAP:
+                            description: |-
+                              HashicorpVaultLDAP is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              ldapPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/ldap/static-cred/:role_name
+                                  or
+                                  /v1/ldap/creds/:role_name
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - ldapPath
+                            type: object
+                          hashicorpVaultOAuth:
+                            description: |-
+                              HashicorpVaultOAuth is a SecretSource that relies on a prior SecretSource
+                              step to provide an OAuth token, which this step uses to authenticate to
+                              Vault. The output of this step is a Vault token. This step allows you to use
+                              the step `HashicorpVaultSecret` afterwards.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with HashiCorp Vault. The only supported value is "OIDC".
+                                enum:
+                                  - OIDC
+                                type: string
+                              authPath:
+                                description: |-
+                                  The login URL used for obtaining the Vault token. Example:
+                                  /v1/auth/oidc/login
+                                type: string
+                              clientId:
+                                description: "DEPRECATED: This field does nothing and will be removed in the future."
+                                type: string
+                              role:
+                                description: |-
+                                  The role defined in Vault that we want to use when authenticating to
+                                  Vault.
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - authInputType
+                              - authPath
+                              - role
+                            type: object
+                          hashicorpVaultSecret:
+                            description: |-
+                              HashicorpVaultSecret is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The fields are Vault keys pointing to the secrets passed to the next
+                                  SecretSource step.
+
+
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
+                                  "password", you will want to set this field to `["username",
+                                  "password"]`. The username is expected to be given first, the password
+                                  second.
+                                items:
+                                  type: string
+                                type: array
+                              secretPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/secret/data/application-team-a/tpp-username-password
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - fields
+                              - secretPath
+                            type: object
+                          secret:
+                            description: |-
+                              Secret is a SecretSource step meant to be the first step. It retrieves secret
+                              values from a Kubernetes Secret, and passes them to the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The names of the fields we want to extract from the Kubernetes secret.
+                                  These fields are passed to the next step in the chain.
+                                items:
+                                  type: string
+                                type: array
+                              name:
+                                description: The name of the Kubernetes secret.
+                                type: string
+                            required:
+                              - fields
+                              - name
+                            type: object
+                          serviceAccountToken:
+                            description: |-
+                              ServiceAccountToken is a SecretSource step meant to be the first step. It
+                              uses the Kubernetes TokenRequest API to retrieve a token for a given service
+                              account, and passes it to the next step.
+                            properties:
+                              audiences:
+                                description: |-
+                                  Audiences are the intendend audiences of the token. A recipient of a
+                                  token must identify themself with an identifier in the list of
+                                  audiences of the token, and otherwise should reject the token. A
+                                  token issued for multiple audiences may be used to authenticate
+                                  against any of the audiences listed but implies a high degree of
+                                  trust between the target audiences.
+                                items:
+                                  type: string
+                                type: array
+                              expirationSeconds:
+                                description: |-
+                                  ExpirationSeconds is the requested duration of validity of the request. The
+                                  token issuer may return a token with a different validity duration so a
+                                  client needs to check the 'expiration' field in a response.
+                                format: int64
+                                type: integer
+                              name:
+                                description: The name of the Kubernetes service account.
+                                type: string
+                            required:
+                              - audiences
+                              - name
+                            type: object
+                          tppOAuth:
+                            description: |-
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              step is meant to be the last step and requires a prior step that depends
+                              on the `authInputType`.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                enum:
+                                  - UsernamePassword
+                                  - JWT
+                                type: string
+                              clientId:
+                                default: cert-manager.io
+                                description: ClientID is the clientId used to authenticate with TPP.
+                                type: string
+                              url:
+                                description: |-
+                                  The URL to connect to the Venafi TPP instance. The two URLs
+                                  https://tpp.example.com and https://tpp.example.com/vedsdk are
+                                  equivalent. The ending `/vedsdk` is optional and is stripped out
+                                  by our client.
+                                  If not set, defaults to the URL defined at the top-level of the
+                                  TPP configuration.
+                                type: string
+                            required:
+                              - authInputType
+                            type: object
+                          vcpOAuth:
+                            description: |-
+                              VCPOAuth is a SecretSource step that authenticates to the Venafi Control
+                              Plane. This step is meant to be the last step and requires a prior step
+                              that outputs a JWT token.
+                            properties:
+                              tenantID:
+                                description: TenantID is the tenant ID used to authenticate with VCP.
+                                type: string
+                            type: object
+                        type: object
+                      maxItems: 50
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    apiKey:
+                      description: |-
+                        The list of steps to retrieve the API key that will be used to connect to
+                        VCP.
+                      items:
+                        properties:
+                          hashicorpVaultLDAP:
+                            description: |-
+                              HashicorpVaultLDAP is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              ldapPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/ldap/static-cred/:role_name
+                                  or
+                                  /v1/ldap/creds/:role_name
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - ldapPath
+                            type: object
+                          hashicorpVaultOAuth:
+                            description: |-
+                              HashicorpVaultOAuth is a SecretSource that relies on a prior SecretSource
+                              step to provide an OAuth token, which this step uses to authenticate to
+                              Vault. The output of this step is a Vault token. This step allows you to use
+                              the step `HashicorpVaultSecret` afterwards.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with HashiCorp Vault. The only supported value is "OIDC".
+                                enum:
+                                  - OIDC
+                                type: string
+                              authPath:
+                                description: |-
+                                  The login URL used for obtaining the Vault token. Example:
+                                  /v1/auth/oidc/login
+                                type: string
+                              clientId:
+                                description: "DEPRECATED: This field does nothing and will be removed in the future."
+                                type: string
+                              role:
+                                description: |-
+                                  The role defined in Vault that we want to use when authenticating to
+                                  Vault.
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - authInputType
+                              - authPath
+                              - role
+                            type: object
+                          hashicorpVaultSecret:
+                            description: |-
+                              HashicorpVaultSecret is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The fields are Vault keys pointing to the secrets passed to the next
+                                  SecretSource step.
+
+
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
+                                  "password", you will want to set this field to `["username",
+                                  "password"]`. The username is expected to be given first, the password
+                                  second.
+                                items:
+                                  type: string
+                                type: array
+                              secretPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/secret/data/application-team-a/tpp-username-password
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - fields
+                              - secretPath
+                            type: object
+                          secret:
+                            description: |-
+                              Secret is a SecretSource step meant to be the first step. It retrieves secret
+                              values from a Kubernetes Secret, and passes them to the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The names of the fields we want to extract from the Kubernetes secret.
+                                  These fields are passed to the next step in the chain.
+                                items:
+                                  type: string
+                                type: array
+                              name:
+                                description: The name of the Kubernetes secret.
+                                type: string
+                            required:
+                              - fields
+                              - name
+                            type: object
+                          serviceAccountToken:
+                            description: |-
+                              ServiceAccountToken is a SecretSource step meant to be the first step. It
+                              uses the Kubernetes TokenRequest API to retrieve a token for a given service
+                              account, and passes it to the next step.
+                            properties:
+                              audiences:
+                                description: |-
+                                  Audiences are the intendend audiences of the token. A recipient of a
+                                  token must identify themself with an identifier in the list of
+                                  audiences of the token, and otherwise should reject the token. A
+                                  token issued for multiple audiences may be used to authenticate
+                                  against any of the audiences listed but implies a high degree of
+                                  trust between the target audiences.
+                                items:
+                                  type: string
+                                type: array
+                              expirationSeconds:
+                                description: |-
+                                  ExpirationSeconds is the requested duration of validity of the request. The
+                                  token issuer may return a token with a different validity duration so a
+                                  client needs to check the 'expiration' field in a response.
+                                format: int64
+                                type: integer
+                              name:
+                                description: The name of the Kubernetes service account.
+                                type: string
+                            required:
+                              - audiences
+                              - name
+                            type: object
+                          tppOAuth:
+                            description: |-
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              step is meant to be the last step and requires a prior step that depends
+                              on the `authInputType`.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                enum:
+                                  - UsernamePassword
+                                  - JWT
+                                type: string
+                              clientId:
+                                default: cert-manager.io
+                                description: ClientID is the clientId used to authenticate with TPP.
+                                type: string
+                              url:
+                                description: |-
+                                  The URL to connect to the Venafi TPP instance. The two URLs
+                                  https://tpp.example.com and https://tpp.example.com/vedsdk are
+                                  equivalent. The ending `/vedsdk` is optional and is stripped out
+                                  by our client.
+                                  If not set, defaults to the URL defined at the top-level of the
+                                  TPP configuration.
+                                type: string
+                            required:
+                              - authInputType
+                            type: object
+                          vcpOAuth:
+                            description: |-
+                              VCPOAuth is a SecretSource step that authenticates to the Venafi Control
+                              Plane. This step is meant to be the last step and requires a prior step
+                              that outputs a JWT token.
+                            properties:
+                              tenantID:
+                                description: TenantID is the tenant ID used to authenticate with VCP.
+                                type: string
+                            type: object
+                        type: object
+                      maxItems: 50
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    url:
+                      description: |-
+                        The URL to connect to the Venafi VCP instance. If not set, the default
+                        value https://api.venafi.cloud is used.
+                      type: string
+                  type: object
+                vcp:
+                  properties:
+                    accessToken:
+                      description: |-
+                        The list of steps to retrieve the Access Token that will be used to connect
+                        to VCP.
+                      items:
+                        properties:
+                          hashicorpVaultLDAP:
+                            description: |-
+                              HashicorpVaultLDAP is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              ldapPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/ldap/static-cred/:role_name
+                                  or
+                                  /v1/ldap/creds/:role_name
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - ldapPath
+                            type: object
+                          hashicorpVaultOAuth:
+                            description: |-
+                              HashicorpVaultOAuth is a SecretSource that relies on a prior SecretSource
+                              step to provide an OAuth token, which this step uses to authenticate to
+                              Vault. The output of this step is a Vault token. This step allows you to use
+                              the step `HashicorpVaultSecret` afterwards.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with HashiCorp Vault. The only supported value is "OIDC".
+                                enum:
+                                  - OIDC
+                                type: string
+                              authPath:
+                                description: |-
+                                  The login URL used for obtaining the Vault token. Example:
+                                  /v1/auth/oidc/login
+                                type: string
+                              clientId:
+                                description: "DEPRECATED: This field does nothing and will be removed in the future."
+                                type: string
+                              role:
+                                description: |-
+                                  The role defined in Vault that we want to use when authenticating to
+                                  Vault.
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - authInputType
+                              - authPath
+                              - role
+                            type: object
+                          hashicorpVaultSecret:
+                            description: |-
+                              HashicorpVaultSecret is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The fields are Vault keys pointing to the secrets passed to the next
+                                  SecretSource step.
+
+
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
+                                  "password", you will want to set this field to `["username",
+                                  "password"]`. The username is expected to be given first, the password
+                                  second.
+                                items:
+                                  type: string
+                                type: array
+                              secretPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/secret/data/application-team-a/tpp-username-password
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - fields
+                              - secretPath
+                            type: object
+                          secret:
+                            description: |-
+                              Secret is a SecretSource step meant to be the first step. It retrieves secret
+                              values from a Kubernetes Secret, and passes them to the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The names of the fields we want to extract from the Kubernetes secret.
+                                  These fields are passed to the next step in the chain.
+                                items:
+                                  type: string
+                                type: array
+                              name:
+                                description: The name of the Kubernetes secret.
+                                type: string
+                            required:
+                              - fields
+                              - name
+                            type: object
+                          serviceAccountToken:
+                            description: |-
+                              ServiceAccountToken is a SecretSource step meant to be the first step. It
+                              uses the Kubernetes TokenRequest API to retrieve a token for a given service
+                              account, and passes it to the next step.
+                            properties:
+                              audiences:
+                                description: |-
+                                  Audiences are the intendend audiences of the token. A recipient of a
+                                  token must identify themself with an identifier in the list of
+                                  audiences of the token, and otherwise should reject the token. A
+                                  token issued for multiple audiences may be used to authenticate
+                                  against any of the audiences listed but implies a high degree of
+                                  trust between the target audiences.
+                                items:
+                                  type: string
+                                type: array
+                              expirationSeconds:
+                                description: |-
+                                  ExpirationSeconds is the requested duration of validity of the request. The
+                                  token issuer may return a token with a different validity duration so a
+                                  client needs to check the 'expiration' field in a response.
+                                format: int64
+                                type: integer
+                              name:
+                                description: The name of the Kubernetes service account.
+                                type: string
+                            required:
+                              - audiences
+                              - name
+                            type: object
+                          tppOAuth:
+                            description: |-
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              step is meant to be the last step and requires a prior step that depends
+                              on the `authInputType`.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                enum:
+                                  - UsernamePassword
+                                  - JWT
+                                type: string
+                              clientId:
+                                default: cert-manager.io
+                                description: ClientID is the clientId used to authenticate with TPP.
+                                type: string
+                              url:
+                                description: |-
+                                  The URL to connect to the Venafi TPP instance. The two URLs
+                                  https://tpp.example.com and https://tpp.example.com/vedsdk are
+                                  equivalent. The ending `/vedsdk` is optional and is stripped out
+                                  by our client.
+                                  If not set, defaults to the URL defined at the top-level of the
+                                  TPP configuration.
+                                type: string
+                            required:
+                              - authInputType
+                            type: object
+                          vcpOAuth:
+                            description: |-
+                              VCPOAuth is a SecretSource step that authenticates to the Venafi Control
+                              Plane. This step is meant to be the last step and requires a prior step
+                              that outputs a JWT token.
+                            properties:
+                              tenantID:
+                                description: TenantID is the tenant ID used to authenticate with VCP.
+                                type: string
+                            type: object
+                        type: object
+                      maxItems: 50
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    apiKey:
+                      description: |-
+                        The list of steps to retrieve the API key that will be used to connect to
+                        VCP.
+                      items:
+                        properties:
+                          hashicorpVaultLDAP:
+                            description: |-
+                              HashicorpVaultLDAP is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              ldapPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/ldap/static-cred/:role_name
+                                  or
+                                  /v1/ldap/creds/:role_name
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - ldapPath
+                            type: object
+                          hashicorpVaultOAuth:
+                            description: |-
+                              HashicorpVaultOAuth is a SecretSource that relies on a prior SecretSource
+                              step to provide an OAuth token, which this step uses to authenticate to
+                              Vault. The output of this step is a Vault token. This step allows you to use
+                              the step `HashicorpVaultSecret` afterwards.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with HashiCorp Vault. The only supported value is "OIDC".
+                                enum:
+                                  - OIDC
+                                type: string
+                              authPath:
+                                description: |-
+                                  The login URL used for obtaining the Vault token. Example:
+                                  /v1/auth/oidc/login
+                                type: string
+                              clientId:
+                                description: "DEPRECATED: This field does nothing and will be removed in the future."
+                                type: string
+                              role:
+                                description: |-
+                                  The role defined in Vault that we want to use when authenticating to
+                                  Vault.
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - authInputType
+                              - authPath
+                              - role
+                            type: object
+                          hashicorpVaultSecret:
+                            description: |-
+                              HashicorpVaultSecret is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The fields are Vault keys pointing to the secrets passed to the next
+                                  SecretSource step.
+
+
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
+                                  "password", you will want to set this field to `["username",
+                                  "password"]`. The username is expected to be given first, the password
+                                  second.
+                                items:
+                                  type: string
+                                type: array
+                              secretPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/secret/data/application-team-a/tpp-username-password
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - fields
+                              - secretPath
+                            type: object
+                          secret:
+                            description: |-
+                              Secret is a SecretSource step meant to be the first step. It retrieves secret
+                              values from a Kubernetes Secret, and passes them to the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The names of the fields we want to extract from the Kubernetes secret.
+                                  These fields are passed to the next step in the chain.
+                                items:
+                                  type: string
+                                type: array
+                              name:
+                                description: The name of the Kubernetes secret.
+                                type: string
+                            required:
+                              - fields
+                              - name
+                            type: object
+                          serviceAccountToken:
+                            description: |-
+                              ServiceAccountToken is a SecretSource step meant to be the first step. It
+                              uses the Kubernetes TokenRequest API to retrieve a token for a given service
+                              account, and passes it to the next step.
+                            properties:
+                              audiences:
+                                description: |-
+                                  Audiences are the intendend audiences of the token. A recipient of a
+                                  token must identify themself with an identifier in the list of
+                                  audiences of the token, and otherwise should reject the token. A
+                                  token issued for multiple audiences may be used to authenticate
+                                  against any of the audiences listed but implies a high degree of
+                                  trust between the target audiences.
+                                items:
+                                  type: string
+                                type: array
+                              expirationSeconds:
+                                description: |-
+                                  ExpirationSeconds is the requested duration of validity of the request. The
+                                  token issuer may return a token with a different validity duration so a
+                                  client needs to check the 'expiration' field in a response.
+                                format: int64
+                                type: integer
+                              name:
+                                description: The name of the Kubernetes service account.
+                                type: string
+                            required:
+                              - audiences
+                              - name
+                            type: object
+                          tppOAuth:
+                            description: |-
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              step is meant to be the last step and requires a prior step that depends
+                              on the `authInputType`.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                enum:
+                                  - UsernamePassword
+                                  - JWT
+                                type: string
+                              clientId:
+                                default: cert-manager.io
+                                description: ClientID is the clientId used to authenticate with TPP.
+                                type: string
+                              url:
+                                description: |-
+                                  The URL to connect to the Venafi TPP instance. The two URLs
+                                  https://tpp.example.com and https://tpp.example.com/vedsdk are
+                                  equivalent. The ending `/vedsdk` is optional and is stripped out
+                                  by our client.
+                                  If not set, defaults to the URL defined at the top-level of the
+                                  TPP configuration.
+                                type: string
+                            required:
+                              - authInputType
+                            type: object
+                          vcpOAuth:
+                            description: |-
+                              VCPOAuth is a SecretSource step that authenticates to the Venafi Control
+                              Plane. This step is meant to be the last step and requires a prior step
+                              that outputs a JWT token.
+                            properties:
+                              tenantID:
+                                description: TenantID is the tenant ID used to authenticate with VCP.
+                                type: string
+                            type: object
+                        type: object
+                      maxItems: 50
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    url:
+                      description: |-
+                        The URL to connect to the Venafi VCP instance. If not set, the default
+                        value https://api.venafi.cloud is used.
+                      type: string
+                  type: object
+              type: object
+            status:
+              properties:
+                conditions:
+                  description: List of status conditions to indicate the status of a VenafiConnection.
+                  items:
+                    description: ConnectionCondition contains condition information for a VenafiConnection.
+                    properties:
+                      lastTransitionTime:
+                        description: |-
+                          LastTransitionTime is the timestamp corresponding to the last status
+                          change of this condition.
+                        format: date-time
+                        type: string
+                      lastUpdateTime:
+                        description: lastUpdateTime is the time of the last update to this condition
+                        format: date-time
+                        type: string
+                      message:
+                        description: |-
+                          Message is a human readable description of the details of the last
+                          transition, complementing reason.
+                        type: string
+                      observedGeneration:
+                        description: |-
+                          If set, this represents the .metadata.generation that the condition was
+                          set based upon.
+                          For instance, if .metadata.generation is currently 12, but the
+                          .status.condition[x].observedGeneration is 9, the condition is out of date
+                          with respect to the current state of the Issuer.
+                        format: int64
+                        type: integer
+                      reason:
+                        description: |-
+                          Reason is a brief machine readable explanation for the condition's last
+                          transition.
+                        type: string
+                      status:
+                        description: Status of the condition, one of (`True`, `False`, `Unknown`).
+                        type: string
+                      tokenValidUntil:
+                        description: |-
+                          The ValidUntil time of the token used to authenticate with the Venafi
+                          Control Plane server.
+                        format: date-time
+                        type: string
+                      type:
+                        description: |-
+                          Type of the condition, should be a combination of the unique name of the
+                          operator and the type of condition.
+                          eg. `VenafiEnhancedIssuerReady`
+                        type: string
+                    required:
+                      - status
+                      - type
+                    type: object
+                  type: array
+                  x-kubernetes-list-map-keys:
+                    - type
+                  x-kubernetes-list-type: map
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+{{- end }}
+{{- end }}
