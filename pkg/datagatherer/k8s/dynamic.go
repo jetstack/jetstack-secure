@@ -39,6 +39,8 @@ type ConfigDynamic struct {
 	ExcludeNamespaces []string `yaml:"exclude-namespaces"`
 	// IncludeNamespaces is a list of namespaces to include.
 	IncludeNamespaces []string `yaml:"include-namespaces"`
+	// FieldSelectors is a list of field selectors to use when listing this resource
+	FieldSelectors []string `yaml:"field-selectors"`
 }
 
 // UnmarshalYAML unmarshals the ConfigDynamic resolving GroupVersionResource.
@@ -52,6 +54,7 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		} `yaml:"resource-type"`
 		ExcludeNamespaces []string `yaml:"exclude-namespaces"`
 		IncludeNamespaces []string `yaml:"include-namespaces"`
+		FieldSelectors    []string `yaml:"field-selectors"`
 	}{}
 	err := unmarshal(&aux)
 	if err != nil {
@@ -64,6 +67,7 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	c.GroupVersionResource.Resource = aux.ResourceType.Resource
 	c.ExcludeNamespaces = aux.ExcludeNamespaces
 	c.IncludeNamespaces = aux.IncludeNamespaces
+	c.FieldSelectors = aux.FieldSelectors
 
 	return nil
 }
@@ -77,6 +81,16 @@ func (c *ConfigDynamic) validate() error {
 
 	if c.GroupVersionResource.Resource == "" {
 		errors = append(errors, "invalid configuration: GroupVersionResource.Resource cannot be empty")
+	}
+
+	for i, selectorString := range c.FieldSelectors {
+		if selectorString == "" {
+			errors = append(errors, fmt.Sprintf("invalid field selector %d: must not be empty", i))
+		}
+		_, err := fields.ParseSelector(selectorString)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("invalid field selector %d: %s", i, err))
+		}
 	}
 
 	if len(errors) > 0 {
@@ -150,7 +164,15 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		return nil, err
 	}
 	// init shared informer for selected namespaces
-	fieldSelector := generateFieldSelector(c.ExcludeNamespaces)
+	fieldSelector := generateExcludedNamespacesFieldSelector(c.ExcludeNamespaces)
+
+	// Add any custom field selectors to the excluded namespaces selector
+	// The selectors have already been validated, so it is safe to use
+	// ParseSelectorOrDie here.
+	for _, selectorString := range c.FieldSelectors {
+		fieldSelector = fields.AndSelectors(fieldSelector, fields.ParseSelectorOrDie(selectorString))
+	}
+
 	// init cache to store gathered resources
 	dgCache := cache.New(5*time.Minute, 30*time.Second)
 
@@ -159,7 +181,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		cl:                   cl,
 		k8sClientSet:         clientset,
 		groupVersionResource: c.GroupVersionResource,
-		fieldSelector:        fieldSelector,
+		fieldSelector:        fieldSelector.String(),
 		namespaces:           c.IncludeNamespaces,
 		cache:                dgCache,
 	}
@@ -177,7 +199,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 			60*time.Second,
 			informers.WithNamespace(metav1.NamespaceAll),
 			informers.WithTweakListOptions(func(options *metav1.ListOptions) {
-				options.FieldSelector = fieldSelector
+				options.FieldSelector = fieldSelector.String()
 			}))
 		newDataGatherer.nativeSharedInformer = factory
 		informer := informerFunc(factory)
@@ -200,7 +222,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		cl,
 		60*time.Second,
 		metav1.NamespaceAll,
-		func(options *metav1.ListOptions) { options.FieldSelector = fieldSelector },
+		func(options *metav1.ListOptions) { options.FieldSelector = fieldSelector.String() },
 	)
 	resourceInformer := factory.ForResource(c.GroupVersionResource)
 	informer := resourceInformer.Informer()
@@ -420,17 +442,17 @@ func namespaceResourceInterface(iface dynamic.NamespaceableResourceInterface, na
 	return iface.Namespace(namespace)
 }
 
-// generateFieldSelector creates a field selector string from a list of
-// namespaces to exclude.
-func generateFieldSelector(excludeNamespaces []string) string {
-	fieldSelector := fields.Nothing()
+// generateExcludedNamespacesFieldSelector creates a field selector string from
+// a list of namespaces to exclude.
+func generateExcludedNamespacesFieldSelector(excludeNamespaces []string) fields.Selector {
+	var selectors []fields.Selector
 	for _, excludeNamespace := range excludeNamespaces {
 		if excludeNamespace == "" {
 			continue
 		}
-		fieldSelector = fields.AndSelectors(fields.OneTermNotEqualSelector("metadata.namespace", excludeNamespace), fieldSelector)
+		selectors = append(selectors, fields.OneTermNotEqualSelector("metadata.namespace", excludeNamespace))
 	}
-	return fieldSelector.String()
+	return fields.AndSelectors(selectors...)
 }
 
 func isIncludedNamespace(namespace string, namespaces []string) bool {
