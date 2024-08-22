@@ -6,15 +6,15 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/jetstack/preflight/pkg/kubeconfig"
 )
 
 // NewDynamicClient creates a new 'dynamic' clientset using the provided kubeconfig.
 // If kubeconfigPath is not set/empty, it will attempt to load configuration using
 // the default loading rules.
 func NewDynamicClient(kubeconfigPath string) (dynamic.Interface, error) {
-	cfg, err := loadRESTConfig(kubeconfigPath)
+	cfg, err := kubeconfig.LoadRESTConfig(kubeconfigPath)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -31,7 +31,7 @@ func NewDynamicClient(kubeconfigPath string) (dynamic.Interface, error) {
 func NewDiscoveryClient(kubeconfigPath string) (discovery.DiscoveryClient, error) {
 	var discoveryClient *discovery.DiscoveryClient
 
-	cfg, err := loadRESTConfig(kubeconfigPath)
+	cfg, err := kubeconfig.LoadRESTConfig(kubeconfigPath)
 	if err != nil {
 		return discovery.DiscoveryClient{}, errors.WithStack(err)
 	}
@@ -49,7 +49,7 @@ func NewDiscoveryClient(kubeconfigPath string) (discovery.DiscoveryClient, error
 // the default loading rules.
 func NewClientSet(kubeconfigPath string) (kubernetes.Interface, error) {
 	var clientset *kubernetes.Clientset
-	cfg, err := loadRESTConfig(kubeconfigPath)
+	cfg, err := kubeconfig.LoadRESTConfig(kubeconfigPath)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -58,29 +58,4 @@ func NewClientSet(kubeconfigPath string) (kubernetes.Interface, error) {
 		return nil, errors.WithStack(err)
 	}
 	return clientset, nil
-}
-
-func loadRESTConfig(path string) (*rest.Config, error) {
-	switch path {
-	// If the kubeconfig path is not provided, use the default loading rules
-	// so we read the regular KUBECONFIG variable or create a non-interactive
-	// client for agents running in cluster
-	case "":
-		loadingrules := clientcmd.NewDefaultClientConfigLoadingRules()
-		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			loadingrules, &clientcmd.ConfigOverrides{}).ClientConfig()
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		return cfg, nil
-	// Otherwise use the explicitly named kubeconfig file.
-	default:
-		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			&clientcmd.ClientConfigLoadingRules{ExplicitPath: path},
-			&clientcmd.ConfigOverrides{}).ClientConfig()
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		return cfg, nil
-	}
 }

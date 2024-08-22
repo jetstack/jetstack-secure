@@ -17,18 +17,17 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/hashicorp/go-multierror"
-	"github.com/jetstack/preflight/pkg/logs"
 	json "github.com/json-iterator/go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/kubeconfig"
+	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -342,7 +341,7 @@ func getConfiguration() (Config, client.Client) {
 			logs.Log.Printf(`ignoring venafi-cloud.uploader_id. In Venafi Connection mode, this field is not needed.`)
 		}
 
-		cfg, err := loadRESTConfig("")
+		cfg, err := kubeconfig.LoadRESTConfig("")
 		if err != nil {
 			logs.Log.Fatalf("failed to load kubeconfig: %v", err)
 		}
@@ -567,29 +566,4 @@ func getInClusterNamespace() (string, error) {
 		return "", fmt.Errorf("error reading namespace file: %w", err)
 	}
 	return string(namespace), nil
-}
-
-func loadRESTConfig(path string) (*rest.Config, error) {
-	switch path {
-	// If the kubeconfig path is not provided, use the default loading rules
-	// so we read the regular KUBECONFIG variable or create a non-interactive
-	// client for agents running in cluster
-	case "":
-		loadingrules := clientcmd.NewDefaultClientConfigLoadingRules()
-		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			loadingrules, &clientcmd.ConfigOverrides{}).ClientConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
-		}
-		return cfg, nil
-	// Otherwise use the explicitly named kubeconfig file.
-	default:
-		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			&clientcmd.ClientConfigLoadingRules{ExplicitPath: path},
-			&clientcmd.ConfigOverrides{}).ClientConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to load kubeconfig from %s: %w", path, err)
-		}
-		return cfg, nil
-	}
 }
