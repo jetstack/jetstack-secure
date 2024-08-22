@@ -195,7 +195,8 @@ func run(test testcase) func(t *testing.T) {
 		}
 
 		got := v1alpha1.VenafiConnection{}
-		kclient.Get(context.Background(), types.NamespacedName{Name: "venafi-components", Namespace: "venafi"}, &got)
+		err = kclient.Get(context.Background(), types.NamespacedName{Name: "venafi-components", Namespace: "venafi"}, &got)
+		require.NoError(t, err)
 		require.Len(t, got.Status.Conditions, 1)
 		assert.Equal(t, test.expectReadyCondMsg, got.Status.Conditions[0].Message)
 	}
