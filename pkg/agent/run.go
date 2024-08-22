@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
@@ -302,7 +301,7 @@ func getConfiguration() (Config, client.Client) {
 	if venConnMode && InstallNS == "" {
 		InstallNS, err = getInClusterNamespace()
 		if err != nil {
-			log.Fatalf("could not guess which namespace the agent is running in: %s", err)
+			logs.Log.Fatalf("could not guess which namespace the agent is running in: %s", err)
 		}
 	}
 	if venConnMode && VenConnNS == "" {
@@ -323,7 +322,7 @@ func getConfiguration() (Config, client.Client) {
 		// the --venafi-connection mode of authentication doesn't need any
 		// secrets (or any other information for that matter) to be loaded from
 		// disk (using --credentials-path). Everything is passed as flags.
-		log.Println("Venafi Connection mode was specified, using Venafi Connection authentication.")
+		logs.Log.Println("Venafi Connection mode was specified, using Venafi Connection authentication.")
 
 		// The venafi-cloud.upload_path was initially meant to let users
 		// configure HTTP proxies, but it has never been used since HTTP proxies
@@ -331,7 +330,7 @@ func getConfiguration() (Config, client.Client) {
 		// value with the new --venafi-connection flag, and this field is simply
 		// ignored.
 		if config.VenafiCloud != nil && config.VenafiCloud.UploadPath != "" {
-			log.Printf(`ignoring venafi-cloud.upload_path. In Venafi Connection mode, this field is not needed.`)
+			logs.Log.Printf(`ignoring venafi-cloud.upload_path. In Venafi Connection mode, this field is not needed.`)
 		}
 
 		// Regarding venafi-cloud.uploader_id, we found that it doesn't do
@@ -340,12 +339,12 @@ func getConfiguration() (Config, client.Client) {
 		// set in the config file, and set it to an arbitrary value in the
 		// client since it doesn't matter.
 		if config.VenafiCloud.UploaderID != "" {
-			log.Printf(`ignoring venafi-cloud.uploader_id. In Venafi Connection mode, this field is not needed.`)
+			logs.Log.Printf(`ignoring venafi-cloud.uploader_id. In Venafi Connection mode, this field is not needed.`)
 		}
 
 		cfg, err := loadRESTConfig("")
 		if err != nil {
-			log.Fatalf("failed to load kubeconfig: %v", err)
+			logs.Log.Fatalf("failed to load kubeconfig: %v", err)
 		}
 
 		preflightClient, err = client.NewVenConnClient(cfg, agentMetadata, InstallNS, VenConnName, VenConnNS, nil)
