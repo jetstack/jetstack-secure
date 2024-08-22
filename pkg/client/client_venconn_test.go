@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -102,6 +101,67 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 	}))
 }
 
+// Generated using:
+//
+//	helm template ./deploy/charts/venafi-kubernetes-agent -n venafi --set venafiConnection.include=true --show-only templates/venafi-connection-rbac.yaml | grep -ivE '(helm|\/version)'
+const rbac = `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: venafi
+---
+# Source: venafi-kubernetes-agent/templates/venafi-connection-rbac.yaml
+# The 'venafi-connection' service account is used by multiple
+# controllers. When configuring which resources a VenafiConnection
+# can access, the RBAC rules you create manually must point to this SA.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: venafi-connection
+  namespace: "venafi"
+  labels:
+    app.kubernetes.io/name: "venafi-connection"
+    app.kubernetes.io/instance: release-name
+---
+# Source: venafi-kubernetes-agent/templates/venafi-connection-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: venafi-connection-role
+  labels:
+    app.kubernetes.io/name: "venafi-connection"
+    app.kubernetes.io/instance: release-name
+rules:
+- apiGroups: [ "" ]
+  resources: [ "namespaces" ]
+  verbs: [ "get", "list", "watch" ]
+
+- apiGroups: [ "jetstack.io" ]
+  resources: [ "venaficonnections" ]
+  verbs: [ "get", "list", "watch" ]
+
+- apiGroups: [ "jetstack.io" ]
+  resources: [ "venaficonnections/status" ]
+  verbs: [ "get", "patch" ]
+---
+# Source: venafi-kubernetes-agent/templates/venafi-connection-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: venafi-connection-rolebinding
+  labels:
+    app.kubernetes.io/name: "venafi-connection"
+    app.kubernetes.io/instance: release-name
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: venafi-connection-role
+subjects:
+- kind: ServiceAccount
+  name: venafi-connection
+  namespace: "venafi"
+`
+
 type testcase struct {
 	given              string
 	expectErr          string
@@ -144,48 +204,55 @@ func run(test testcase) func(t *testing.T) {
 		// Apply the same RBAC as what you would get from the Venafi
 		// Connection Helm chart, for example after running this:
 		//  helm template venafi-connection oci://registry.venafi.cloud/charts/venafi-connection --version v0.1.0 -n venafi --show-only templates/venafi-connection-rbac.yaml
-		require.NoError(t, kclient.Create(context.Background(), &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{Name: "venafi"},
-		}))
-		require.NoError(t, kclient.Create(context.Background(), &corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{Name: "venafi-connection", Namespace: "venafi"},
-		}))
-		require.NoError(t, kclient.Create(context.Background(), &rbacv1.ClusterRole{
-			ObjectMeta: metav1.ObjectMeta{Name: "venafi-connection-role"},
-			Rules: []rbacv1.PolicyRule{
-				{APIGroups: []string{""}, Resources: []string{"namespaces"}, Verbs: []string{"get", "list", "watch"}},
-				{APIGroups: []string{"jetstack.io"}, Resources: []string{"venaficonnections"}, Verbs: []string{"get", "list", "watch"}},
-				{APIGroups: []string{"jetstack.io"}, Resources: []string{"venaficonnections/status"}, Verbs: []string{"get", "patch"}},
-			},
-		}))
-		require.NoError(t, kclient.Create(context.Background(), &rbacv1.ClusterRoleBinding{
-			ObjectMeta: metav1.ObjectMeta{Name: "venafi-connection-rolebinding"},
-			RoleRef:    rbacv1.RoleRef{APIGroup: "rbac.authorization.k8s.io", Kind: "ClusterRole", Name: "venafi-connection-role"},
-			Subjects:   []rbacv1.Subject{{Kind: "ServiceAccount", Name: "venafi-connection", Namespace: "venafi"}},
-		}))
-		require.NoError(t, kclient.Create(context.Background(), &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "accesstoken", Namespace: "venafi"},
-			StringData: map[string]string{"accesstoken": "VALID_ACCESS_TOKEN"},
-		}))
-		require.NoError(t, kclient.Create(context.Background(), &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{Name: "apikey", Namespace: "venafi"},
-			StringData: map[string]string{"apikey": "VALID_API_KEY"},
-		}))
-		require.NoError(t, kclient.Create(context.Background(), &rbacv1.Role{
-			ObjectMeta: metav1.ObjectMeta{Name: "venafi-connection-secret-reader", Namespace: "venafi"},
-			Rules: []rbacv1.PolicyRule{
-				{APIGroups: []string{""}, Resources: []string{"secrets"}, Verbs: []string{"get"}, ResourceNames: []string{"accesstoken", "apikey"}},
-			},
-		}))
-		require.NoError(t, kclient.Create(context.Background(), &rbacv1.RoleBinding{
-			ObjectMeta: metav1.ObjectMeta{Name: "venafi-connection-secret-reader", Namespace: "venafi"},
-			RoleRef:    rbacv1.RoleRef{APIGroup: "rbac.authorization.k8s.io", Kind: "Role", Name: "venafi-connection-secret-reader"},
-			Subjects:   []rbacv1.Subject{{Kind: "ServiceAccount", Name: "venafi-connection", Namespace: "venafi"}},
-		}))
 
 		test.given = strings.ReplaceAll(test.given, "FAKE_VENAFI_CLOUD_URL", fakeVenafiCloud.URL)
 		test.given = strings.ReplaceAll(test.given, "FAKE_TPP_URL", fakeTPP.URL)
-		for _, obj := range parse(test.given) {
+
+		var given []ctrlruntime.Object
+		given = append(given, parse(rbac)...)
+		given = append(given, parse(undent(`
+			apiVersion: v1
+			kind: Secret
+			metadata:
+			  name: accesstoken
+			  namespace: venafi
+			stringData:
+			  accesstoken: VALID_ACCESS_TOKEN
+			---
+			apiVersion: v1
+			kind: Secret
+			metadata:
+			  name: apikey
+			  namespace: venafi
+			stringData:
+			  apikey: VALID_API_KEY
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: Role
+			metadata:
+			  name: venafi-connection-secret-reader
+			  namespace: venafi
+			rules:
+			- apiGroups: [""]
+			  resources: ["secrets"]
+			  verbs: ["get"]
+			  resourceNames: ["accesstoken", "apikey"]
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: RoleBinding
+			metadata:
+			  name: venafi-connection-secret-reader
+			  namespace: venafi
+			roleRef:
+			  apiGroup: rbac.authorization.k8s.io
+			  kind: Role
+			  name: venafi-connection-secret-reader
+			subjects:
+			- kind: ServiceAccount
+			  name: venafi-connection
+			  namespace: venafi`))...)
+		given = append(given, parse(test.given)...)
+		for _, obj := range given {
 			require.NoError(t, kclient.Create(context.Background(), obj))
 		}
 
