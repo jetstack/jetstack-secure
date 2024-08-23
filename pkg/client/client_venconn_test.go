@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -334,18 +335,25 @@ func fakeTPP(t testing.TB) (*httptest.Server, *x509.Certificate) {
 //
 //	export KUBEBUILDER_ATTACH_CONTROL_PLANE_OUTPUT=true
 func startEnvtest(t testing.TB) (_ *envtest.Environment, _ *rest.Config, kclient ctrlruntime.WithWatch) {
+	// If KUBEBUILDER_ASSETS isn't set, show a warning to the user.
+	if os.Getenv("KUBEBUILDER_ASSETS") == "" {
+		t.Fatalf("KUBEBUILDER_ASSETS isn't set. You can run this test using `make test`.\n" +
+			"But if you prefer not to use `make`, run these two commands first:\n" +
+			"    make _bin/tools/{kube-apiserver,etcd}\n" +
+			"    export KUBEBUILDER_ASSETS=$PWD/_bin/tools")
+	}
 	envtest := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{"../../deploy/charts/venafi-kubernetes-agent/crd_bases/jetstack.io_venaficonnections.yaml"},
 	}
-	restconf, err := envtest.Start()
-	require.NoError(t, err)
 
+	restconf, err := envtest.Start()
 	t.Cleanup(func() {
 		t.Log("Waiting for envtest to exit")
-		err = envtest.Stop()
-		require.NoError(t, err)
+		e := envtest.Stop()
+		require.NoError(t, e)
 	})
+	require.NoError(t, err)
 
 	sch := runtime.NewScheme()
 	_ = v1alpha1.AddToScheme(sch)
