@@ -1,40 +1,27 @@
-apiVersion: jetstack.io/v1alpha1
-kind: VenafiConnection
+apiVersion: v1
+kind: ServiceAccount
 metadata:
   name: venafi-components
-spec:
-  vcp:
-    accessToken:
-    - secret:
-        name: venafi-credentials
-        fields: ["access-token"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-      name: get-venafi-credentials
+  name: venafi-components-create-token
 rules:
-    - apiGroups: [ "" ]
-      resources: [ "secrets" ]
-      verbs: [ "get" ]
-      resourceNames: [ "venafi-credentials" ]
+- apiGroups: [ "" ]
+  resources: [ "serviceaccounts/token" ]
+  verbs: [ "create" ]
+  resourceNames: [ "venafi-components" ]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: application-team-1-secret-rolebinding
+  name: venafi-components-create-token
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: get-venafi-credentials
+  name: venafi-components-create-token
 subjects:
 - kind: ServiceAccount
   name: venafi-connection
   namespace: venafi
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: venafi-credentials
-stringData:
-  access-token: ${accesstoken}

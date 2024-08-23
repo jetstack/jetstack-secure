@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-1
+---
+apiVersion: policy.cert-manager.io/v1alpha1
+kind: CertificateRequestPolicy
+metadata:
+  name: team-1
+spec:
+  allowed:
+    commonName:
+      value: '*'
+    dnsNames:
+      values:
+      - '*'
+    subject:
+      countries:
+        values:
+        - '*'
+      localities:
+        values:
+        - '*'
+      organizationalUnits:
+        values:
+        - '*'
+      organizations:
+        values:
+        - '*'
+      postalCodes:
+        values:
+        - '*'
+      provinces:
+        values:
+        - '*'
+      serialNumber:
+        value: '*'
+      streetAddresses:
+        values:
+        - '*'
+    usages:
+    - digital signature
+    - key encipherment
+    - server auth
+    - client auth
+  plugins:
+    venafi:
+      values:
+        venafiConnectionName: venafi-components
+        zone: ${VEN_ZONE}
+  selector:
+    issuerRef:
+      group: jetstack.io
+      kind: VenafiIssuer
+      name: venafi-cloud
+    namespace:
+      matchNames:
+      - team-1
+---
+apiVersion: jetstack.io/v1alpha1
+kind: VenafiIssuer
+metadata:
+  name: venafi-cloud
+  namespace: team-1
+spec:
+  certificateNameExpression: request.namespace + "_" + request.name
+  venafiConnectionName: venafi-components
+  venafiConnectionNamespace: venafi
+  zone: ${VEN_ZONE}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: app-0
+  namespace: team-1
+spec:
+  commonName: app-0.team-1
+  duration: 720h0m0s
+  renewBefore: 719h0m0s
+  issuerRef:
+    group: jetstack.io
+    kind: VenafiIssuer
+    name: venafi-cloud
+  privateKey:
+    algorithm: RSA
+    rotationPolicy: Always
+    size: 2048
+  revisionHistoryLimit: 1
+  secretName: app-0
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cert-manager-policy:allow
+  namespace: team-1
+rules:
+  - apiGroups: ["policy.cert-manager.io"]
+    resources: ["certificaterequestpolicies"]
+    verbs: ["use"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cert-manager-policy:allow
+  namespace: team-1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cert-manager-policy:allow
+subjects:
+- kind: Group
+  name: system:authenticated
+  apiGroup: rbac.authorization.k8s.io
