@@ -346,14 +346,14 @@ func startEnvtest(t testing.TB) (_ *envtest.Environment, _ *rest.Config, kclient
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths:     []string{"../../deploy/charts/venafi-kubernetes-agent/crd_bases/jetstack.io_venaficonnections.yaml"},
 	}
-	restconf, err := envtest.Start()
-	require.NoError(t, err)
 
+	restconf, err := envtest.Start()
 	t.Cleanup(func() {
 		t.Log("Waiting for envtest to exit")
-		err = envtest.Stop()
-		require.NoError(t, err)
+		e := envtest.Stop()
+		require.NoError(t, e)
 	})
+	require.NoError(t, err)
 
 	sch := runtime.NewScheme()
 	_ = v1alpha1.AddToScheme(sch)
