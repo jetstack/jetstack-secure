@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
@@ -18,18 +17,17 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/hashicorp/go-multierror"
-	"github.com/jetstack/preflight/pkg/logs"
 	json "github.com/json-iterator/go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/kubeconfig"
+	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -302,7 +300,7 @@ func getConfiguration() (Config, client.Client) {
 	if venConnMode && InstallNS == "" {
 		InstallNS, err = getInClusterNamespace()
 		if err != nil {
-			log.Fatalf("could not guess which namespace the agent is running in: %s", err)
+			logs.Log.Fatalf("could not guess which namespace the agent is running in: %s", err)
 		}
 	}
 	if venConnMode && VenConnNS == "" {
@@ -323,7 +321,7 @@ func getConfiguration() (Config, client.Client) {
 		// the --venafi-connection mode of authentication doesn't need any
 		// secrets (or any other information for that matter) to be loaded from
 		// disk (using --credentials-path). Everything is passed as flags.
-		log.Println("Venafi Connection mode was specified, using Venafi Connection authentication.")
+		logs.Log.Println("Venafi Connection mode was specified, using Venafi Connection authentication.")
 
 		// The venafi-cloud.upload_path was initially meant to let users
 		// configure HTTP proxies, but it has never been used since HTTP proxies
@@ -331,7 +329,7 @@ func getConfiguration() (Config, client.Client) {
 		// value with the new --venafi-connection flag, and this field is simply
 		// ignored.
 		if config.VenafiCloud != nil && config.VenafiCloud.UploadPath != "" {
-			log.Printf(`ignoring venafi-cloud.upload_path. In Venafi Connection mode, this field is not needed.`)
+			logs.Log.Printf(`ignoring venafi-cloud.upload_path. In Venafi Connection mode, this field is not needed.`)
 		}
 
 		// Regarding venafi-cloud.uploader_id, we found that it doesn't do
@@ -340,12 +338,12 @@ func getConfiguration() (Config, client.Client) {
 		// set in the config file, and set it to an arbitrary value in the
 		// client since it doesn't matter.
 		if config.VenafiCloud.UploaderID != "" {
-			log.Printf(`ignoring venafi-cloud.uploader_id. In Venafi Connection mode, this field is not needed.`)
+			logs.Log.Printf(`ignoring venafi-cloud.uploader_id. In Venafi Connection mode, this field is not needed.`)
 		}
 
-		cfg, err := loadRESTConfig("")
+		cfg, err := kubeconfig.LoadRESTConfig("")
 		if err != nil {
-			log.Fatalf("failed to load kubeconfig: %v", err)
+			logs.Log.Fatalf("failed to load kubeconfig: %v", err)
 		}
 
 		preflightClient, err = client.NewVenConnClient(cfg, agentMetadata, InstallNS, VenConnName, VenConnNS, nil)
@@ -568,29 +566,4 @@ func getInClusterNamespace() (string, error) {
 		return "", fmt.Errorf("error reading namespace file: %w", err)
 	}
 	return string(namespace), nil
-}
-
-func loadRESTConfig(path string) (*rest.Config, error) {
-	switch path {
-	// If the kubeconfig path is not provided, use the default loading rules
-	// so we read the regular KUBECONFIG variable or create a non-interactive
-	// client for agents running in cluster
-	case "":
-		loadingrules := clientcmd.NewDefaultClientConfigLoadingRules()
-		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			loadingrules, &clientcmd.ConfigOverrides{}).ClientConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
-		}
-		return cfg, nil
-	// Otherwise use the explicitly named kubeconfig file.
-	default:
-		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			&clientcmd.ClientConfigLoadingRules{ExplicitPath: path},
-			&clientcmd.ConfigOverrides{}).ClientConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to load kubeconfig from %s: %w", path, err)
-		}
-		return cfg, nil
-	}
 }
