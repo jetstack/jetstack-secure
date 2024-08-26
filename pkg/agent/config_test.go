@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/d4l3k/messagediff"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/kylelemons/godebug/diff"
 	"github.com/stretchr/testify/assert"
@@ -213,9 +212,7 @@ func TestValidConfigLoad(t *testing.T) {
 `
 
 	loadedConfig, err := ParseConfig([]byte(configFileContents), false)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	assert.NoError(t, err)
 
 	expected := Config{
 		Server:         "http://localhost:8080",
@@ -235,9 +232,7 @@ func TestValidConfigLoad(t *testing.T) {
 		OutputPath: "/nothome",
 	}
 
-	if diff, equal := messagediff.PrettyDiff(expected, loadedConfig); !equal {
-		t.Errorf("Diff %s", diff)
-	}
+	assert.Equal(t, expected, loadedConfig)
 }
 
 func TestValidConfigWithEndpointLoad(t *testing.T) {
@@ -256,9 +251,7 @@ func TestValidConfigWithEndpointLoad(t *testing.T) {
 `
 
 	loadedConfig, err := ParseConfig([]byte(configFileContents), false)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	assert.NoError(t, err)
 
 	expected := Config{
 		Endpoint: Endpoint{
@@ -280,9 +273,7 @@ func TestValidConfigWithEndpointLoad(t *testing.T) {
 		},
 	}
 
-	if diff, equal := messagediff.PrettyDiff(expected, loadedConfig); !equal {
-		t.Errorf("Diff %s", diff)
-	}
+	assert.Equal(t, expected, loadedConfig)
 }
 
 func TestValidVenafiCloudConfigLoad(t *testing.T) {
@@ -302,9 +293,7 @@ func TestValidVenafiCloudConfigLoad(t *testing.T) {
 `
 
 	loadedConfig, err := ParseConfig([]byte(configFileContents), false)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	assert.NoError(t, err)
 
 	expected := Config{
 		Server:         "http://localhost:8080",
@@ -328,9 +317,7 @@ func TestValidVenafiCloudConfigLoad(t *testing.T) {
 		},
 	}
 
-	if diff, equal := messagediff.PrettyDiff(expected, loadedConfig); !equal {
-		t.Errorf("Diff %s", diff)
-	}
+	assert.Equal(t, expected, loadedConfig)
 }
 
 func TestInvalidConfigError(t *testing.T) {
