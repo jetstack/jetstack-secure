@@ -19,12 +19,12 @@ import (
 func TestGetConfiguration(t *testing.T) {
 	t.Run("minimal successful configuration", func(t *testing.T) {
 		got, cl, err := getConfiguration(discardLogs(t),
-			Config{Server: "http://localhost:8080", Period: 1 * time.Hour},
+			Config{Server: "http://api.venafi.eu", Period: 1 * time.Hour},
 			AgentCmdFlags{},
 		)
 		assert.NoError(t, err)
 		assert.Equal(t, Config{
-			Server: "http://localhost:8080",
+			Server: "http://api.venafi.eu",
 			Period: 1 * time.Hour,
 		}, got)
 		assert.IsType(t, &client.UnauthenticatedClient{}, cl)
@@ -32,7 +32,7 @@ func TestGetConfiguration(t *testing.T) {
 
 	t.Run("period must be given", func(t *testing.T) {
 		_, _, err := getConfiguration(discardLogs(t),
-			Config{Server: "http://localhost:8080"},
+			Config{Server: "http://api.venafi.eu"},
 			AgentCmdFlags{})
 		assert.EqualError(t, err, "period must be set as a flag or in config")
 	})
@@ -192,7 +192,7 @@ func TestGetConfiguration(t *testing.T) {
 // Fills in the `server` and `period` as they appear in each and every test
 // case.
 func fillRequired(c Config) Config {
-	c.Server = "http://localhost:8080"
+	c.Server = "http://api.venafi.eu"
 	c.Period = 1 * time.Hour
 	return c
 }
