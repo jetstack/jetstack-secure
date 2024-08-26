@@ -288,9 +288,6 @@ func (c *VenafiCloudClient) updateAccessToken() error {
 	values.Set("assertion", jwtToken)
 
 	tokenURL := fullURL(c.baseURL, accessTokenEndpoint)
-	if err != nil {
-		return err
-	}
 
 	encoded := values.Encode()
 	request, err := http.NewRequest(http.MethodPost, tokenURL, strings.NewReader(encoded))
