@@ -354,7 +354,8 @@ func getConfiguration(log *log.Logger, cfg Config, flags AgentCmdFlags) (Config,
 			log.Printf(`ignoring venafi-cloud.uploader_id. In Venafi Connection mode, this field is not needed.`)
 		}
 
-		restCfg, err := kubeconfig.LoadRESTConfig("")
+		var restCfg *rest.Config
+		restCfg, err = kubeconfig.LoadRESTConfig("")
 		if err != nil {
 			return Config{}, nil, fmt.Errorf("failed to load kubeconfig: %w", err)
 		}
