@@ -261,13 +261,6 @@ func getConfiguration() (Config, client.Client) {
 		logs.Log.Fatalf("Failed to load period, must be set as flag or in config")
 	}
 
-	dump, err := config.Dump()
-	if err != nil {
-		logs.Log.Fatalf("Failed to dump config: %s", err)
-	}
-
-	logs.Log.Printf("Loaded config: \n%s", dump)
-
 	var credentials client.Credentials
 	if ClientID != "" {
 		credentials = &client.VenafiSvcAccountCredentials{
