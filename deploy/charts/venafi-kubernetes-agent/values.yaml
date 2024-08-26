@@ -191,10 +191,15 @@ authentication:
 
 # -- Configuration section for the Venafi Kubernetes Agent itself
 config:
-  # -- Overrides the server if using a proxy in your environment
-  # For the EU variant use: https://api.venafi.eu/
+  # -- API URL of the Venafi Control Plane API. For EU tenants, set this value to
+  # https://api.venafi.eu/. If you are using the VenafiConnection authentication
+  # method, you must set the API URL using the field `spec.vcp.url` on the
+  # VenafiConnection resource instead.
   server: "https://api.venafi.cloud/"
-  # -- The client-id returned from the Venafi Control Plane
+  # -- The client-id to be used for authenticating with the Venafi Control
+  # Plane. Only useful when using a Key Pair Service Account in the Venafi
+  # Control Plane. You can obtain the cliend ID by creating a Key Pair Service
+  # Account in the Venafi Control Plane.
   clientId: ""
   # -- Send data back to the platform every minute unless changed
   period: "0h1m0s"
