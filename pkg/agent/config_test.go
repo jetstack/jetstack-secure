@@ -178,7 +178,7 @@ func TestGetConfiguration(t *testing.T) {
 			assert.Equal(t, Config{}, got)
 		})
 
-		t.Run("warning about venafi-cloud.uploader_id and venafi-cloud.upload_path being skipped", func(t *testing.T) {
+		t.Run("warning about server, venafi-cloud.uploader_id, and venafi-cloud.upload_path being skipped", func(t *testing.T) {
 			log, out := withLogs(t)
 			cfg := fillRequired(Config{VenafiCloud: &VenafiCloudConfig{
 				UploaderID: "test-agent",
@@ -191,6 +191,17 @@ func TestGetConfiguration(t *testing.T) {
 			assert.Equal(t, cfg, got)
 			assert.Contains(t, out.String(), "ignoring venafi-cloud.uploader_id")
 			assert.Contains(t, out.String(), "ignoring venafi-cloud.upload_path")
+			assert.Contains(t, out.String(), "ignoring the server field")
+		})
+
+		t.Run("server field can be left empty in venconn mode", func(t *testing.T) {
+			_, _, err := getConfiguration(discardLogs(t),
+				withConfig(testutil.Undent(`
+					server: ""
+					period: 1h`,
+				)),
+				withCmdLineFlags("--venafi-connection", "venafi-components", "--install-namespace", "venafi"))
+			assert.NoError(t, err)
 		})
 	})
 }
@@ -567,7 +578,8 @@ func discardLogs(_ testing.TB) *log.Logger {
 	return log.New(io.Discard, "", 0)
 }
 
-// Shortcut for ParseConfig.
+// ParseConfig does some validation but we don't want this extra validation, so
+// this is just using yaml.Unmarshal.
 func withConfig(s string) Config {
 	var cfg Config
 

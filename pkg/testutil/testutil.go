@@ -191,7 +191,7 @@ type AssertRequest func(t testing.TB, r *http.Request)
 func FakeVenafiCloud(t *testing.T) (_ *httptest.Server, _ *x509.Certificate, setAssert func(AssertRequest)) {
 	t.Helper()
 
-	var assertFn AssertRequest
+	assertFn := func(_ testing.TB, _ *http.Request) {}
 	assertFnMu := sync.Mutex{}
 	setAssert = func(setAssert AssertRequest) {
 		assertFnMu.Lock()

@@ -267,13 +267,22 @@ func getConfiguration(log *log.Logger, cfg Config, flags AgentCmdFlags) (Config,
 		flags.VenafiCloudMode = true
 	}
 
-	baseURL := cfg.Server
-	if baseURL == "" {
-		log.Printf("Using deprecated Endpoint configuration. User Server instead.")
-		baseURL = fmt.Sprintf("%s://%s", cfg.Endpoint.Protocol, cfg.Endpoint.Host)
-		_, err := url.Parse(baseURL)
-		if err != nil {
-			return Config{}, nil, fmt.Errorf("failed to parse server URL: %w", err)
+	// In VenafiConnection mode, we don't need the server field. For the other
+	// modes, we do need to validate the server field.
+	var baseURL string
+	if flags.VenConnName != "" {
+		if cfg.Server != "" {
+			log.Printf("ignoring the server field specified in the config file. In Venafi Connection mode, this field is not needed. Use the VenafiConnection's spec.vcp.url field instead.")
+		}
+	} else {
+		baseURL = cfg.Server
+		if baseURL == "" {
+			log.Printf("Using deprecated Endpoint configuration. User Server instead.")
+			baseURL = fmt.Sprintf("%s://%s", cfg.Endpoint.Protocol, cfg.Endpoint.Host)
+			_, err := url.Parse(baseURL)
+			if err != nil {
+				return Config{}, nil, fmt.Errorf("failed to parse server URL: %w", err)
+			}
 		}
 	}
 
