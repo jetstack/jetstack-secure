@@ -2,17 +2,24 @@ package agent
 
 import (
 	"bytes"
+	"context"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/jetstack/preflight/pkg/client"
+	"github.com/jetstack/preflight/pkg/testutil"
 	"github.com/kylelemons/godebug/diff"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestGetConfiguration(t *testing.T) {
@@ -185,6 +192,100 @@ func TestGetConfiguration(t *testing.T) {
 			assert.Contains(t, out.String(), "ignoring venafi-cloud.uploader_id")
 			assert.Contains(t, out.String(), "ignoring venafi-cloud.upload_path")
 		})
+	})
+}
+
+// Slower test cases due to envtest. That's why they are separated from the
+// other tests.
+func Test_getConfiguration_urlWhenVenafiConnection(t *testing.T) {
+	t.Run("the server field is ignored when VenafiConnection is used", func(t *testing.T) {
+		_, restCfg, kcl := testutil.WithEnvtest(t)
+		os.Setenv("KUBECONFIG", testutil.WithKubeconfig(t, restCfg))
+		srv, fakeCrt, setVenafiCloudAssert := testutil.FakeVenafiCloud(t)
+		for _, obj := range testutil.Parse(
+			testutil.VenConnRBAC + testutil.Undent(fmt.Sprintf(`
+			---
+			apiVersion: jetstack.io/v1alpha1
+			kind: VenafiConnection
+			metadata:
+			  name: venafi-components
+			  namespace: venafi
+			spec:
+			  vcp:
+			    url: "%s"
+			    accessToken:
+			      - secret:
+			          name: accesstoken
+			          fields: [accesstoken]
+			---
+			apiVersion: v1
+			kind: Secret
+			metadata:
+			  name: accesstoken
+			  namespace: venafi
+			stringData:
+			  accesstoken: VALID_ACCESS_TOKEN
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: Role
+			metadata:
+			  name: venafi-connection-accesstoken-reader
+			  namespace: venafi
+			rules:
+			- apiGroups: [""]
+			  resources: ["secrets"]
+			  verbs: ["get"]
+			  resourceNames: ["accesstoken"]
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: RoleBinding
+			metadata:
+			  name: venafi-connection-accesstoken-reader
+			  namespace: venafi
+			roleRef:
+			  apiGroup: rbac.authorization.k8s.io
+			  kind: Role
+			  name: venafi-connection-accesstoken-reader
+			subjects:
+			- kind: ServiceAccount
+			  name: venafi-connection
+			  namespace: venafi`, srv.URL))) {
+			require.NoError(t, kcl.Create(context.Background(), obj))
+		}
+
+		// The URL received by the fake Venafi Cloud server should be the one
+		// coming from the VenafiConnection, not the one from the config.
+		setVenafiCloudAssert(func(t testing.TB, r *http.Request) {
+			assert.Equal(t, srv.URL, "https://"+r.Host)
+		})
+
+		cfg, err := ParseConfig([]byte(testutil.Undent(`
+			server: "http://should-be-ignored"
+			period: 1h
+			`)), true)
+		assert.NoError(t, err)
+
+		_, cl, err := getConfiguration(discardLogs(t),
+			cfg,
+			withCmdLineFlags("--venafi-connection", "venafi-components", "--install-namespace", "venafi"),
+		)
+		assert.NoError(t, err)
+
+		// `Start(ctx)` needs to be stopped before the apiserver is stopped.
+		// https://github.com/jetstack/venafi-connection-lib/pull/158#issuecomment-1949002322
+		ctx, cancel := context.WithCancel(context.Background())
+		t.Cleanup(cancel)
+		go func() {
+			require.NoError(t, cl.(*client.VenConnClient).Start(ctx))
+		}()
+		certPool := x509.NewCertPool()
+		certPool.AddCert(fakeCrt)
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		tr.TLSClientConfig.RootCAs = certPool
+		cl.(*client.VenConnClient).Client.Transport = tr
+
+		err = cl.PostDataReadingsWithOptions(nil, client.Options{ClusterName: "test cluster name"})
+		assert.NoError(t, err)
 	})
 }
 
@@ -457,13 +558,40 @@ func withFile(t testing.TB, content string) string {
 	return f.Name()
 }
 
-func withLogs(t testing.TB) (*log.Logger, *bytes.Buffer) {
+func withLogs(_ testing.TB) (*log.Logger, *bytes.Buffer) {
 	b := bytes.Buffer{}
 	return log.New(&b, "", 0), &b
 }
 
-func discardLogs(t testing.TB) *log.Logger {
+func discardLogs(_ testing.TB) *log.Logger {
 	return log.New(io.Discard, "", 0)
+}
+
+// Shortcut for ParseConfig.
+func withConfig(s string) Config {
+	var cfg Config
+
+	err := yaml.Unmarshal([]byte(s), &cfg)
+	if err != nil {
+		panic(err)
+	}
+	return cfg
+}
+
+func withCmdLineFlags(flags ...string) AgentCmdFlags {
+	parsed := withoutCmdLineFlags()
+	agentCmd := &cobra.Command{}
+	InitAgentCmdFlags(agentCmd, &parsed)
+	err := agentCmd.ParseFlags(flags)
+	if err != nil {
+		panic(err)
+	}
+
+	return parsed
+}
+
+func withoutCmdLineFlags() AgentCmdFlags {
+	return AgentCmdFlags{}
 }
 
 const fakeKubeconfig = `

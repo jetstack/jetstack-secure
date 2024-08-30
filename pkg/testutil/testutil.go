@@ -215,6 +215,7 @@ func FakeVenafiCloud(t *testing.T) (_ *httptest.Server, _ *x509.Certificate, set
 		if r.URL.Path == "/v1/tlspk/upload/clusterdata/no" {
 			if r.URL.Query().Get("name") != "test cluster name" {
 				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"error":"unexpected name query param in the test server: ` + r.URL.Query().Get("name") + `"}`))
 				return
 			}
 			_, _ = w.Write([]byte(`{"status":"ok","organization":"756db001-280e-11ee-84fb-991f3177e2d0"}`))

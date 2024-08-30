@@ -29,10 +29,15 @@ import (
 type VenConnClient struct {
 	agentMetadata *api.AgentMetadata
 	connHandler   venafi_client.ConnectionHandler
-	installNS     string       // Namespace in which the agent is running in.
-	venConnName   string       // Name of the VenafiConnection resource to use.
-	venConnNS     string       // Namespace of the VenafiConnection resource to use.
-	client        *http.Client // Used to make HTTP requests to Venafi Cloud.
+	installNS     string // Namespace in which the agent is running in.
+	venConnName   string // Name of the VenafiConnection resource to use.
+	venConnNS     string // Namespace of the VenafiConnection resource to use.
+
+	// Used to make HTTP requests to Venafi Cloud. This field is public for
+	// testing purposes so that we can configure trusted CAs; there should be a
+	// way to do that without messing with the client directly (e.g., a flag to
+	// pass a custom CA?), but it's not there yet.
+	Client *http.Client
 }
 
 // NewVenConnClient lets you make requests to the Venafi Cloud backend using the
@@ -111,7 +116,7 @@ func NewVenConnClient(restcfg *rest.Config, agentMetadata *api.AgentMetadata, in
 		installNS:     installNS,
 		venConnName:   venConnName,
 		venConnNS:     venConnNS,
-		client:        vcpClient,
+		Client:        vcpClient,
 	}, nil
 }
 
@@ -180,7 +185,7 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 	}
 	req.URL.RawQuery = q.Encode()
 
-	res, err := c.client.Do(req)
+	res, err := c.Client.Do(req)
 	if err != nil {
 		return err
 	}
