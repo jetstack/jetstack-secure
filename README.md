@@ -139,6 +139,7 @@ is released manually, as follows:
 ```sh
 export VERSION=0.1.43
 helm package deploy/charts/venafi-kubernetes-agent --version "${VERSION}"
+docker login -u oauth2accesstoken --password-stdin eu.gcr.io < <(gcloud auth application-default print-access-token)
 helm push venafi-kubernetes-agent-${VERSION}.tgz oci://eu.gcr.io/jetstack-secure-enterprise/charts
 ```
 
