@@ -102,8 +102,6 @@ The release process is semi-automated.
       The `v` prefix [breaks Helm OCI operations](https://github.com/helm/helm/issues/11107).
    1. Increment `appVersion` value in [Chart.yaml](deploy/charts/venafi-kubernetes-agent/Chart.yaml).
       Use a `v` prefix, to match the Docker image tag.
-   1. Increment the `image.tag` value in [values.yaml](deploy/charts/venafi-kubernetes-agent/values.yaml).
-      Use a `v` prefix.
    1. Commit the changes.
 1. Create a pull request and wait for it to be approved.
 1. Merge the branch.
