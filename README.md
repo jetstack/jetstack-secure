@@ -153,11 +153,16 @@ The chart will be mirrored to:
 
 ### Step 3: Release the Helm Chart "jetstack-secure"
 
-The [jetstack-agent](deploy/charts/jetstack-agent/README.md) chart has a different version number to the agent.
-This is because the first version of *this* chart was given version `0.1.0`,
-while the app version at the time was `0.1.38`.
-And this allows the chart to be updated and released more frequently than the Docker image if necessary.
-This chart is for [Jetstack Secure](https://platform.jetstack.io/documentation/installation/agent#jetstack-agent-helm-chart-installation).
+This chart is for [Jetstack
+Secure](https://platform.jetstack.io/documentation/installation/agent#jetstack-agent-helm-chart-installation).
+
+> [!NOTE]
+>
+> Prior to v1.0.0, this chart's `version` and `appVersion` were different. This
+allowed the chart to be updated and released more frequently than the Docker
+image if necessary. We have decided to align the chart's `version` and
+`appVersion` with the Docker image tag, starting with v1.0.0, to simplify the
+release process.
 
 1. Create a branch
 1. Increment version numbers.
@@ -168,6 +173,10 @@ This chart is for [Jetstack Secure](https://platform.jetstack.io/documentation/i
       Use a `v` prefix, to match the Docker image tag.
    1. Increment the `image.tag` value in [values.yaml](deploy/charts/jetstack-agent/values.yaml).
       Use a `v` prefix, to match the Docker image tag.
+   1. Update the Helm unit test snapshots:
+       ```sh
+       helm unittest ./deploy/charts/jetstack-agent --update-snapshot
+       ```
 1. Create a pull request and wait for it to be approved.
 1. Merge the branch
 1. Push a tag, using the format: `chart-vX.Y.Z`.

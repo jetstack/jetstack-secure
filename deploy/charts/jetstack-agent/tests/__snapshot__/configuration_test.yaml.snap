@@ -191,7 +191,7 @@ render correctly when only required config is given:
         app.kubernetes.io/instance: RELEASE-NAME
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: jetstack-agent
-        app.kubernetes.io/version: v0.1.43
-        helm.sh/chart: jetstack-agent-0.4.0
+        app.kubernetes.io/version: v1.0.0
+        helm.sh/chart: jetstack-agent-1.0.0
       name: agent-config
       namespace: NAMESPACE
