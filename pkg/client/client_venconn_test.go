@@ -3,28 +3,18 @@ package client_test
 import (
 	"context"
 	"crypto/x509"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
+	"github.com/jetstack/preflight/pkg/testutil"
 
 	"github.com/jetstack/venafi-connection-lib/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/client-go/rest"
 	ctrlruntime "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
 
 // These are using envtest (slow) rather than a fake clientset (fast) because
@@ -44,7 +34,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 	t.Parallel()
 
 	t.Run("valid accessToken", run(testcase{
-		given: undent(`
+		given: testutil.Undent(`
 			apiVersion: jetstack.io/v1alpha1
 			kind: VenafiConnection
 			metadata:
@@ -63,7 +53,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 		// Why isn't it possible to use the 'apiKey' field? Although the
 		// Kubernetes Discovery endpoint works with an API key, we have decided
 		// to not support it because it isn't recommended.
-		given: undent(`
+		given: testutil.Undent(`
 			apiVersion: jetstack.io/v1alpha1
 			kind: VenafiConnection
 			metadata:
@@ -84,7 +74,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 		// debugging and making the venafi connection work, and then find out
 		// that it doesn't work. The reason is because as of now, we don't first
 		// check if the user has used the 'tpp' field before running Get.
-		given: undent(`
+		given: testutil.Undent(`
 			apiVersion: jetstack.io/v1alpha1
 			kind: VenafiConnection
 			metadata:
@@ -171,9 +161,9 @@ type testcase struct {
 
 func run(test testcase) func(t *testing.T) {
 	return func(t *testing.T) {
-		fakeVenafiCloud, certCloud := fakeVenafiCloud(t)
-		fakeTPP, certTPP := fakeTPP(t)
-		_, restconf, kclient := startEnvtest(t)
+		fakeVenafiCloud, certCloud, _ := testutil.FakeVenafiCloud(t)
+		fakeTPP, certTPP := testutil.FakeTPP(t)
+		_, restconf, kclient := testutil.WithEnvtest(t)
 
 		certPool := x509.NewCertPool()
 		certPool.AddCert(certCloud)
@@ -210,8 +200,8 @@ func run(test testcase) func(t *testing.T) {
 		test.given = strings.ReplaceAll(test.given, "FAKE_TPP_URL", fakeTPP.URL)
 
 		var given []ctrlruntime.Object
-		given = append(given, parse(rbac)...)
-		given = append(given, parse(undent(`
+		given = append(given, testutil.Parse(rbac)...)
+		given = append(given, testutil.Parse(testutil.Undent(`
 			apiVersion: v1
 			kind: Secret
 			metadata:
@@ -252,7 +242,7 @@ func run(test testcase) func(t *testing.T) {
 			- kind: ServiceAccount
 			  name: venafi-connection
 			  namespace: venafi`))...)
-		given = append(given, parse(test.given)...)
+		given = append(given, testutil.Parse(test.given)...)
 		for _, obj := range given {
 			require.NoError(t, kclient.Create(context.Background(), obj))
 		}
@@ -268,187 +258,4 @@ func run(test testcase) func(t *testing.T) {
 		require.Len(t, got.Status.Conditions, 1)
 		assert.Equal(t, test.expectReadyCondMsg, got.Status.Conditions[0].Message)
 	}
-}
-
-func fakeVenafiCloud(t *testing.T) (*httptest.Server, *x509.Certificate) {
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Logf("fake api.venafi.cloud received request: %s %s", r.Method, r.URL.Path)
-		accessToken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-		apiKey := r.Header.Get("tppl-api-key")
-		if accessToken != "VALID_ACCESS_TOKEN" && apiKey != "VALID_API_KEY" {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		if r.URL.Path == "/v1/tlspk/upload/clusterdata/no" {
-			if r.URL.Query().Get("name") != "test cluster name" {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			_, _ = w.Write([]byte(`{"status":"ok","organization":"756db001-280e-11ee-84fb-991f3177e2d0"}`))
-		} else if r.URL.Path == "/v1/useraccounts" {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"user": {"username": "user","id": "76a126f0-280e-11ee-84fb-991f3177e2d0"}}`))
-
-		} else if r.URL.Path == "/v1/oauth2/v2.0/756db001-280e-11ee-84fb-991f3177e2d0/token" {
-			_, _ = w.Write([]byte(`{"access_token":"VALID_ACCESS_TOKEN","expires_in":900,"token_type":"bearer"}`))
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(`{"error":"unexpected path in the test server","path":"` + r.URL.Path + `"}`))
-		}
-	}))
-	t.Cleanup(server.Close)
-
-	cert, err := x509.ParseCertificate(server.TLS.Certificates[0].Certificate[0])
-	require.NoError(t, err)
-
-	return server, cert
-}
-
-func fakeTPP(t testing.TB) (*httptest.Server, *x509.Certificate) {
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Logf("fake tpp.example.com received request: %s %s", r.Method, r.URL.Path)
-
-		accessToken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-
-		if r.URL.Path == "/vedsdk/Identity/Self" {
-			if accessToken != "VALID_ACCESS_TOKEN" {
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-			_, _ = w.Write([]byte(`{"Identities":[{"Name":"TEST"}]}`))
-		} else if r.URL.Path == "/vedsdk/certificates/checkpolicy" {
-			_, _ = w.Write([]byte(`{"Policy":{"Subject":{"Organization":{"Value": "test-org"}}}}`))
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte(`{"error":"unexpected path in the test server","path":"` + r.URL.Path + `"}`))
-		}
-	}))
-	t.Cleanup(server.Close)
-
-	cert, err := x509.ParseCertificate(server.TLS.Certificates[0].Certificate[0])
-	require.NoError(t, err)
-
-	return server, cert
-}
-
-// To see the API server logs, set:
-//
-//	export KUBEBUILDER_ATTACH_CONTROL_PLANE_OUTPUT=true
-func startEnvtest(t testing.TB) (_ *envtest.Environment, _ *rest.Config, kclient ctrlruntime.WithWatch) {
-	// If KUBEBUILDER_ASSETS isn't set, show a warning to the user.
-	if os.Getenv("KUBEBUILDER_ASSETS") == "" {
-		t.Fatalf("KUBEBUILDER_ASSETS isn't set. You can run this test using `make test`.\n" +
-			"But if you prefer not to use `make`, run these two commands first:\n" +
-			"    make _bin/tools/{kube-apiserver,etcd}\n" +
-			"    export KUBEBUILDER_ASSETS=$PWD/_bin/tools")
-	}
-	envtest := &envtest.Environment{
-		ErrorIfCRDPathMissing: true,
-		CRDDirectoryPaths:     []string{"../../deploy/charts/venafi-kubernetes-agent/crd_bases/jetstack.io_venaficonnections.yaml"},
-	}
-
-	restconf, err := envtest.Start()
-	t.Cleanup(func() {
-		t.Log("Waiting for envtest to exit")
-		e := envtest.Stop()
-		require.NoError(t, e)
-	})
-	require.NoError(t, err)
-
-	sch := runtime.NewScheme()
-	_ = v1alpha1.AddToScheme(sch)
-	_ = corev1.AddToScheme(sch)
-	_ = rbacv1.AddToScheme(sch)
-
-	kclient, err = ctrlruntime.NewWithWatch(restconf, ctrlruntime.Options{Scheme: sch})
-	require.NoError(t, err)
-
-	return envtest, restconf, kclient
-}
-
-// Undent removes leading indentation/white-space from given string and returns
-// it as a string. Useful for inlining YAML manifests in Go code. Inline YAML
-// manifests in the Go test files makes it easier to read the test case as
-// opposed to reading verbose-y Go structs.
-//
-// This was copied from https://github.com/jimeh/undent/blob/main/undent.go, all
-// credit goes to the author, Jim Myhrberg.
-func undent(s string) string {
-	const (
-		tab = 9
-		lf  = 10
-		spc = 32
-	)
-
-	if len(s) == 0 {
-		return ""
-	}
-
-	// find smallest indent relative to each line-feed
-	min := 99999999999
-	count := 0
-
-	lfs := make([]int, 0, strings.Count(s, "\n"))
-	if s[0] != lf {
-		lfs = append(lfs, -1)
-	}
-
-	indent := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == lf {
-			lfs = append(lfs, i)
-			indent = 0
-		} else if indent < min {
-			switch s[i] {
-			case spc, tab:
-				indent++
-			default:
-				if indent > 0 {
-					count++
-				}
-				if indent < min {
-					min = indent
-				}
-			}
-		}
-	}
-
-	// extract each line without indentation
-	out := make([]byte, 0, len(s)-(min*count))
-
-	for i := 0; i < len(lfs); i++ {
-		offset := lfs[i] + 1
-		end := len(s)
-		if i+1 < len(lfs) {
-			end = lfs[i+1] + 1
-		}
-
-		if offset+min < end {
-			out = append(out, s[offset+min:end]...)
-		} else if offset < end {
-			out = append(out, s[offset:end]...)
-		}
-	}
-
-	return string(out)
-}
-
-// Parses the YAML manifest. Useful for inlining YAML manifests in Go test
-// files, to be used in conjunction with `undent`.
-func parse(yamlmanifest string) []ctrlruntime.Object {
-	dec := yaml.NewYAMLOrJSONDecoder(strings.NewReader(yamlmanifest), 4096)
-	var objs []ctrlruntime.Object
-	for {
-		obj := &unstructured.Unstructured{}
-		err := dec.Decode(obj)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			panic(err)
-		}
-
-		objs = append(objs, obj)
-	}
-	return objs
 }
