@@ -139,6 +139,7 @@ is released manually, as follows:
 ```sh
 export VERSION=0.1.43
 helm package deploy/charts/venafi-kubernetes-agent --version "${VERSION}"
+docker login -u oauth2accesstoken --password-stdin eu.gcr.io < <(gcloud auth application-default print-access-token)
 helm push venafi-kubernetes-agent-${VERSION}.tgz oci://eu.gcr.io/jetstack-secure-enterprise/charts
 ```
 
@@ -151,6 +152,9 @@ The chart will be mirrored to:
  * `private-registry.venafi.eu/charts/venafi-kubernetes-agent` (Private, EU)
 
 ### Step 3: Release the Helm Chart "jetstack-secure"
+
+This step is performed by Peter Fiddes and Adrian Lai separately from the main
+release process.
 
 The [jetstack-agent](deploy/charts/jetstack-agent/README.md) chart has a different version number to the agent.
 This is because the first version of *this* chart was given version `0.1.0`,
@@ -167,6 +171,10 @@ This chart is for [Jetstack Secure](https://platform.jetstack.io/documentation/i
       Use a `v` prefix, to match the Docker image tag.
    1. Increment the `image.tag` value in [values.yaml](deploy/charts/jetstack-agent/values.yaml).
       Use a `v` prefix, to match the Docker image tag.
+   1. Update the Helm unit test snapshots:
+       ```sh
+       helm unittest ./deploy/charts/jetstack-agent --update-snapshot
+       ```
 1. Create a pull request and wait for it to be approved.
 1. Merge the branch
 1. Push a tag, using the format: `chart-vX.Y.Z`.
