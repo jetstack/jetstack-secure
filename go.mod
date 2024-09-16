@@ -11,7 +11,6 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jetstack/venafi-connection-lib v0.1.1-0.20240814101135-a72cec54dc1a
 	github.com/json-iterator/go v1.1.12
-	github.com/juju/errors v1.0.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/maxatome/go-testdeep v1.14.0
 	github.com/microcosm-cc/bluemonday v1.0.26
