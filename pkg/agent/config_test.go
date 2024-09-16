@@ -25,6 +25,22 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 	// OAuth mode.
 	fakeCredsPath := withFile(t, `{"user_id":"foo","user_secret":"bar","client_id": "baz","client_secret": "foobar","auth_server_domain":"bazbar"}`)
 
+	// Usually, the namespace is guessed from the file
+	// /var/run/secrets/kubernetes.io/serviceaccount/namespace. But since we
+	// can't realistically set that file in tests, we pass the flag
+	// --install-namespace in all the tests.
+	t.Run("--install-namespace must be provided if namespace file doesn't exist", func(t *testing.T) {
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				server: https://api.venafi.eu
+				organization_id: foo
+				cluster_id: bar
+				period: 5m
+			`)),
+			withCmdLineFlags("--credentials-file", fakeCredsPath))
+		assert.EqualError(t, err, "1 error occurred:\n\t* could not guess which namespace the agent is running in: not running in cluster, please use --install-namespace to specify the namespace in which the agent is running\n\n")
+	})
+
 	t.Run("period must be given with either --period/-p or period field in config", func(t *testing.T) {
 		_, _, err := ValidateAndCombineConfig(discardLogs(),
 			withConfig(testutil.Undent(`
@@ -32,7 +48,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				organization_id: foo
 				cluster_id: bar
 			`)),
-			withCmdLineFlags("--credentials-file", fakeCredsPath))
+			withCmdLineFlags("--credentials-file", fakeCredsPath, "--install-namespace", "venafi"))
 		assert.EqualError(t, err, "1 error occurred:\n\t* period must be set using --period or -p, or using the 'period' field in the config file\n\n")
 
 	})
@@ -44,12 +60,12 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			cluster_id: bar
 		`))
 
-		got, _, err := ValidateAndCombineConfig(discardLogs(), given, withCmdLineFlags("--period", "5m", "--credentials-file", fakeCredsPath))
+		got, _, err := ValidateAndCombineConfig(discardLogs(), given, withCmdLineFlags("--period", "5m", "--credentials-file", fakeCredsPath, "--install-namespace", "venafi"))
 
 		require.NoError(t, err)
 		assert.Equal(t, 5*time.Minute, got.Period)
 
-		got, _, err = ValidateAndCombineConfig(discardLogs(), given, withCmdLineFlags("-p", "3m", "--credentials-file", fakeCredsPath))
+		got, _, err = ValidateAndCombineConfig(discardLogs(), given, withCmdLineFlags("-p", "3m", "--credentials-file", fakeCredsPath, "--install-namespace", "venafi"))
 		require.NoError(t, err)
 		assert.Equal(t, 3*time.Minute, got.Period)
 	})
@@ -62,7 +78,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				organization_id: foo
 				cluster_id: bar
 			`)),
-			withCmdLineFlags("--credentials-file", fakeCredsPath))
+			withCmdLineFlags("--credentials-file", fakeCredsPath, "--install-namespace", "venafi"))
 		require.NoError(t, err)
 		assert.Equal(t, 7*time.Minute, got.Period)
 	})
@@ -76,7 +92,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				organization_id: foo
 				cluster_id: bar
 			`)),
-			withCmdLineFlags("--period", "99m", "--credentials-file", fakeCredsPath))
+			withCmdLineFlags("--period", "99m", "--credentials-file", fakeCredsPath, "--install-namespace", "venafi"))
 		require.NoError(t, err)
 		assert.Equal(t, testutil.Undent(`
 			Using the Jetstack Secure OAuth auth mode since --credentials-file was specified without --venafi-cloud.
@@ -92,7 +108,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				organization_id: foo
 				cluster_id: bar
 			`)),
-			withCmdLineFlags("--credentials-file", fakeCredsPath))
+			withCmdLineFlags("--credentials-file", fakeCredsPath, "--install-namespace", "venafi"))
 		require.NoError(t, err)
 		assert.Equal(t, "https://preflight.jetstack.io", got.Server)
 	})
@@ -106,7 +122,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				venafi-cloud:
 				  upload_path: /foo/bar
 			`)),
-			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath))
+			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--install-namespace", "venafi"))
 		require.NoError(t, err)
 		assert.Equal(t, "https://api.venafi.cloud", got.Server)
 	})
@@ -122,7 +138,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				  - kind: dummy
 				    name: dummy
 			`)),
-			withCmdLineFlags("--credentials-file", fakeCredsPath))
+			withCmdLineFlags("--credentials-file", fakeCredsPath, "--install-namespace", "venafi"))
 		assert.EqualError(t, gotErr, testutil.Undent(`
 			1 error occurred:
 				* server "something not a URL" is not a valid URL
@@ -137,7 +153,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				organization_id: "my_org"
 				cluster_id: "my_cluster"
 			`)),
-			withCmdLineFlags("--strict", "--credentials-file", fakeCredsPath))
+			withCmdLineFlags("--strict", "--credentials-file", fakeCredsPath, "--install-namespace", "venafi"))
 		require.NoError(t, gotErr)
 		assert.Equal(t, true, got.StrictMode)
 	})
@@ -182,7 +198,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				  config:
 				    always-fail: false
 			`)),
-			withCmdLineFlags("--credentials-file", credsPath),
+			withCmdLineFlags("--credentials-file", credsPath, "--install-namespace", "venafi"),
 		)
 		expect := CombinedConfig{
 			AuthMode:  "Jetstack Secure OAuth",
@@ -196,6 +212,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			OrganizationID: "example",
 			EndpointPath:   "api/v1/data",
 			BackoffMaxTime: 10 * time.Minute,
+			InstallNS:      "venafi",
 		}
 		require.NoError(t, err)
 		assert.Equal(t, expect, got)
@@ -221,7 +238,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				  uploader_id: test-agent
 				  upload_path: "/testing/path"
 			`)),
-			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--backoff-max-time", "99m"),
+			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--backoff-max-time", "99m", "--install-namespace", "venafi"),
 		)
 		expect := CombinedConfig{
 			Server: "http://localhost:8080",
@@ -235,6 +252,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			AuthMode:       VenafiCloudKeypair,
 			ClusterID:      "the cluster name",
 			BackoffMaxTime: 99 * time.Minute,
+			InstallNS:      "venafi",
 		}
 		require.NoError(t, err)
 		assert.Equal(t, expect, got)
@@ -251,7 +269,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				venafi-cloud:
 				  upload_path: "/foo/bar"
 			`)),
-			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath),
+			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath, "--install-namespace", "venafi"),
 		)
 		require.NoError(t, err)
 		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
@@ -260,7 +278,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 
 	t.Run("jetstack-secure-oauth-auth: fail if organization_id or cluster_id is missing and --venafi-cloud not enabled", func(t *testing.T) {
 		credsPath := withFile(t, `{"user_id":"fpp2624799349@affectionate-hertz6.platform.jetstack.io","user_secret":"foo","client_id": "k3TrDbfLhCgnpAbOiiT2kIE1AbovKzjo","client_secret": "f39w_3KT9Vp0VhzcPzvh-uVbudzqCFmHER3Huj0dvHgJwVrjxsoOQPIw_1SDiCfa","auth_server_domain":"auth.jetstack.io"}`)
-		_, _, err := ValidateAndCombineConfig(discardLogs(), withConfig(""), withCmdLineFlags("--credentials-file", credsPath))
+		_, _, err := ValidateAndCombineConfig(discardLogs(), withConfig(""), withCmdLineFlags("--credentials-file", credsPath, "--install-namespace", "venafi"))
 		assert.EqualError(t, err, testutil.Undent(`
 			3 errors occurred:
 				* organization_id is required
@@ -278,7 +296,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				venafi-cloud:
 				  upload_path: /foo/bar
 			`)),
-			withCmdLineFlags("--venafi-cloud", "--period", "1m", "--client-id", "test-client-id", "--private-key-path", path))
+			withCmdLineFlags("--venafi-cloud", "--period", "1m", "--client-id", "test-client-id", "--private-key-path", path, "--install-namespace", "venafi"))
 		require.NoError(t, err)
 		assert.IsType(t, &client.VenafiCloudClient{}, cl)
 	})
@@ -291,7 +309,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				venafi-cloud:
 				  upload_path: /foo/bar
 			`)),
-			withCmdLineFlags("--venafi-cloud", "--period", "1m", "--private-key-path", path, "--client-id", "test-client-id"))
+			withCmdLineFlags("--venafi-cloud", "--period", "1m", "--private-key-path", path, "--client-id", "test-client-id", "--install-namespace", "venafi"))
 		require.NoError(t, err)
 		assert.IsType(t, &client.VenafiCloudClient{}, cl)
 	})
@@ -304,7 +322,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				venafi-cloud:
 				  upload_path: /foo/bar
 			`)),
-			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--period", "1m"))
+			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--period", "1m", "--install-namespace", "venafi"))
 		require.NoError(t, err)
 		assert.IsType(t, &client.VenafiCloudClient{}, cl)
 	})
@@ -319,7 +337,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				  uploader_id: test-agent
 				cluster_id: "the cluster name"
 			`)),
-			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath))
+			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--install-namespace", "venafi"))
 		require.EqualError(t, err, "1 error occurred:\n\t* the venafi-cloud.upload_path field is required when using the Venafi Cloud Key Pair Service Account mode\n\n")
 	})
 
@@ -335,9 +353,9 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				organization_id: foo
 				cluster_id: bar
 				`)),
-			withCmdLineFlags("--credentials-file", path))
+			withCmdLineFlags("--credentials-file", path, "--install-namespace", "venafi"))
 		require.NoError(t, err)
-		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, OrganizationID: "foo", ClusterID: "bar", AuthMode: JetstackSecureOAuth, BackoffMaxTime: 10 * time.Minute}, got)
+		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, OrganizationID: "foo", ClusterID: "bar", AuthMode: JetstackSecureOAuth, BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
 		assert.IsType(t, &client.OAuthClient{}, cl)
 	})
 
@@ -349,7 +367,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				organization_id: foo
 				cluster_id: bar
 			`)),
-			withCmdLineFlags("--credentials-file", "credentials.json"))
+			withCmdLineFlags("--credentials-file", "credentials.json", "--install-namespace", "venafi"))
 		assert.EqualError(t, err, testutil.Undent(`
 			validating creds: failed loading config using the Jetstack Secure OAuth mode: 1 error occurred:
 				* credentials file: failed to load credentials from file credentials.json: open credentials.json: no such file or directory
@@ -367,7 +385,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				organization_id: foo
 				cluster_id: bar
 			`)),
-			withCmdLineFlags("--credentials-file", credsPath))
+			withCmdLineFlags("--credentials-file", credsPath, "--install-namespace", "venafi"))
 		assert.EqualError(t, err, testutil.Undent(`
 			validating creds: failed loading config using the Jetstack Secure OAuth mode: 2 errors occurred:
 				* credentials file: user_id cannot be empty
@@ -409,9 +427,9 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				venafi-cloud:
 				  upload_path: /foo/bar
 			`)),
-			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", path))
+			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", path, "--install-namespace", "venafi"))
 		require.NoError(t, err)
-		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, AuthMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute}, got)
+		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, AuthMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
 		assert.IsType(t, &client.VenafiCloudClient{}, cl)
 	})
 
@@ -430,9 +448,9 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				venafi-cloud:
 				  upload_path: /foo/bar
 			`)),
-			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath))
+			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--install-namespace", "venafi"))
 		require.NoError(t, err)
-		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, AuthMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute}, got)
+		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, AuthMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
 	})
 
 	t.Run("venafi-cloud-keypair-auth: venafi-cloud.upload_path field is required", func(t *testing.T) {
@@ -446,7 +464,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				venafi-cloud:
 				  upload_path: ""        # <-- Cannot be left empty
 			`)),
-			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath))
+			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--install-namespace", "venafi"))
 		require.EqualError(t, err, testutil.Undent(`
 			1 error occurred:
 				* the venafi-cloud.upload_path field is required when using the Venafi Cloud Key Pair Service Account mode
@@ -463,7 +481,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				period: 1h
 				cluster_id: the cluster name
 			`)),
-			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--private-key-path", privKeyPath))
+			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--private-key-path", privKeyPath, "--install-namespace", "venafi"))
 		require.EqualError(t, err, testutil.Undent(`
 			1 error occurred:
 				* the venafi-cloud.upload_path field is required when using the Venafi Cloud Key Pair Service Account mode
@@ -483,7 +501,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 					  uploader_id: test-agent
 					  upload_path: /testing/path
 			`)),
-			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--private-key-path", privKeyPath))
+			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--private-key-path", privKeyPath, "--install-namespace", "venafi"))
 		require.EqualError(t, err, testutil.Undent(`
 			1 error occurred:
 				* cluster_id is required in Venafi Cloud Key Pair Service Account mode
@@ -512,23 +530,6 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			BackoffMaxTime: 10 * time.Minute,
 		}, got)
 		assert.IsType(t, &client.VenConnClient{}, cl)
-	})
-
-	t.Run("venafi-cloud-workload-identity-auth: namespace can't be read from disk", func(t *testing.T) {
-		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
-		got, _, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(testutil.Undent(`
-				server: https://api.venafi.eu
-				period: 1h
-			`)),
-			withCmdLineFlags("--venafi-connection", "venafi-components"))
-		assert.EqualError(t, err, testutil.Undent(`
-		2 errors occurred:
-			* cluster_id is required in Venafi Cloud VenafiConnection mode
-			* could not guess which namespace the agent is running in: not running in cluster, please use --install-namespace to specify the namespace in which the agent is running
-
-		`))
-		assert.Equal(t, CombinedConfig{}, got)
 	})
 
 	t.Run("venafi-cloud-workload-identity-auth: warning about server, venafi-cloud.uploader_id, and venafi-cloud.upload_path being skipped", func(t *testing.T) {
@@ -595,11 +596,11 @@ func Test_ValidateAndCombineConfig_VenafiCloudKeyPair(t *testing.T) {
 				  uploader_id: no
 				  upload_path: /v1/tlspk/upload/clusterdata
 			`)),
-			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath),
+			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath, "--install-namespace", "venafi"),
 		)
+		require.NoError(t, err)
 		testutil.TrustCA(t, cl, cert)
 		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
-		require.NoError(t, err)
 
 		err = cl.PostDataReadingsWithOptions(nil, client.Options{ClusterName: "test cluster name"})
 		require.NoError(t, err)

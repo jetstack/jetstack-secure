@@ -273,8 +273,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		"install-namespace",
 		"",
 		"For testing purposes. Namespace in which the agent is running. "+
-			"Only needed with the "+string(VenafiCloudVenafiConnection)+" mode"+
-			"when running the agent outside of Kubernetes.",
+			"Only needed when running the agent outside of Kubernetes.",
 	)
 	c.PersistentFlags().BoolVarP(
 		&cfg.Profiling,
@@ -314,6 +313,7 @@ type CombinedConfig struct {
 	BackoffMaxTime time.Duration
 	StrictMode     bool
 	OneShot        bool
+	InstallNS      string
 
 	// Used by JetstackSecureOAuth, JetstackSecureAPIToken, and
 	// VenafiCloudKeypair. Ignored in VenafiCloudVenafiConnection mode.
@@ -330,7 +330,6 @@ type CombinedConfig struct {
 	// VenafiCloudVenafiConnection mode only.
 	VenConnName string
 	VenConnNS   string
-	InstallNS   string
 
 	// Only used for testing purposes.
 	OutputPath string
@@ -530,20 +529,20 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 		res.StrictMode = flags.StrictMode
 	}
 
-	// Validation of --venafi-connection, --venafi-connection-namespace, and
-	// --install-namespace.
-	if res.AuthMode == VenafiCloudVenafiConnection {
-		var installNS string = flags.InstallNS
-		if flags.InstallNS == "" {
-			var err error
-			installNS, err = getInClusterNamespace()
-			if err != nil {
-				errs = multierror.Append(errs, fmt.Errorf("could not guess which namespace the agent is running in: %w", err))
-			}
+	// Validation of --install-namespace.
+	var installNS string = flags.InstallNS
+	if flags.InstallNS == "" {
+		var err error
+		installNS, err = getInClusterNamespace()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("could not guess which namespace the agent is running in: %w", err))
 		}
-		res.InstallNS = installNS
-		res.VenConnName = flags.VenConnName
+	}
+	res.InstallNS = installNS
 
+	// Validation of --venafi-connection and --venafi-connection-namespace.
+	if res.AuthMode == VenafiCloudVenafiConnection {
+		res.VenConnName = flags.VenConnName
 		var venConnNS string = flags.VenConnNS
 		if flags.VenConnNS == "" {
 			venConnNS = installNS
