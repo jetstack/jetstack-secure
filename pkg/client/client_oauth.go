@@ -14,7 +14,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/jetstack/preflight/api"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 type (
