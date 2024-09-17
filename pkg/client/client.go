@@ -36,7 +36,7 @@ type (
 
 	// The Credentials interface describes methods for credential types to implement for verification.
 	Credentials interface {
-		IsClientSet() bool
+		IsClientSet() (ok bool, why string)
 		Validate() error
 	}
 )

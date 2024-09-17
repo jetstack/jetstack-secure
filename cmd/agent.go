@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/jetstack/preflight/pkg/agent"
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/permissions"
-	"github.com/spf13/cobra"
 )
 
 var agentCmd = &cobra.Command{
@@ -39,9 +40,14 @@ var agentRBACCmd = &cobra.Command{
 		if err != nil {
 			logs.Log.Fatalf("Failed to read config file: %s", err)
 		}
-		cfg, err := agent.ParseConfig(b, false)
+		cfg, err := agent.ParseConfig(b)
 		if err != nil {
 			logs.Log.Fatalf("Failed to parse config file: %s", err)
+		}
+
+		err = agent.ValidateDataGatherers(cfg.DataGatherers)
+		if err != nil {
+			logs.Log.Fatalf("Failed to validate data gatherers: %s", err)
 		}
 
 		out := permissions.GenerateFullManifest(cfg.DataGatherers)

@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/jetstack/preflight/api"
-	"github.com/jetstack/preflight/pkg/version"
 	venapi "github.com/jetstack/venafi-connection-lib/api/v1alpha1"
 	"github.com/jetstack/venafi-connection-lib/venafi_client"
 	"github.com/jetstack/venafi-connection-lib/venafi_client/auth"
@@ -24,6 +22,9 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/version"
 )
 
 type VenConnClient struct {
@@ -48,7 +49,8 @@ type VenConnClient struct {
 // are referring to as its client-go cache will remain empty.
 //
 // The http.Client is used for Venafi and Vault, not for Kubernetes. The
-// `installNS` is the namespace in which the agent is running in. The passed
+// `installNS` is the namespace in which the agent is running in and cannot be
+// empty. `venConnName` and `venConnNS` must not be empty either. The passed
 // `restcfg` is not mutated. `trustedCAs` is only used for connecting to Venafi
 // Cloud and Vault and can be left nil.
 func NewVenConnClient(restcfg *rest.Config, agentMetadata *api.AgentMetadata, installNS, venConnName, venConnNS string, trustedCAs *x509.CertPool) (*VenConnClient, error) {

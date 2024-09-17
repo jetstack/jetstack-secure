@@ -6,15 +6,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jetstack/preflight/api"
-	"github.com/jetstack/preflight/pkg/client"
-	"github.com/jetstack/preflight/pkg/testutil"
-
 	"github.com/jetstack/venafi-connection-lib/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
 	ctrlruntime "sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/client"
+	"github.com/jetstack/preflight/pkg/testutil"
 )
 
 // These are using envtest (slow) rather than a fake clientset (fast) because
@@ -46,7 +46,40 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			    accessToken:
 			      - secret:
 			          name: accesstoken
-			          fields: [accesstoken]`),
+			          fields: [accesstoken]
+			---
+			apiVersion: v1
+			kind: Secret
+			metadata:
+			  name: accesstoken
+			  namespace: venafi
+			stringData:
+			  accesstoken: VALID_ACCESS_TOKEN
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: Role
+			metadata:
+			  name: venafi-connection-accesstoken-reader
+			  namespace: venafi
+			rules:
+			- apiGroups: [""]
+			  resources: ["secrets"]
+			  verbs: ["get"]
+			  resourceNames: ["accesstoken"]
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: RoleBinding
+			metadata:
+			  name: venafi-connection-accesstoken-reader
+			  namespace: venafi
+			roleRef:
+			  apiGroup: rbac.authorization.k8s.io
+			  kind: Role
+			  name: venafi-connection-accesstoken-reader
+			subjects:
+			- kind: ServiceAccount
+			  name: venafi-connection
+			  namespace: venafi`),
 		expectReadyCondMsg: "ea744d098c2c1c6044e4c4e9d3bf7c2a68ef30553db00f1714886cedf73230f1",
 	}))
 	t.Run("error when the apiKey field is used", run(testcase{
@@ -65,7 +98,40 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			    apiKey:
 			      - secret:
 			          name: apikey
-			          fields: [apikey]`),
+			          fields: [apikey]
+			---
+			apiVersion: v1
+			kind: Secret
+			metadata:
+			  name: apikey
+			  namespace: venafi
+			stringData:
+			  apikey: VALID_API_KEY
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: Role
+			metadata:
+			  name: venafi-connection-apikey-reader
+			  namespace: venafi
+			rules:
+			- apiGroups: [""]
+			  resources: ["secrets"]
+			  verbs: ["get"]
+			  resourceNames: ["apikey"]
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: RoleBinding
+			metadata:
+			  name: venafi-connection-apikey-reader
+			  namespace: venafi
+			roleRef:
+			  apiGroup: rbac.authorization.k8s.io
+			  kind: Role
+			  name: venafi-connection-apikey-reader
+			subjects:
+			- kind: ServiceAccount
+			  name: venafi-connection
+			  namespace: venafi`),
 		expectReadyCondMsg: "b099d634ccec56556da28028743475dab67f79d079b668bedc3ef544f7eed2f3",
 		expectErr:          "VenafiConnection venafi/venafi-components: the agent cannot be used with an API key",
 	}))
@@ -91,67 +157,6 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 		expectReadyCondMsg: `ea744d098c2c1c6044e4c4e9d3bf7c2a68ef30553db00f1714886cedf73230f1`,
 	}))
 }
-
-// Generated using:
-//
-//	helm template ./deploy/charts/venafi-kubernetes-agent -n venafi --set venafiConnection.include=true --show-only templates/venafi-connection-rbac.yaml | grep -ivE '(helm|\/version)'
-const rbac = `
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: venafi
----
-# Source: venafi-kubernetes-agent/templates/venafi-connection-rbac.yaml
-# The 'venafi-connection' service account is used by multiple
-# controllers. When configuring which resources a VenafiConnection
-# can access, the RBAC rules you create manually must point to this SA.
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: venafi-connection
-  namespace: "venafi"
-  labels:
-    app.kubernetes.io/name: "venafi-connection"
-    app.kubernetes.io/instance: release-name
----
-# Source: venafi-kubernetes-agent/templates/venafi-connection-rbac.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: venafi-connection-role
-  labels:
-    app.kubernetes.io/name: "venafi-connection"
-    app.kubernetes.io/instance: release-name
-rules:
-- apiGroups: [ "" ]
-  resources: [ "namespaces" ]
-  verbs: [ "get", "list", "watch" ]
-
-- apiGroups: [ "jetstack.io" ]
-  resources: [ "venaficonnections" ]
-  verbs: [ "get", "list", "watch" ]
-
-- apiGroups: [ "jetstack.io" ]
-  resources: [ "venaficonnections/status" ]
-  verbs: [ "get", "patch" ]
----
-# Source: venafi-kubernetes-agent/templates/venafi-connection-rbac.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: venafi-connection-rolebinding
-  labels:
-    app.kubernetes.io/name: "venafi-connection"
-    app.kubernetes.io/instance: release-name
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: venafi-connection-role
-subjects:
-- kind: ServiceAccount
-  name: venafi-connection
-  namespace: "venafi"
-`
 
 type testcase struct {
 	given              string
@@ -179,18 +184,7 @@ func run(test testcase) func(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		// This `cancel` is important because the below func `Start(ctx)` needs
-		// to be stopped before the apiserver is stopped. Otherwise, the test
-		// fail with the message "timeout waiting for process kube-apiserver to
-		// stop". See:
-		// https://github.com/jetstack/venafi-connection-lib/pull/158#issuecomment-1949002322
-		// https://github.com/kubernetes-sigs/controller-runtime/issues/1571#issuecomment-945535598
-		ctx, cancel := context.WithCancel(context.Background())
-		go func() {
-			err = cl.Start(ctx)
-			require.NoError(t, err)
-		}()
-		t.Cleanup(cancel)
+		testutil.VenConnStartWatching(t, cl)
 
 		// Apply the same RBAC as what you would get from the Venafi
 		// Connection Helm chart, for example after running this:
@@ -200,48 +194,7 @@ func run(test testcase) func(t *testing.T) {
 		test.given = strings.ReplaceAll(test.given, "FAKE_TPP_URL", fakeTPP.URL)
 
 		var given []ctrlruntime.Object
-		given = append(given, testutil.Parse(rbac)...)
-		given = append(given, testutil.Parse(testutil.Undent(`
-			apiVersion: v1
-			kind: Secret
-			metadata:
-			  name: accesstoken
-			  namespace: venafi
-			stringData:
-			  accesstoken: VALID_ACCESS_TOKEN
-			---
-			apiVersion: v1
-			kind: Secret
-			metadata:
-			  name: apikey
-			  namespace: venafi
-			stringData:
-			  apikey: VALID_API_KEY
-			---
-			apiVersion: rbac.authorization.k8s.io/v1
-			kind: Role
-			metadata:
-			  name: venafi-connection-secret-reader
-			  namespace: venafi
-			rules:
-			- apiGroups: [""]
-			  resources: ["secrets"]
-			  verbs: ["get"]
-			  resourceNames: ["accesstoken", "apikey"]
-			---
-			apiVersion: rbac.authorization.k8s.io/v1
-			kind: RoleBinding
-			metadata:
-			  name: venafi-connection-secret-reader
-			  namespace: venafi
-			roleRef:
-			  apiGroup: rbac.authorization.k8s.io
-			  kind: Role
-			  name: venafi-connection-secret-reader
-			subjects:
-			- kind: ServiceAccount
-			  name: venafi-connection
-			  namespace: venafi`))...)
+		given = append(given, testutil.Parse(testutil.VenConnRBAC)...)
 		given = append(given, testutil.Parse(test.given)...)
 		for _, obj := range given {
 			require.NoError(t, kclient.Create(context.Background(), obj))

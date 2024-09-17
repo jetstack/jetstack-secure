@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"strings"
 	"time"
@@ -26,6 +25,8 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
+
+	_ "net/http/pprof"
 )
 
 var Flags AgentCmdFlags
@@ -55,12 +56,12 @@ func Run(cmd *cobra.Command, args []string) {
 		logs.Log.Fatalf("Failed to read config file: %s", err)
 	}
 
-	cfg, err := ParseConfig(b, Flags.StrictMode)
+	cfg, err := ParseConfig(b)
 	if err != nil {
 		logs.Log.Fatalf("Failed to parse config file: %s", err)
 	}
 
-	config, preflightClient, err := getConfiguration(logs.Log, cfg, Flags)
+	config, preflightClient, err := ValidateAndCombineConfig(logs.Log, cfg, Flags)
 	if err != nil {
 		logs.Log.Fatalf("While evaluating configuration: %v", err)
 	}
@@ -165,36 +166,22 @@ func Run(cmd *cobra.Command, args []string) {
 	// configured output using data in datagatherer caches or refreshing from
 	// APIs each cycle depending on datagatherer implementation
 	for {
-		// if period is set in the config, then use that if not already set
-		if Flags.Period == 0 && config.Period > 0 {
-			logs.Log.Printf("Using period from config %s", config.Period)
-			Flags.Period = config.Period
-		}
-
 		gatherAndOutputData(config, preflightClient, dataGatherers)
 
-		if Flags.OneShot {
+		if config.OneShot {
 			break
 		}
 
-		time.Sleep(Flags.Period)
+		time.Sleep(config.Period)
 	}
 }
 
-func gatherAndOutputData(config Config, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) {
+func gatherAndOutputData(config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) {
 	var readings []*api.DataReading
 
-	// Input/OutputPath flag overwrites agent.yaml configuration
-	if Flags.InputPath == "" {
-		Flags.InputPath = config.InputPath
-	}
-	if Flags.OutputPath == "" {
-		Flags.OutputPath = config.OutputPath
-	}
-
-	if Flags.InputPath != "" {
-		logs.Log.Printf("Reading data from local file: %s", Flags.InputPath)
-		data, err := os.ReadFile(Flags.InputPath)
+	if config.InputPath != "" {
+		logs.Log.Printf("Reading data from local file: %s", config.InputPath)
+		data, err := os.ReadFile(config.InputPath)
 		if err != nil {
 			logs.Log.Fatalf("failed to read local data file: %s", err)
 		}
@@ -206,21 +193,21 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 		readings = gatherData(config, dataGatherers)
 	}
 
-	if Flags.OutputPath != "" {
+	if config.OutputPath != "" {
 		data, err := json.MarshalIndent(readings, "", "  ")
 		if err != nil {
 			logs.Log.Fatal("failed to marshal JSON")
 		}
-		err = os.WriteFile(Flags.OutputPath, data, 0644)
+		err = os.WriteFile(config.OutputPath, data, 0644)
 		if err != nil {
 			logs.Log.Fatalf("failed to output to local file: %s", err)
 		}
-		logs.Log.Printf("Data saved to local file: %s", Flags.OutputPath)
+		logs.Log.Printf("Data saved to local file: %s", config.OutputPath)
 	} else {
 		backOff := backoff.NewExponentialBackOff()
 		backOff.InitialInterval = 30 * time.Second
 		backOff.MaxInterval = 3 * time.Minute
-		backOff.MaxElapsedTime = Flags.BackoffMaxTime
+		backOff.MaxElapsedTime = config.BackoffMaxTime
 		post := func() error {
 			return postData(config, preflightClient, readings)
 		}
@@ -233,7 +220,7 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 	}
 }
 
-func gatherData(config Config, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
+func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
 	var readings []*api.DataReading
 
 	var dgError *multierror.Error
@@ -271,19 +258,19 @@ func gatherData(config Config, dataGatherers map[string]datagatherer.DataGathere
 		}
 	}
 
-	if Flags.StrictMode && dgError.ErrorOrNil() != nil {
+	if config.StrictMode && dgError.ErrorOrNil() != nil {
 		logs.Log.Fatalf("halting datagathering in strict mode due to error: %s", dgError.ErrorOrNil())
 	}
 
 	return readings
 }
 
-func postData(config Config, preflightClient client.Client, readings []*api.DataReading) error {
+func postData(config CombinedConfig, preflightClient client.Client, readings []*api.DataReading) error {
 	baseURL := config.Server
 
 	logs.Log.Println("Posting data to:", baseURL)
 
-	if Flags.VenafiCloudMode {
+	if config.AuthMode == VenafiCloudKeypair || config.AuthMode == VenafiCloudVenafiConnection {
 		// orgID and clusterID are not required for Venafi Cloud auth
 		err := preflightClient.PostDataReadingsWithOptions(readings, client.Options{
 			ClusterName:        config.ClusterID,
@@ -309,7 +296,7 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 		)
 		metric.Set(float64(len(data)))
 		logs.Log.Printf("Data readings upload size: %d", len(data))
-		path := config.Endpoint.Path
+		path := config.EndpointPath
 		if path == "" {
 			path = "/api/v1/datareadings"
 		}

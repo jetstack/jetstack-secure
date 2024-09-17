@@ -31,7 +31,7 @@ func Test_Undent(t *testing.T) {
 
 	t.Run("you can also omit the tabs or spaces for empty lines", runTest_Undent(`
 		foo
-		
+
 		bar
 	`, "foo\n\nbar\n"))
 }

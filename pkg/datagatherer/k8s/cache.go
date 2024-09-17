@@ -3,10 +3,11 @@ package k8s
 import (
 	"time"
 
-	"github.com/jetstack/preflight/api"
-	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/pmylund/go-cache"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/logs"
 )
 
 // time interface, this is used to fetch the current time

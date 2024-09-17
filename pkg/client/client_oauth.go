@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/jetstack/preflight/api"
 	"github.com/pkg/errors"
+
+	"github.com/jetstack/preflight/api"
 )
 
 type (
@@ -72,17 +73,19 @@ func NewOAuthClient(agentMetadata *api.AgentMetadata, credentials *OAuthCredenti
 		return nil, fmt.Errorf("cannot create OAuthClient: %v", err)
 	}
 	if baseURL == "" {
-		return nil, fmt.Errorf("cannot create OAuthClient: baseURL cannot be empty")
+		return nil, fmt.Errorf("programmer mistake: cannot create APITokenClient: baseURL cannot be empty, should have been checked by the caller")
 	}
 
-	if !credentials.IsClientSet() {
+	ok, _ := credentials.IsClientSet()
+	if !ok {
 		credentials.ClientID = ClientID
 		credentials.ClientSecret = ClientSecret
 		credentials.AuthServerDomain = AuthServerDomain
 	}
 
-	if !credentials.IsClientSet() {
-		return nil, fmt.Errorf("cannot create OAuthClient: invalid OAuth2 client configuration")
+	ok, why := credentials.IsClientSet()
+	if !ok {
+		return nil, fmt.Errorf("%s", why)
 	}
 
 	return &OAuthClient{
@@ -217,7 +220,9 @@ func (c *OAuthClient) renewAccessToken() error {
 	return nil
 }
 
-// ParseOAuthCredentials reads credentials into an OAuthCredentials struct. Performs validations.
+// Performs validations. Since it may return a multierror.Error, remember to use
+// multierror.Prefix(err, "context: ") rather than fmt.Errorf("context: %w",
+// err) when wrapping the error.
 func ParseOAuthCredentials(data []byte) (*OAuthCredentials, error) {
 	var credentials OAuthCredentials
 
@@ -233,9 +238,20 @@ func ParseOAuthCredentials(data []byte) (*OAuthCredentials, error) {
 	return &credentials, nil
 }
 
-// IsClientSet returns whether the client credentials are set or not.
-func (c *OAuthCredentials) IsClientSet() bool {
-	return c.ClientID != "" && c.ClientSecret != "" && c.AuthServerDomain != ""
+// IsClientSet returns whether the client credentials are set or not. `why` is
+// only returned when `ok` is false.
+func (c *OAuthCredentials) IsClientSet() (ok bool, why string) {
+	if c.ClientID == "" {
+		return false, "ClientID is empty"
+	}
+	if c.ClientSecret == "" {
+		return false, "ClientSecret is empty"
+	}
+	if c.AuthServerDomain == "" {
+		return false, "AuthServerDomain is empty"
+	}
+
+	return true, ""
 }
 
 func (c *OAuthCredentials) Validate() error {

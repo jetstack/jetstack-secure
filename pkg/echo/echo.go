@@ -6,9 +6,10 @@ import (
 	"net/http"
 
 	"github.com/fatih/color"
+	"github.com/spf13/cobra"
+
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/logs"
-	"github.com/spf13/cobra"
 )
 
 var EchoListen string

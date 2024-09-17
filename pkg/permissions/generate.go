@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jetstack/preflight/pkg/agent"
-	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
+
+	"github.com/jetstack/preflight/pkg/agent"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 )
 
 // AgentRBACManifests is a wrapper around the various RBAC structs needed to grant the agent fine-grained permissions as per its dg configs

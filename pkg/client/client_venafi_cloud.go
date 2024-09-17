@@ -25,8 +25,9 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
-	"github.com/jetstack/preflight/api"
 	"github.com/microcosm-cc/bluemonday"
+
+	"github.com/jetstack/preflight/api"
 )
 
 type (
@@ -93,8 +94,9 @@ func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiS
 		return nil, fmt.Errorf("cannot create VenafiCloudClient: baseURL cannot be empty")
 	}
 
-	if !credentials.IsClientSet() {
-		return nil, fmt.Errorf("cannot create VenafiCloudClient: invalid Venafi Cloud client configuration")
+	ok, why := credentials.IsClientSet()
+	if !ok {
+		return nil, fmt.Errorf("%s", why)
 	}
 
 	if uploadPath == "" {
@@ -149,9 +151,17 @@ func (c *VenafiSvcAccountCredentials) Validate() error {
 	return result.ErrorOrNil()
 }
 
-// IsClientSet returns whether the client credentials are set or not.
-func (c *VenafiSvcAccountCredentials) IsClientSet() bool {
-	return c.ClientID != "" && c.PrivateKeyFile != ""
+// IsClientSet returns whether the client credentials are set or not. `why` is
+// only returned when `ok` is false.
+func (c *VenafiSvcAccountCredentials) IsClientSet() (ok bool, why string) {
+	if c.ClientID == "" {
+		return false, "ClientID is empty"
+	}
+	if c.PrivateKeyFile == "" {
+		return false, "PrivateKeyFile is empty"
+	}
+
+	return true, ""
 }
 
 // PostDataReadingsWithOptions uploads the slice of api.DataReading to the Venafi Cloud backend to be processed.
