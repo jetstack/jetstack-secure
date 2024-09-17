@@ -1,6 +1,8 @@
 package testutil
 
 import (
+	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"io"
 	"net/http"
@@ -10,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/venafi-connection-lib/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -99,71 +102,42 @@ func WithKubeconfig(t testing.TB, restCfg *rest.Config) string {
 	return kubeconfig.Name()
 }
 
-// Undent removes leading indentation/white-space from given string and returns
-// it as a string. Useful for inlining YAML manifests in Go code. Inline YAML
-// manifests in the Go test files makes it easier to read the test case as
-// opposed to reading verbose-y Go structs.
-//
-// This was copied from https://github.com/jimeh/Undent/blob/main/Undent.go, all
-// credit goes to the author, Jim Myhrberg.
-func Undent(s string) string {
-	const (
-		tab = 9
-		lf  = 10
-		spc = 32
-	)
+// Tests calling to VenConnClient.PostDataReadingsWithOptions must call this
+// function to start the VenafiConnection watcher. If you don't call this, the
+// test will stall.
+func VenConnStartWatching(t *testing.T, cl client.Client) {
+	t.Helper()
 
-	if len(s) == 0 {
-		return ""
+	require.IsType(t, &client.VenConnClient{}, cl)
+
+	// This `cancel` is important because the below func `Start(ctx)` needs to
+	// be stopped before the apiserver is stopped. Otherwise, the test fail with
+	// the message "timeout waiting for process kube-apiserver to stop". See:
+	// https://github.com/jetstack/venafi-connection-lib/pull/158#issuecomment-1949002322
+	// https://github.com/kubernetes-sigs/controller-runtime/issues/1571#issuecomment-945535598
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		err := cl.(*client.VenConnClient).Start(ctx)
+		require.NoError(t, err)
+	}()
+	t.Cleanup(cancel)
+}
+
+func VenConnTrustCA(t *testing.T, cl client.Client, cert *x509.Certificate) {
+	t.Helper()
+	require.IsType(t, &client.VenConnClient{}, cl)
+	vcCl := cl.(*client.VenConnClient)
+
+	pool := x509.NewCertPool()
+	pool.AddCert(cert)
+
+	if vcCl.Client.Transport == nil {
+		vcCl.Client.Transport = http.DefaultTransport
 	}
-
-	// find smallest indent relative to each line-feed
-	min := 99999999999
-	count := 0
-
-	lfs := make([]int, 0, strings.Count(s, "\n"))
-	if s[0] != lf {
-		lfs = append(lfs, -1)
+	if vcCl.Client.Transport.(*http.Transport).TLSClientConfig == nil {
+		vcCl.Client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{}
 	}
-
-	indent := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == lf {
-			lfs = append(lfs, i)
-			indent = 0
-		} else if indent < min {
-			switch s[i] {
-			case spc, tab:
-				indent++
-			default:
-				if indent > 0 {
-					count++
-				}
-				if indent < min {
-					min = indent
-				}
-			}
-		}
-	}
-
-	// extract each line without indentation
-	out := make([]byte, 0, len(s)-(min*count))
-
-	for i := 0; i < len(lfs); i++ {
-		offset := lfs[i] + 1
-		end := len(s)
-		if i+1 < len(lfs) {
-			end = lfs[i+1] + 1
-		}
-
-		if offset+min <= end {
-			out = append(out, s[offset+min:end]...)
-		} else if offset < end {
-			out = append(out, s[offset:end]...)
-		}
-	}
-
-	return string(out)
+	vcCl.Client.Transport.(*http.Transport).TLSClientConfig.RootCAs = pool
 }
 
 // Parses the YAML manifest. Useful for inlining YAML manifests in Go test
@@ -215,7 +189,7 @@ func FakeVenafiCloud(t *testing.T) (_ *httptest.Server, _ *x509.Certificate, set
 		if r.URL.Path == "/v1/tlspk/upload/clusterdata/no" {
 			if r.URL.Query().Get("name") != "test cluster name" {
 				w.WriteHeader(http.StatusBadRequest)
-				_, _ = w.Write([]byte(`{"error":"unexpected name query param in the test server: ` + r.URL.Query().Get("name") + `"}`))
+				_, _ = w.Write([]byte(`{"error":"unexpected name query param in the test server: ` + r.URL.Query().Get("name") + `, expected: 'test cluster name'"}`))
 				return
 			}
 			_, _ = w.Write([]byte(`{"status":"ok","organization":"756db001-280e-11ee-84fb-991f3177e2d0"}`))
