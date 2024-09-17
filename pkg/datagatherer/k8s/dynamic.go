@@ -143,20 +143,21 @@ var kubernetesNativeResources = map[schema.GroupVersionResource]sharedInformerFu
 
 // NewDataGatherer constructs a new instance of the generic K8s data-gatherer for the provided
 func (c *ConfigDynamic) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
-	cl, err := NewDynamicClient(c.KubeConfigPath)
-	if err != nil {
-		return nil, err
-	}
-
 	if isNativeResource(c.GroupVersionResource) {
 		clientset, err := NewClientSet(c.KubeConfigPath)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
-		return c.newDataGathererWithClient(ctx, nil, clientset)
-	}
 
-	return c.newDataGathererWithClient(ctx, cl, nil)
+		return c.newDataGathererWithClient(ctx, nil, clientset)
+	} else {
+		cl, err := NewDynamicClient(c.KubeConfigPath)
+		if err != nil {
+			return nil, err
+		}
+
+		return c.newDataGathererWithClient(ctx, cl, nil)
+	}
 }
 
 func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynamic.Interface, clientset kubernetes.Interface) (datagatherer.DataGatherer, error) {
@@ -178,8 +179,6 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 
 	newDataGatherer := &DataGathererDynamic{
 		ctx:                  ctx,
-		cl:                   cl,
-		k8sClientSet:         clientset,
 		groupVersionResource: c.GroupVersionResource,
 		fieldSelector:        fieldSelector.String(),
 		namespaces:           c.IncludeNamespaces,
@@ -200,34 +199,22 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 			informers.WithNamespace(metav1.NamespaceAll),
 			informers.WithTweakListOptions(func(options *metav1.ListOptions) {
 				options.FieldSelector = fieldSelector.String()
-			}))
-		newDataGatherer.nativeSharedInformer = factory
-		informer := informerFunc(factory)
-		informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				onAdd(obj, dgCache)
+			}),
+		)
+		newDataGatherer.informer = informerFunc(factory)
+	} else {
+		factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+			cl,
+			60*time.Second,
+			metav1.NamespaceAll,
+			func(options *metav1.ListOptions) {
+				options.FieldSelector = fieldSelector.String()
 			},
-			UpdateFunc: func(old, new interface{}) {
-				onUpdate(old, new, dgCache)
-			},
-			DeleteFunc: func(obj interface{}) {
-				onDelete(obj, dgCache)
-			},
-		})
-		newDataGatherer.informer = informer
-		return newDataGatherer, nil
+		)
+		newDataGatherer.informer = factory.ForResource(c.GroupVersionResource).Informer()
 	}
 
-	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
-		cl,
-		60*time.Second,
-		metav1.NamespaceAll,
-		func(options *metav1.ListOptions) { options.FieldSelector = fieldSelector.String() },
-	)
-	resourceInformer := factory.ForResource(c.GroupVersionResource)
-	informer := resourceInformer.Informer()
-	newDataGatherer.dynamicSharedInformer = factory
-	informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
+	registration, err := newDataGatherer.informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			onAdd(obj, dgCache)
 		},
@@ -238,7 +225,10 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 			onDelete(obj, dgCache)
 		},
 	})
-	newDataGatherer.informer = informer
+	if err != nil {
+		return nil, err
+	}
+	newDataGatherer.registration = registration
 
 	return newDataGatherer, nil
 }
@@ -251,10 +241,6 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 // does not have registered as part of its `runtime.Scheme`.
 type DataGathererDynamic struct {
 	ctx context.Context
-	// The 'dynamic' client used for fetching data.
-	cl dynamic.Interface
-	// The k8s clientset used for fetching known resources.
-	k8sClientSet kubernetes.Interface
 	// groupVersionResource is the name of the API group, version and resource
 	// that should be fetched by this data gatherer.
 	groupVersionResource schema.GroupVersionResource
@@ -270,19 +256,15 @@ type DataGathererDynamic struct {
 	// 30 seconds purge time https://pkg.go.dev/github.com/patrickmn/go-cache
 	cache *cache.Cache
 	// informer watches the events around the targeted resource and updates the cache
-	informer              k8scache.SharedIndexInformer
-	dynamicSharedInformer dynamicinformer.DynamicSharedInformerFactory
-	nativeSharedInformer  informers.SharedInformerFactory
-
-	// isInitialized is set to true when data is first collected, prior to
-	// this the fetch method will return an error
-	isInitialized bool
+	informer     k8scache.SharedIndexInformer
+	registration k8scache.ResourceEventHandlerRegistration
 }
 
 // Run starts the dynamic data gatherer's informers for resource collection.
-// Returns error if the data gatherer informer wasn't initialized
+// Returns error if the data gatherer informer wasn't initialized, Run blocks
+// until the stopCh is closed.
 func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
-	if g.dynamicSharedInformer == nil && g.nativeSharedInformer == nil {
+	if g.informer == nil {
 		return fmt.Errorf("informer was not initialized, impossible to start")
 	}
 
@@ -299,13 +281,7 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 	}
 
 	// start shared informer
-	if g.dynamicSharedInformer != nil {
-		g.dynamicSharedInformer.Start(stopCh)
-	}
-
-	if g.nativeSharedInformer != nil {
-		g.nativeSharedInformer.Start(stopCh)
-	}
+	g.informer.Run(stopCh)
 
 	return nil
 }
@@ -313,7 +289,7 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 // WaitForCacheSync waits for the data gatherer's informers cache to sync
 // before collecting the resources.
 func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
-	if !k8scache.WaitForCacheSync(stopCh, g.informer.HasSynced) {
+	if !k8scache.WaitForCacheSync(stopCh, g.registration.HasSynced) {
 		return fmt.Errorf("timed out waiting for Kubernetes caches to sync")
 	}
 
@@ -430,16 +406,6 @@ func redactList(list []*api.GatheredResource) error {
 		}
 	}
 	return nil
-}
-
-// namespaceResourceInterface will 'namespace' a NamespaceableResourceInterface
-// if the 'namespace' parameter is non-empty, otherwise it will return the
-// given ResourceInterface as-is.
-func namespaceResourceInterface(iface dynamic.NamespaceableResourceInterface, namespace string) dynamic.ResourceInterface {
-	if namespace == "" {
-		return iface
-	}
-	return iface.Namespace(namespace)
 }
 
 // generateExcludedNamespacesFieldSelector creates a field selector string from

@@ -121,7 +121,6 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 
 	expected := &DataGathererDynamic{
 		ctx:                  ctx,
-		cl:                   cl,
 		groupVersionResource: config.GroupVersionResource,
 		// it's important that the namespaces are set as the IncludeNamespaces
 		// during initialization
@@ -132,9 +131,6 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 	gatherer := dg.(*DataGathererDynamic)
 	// test gatherer's fields
 	if !reflect.DeepEqual(gatherer.ctx, expected.ctx) {
-		t.Errorf("expected %v, got %v", expected, dg)
-	}
-	if !reflect.DeepEqual(gatherer.cl, expected.cl) {
 		t.Errorf("expected %v, got %v", expected, dg)
 	}
 	if !reflect.DeepEqual(gatherer.groupVersionResource, expected.groupVersionResource) {
@@ -149,11 +145,8 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 	if gatherer.informer == nil {
 		t.Errorf("unexpected resource informer value: %v", nil)
 	}
-	if gatherer.dynamicSharedInformer == nil {
-		t.Errorf("unexpected dynamicSharedInformer value: %v", nil)
-	}
-	if gatherer.nativeSharedInformer != nil {
-		t.Errorf("unexpected nativeSharedInformer value: %v. should be nil", gatherer.nativeSharedInformer)
+	if gatherer.registration == nil {
+		t.Errorf("unexpected resource event handler registration value: %v", nil)
 	}
 	if !reflect.DeepEqual(gatherer.fieldSelector, expected.fieldSelector) {
 		t.Errorf("expected %v, got %v", expected.fieldSelector, gatherer.fieldSelector)
@@ -174,7 +167,6 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 
 	expected := &DataGathererDynamic{
 		ctx:                  ctx,
-		k8sClientSet:         clientset,
 		groupVersionResource: config.GroupVersionResource,
 		// it's important that the namespaces are set as the IncludeNamespaces
 		// during initialization
@@ -184,9 +176,6 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 	gatherer := dg.(*DataGathererDynamic)
 	// test gatherer's fields
 	if !reflect.DeepEqual(gatherer.ctx, expected.ctx) {
-		t.Errorf("expected %v, got %v", expected, dg)
-	}
-	if !reflect.DeepEqual(gatherer.k8sClientSet, expected.k8sClientSet) {
 		t.Errorf("expected %v, got %v", expected, dg)
 	}
 	if !reflect.DeepEqual(gatherer.groupVersionResource, expected.groupVersionResource) {
@@ -201,11 +190,8 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 	if gatherer.informer == nil {
 		t.Errorf("unexpected resource informer value: %v", nil)
 	}
-	if gatherer.nativeSharedInformer == nil {
-		t.Errorf("unexpected nativeSharedInformer value: %v", nil)
-	}
-	if gatherer.dynamicSharedInformer != nil {
-		t.Errorf("unexpected dynamicSharedInformer value: %v. should be nil", gatherer.dynamicSharedInformer)
+	if gatherer.registration == nil {
+		t.Errorf("unexpected event handler registration value: %v", nil)
 	}
 }
 
@@ -638,10 +624,11 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 
 			// start data gatherer informer
 			dynamiDg := dg
-			err = dynamiDg.Run(ctx.Done())
-			if err != nil {
-				t.Fatalf("unexpected client error: %+v", err)
-			}
+			go func() {
+				if err = dynamiDg.Run(ctx.Done()); err != nil {
+					t.Errorf("unexpected client error: %+v", err)
+				}
+			}()
 			err = dynamiDg.WaitForCacheSync(ctx.Done())
 			if err != nil {
 				t.Fatalf("unexpected client error: %+v", err)
@@ -932,10 +919,11 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 
 			// start data gatherer informer
 			dynamiDg := dg
-			err = dynamiDg.Run(ctx.Done())
-			if err != nil {
-				t.Fatalf("unexpected client error: %+v", err)
-			}
+			go func() {
+				if err = dynamiDg.Run(ctx.Done()); err != nil {
+					t.Errorf("unexpected client error: %+v", err)
+				}
+			}()
 			err = dynamiDg.WaitForCacheSync(ctx.Done())
 			if err != nil {
 				t.Fatalf("unexpected client error: %+v", err)

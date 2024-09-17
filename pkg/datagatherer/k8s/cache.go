@@ -75,8 +75,7 @@ func onDelete(obj interface{}, dgCache *cache.Cache) {
 // creates a new updated instance of a cache object, with the resource
 // argument. If the object is present in the cache it fetches the object's
 // properties.
-func updateCacheGatheredResource(cacheKey string, resource interface{},
-	dgCache *cache.Cache) *api.GatheredResource {
+func updateCacheGatheredResource(cacheKey string, resource interface{}, dgCache *cache.Cache) *api.GatheredResource {
 	// updated cache object
 	cacheObject := &api.GatheredResource{
 		Resource: resource,
