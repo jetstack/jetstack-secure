@@ -14,7 +14,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/jetstack/preflight/api"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 type (
@@ -178,18 +178,18 @@ func (c *OAuthClient) renewAccessToken() error {
 	payload.Set("password", c.credentials.UserSecret)
 	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(payload.Encode()))
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 	req.Header.Add("content-type", "application/x-www-form-urlencoded")
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	defer res.Body.Close()
@@ -205,7 +205,7 @@ func (c *OAuthClient) renewAccessToken() error {
 
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	if response.ExpiresIn == 0 {
