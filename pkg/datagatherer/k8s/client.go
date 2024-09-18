@@ -18,44 +18,45 @@ func NewDynamicClient(kubeconfigPath string) (dynamic.Interface, error) {
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+
 	cl, err := dynamic.NewForConfig(cfg)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+
 	return cl, nil
 }
 
 // NewDiscoveryClient creates a new 'discovery' client using the provided
 // kubeconfig.  If kubeconfigPath is not set/empty, it will attempt to load
 // configuration using the default loading rules.
-func NewDiscoveryClient(kubeconfigPath string) (discovery.DiscoveryClient, error) {
-	var discoveryClient *discovery.DiscoveryClient
-
+func NewDiscoveryClient(kubeconfigPath string) (*discovery.DiscoveryClient, error) {
 	cfg, err := kubeconfig.LoadRESTConfig(kubeconfigPath)
 	if err != nil {
-		return discovery.DiscoveryClient{}, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
-	discoveryClient, err = discovery.NewDiscoveryClientForConfig(cfg)
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(cfg)
 	if err != nil {
-		return *discoveryClient, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
-	return *discoveryClient, nil
+	return discoveryClient, nil
 }
 
 // NewClientSet creates a new kubernetes clientset using the provided kubeconfig.
 // If kubeconfigPath is not set/empty, it will attempt to load configuration using
 // the default loading rules.
 func NewClientSet(kubeconfigPath string) (kubernetes.Interface, error) {
-	var clientset *kubernetes.Clientset
 	cfg, err := kubeconfig.LoadRESTConfig(kubeconfigPath)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	clientset, err = kubernetes.NewForConfig(cfg)
+
+	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+
 	return clientset, nil
 }

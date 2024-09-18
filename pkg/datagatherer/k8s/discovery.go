@@ -43,7 +43,7 @@ func (c *ConfigDiscovery) NewDataGatherer(ctx context.Context) (datagatherer.Dat
 // DataGathererDiscovery stores the config for a k8s-discovery datagatherer
 type DataGathererDiscovery struct {
 	// The 'discovery' client used for fetching data.
-	cl discovery.DiscoveryClient
+	cl *discovery.DiscoveryClient
 }
 
 func (g *DataGathererDiscovery) Run(stopCh <-chan struct{}) error {

@@ -11,7 +11,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff"
@@ -19,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/jetstack/preflight/api"
@@ -101,7 +101,15 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 
 	dataGatherers := map[string]datagatherer.DataGatherer{}
-	var wg sync.WaitGroup
+	group, gctx := errgroup.WithContext(ctx)
+
+	defer func() {
+		// TODO: replace Fatalf log calls with Errorf and return the error
+		cancel()
+		if err := group.Wait(); err != nil {
+			logs.Log.Fatalf("failed to wait for controller-runtime component to stop: %v", err)
+		}
+	}()
 
 	// load datagatherer config and boot each one
 	for _, dgConfig := range config.DataGatherers {
@@ -111,7 +119,7 @@ func Run(cmd *cobra.Command, args []string) {
 			logs.Log.Fatalf("running data gatherer %s of type %s as Local, data-path override present: %s", dgConfig.Name, dgConfig.Kind, dgConfig.DataPath)
 		}
 
-		newDg, err := dgConfig.Config.NewDataGatherer(ctx)
+		newDg, err := dgConfig.Config.NewDataGatherer(gctx)
 		if err != nil {
 			logs.Log.Fatalf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
 		}
@@ -119,24 +127,12 @@ func Run(cmd *cobra.Command, args []string) {
 		logs.Log.Printf("starting %q datagatherer", dgConfig.Name)
 
 		// start the data gatherers and wait for the cache sync
-		if err := newDg.Run(ctx.Done()); err != nil {
-			logs.Log.Printf("failed to start %q data gatherer %q: %v", kind, dgConfig.Name, err)
-		}
-
-		// bootCtx is a context with a timeout to allow the informer 5
-		// seconds to perform an initial sync. It may fail, and that's fine
-		// too, it will backoff and retry of its own accord. Initial boot
-		// will only be delayed by a max of 5 seconds.
-		bootCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-
-		// wait for the informer to complete an initial sync, we do this to
-		// attempt to have an initial set of data for the first upload of
-		// the run.
-		if err := newDg.WaitForCacheSync(bootCtx.Done()); err != nil {
-			// log sync failure, this might recover in future
-			logs.Log.Printf("failed to complete initial sync of %q data gatherer %q: %v", kind, dgConfig.Name, err)
-		}
+		group.Go(func() error {
+			if err := newDg.Run(gctx.Done()); err != nil {
+				return fmt.Errorf("failed to start %q data gatherer %q: %v", kind, dgConfig.Name, err)
+			}
+			return nil
+		})
 
 		// regardless of success, this dataGatherers has been given a
 		// chance to sync its cache and we will now continue as normal. We
@@ -145,19 +141,24 @@ func Run(cmd *cobra.Command, args []string) {
 		dataGatherers[dgConfig.Name] = newDg
 	}
 
-	// wait for initial sync period to complete. if unsuccessful, then crash
-	// and restart.
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		logs.Log.Printf("waiting for datagatherers to complete inital syncs")
-		wg.Wait()
-	}()
-	select {
-	case <-c:
-		logs.Log.Printf("datagatherers inital sync completed")
-	case <-time.After(60 * time.Second):
-		logs.Log.Fatalf("datagatherers inital sync failed due to timeout of 60 seconds")
+	// Wait for 5 seconds for all informers to sync. If they fail to sync
+	// we continue (as we have no way to know if they will recover or not).
+	//
+	// bootCtx is a context with a timeout to allow the informer 5
+	// seconds to perform an initial sync. It may fail, and that's fine
+	// too, it will backoff and retry of its own accord. Initial boot
+	// will only be delayed by a max of 5 seconds.
+	bootCtx, bootCancel := context.WithTimeout(gctx, 5*time.Second)
+	defer bootCancel()
+	for _, dgConfig := range config.DataGatherers {
+		dg := dataGatherers[dgConfig.Name]
+		// wait for the informer to complete an initial sync, we do this to
+		// attempt to have an initial set of data for the first upload of
+		// the run.
+		if err := dg.WaitForCacheSync(bootCtx.Done()); err != nil {
+			// log sync failure, this might recover in future
+			logs.Log.Printf("failed to complete initial sync of %q data gatherer %q: %v", dgConfig.Kind, dgConfig.Name, err)
+		}
 	}
 
 	// begin the datagathering loop, periodically sending data to the
