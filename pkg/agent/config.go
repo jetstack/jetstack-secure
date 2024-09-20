@@ -192,6 +192,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		false,
 		fmt.Sprintf("Turns on the %s mode. The flag --credentials-file must also be passed.", JetstackSecureOAuth),
 	)
+	c.PersistentFlags().MarkHidden("venafi-cloud")
 	c.PersistentFlags().StringVarP(
 		&cfg.ClientID,
 		"client-id",
