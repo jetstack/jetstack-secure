@@ -29,24 +29,34 @@ const (
 
 // Config wraps the options for a run of the agent.
 type Config struct {
+	// Deprecated: Schedule doesn't do anything. Use `period` instead.
 	Schedule string        `yaml:"schedule"`
 	Period   time.Duration `yaml:"period"`
-	// Deprecated: Endpoint is being replaced with Server.
+
+	// Deprecated: Use `server` instead.
 	Endpoint Endpoint `yaml:"endpoint"`
-	// Server is the base url for the Preflight server.
-	// It defaults to https://preflight.jetstack.io.
+
+	// Server is the base URL for the Preflight server. It defaults to
+	// https://preflight.jetstack.io in Jetstack Secure OAuth and Jetstack
+	// Secure API Token modes, and https://api.venafi.cloud in Venafi Cloud Key
+	// Pair Service Account mode. It is ignored in Venafi Cloud VenafiConnection
+	// mode.
 	Server string `yaml:"server"`
-	// OrganizationID within Preflight that will receive the data.
+
+	// OrganizationID is only used in Jetstack Secure OAuth and Jetstack Secure
+	// API Token modes.
 	OrganizationID string `yaml:"organization_id"`
-	// ClusterID is the cluster that the agent is scanning.
-	ClusterID          string         `yaml:"cluster_id"`
-	ClusterDescription string         `yaml:"cluster_description"`
-	DataGatherers      []DataGatherer `yaml:"data-gatherers"`
-	// InputPath replaces DataGatherers with input data file
+
+	// ClusterID is the cluster that the agent is scanning. Used in all modes.
+	ClusterID          string             `yaml:"cluster_id"`
+	ClusterDescription string             `yaml:"cluster_description"`
+	DataGatherers      []DataGatherer     `yaml:"data-gatherers"`
+	VenafiCloud        *VenafiCloudConfig `yaml:"venafi-cloud,omitempty"`
+
+	// For testing purposes.
 	InputPath string `yaml:"input-path"`
-	// OutputPath replaces Server with output data file
-	OutputPath  string             `yaml:"output-path"`
-	VenafiCloud *VenafiCloudConfig `yaml:"venafi-cloud,omitempty"`
+	// For testing purposes.
+	OutputPath string `yaml:"output-path"`
 }
 
 type Endpoint struct {
@@ -80,11 +90,9 @@ type AgentCmdFlags struct {
 	// precedence over the config field `period`.
 	Period time.Duration
 
-	// OneShot (--one-shot) flag causes agent to run once.
-	OneShot bool
-
-	// VenafiCloudMode (--venafi-cloud) determines which format to load for
-	// config and credential type.
+	// VenafiCloudMode (--venafi-cloud) turns on the Venafi Cloud Key Pair
+	// Service Account mode. Must be used in conjunction with
+	// --credentials-file.
 	VenafiCloudMode bool
 
 	// ClientID (--client-id) is the clientID in case of Venafi Cloud Key Pair
@@ -95,16 +103,27 @@ type AgentCmdFlags struct {
 	// private key in case of Venafi Cloud Key Pair Service Account mode.
 	PrivateKeyPath string
 
-	// CredentialsPath (--credentials-file, -k) is the path to the credentials )
-	// is where the agent will try to loads the credentials (Experimental).
+	// CredentialsPath (--credentials-file, -k) lets you specify the location of
+	// the credentials file. This is used for the Jetstack Secure OAuth and
+	// Venafi Cloud Key Pair Service Account modes. In Venafi Cloud Key Pair
+	// Service Account mode, you also need to pass --venafi-cloud.
 	CredentialsPath string
 
-	// OutputPath (--output-path) is where the agent will write data to instead
-	// of uploading to server.
+	// OneShot (--one-shot) is used for testing purposes. The agent will run
+	// once and exit. It is often used in conjunction with --output-path and/or
+	// --input-path.
+	OneShot bool
+
+	// OutputPath (--output-path) is used for testing purposes. In conjunction
+	// with --one-shot, it allows you to write the data readings to a file
+	// instead uploading them to the Venafi Cloud API.
 	OutputPath string
 
-	// InputPath (--input-path) is where the agent will read data from instead
-	// of gathering data from clusters.
+	// InputPath (--input-path) is used for testing purposes. In conjunction
+	// with --one-shot, it allows you to push manually crafted data readings (in
+	// JSON format) to the Venafi Cloud API without the need to connect to a
+	// Kubernetes cluster. See the jscp-testing-cli's README for more info:
+	// https://gitlab.com/venafi/vaas/applications/tls-protect-for-k8s/cloud-services/-/tree/master/jscp-testing-cli
 	InputPath string
 
 	// BackoffMaxTime (--backoff-max-time) is the maximum time for which data
@@ -114,8 +133,8 @@ type AgentCmdFlags struct {
 	// StrictMode (--strict) causes the agent to fail at the first attempt.
 	StrictMode bool
 
-	// APIToken (--api-token) is meant for the old Jetstack Secure API and is an
-	// alternative to OAuth.
+	// APIToken (--api-token) allows you to use the Jetstack Secure API Token
+	// mode. Defaults to the value of the env var API_TOKEN.
 	APIToken string
 
 	// VenConnName (--venafi-connection) is the name of the VenafiConnection
@@ -171,7 +190,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		"venafi-cloud",
 		"",
 		false,
-		fmt.Sprintf("Turn on the %s mode. The flag --credentials-file must also be passed.", JetstackSecureOAuth),
+		fmt.Sprintf("Turns on the %s mode. The flag --credentials-file must also be passed.", JetstackSecureOAuth),
 	)
 	c.PersistentFlags().StringVarP(
 		&cfg.ClientID,
@@ -194,21 +213,21 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		"one-shot",
 		"",
 		false,
-		"Runs agent a single time if true, or continously if false",
+		"For testing purposes. The agent will run once and exit. It is often used in conjunction with --output-path and/or --input-path.",
 	)
 	c.PersistentFlags().StringVarP(
 		&cfg.OutputPath,
 		"output-path",
 		"",
 		"",
-		"Output file path, if used, it will write data to a local file instead of uploading to the preflight server",
+		"For testing purposes. In conjunction with --one-shot, it allows you to write the data readings to a file instead of uploading to the server.",
 	)
 	c.PersistentFlags().StringVarP(
 		&cfg.InputPath,
 		"input-path",
 		"",
 		"",
-		"Input file path, if used, it will read data from a local file instead of gathering data from clusters",
+		"For testing purposes. In conjunction with --one-shot, it allows you to push manually crafted data readings (in JSON format) to the Venafi Cloud API without the need to connect to a Kubernetes cluster.",
 	)
 	c.PersistentFlags().DurationVarP(
 		&cfg.BackoffMaxTime,
@@ -228,14 +247,14 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		&cfg.APIToken,
 		"api-token",
 		os.Getenv("API_TOKEN"),
-		fmt.Sprintf("Turns on the %s mode. Defaults to the value of the env var API_TOKEN.", JetstackSecureAPIToken),
+		"Turns on the "+string(JetstackSecureAPIToken)+" mode. Defaults to the value of the env var API_TOKEN.",
 	)
 	c.PersistentFlags().StringVar(
 		&cfg.VenConnName,
 		"venafi-connection",
 		"",
-		fmt.Sprintf("Turns on the %s mode. This flag configures the name of the "+
-			"VenafiConnection to be used.", VenafiCloudVenafiConnection),
+		"Turns on the "+string(VenafiCloudVenafiConnection)+" mode. "+
+			"This flag configures the name of the VenafiConnection to be used.",
 	)
 	c.PersistentFlags().StringVar(
 		&cfg.VenConnNS,
@@ -249,8 +268,9 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		&cfg.InstallNS,
 		"install-namespace",
 		"",
-		fmt.Sprintf("Namespace in which the agent is running. Only needed with the %s mode"+
-			"when running the agent outside of Kubernetes. Used for testing purposes.", VenafiCloudVenafiConnection),
+		"For testing purposes. Namespace in which the agent is running. "+
+			"Only needed with the "+string(VenafiCloudVenafiConnection)+" mode"+
+			"when running the agent outside of Kubernetes.",
 	)
 	c.PersistentFlags().BoolVarP(
 		&cfg.Profiling,
@@ -266,6 +286,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		false,
 		"Enables Prometheus metrics server on the agent (port: 8081).",
 	)
+
 }
 
 type AuthMode string
