@@ -437,10 +437,8 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 	// TODO(mael): Remove the arbitrary `/no` path parameter from the Agent once
 	// https://venafi.atlassian.net/browse/VC-35385 is done.
 	{
-		if res.AuthMode == VenafiCloudVenafiConnection || res.AuthMode == VenafiCloudKeypair {
-			if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploaderID != "" {
-				log.Printf(`ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in %s mode.`, res.AuthMode)
-			}
+		if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploaderID != "" {
+			log.Printf(`ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in %s mode.`, res.AuthMode)
 		}
 	}
 
