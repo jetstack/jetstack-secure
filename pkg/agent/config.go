@@ -433,6 +433,9 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 	// backend. Since the backend requires it for historical reasons (but cannot
 	// be empty), we just ignore whatever the user has set in the config file,
 	// and set it to an arbitrary value in the client since it doesn't matter.
+	//
+	// TODO(mael): Remove the arbitrary `/no` path parameter from the Agent once
+	// https://venafi.atlassian.net/browse/VC-35385 is done.
 	{
 		if res.AuthMode == VenafiCloudVenafiConnection || res.AuthMode == VenafiCloudKeypair {
 			if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploaderID != "" {
