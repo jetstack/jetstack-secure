@@ -349,7 +349,7 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 			log.Printf("Using the %s auth mode since --credentials-file was specified without --venafi-cloud.", mode)
 		default:
 			return CombinedConfig{}, nil, fmt.Errorf("no auth mode specified. You can use one of four auth modes:\n" +
-				" - Use --venafi-cloud with --credentials-file or --client-id with --private-key-path to use the " + string(VenafiCloudKeypair) + " mode.\n" +
+				" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
 				" - Use --venafi-connection for the " + string(VenafiCloudVenafiConnection) + " mode.\n" +
 				" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
 				" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.\n")
