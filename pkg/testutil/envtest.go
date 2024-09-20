@@ -244,6 +244,10 @@ func FakeTPP(t testing.TB) (*httptest.Server, *x509.Certificate) {
 // Generated using:
 //
 //	helm template ./deploy/charts/venafi-kubernetes-agent -n venafi --set venafiConnection.include=true --show-only templates/venafi-connection-VenConnRBAC.yaml | grep -ivE '(helm|\/version)'
+//
+// TODO(mael): Once we get the Makefile modules setup, we should generate this
+// based on the Helm chart rather than having it hardcoded here. Ticket:
+// https://venafi.atlassian.net/browse/VC-36331
 const VenConnRBAC = `
 apiVersion: v1
 kind: Namespace
