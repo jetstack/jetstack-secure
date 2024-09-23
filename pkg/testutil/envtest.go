@@ -12,7 +12,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/venafi-connection-lib/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +24,8 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	ctrlruntime "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+
+	"github.com/jetstack/preflight/pkg/client"
 )
 
 // To see the API server logs, set:
@@ -123,21 +124,31 @@ func VenConnStartWatching(t *testing.T, cl client.Client) {
 	t.Cleanup(cancel)
 }
 
-func VenConnTrustCA(t *testing.T, cl client.Client, cert *x509.Certificate) {
+// Works with VenafiCloudClient and VenConnClient. Allows you to trust a given
+// CA.
+func TrustCA(t *testing.T, cl client.Client, cert *x509.Certificate) {
 	t.Helper()
-	require.IsType(t, &client.VenConnClient{}, cl)
-	vcCl := cl.(*client.VenConnClient)
+
+	var httpClient *http.Client
+	switch c := cl.(type) {
+	case *client.VenafiCloudClient:
+		httpClient = c.Client
+	case *client.VenConnClient:
+		httpClient = c.Client
+	default:
+		t.Fatalf("unsupported client type: %T", cl)
+	}
 
 	pool := x509.NewCertPool()
 	pool.AddCert(cert)
 
-	if vcCl.Client.Transport == nil {
-		vcCl.Client.Transport = http.DefaultTransport
+	if httpClient.Transport == nil {
+		httpClient.Transport = http.DefaultTransport
 	}
-	if vcCl.Client.Transport.(*http.Transport).TLSClientConfig == nil {
-		vcCl.Client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{}
+	if httpClient.Transport.(*http.Transport).TLSClientConfig == nil {
+		httpClient.Transport.(*http.Transport).TLSClientConfig = &tls.Config{}
 	}
-	vcCl.Client.Transport.(*http.Transport).TLSClientConfig.RootCAs = pool
+	httpClient.Transport.(*http.Transport).TLSClientConfig.RootCAs = pool
 }
 
 // Parses the YAML manifest. Useful for inlining YAML manifests in Go test
@@ -180,10 +191,19 @@ func FakeVenafiCloud(t *testing.T) (_ *httptest.Server, _ *x509.Certificate, set
 		defer assertFnMu.Unlock()
 		assertFn(t, r)
 
+		if r.URL.Path == "/v1/oauth2/v2.0/756db001-280e-11ee-84fb-991f3177e2d0/token" {
+			_, _ = w.Write([]byte(`{"access_token":"VALID_ACCESS_TOKEN","expires_in":900,"token_type":"bearer"}`))
+			return
+		} else if r.URL.Path == "/v1/oauth/token/serviceaccount" {
+			_, _ = w.Write([]byte(`{"access_token":"VALID_ACCESS_TOKEN","expires_in":900,"token_type":"bearer"}`))
+			return
+		}
+
 		accessToken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		apiKey := r.Header.Get("tppl-api-key")
 		if accessToken != "VALID_ACCESS_TOKEN" && apiKey != "VALID_API_KEY" {
 			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error":"expected header 'Authorization: Bearer VALID_ACCESS_TOKEN' or 'tppl-api-key: VALID_API_KEY', but got Authorization=` + r.Header.Get("Authorization") + ` and tppl-api-key=` + r.Header.Get("tppl-api-key")))
 			return
 		}
 		if r.URL.Path == "/v1/tlspk/upload/clusterdata/no" {
@@ -194,11 +214,7 @@ func FakeVenafiCloud(t *testing.T) (_ *httptest.Server, _ *x509.Certificate, set
 			}
 			_, _ = w.Write([]byte(`{"status":"ok","organization":"756db001-280e-11ee-84fb-991f3177e2d0"}`))
 		} else if r.URL.Path == "/v1/useraccounts" {
-			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"user": {"username": "user","id": "76a126f0-280e-11ee-84fb-991f3177e2d0"}}`))
-
-		} else if r.URL.Path == "/v1/oauth2/v2.0/756db001-280e-11ee-84fb-991f3177e2d0/token" {
-			_, _ = w.Write([]byte(`{"access_token":"VALID_ACCESS_TOKEN","expires_in":900,"token_type":"bearer"}`))
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"error":"unexpected path in the test server","path":"` + r.URL.Path + `"}`))

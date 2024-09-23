@@ -43,13 +43,15 @@ type (
 		accessToken   *venafiCloudAccessToken
 		baseURL       string
 		agentMetadata *api.AgentMetadata
-		client        *http.Client
 
 		uploaderID    string
 		uploadPath    string
 		privateKey    crypto.PrivateKey
 		jwtSigningAlg jwt.SigningMethod
 		lock          sync.RWMutex
+
+		// Made public for testing purposes.
+		Client *http.Client
 	}
 
 	VenafiSvcAccountCredentials struct {
@@ -109,7 +111,7 @@ func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiS
 		credentials:   credentials,
 		baseURL:       baseURL,
 		accessToken:   &venafiCloudAccessToken{},
-		client:        &http.Client{Timeout: time.Minute},
+		Client:        &http.Client{Timeout: time.Minute},
 		uploaderID:    uploaderID,
 		uploadPath:    uploadPath,
 		privateKey:    privateKey,
@@ -270,7 +272,7 @@ func (c *VenafiCloudClient) Post(path string, body io.Reader) (*http.Response, e
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.accessToken))
 	}
 
-	return c.client.Do(req)
+	return c.Client.Do(req)
 }
 
 // getValidAccessToken returns a valid access token. It will fetch a new access
@@ -325,7 +327,7 @@ func (c *VenafiCloudClient) updateAccessToken() error {
 }
 
 func (c *VenafiCloudClient) sendHTTPRequest(request *http.Request, responseObject interface{}) error {
-	response, err := c.client.Do(request)
+	response, err := c.Client.Do(request)
 	if err != nil {
 		return err
 	}

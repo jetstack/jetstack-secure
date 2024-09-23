@@ -81,7 +81,6 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		assert.Equal(t, testutil.Undent(`
 			Using the Jetstack Secure OAuth auth mode since --credentials-file was specified without --venafi-cloud.
 			Both the 'period' field and --period are set. Using the value provided with --period.
-
 		`), gotLogs.String())
 		assert.Equal(t, 99*time.Minute, got.Period)
 	})
@@ -572,9 +571,44 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 	})
 }
 
+func Test_ValidateAndCombineConfig_VenafiCloudKeyPair(t *testing.T) {
+	t.Run("server, uploader_id, and cluster name are correctly passed", func(t *testing.T) {
+		srv, cert, setVenafiCloudAssert := testutil.FakeVenafiCloud(t)
+		setVenafiCloudAssert(func(t testing.TB, gotReq *http.Request) {
+			// Only care about /v1/tlspk/upload/clusterdata/:uploader_id?name=
+			if gotReq.URL.Path == "/v1/oauth/token/serviceaccount" {
+				return
+			}
+
+			assert.Equal(t, srv.URL, "https://"+gotReq.Host)
+			assert.Equal(t, "test cluster name", gotReq.URL.Query().Get("name"))
+			assert.Equal(t, "/v1/tlspk/upload/clusterdata/no", gotReq.URL.Path)
+		})
+
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				server: `+srv.URL+`
+				period: 1h
+				cluster_id: "test cluster name"
+				venafi-cloud:
+				  uploader_id: no
+				  upload_path: /v1/tlspk/upload/clusterdata
+			`)),
+			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath),
+		)
+		testutil.TrustCA(t, cl, cert)
+		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
+		require.NoError(t, err)
+
+		err = cl.PostDataReadingsWithOptions(nil, client.Options{ClusterName: "test cluster name"})
+		require.NoError(t, err)
+	})
+}
+
 // Slower test cases due to envtest. That's why they are separated from the
 // other tests.
-func Test_ValidateAndCombineConfig_urlWhenVenafiConnection(t *testing.T) {
+func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 	_, cfg, kcl := testutil.WithEnvtest(t)
 	t.Setenv("KUBECONFIG", testutil.WithKubeconfig(t, cfg))
 	srv, cert, setVenafiCloudAssert := testutil.FakeVenafiCloud(t)
@@ -588,7 +622,7 @@ func Test_ValidateAndCombineConfig_urlWhenVenafiConnection(t *testing.T) {
 			  namespace: venafi
 			spec:
 			  vcp:
-			    url: "%s"
+			    url: "`+srv.URL+`"
 			    accessToken:
 			      - secret:
 			          name: accesstoken
@@ -626,7 +660,7 @@ func Test_ValidateAndCombineConfig_urlWhenVenafiConnection(t *testing.T) {
 			- kind: ServiceAccount
 			  name: venafi-connection
 			  namespace: venafi
-		`, srv.URL))) {
+		`))) {
 		require.NoError(t, kcl.Create(context.Background(), obj))
 	}
 
@@ -654,7 +688,7 @@ func Test_ValidateAndCombineConfig_urlWhenVenafiConnection(t *testing.T) {
 		require.NoError(t, err)
 
 		testutil.VenConnStartWatching(t, cl)
-		testutil.VenConnTrustCA(t, cl, cert)
+		testutil.TrustCA(t, cl, cert)
 
 		// TODO(mael): the client should keep track of the cluster ID, we
 		// shouldn't need to pass it as an option to
