@@ -133,11 +133,11 @@ subject="system:serviceaccount:venafi:venafi-components"
 audience="https://${VEN_API_HOST}"
 issuerURL="$(kubectl create token -n venafi venafi-components | step crypto jwt inspect --insecure | jq -r '.payload.iss')"
 openidDiscoveryURL="${issuerURL}/.well-known/openid-configuration"
-jwksURI=$(curl -fsSL ${openidDiscoveryURL} | jq -r '.jwks_uri')
+jwksURI=$(curl --fail-with-body -sSL ${openidDiscoveryURL} | jq -r '.jwks_uri')
 
 # Create the Venafi agent service account if one does not already exist
 while true; do
-    tenantID=$(curl -fsSL -H "tppl-api-key: $VEN_API_KEY" https://${VEN_API_HOST}/v1/serviceaccounts \
+    tenantID=$(curl --fail-with-body -sSL -H "tppl-api-key: $VEN_API_KEY" https://${VEN_API_HOST}/v1/serviceaccounts \
                    | jq -r '.[] | select(.issuerURL==$issuerURL and .subject == $subject) | .companyId' \
                         --arg issuerURL "${issuerURL}" \
                         --arg subject "${subject}")
@@ -163,11 +163,12 @@ while true; do
         --arg audience "${audience}" \
         --arg issuerURL "${issuerURL}" \
         --arg jwksURI "${jwksURI}" \
-        --argjson teams "$(curl https://${VEN_API_HOST}/v1/teams -fsSL -H tppl-api-key:\ ${VEN_API_KEY})" \
-        --argjson applications "$(curl https://${VEN_API_HOST}/outagedetection/v1/applications -fsSL -H tppl-api-key:\ ${VEN_API_KEY})" \
+        --argjson teams "$(curl https://${VEN_API_HOST}/v1/teams --fail-with-body -sSL -H tppl-api-key:\ ${VEN_API_KEY})" \
+        --argjson applications "$(curl https://${VEN_API_HOST}/outagedetection/v1/applications --fail-with-body -sSL -H tppl-api-key:\ ${VEN_API_KEY})" \
         | curl https://${VEN_API_HOST}/v1/serviceaccounts \
                -H "tppl-api-key: $VEN_API_KEY" \
-               -fsSL --json @-
+               --fail-with-body \
+               -sSL --json @-
 done
 
 kubectl apply -n venafi -f - <<EOF
