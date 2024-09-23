@@ -155,7 +155,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		)
 		assert.EqualError(t, err, testutil.Undent(`
 			no auth mode specified. You can use one of four auth modes:
-			 - Use --venafi-cloud with --credentials-file or --client-id with --private-key-path to use the Venafi Cloud Key Pair Service Account mode.
+			 - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the Venafi Cloud Key Pair Service Account mode.
 			 - Use --venafi-connection for the Venafi Cloud VenafiConnection mode.
 			 - Use --credentials-file alone if you want to use the Jetstack Secure OAuth mode.
 			 - Use --api-token if you want to use the Jetstack Secure API Token mode.
@@ -196,6 +196,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			Server:         "http://example.com",
 			OrganizationID: "example",
 			EndpointPath:   "api/v1/data",
+			BackoffMaxTime: 10 * time.Minute,
 		}
 		require.NoError(t, err)
 		assert.Equal(t, expect, got)
@@ -221,7 +222,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				  uploader_id: test-agent
 				  upload_path: "/testing/path"
 			`)),
-			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--backoff-max-time", "5m"),
+			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--backoff-max-time", "99m"),
 		)
 		expect := CombinedConfig{
 			Server: "http://localhost:8080",
@@ -234,7 +235,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			UploadPath:     "/testing/path",
 			AuthMode:       VenafiCloudKeypair,
 			ClusterID:      "the cluster name",
-			BackoffMaxTime: 5 * time.Minute,
+			BackoffMaxTime: 99 * time.Minute,
 		}
 		require.NoError(t, err)
 		assert.Equal(t, expect, got)
@@ -337,7 +338,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				`)),
 			withCmdLineFlags("--credentials-file", path))
 		require.NoError(t, err)
-		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, OrganizationID: "foo", ClusterID: "bar", AuthMode: JetstackSecureOAuth}, got)
+		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, OrganizationID: "foo", ClusterID: "bar", AuthMode: JetstackSecureOAuth, BackoffMaxTime: 10 * time.Minute}, got)
 		assert.IsType(t, &client.OAuthClient{}, cl)
 	})
 
@@ -411,7 +412,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			`)),
 			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", path))
 		require.NoError(t, err)
-		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, AuthMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar"}, got)
+		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, AuthMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute}, got)
 		assert.IsType(t, &client.VenafiCloudClient{}, cl)
 	})
 
@@ -432,7 +433,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			`)),
 			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath))
 		require.NoError(t, err)
-		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, AuthMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar"}, got)
+		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, AuthMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute}, got)
 	})
 
 	t.Run("venafi-cloud-keypair-auth: venafi-cloud.upload_path field is required", func(t *testing.T) {
@@ -503,12 +504,13 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--install-namespace", "venafi", "--venafi-connection", "venafi-components"))
 		require.NoError(t, err)
 		assert.Equal(t, CombinedConfig{
-			Period:      1 * time.Hour,
-			ClusterID:   "the cluster name",
-			AuthMode:    VenafiCloudVenafiConnection,
-			VenConnName: "venafi-components",
-			VenConnNS:   "venafi",
-			InstallNS:   "venafi",
+			Period:         1 * time.Hour,
+			ClusterID:      "the cluster name",
+			AuthMode:       VenafiCloudVenafiConnection,
+			VenConnName:    "venafi-components",
+			VenConnNS:      "venafi",
+			InstallNS:      "venafi",
+			BackoffMaxTime: 10 * time.Minute,
 		}, got)
 		assert.IsType(t, &client.VenConnClient{}, cl)
 	})

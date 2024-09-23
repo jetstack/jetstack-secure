@@ -3,6 +3,8 @@ package client_test
 import (
 	"context"
 	"crypto/x509"
+	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	ctrlruntime "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/jetstack/preflight/api"
@@ -31,15 +34,19 @@ import (
 //
 // [1] https://github.com/kubernetes-sigs/controller-runtime/issues/2341
 func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
+	_, restconf, kclient := testutil.WithEnvtest(t)
+	for _, obj := range testutil.Parse(testutil.VenConnRBAC) {
+		require.NoError(t, kclient.Create(context.Background(), obj))
+	}
 	t.Parallel()
 
-	t.Run("valid accessToken", run(testcase{
+	t.Run("valid accessToken", run_TestVenConnClient_PostDataReadingsWithOptions(restconf, kclient, testcase{
 		given: testutil.Undent(`
 			apiVersion: jetstack.io/v1alpha1
 			kind: VenafiConnection
 			metadata:
 			  name: venafi-components
-			  namespace: venafi
+			  namespace: TEST_NAMESPACE
 			spec:
 			  vcp:
 			    url: FAKE_VENAFI_CLOUD_URL
@@ -47,12 +54,15 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			      - secret:
 			          name: accesstoken
 			          fields: [accesstoken]
+			  allowReferencesFrom:
+			    matchExpressions:
+			      - {key: kubernetes.io/metadata.name, operator: In, values: [venafi]}
 			---
 			apiVersion: v1
 			kind: Secret
 			metadata:
 			  name: accesstoken
-			  namespace: venafi
+			  namespace: TEST_NAMESPACE
 			stringData:
 			  accesstoken: VALID_ACCESS_TOKEN
 			---
@@ -60,7 +70,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			kind: Role
 			metadata:
 			  name: venafi-connection-accesstoken-reader
-			  namespace: venafi
+			  namespace: TEST_NAMESPACE
 			rules:
 			- apiGroups: [""]
 			  resources: ["secrets"]
@@ -71,7 +81,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			kind: RoleBinding
 			metadata:
 			  name: venafi-connection-accesstoken-reader
-			  namespace: venafi
+			  namespace: TEST_NAMESPACE
 			roleRef:
 			  apiGroup: rbac.authorization.k8s.io
 			  kind: Role
@@ -79,10 +89,11 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			subjects:
 			- kind: ServiceAccount
 			  name: venafi-connection
-			  namespace: venafi`),
+			  namespace: venafi
+		`),
 		expectReadyCondMsg: "ea744d098c2c1c6044e4c4e9d3bf7c2a68ef30553db00f1714886cedf73230f1",
 	}))
-	t.Run("error when the apiKey field is used", run(testcase{
+	t.Run("error when the apiKey field is used", run_TestVenConnClient_PostDataReadingsWithOptions(restconf, kclient, testcase{
 		// Why isn't it possible to use the 'apiKey' field? Although the
 		// Kubernetes Discovery endpoint works with an API key, we have decided
 		// to not support it because it isn't recommended.
@@ -91,7 +102,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			kind: VenafiConnection
 			metadata:
 			  name: venafi-components
-			  namespace: venafi
+			  namespace: TEST_NAMESPACE
 			spec:
 			  vcp:
 			    url: FAKE_VENAFI_CLOUD_URL
@@ -99,12 +110,15 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			      - secret:
 			          name: apikey
 			          fields: [apikey]
+			  allowReferencesFrom:
+			    matchExpressions:
+			      - {key: kubernetes.io/metadata.name, operator: In, values: [venafi]}
 			---
 			apiVersion: v1
 			kind: Secret
 			metadata:
 			  name: apikey
-			  namespace: venafi
+			  namespace: TEST_NAMESPACE
 			stringData:
 			  apikey: VALID_API_KEY
 			---
@@ -112,7 +126,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			kind: Role
 			metadata:
 			  name: venafi-connection-apikey-reader
-			  namespace: venafi
+			  namespace: TEST_NAMESPACE
 			rules:
 			- apiGroups: [""]
 			  resources: ["secrets"]
@@ -123,7 +137,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			kind: RoleBinding
 			metadata:
 			  name: venafi-connection-apikey-reader
-			  namespace: venafi
+			  namespace: TEST_NAMESPACE
 			roleRef:
 			  apiGroup: rbac.authorization.k8s.io
 			  kind: Role
@@ -131,11 +145,14 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			subjects:
 			- kind: ServiceAccount
 			  name: venafi-connection
-			  namespace: venafi`),
+			  namespace: venafi
+		`),
+		// PostDataReadingsWithOptions failed, but Get succeeded; that's why the
+		// condition says the VenafiConnection is ready.
 		expectReadyCondMsg: "b099d634ccec56556da28028743475dab67f79d079b668bedc3ef544f7eed2f3",
-		expectErr:          "VenafiConnection venafi/venafi-components: the agent cannot be used with an API key",
+		expectErr:          "VenafiConnection error-when-the-apikey-field-is-used/venafi-components: the agent cannot be used with an API key",
 	}))
-	t.Run("error when the tpp field is used", run(testcase{
+	t.Run("error when the tpp field is used", run_TestVenConnClient_PostDataReadingsWithOptions(restconf, kclient, testcase{
 		// IMPORTANT: The user may think they can use 'tpp', spend time
 		// debugging and making the venafi connection work, and then find out
 		// that it doesn't work. The reason is because as of now, we don't first
@@ -145,16 +162,53 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			kind: VenafiConnection
 			metadata:
 			  name: venafi-components
-			  namespace: venafi
+			  namespace: TEST_NAMESPACE
 			spec:
 			  tpp:
 			    url: FAKE_TPP_URL
 			    accessToken:
 			      - secret:
 			          name: accesstoken
-			          fields: [accesstoken]`),
-		expectErr:          ``,
-		expectReadyCondMsg: `ea744d098c2c1c6044e4c4e9d3bf7c2a68ef30553db00f1714886cedf73230f1`,
+			          fields: [accesstoken]
+			  allowReferencesFrom:
+			    matchExpressions:
+			      - {key: kubernetes.io/metadata.name, operator: In, values: [venafi]}
+			---
+			apiVersion: v1
+			kind: Secret
+			metadata:
+			  name: accesstoken
+			  namespace: TEST_NAMESPACE
+			stringData:
+			  accesstoken: VALID_ACCESS_TOKEN
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: Role
+			metadata:
+			  name: venafi-connection-accesstoken-reader
+			  namespace: TEST_NAMESPACE
+			rules:
+			- apiGroups: [""]
+			  resources: ["secrets"]
+			  verbs: ["get"]
+			  resourceNames: ["accesstoken"]
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: RoleBinding
+			metadata:
+			  name: venafi-connection-accesstoken-reader
+			  namespace: TEST_NAMESPACE
+			roleRef:
+			  apiGroup: rbac.authorization.k8s.io
+			  kind: Role
+			  name: venafi-connection-accesstoken-reader
+			subjects:
+			- kind: ServiceAccount
+			  name: venafi-connection
+			  namespace: venafi
+		`),
+		expectReadyCondMsg: "ea744d098c2c1c6044e4c4e9d3bf7c2a68ef30553db00f1714886cedf73230f1",
+		expectErr:          "VenafiConnection error-when-the-tpp-field-is-used/venafi-components: the agent cannot be used with TPP",
 	}))
 }
 
@@ -164,51 +218,96 @@ type testcase struct {
 	expectReadyCondMsg string
 }
 
-func run(test testcase) func(t *testing.T) {
+// All tests share the same envtest (i.e., the same apiserver and etcd process),
+// so each test needs to be contained in its own Kubernetes namespace.
+func run_TestVenConnClient_PostDataReadingsWithOptions(restcfg *rest.Config, kclient ctrlruntime.WithWatch, test testcase) func(t *testing.T) {
 	return func(t *testing.T) {
-		fakeVenafiCloud, certCloud, _ := testutil.FakeVenafiCloud(t)
+		t.Helper()
+
+		fakeVenafiCloud, certCloud, fakeVenafiAssert := testutil.FakeVenafiCloud(t)
 		fakeTPP, certTPP := testutil.FakeTPP(t)
-		_, restconf, kclient := testutil.WithEnvtest(t)
+		fakeVenafiAssert(func(t testing.TB, r *http.Request) {
+			if r.URL.Path == "/v1/useraccounts" {
+				return // We only care about /v1/tlspk/upload/clusterdata.
+			}
+			// Let's make sure we didn't forget to add the arbitrary "/no"
+			// (uploader_id) path segment to /v1/tlspk/upload/clusterdata.
+			assert.Equal(t, "/v1/tlspk/upload/clusterdata/no", r.URL.Path)
+		})
 
 		certPool := x509.NewCertPool()
 		certPool.AddCert(certCloud)
 		certPool.AddCert(certTPP)
 
 		cl, err := client.NewVenConnClient(
-			restconf,
+			restcfg,
 			&api.AgentMetadata{ClusterID: "no"},
-			"venafi",            // Namespace in which the Agent is running.
-			"venafi-components", // Name of the VenafiConnection.
-			"venafi",            // Namespace of the VenafiConnection.
+			"venafi",               // Namespace in which the Agent is running.
+			"venafi-components",    // Name of the VenafiConnection.
+			testNameToNamespace(t), // Namespace of the VenafiConnection.
 			certPool,
 		)
 		require.NoError(t, err)
 
 		testutil.VenConnStartWatching(t, cl)
 
-		// Apply the same RBAC as what you would get from the Venafi
-		// Connection Helm chart, for example after running this:
-		//  helm template venafi-connection oci://registry.venafi.cloud/charts/venafi-connection --version v0.1.0 -n venafi --show-only templates/venafi-connection-rbac.yaml
-
 		test.given = strings.ReplaceAll(test.given, "FAKE_VENAFI_CLOUD_URL", fakeVenafiCloud.URL)
 		test.given = strings.ReplaceAll(test.given, "FAKE_TPP_URL", fakeTPP.URL)
+		test.given = strings.ReplaceAll(test.given, "TEST_NAMESPACE", testNameToNamespace(t))
 
-		var given []ctrlruntime.Object
-		given = append(given, testutil.Parse(testutil.VenConnRBAC)...)
-		given = append(given, testutil.Parse(test.given)...)
-		for _, obj := range given {
+		var givenObjs []ctrlruntime.Object
+		givenObjs = append(givenObjs, testutil.Parse(testutil.Undent(`
+			apiVersion: v1
+			kind: Namespace
+			metadata:
+			  name: `+testNameToNamespace(t)))...)
+		givenObjs = append(givenObjs, testutil.Parse(test.given)...)
+		for _, obj := range givenObjs {
 			require.NoError(t, kclient.Create(context.Background(), obj))
 		}
 
 		err = cl.PostDataReadingsWithOptions([]*api.DataReading{}, client.Options{ClusterName: "test cluster name"})
 		if test.expectErr != "" {
 			assert.EqualError(t, err, test.expectErr)
+		} else {
+			require.NoError(t, err)
 		}
 
 		got := v1alpha1.VenafiConnection{}
-		err = kclient.Get(context.Background(), types.NamespacedName{Name: "venafi-components", Namespace: "venafi"}, &got)
+		err = kclient.Get(context.Background(), types.NamespacedName{Name: "venafi-components", Namespace: testNameToNamespace(t)}, &got)
 		require.NoError(t, err)
 		require.Len(t, got.Status.Conditions, 1)
 		assert.Equal(t, test.expectReadyCondMsg, got.Status.Conditions[0].Message)
 	}
+}
+
+// Because we want valid namespaces for each of the tests, this func converts a
+// test name into a valid Kubernetes namespace (i.e., a DNS label as per RFC
+// 1123, including trimming to 63 chars).
+//
+// For example, the test name:
+//
+//	Test/sub test has special chars ':"-;@# and is also super super super super long!
+//
+// will be converted to:
+//
+//	sub-test-has-special-chars-and-is-also-super-super-super-super-
+//
+// Only the last part of the test name is used.
+func testNameToNamespace(t testing.TB) string {
+	regex := regexp.MustCompile("[^a-zA-Z0-9-]")
+
+	// Only keep the part after the last slash.
+	parts := strings.Split(t.Name(), "/")
+	if len(parts) == 0 {
+		return ""
+	}
+
+	s := parts[len(parts)-1]
+	s = strings.ToLower(s)
+	s = strings.ReplaceAll(s, "_", "-")
+	s = regex.ReplaceAllString(s, "")
+	s = strings.TrimLeft(s, "-")
+	s = strings.TrimRight(s, "-")
+	return s
 }

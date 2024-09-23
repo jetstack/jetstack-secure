@@ -84,11 +84,11 @@ const (
 // to authenticate to the backend API.
 func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiSvcAccountCredentials, baseURL string, uploaderID string, uploadPath string) (*VenafiCloudClient, error) {
 	if err := credentials.Validate(); err != nil {
-		return nil, fmt.Errorf("cannot create VenafiCloudClient: %v", err)
+		return nil, fmt.Errorf("cannot create VenafiCloudClient: %w", err)
 	}
 	privateKey, jwtSigningAlg, err := parsePrivateKeyAndExtractSigningMethod(credentials.PrivateKeyFile)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing private key file %v", err)
+		return nil, fmt.Errorf("while parsing private key file: %w", err)
 	}
 	if baseURL == "" {
 		return nil, fmt.Errorf("cannot create VenafiCloudClient: baseURL cannot be empty")
@@ -380,7 +380,7 @@ func parsePrivateKeyFromPemFile(privateKeyFilePath string) (crypto.PrivateKey, e
 
 	der, _ := pem.Decode(pkBytes)
 	if der == nil {
-		return nil, fmt.Errorf("error decoding private key from pem file %q", privateKeyFilePath)
+		return nil, fmt.Errorf("while decoding the PEM-encoded private key %v, its content were: %s", privateKeyFilePath, string(pkBytes))
 	}
 
 	if key, err := x509.ParsePKCS1PrivateKey(der.Bytes); err == nil {
@@ -391,13 +391,13 @@ func parsePrivateKeyFromPemFile(privateKeyFilePath string) (crypto.PrivateKey, e
 		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
 			return key, nil
 		default:
-			return nil, fmt.Errorf("found unknown private key type in PKCS#8 wrapping")
+			return nil, fmt.Errorf("found unknown private key type in PKCS#8 wrapping: %T", key)
 		}
 	}
 	if key, err := x509.ParseECPrivateKey(der.Bytes); err == nil {
 		return key, nil
 	}
-	return nil, fmt.Errorf("failed to parse private key")
+	return nil, fmt.Errorf("while parsing EC private: %w", err)
 }
 
 func parsePrivateKeyAndExtractSigningMethod(privateKeyFile string) (crypto.PrivateKey, jwt.SigningMethod, error) {
