@@ -73,11 +73,14 @@ type DataGatherer struct {
 }
 
 type VenafiCloudConfig struct {
+	// Deprecated: UploaderID is ignored by the backend and is not needed.
 	// UploaderID is the upload ID that will be used when creating a cluster
 	// connection. This field is ignored by the backend and is often arbitrarily
 	// set to "no".
 	UploaderID string `yaml:"uploader_id,omitempty"`
-	// UploadPath is the endpoint path for the upload API.
+
+	// UploadPath is the endpoint path for the upload API. Only used in Venafi
+	// Cloud Key Pair Service Account mode.
 	UploadPath string `yaml:"upload_path,omitempty"`
 }
 
@@ -702,9 +705,11 @@ func ValidateDataGatherers(dataGatherers []DataGatherer) error {
 func createCredentialClient(log *log.Logger, credentials client.Credentials, cfg CombinedConfig, agentMetadata *api.AgentMetadata) (client.Client, error) {
 	switch creds := credentials.(type) {
 	case *client.VenafiSvcAccountCredentials:
-		// check if config has Venafi Cloud data, use config data if it's present
-		uploaderID := "" // The uploader ID isn't actually used in the backend.
-		uploadPath := ""
+		// The uploader ID isn't actually used in the backend, let's use an
+		// arbitrary value.
+		uploaderID := "no"
+
+		var uploadPath string
 		if cfg.AuthMode == VenafiCloudKeypair {
 			// We don't do this for the VenafiCloudVenafiConnection mode because
 			// the upload_path field is ignored in that mode.
