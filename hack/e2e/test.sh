@@ -31,6 +31,9 @@ set -o nounset
 set -o errexit
 set -o pipefail
 set -o xtrace
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+root_dir=$(cd "${script_dir}/../.." && pwd)
+export TERM=dumb
 
 # Your Venafi Cloud API key.
 : ${VEN_API_KEY?}
@@ -51,22 +54,6 @@ set -o xtrace
 # E.g. ttl.sh/63773370-0bcf-4ac0-bd42-5515616089ff
 : ${OCI_BASE?}
 
-export VERSION=$(git describe --tags --always --match='v*' --abbrev=14 --dirty)
-export KO_DOCKER_REPO=$OCI_BASE/images/venafi-agent
-export TERM=dumb
-
-script_dir=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
-root_dir=$(cd "${script_dir}/../.." && pwd)
-
-cd "${script_dir}"
-
-pushd "${root_dir}"
-ko build  --bare --tags "${VERSION}"
-helm package deploy/charts/venafi-kubernetes-agent --version "${VERSION}" --app-version "${VERSION}"
-helm push venafi-kubernetes-agent-${VERSION}.tgz "oci://${OCI_BASE}/charts"
-popd
-
-export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 # Required gcloud environment variables
 # https://cloud.google.com/sdk/docs/configurations#setting_configuration_properties
 : ${CLOUDSDK_CORE_PROJECT?}
@@ -75,26 +62,36 @@ export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 # The name of the cluster to create
 : ${CLUSTER_NAME?}
 
+# IMPORTANT: we pick the first team as the owning team for the registry and
+# workload identity service account as it doesn't matter.
+
+version=$(git describe --tags --always --match='v*' --abbrev=14 --dirty)
+
+cd "${script_dir}"
+
+pushd "${root_dir}"
+KO_DOCKER_REPO=$OCI_BASE/images/venafi-agent ko build --bare --tags "${version}"
+helm package deploy/charts/venafi-kubernetes-agent --version "${version}" --app-version "${version}"
+helm push "venafi-kubernetes-agent-${version}.tgz" "oci://${OCI_BASE}/charts"
+popd
+
+export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 if ! gcloud container clusters get-credentials "${CLUSTER_NAME}"; then
-    gcloud container clusters create "${CLUSTER_NAME}" \
-           --preemptible \
-           --machine-type e2-small \
-           --num-nodes 3
+  gcloud container clusters create "${CLUSTER_NAME}" \
+    --preemptible \
+    --machine-type e2-small \
+    --num-nodes 3
 fi
 kubectl create ns venafi || true
 
-# Let's pick the first team as the owning team as it doesn't matter for this
-# test.
-owningTeamID=$(curl --fail-with-body -sS https://api.venafi.cloud/v1/teams -H "tppl-api-key: $VEN_API_KEY" | jq '.teams[0].id' -r)
-
 # Pull secret for Venafi OCI registry
 if ! kubectl get secret venafi-image-pull-secret -n venafi; then
-    venctl iam service-accounts registry create \
-           --api-key "${VEN_API_KEY_PULL}" \
-           --no-prompts \
-           --owning-team "${owningTeamID}" \
-           --name "venafi-kubernetes-agent-e2e-registry-${RANDOM}" \
-           --scopes enterprise-cert-manager,enterprise-venafi-issuer,enterprise-approver-policy \
+  venctl iam service-accounts registry create \
+    --api-key "${VEN_API_KEY_PULL}" \
+    --no-prompts \
+    --owning-team "$(curl --fail-with-body -sS "https://${VEN_API_HOST}/v1/teams" -H "tppl-api-key: $VEN_API_KEY_PULL" | jq '.teams[0].id' -r)" \
+    --name "venafi-kubernetes-agent-e2e-registry-${RANDOM}" \
+    --scopes enterprise-cert-manager,enterprise-venafi-issuer,enterprise-approver-policy \
     | jq '{
             "apiVersion": "v1",
             "kind": "Secret",
@@ -118,17 +115,16 @@ fi
 
 export VENAFI_KUBERNETES_AGENT_CLIENT_ID="not-used-but-required-by-venctl"
 venctl components kubernetes apply \
-       --cert-manager \
-       --venafi-enhanced-issuer \
-       --approver-policy-enterprise \
-       --venafi-kubernetes-agent \
-       --venafi-kubernetes-agent-version "${VERSION}" \
-       --venafi-kubernetes-agent-values-files "${script_dir}/values.venafi-kubernetes-agent.yaml" \
-       --venafi-kubernetes-agent-custom-image-registry "${OCI_BASE}/images" \
-       --venafi-kubernetes-agent-custom-chart-repository "oci://${OCI_BASE}/charts"
+  --cert-manager \
+  --venafi-enhanced-issuer \
+  --approver-policy-enterprise \
+  --venafi-kubernetes-agent \
+  --venafi-kubernetes-agent-version "${version}" \
+  --venafi-kubernetes-agent-values-files "${script_dir}/values.venafi-kubernetes-agent.yaml" \
+  --venafi-kubernetes-agent-custom-image-registry "${OCI_BASE}/images" \
+  --venafi-kubernetes-agent-custom-chart-repository "oci://${OCI_BASE}/charts"
 
 kubectl apply -n venafi -f venafi-components.yaml
-
 
 subject="system:serviceaccount:venafi:venafi-components"
 audience="https://${VEN_API_HOST}"
@@ -136,19 +132,18 @@ issuerURL="$(kubectl create token -n venafi venafi-components | step crypto jwt 
 openidDiscoveryURL="${issuerURL}/.well-known/openid-configuration"
 jwksURI=$(curl --fail-with-body -sSL ${openidDiscoveryURL} | jq -r '.jwks_uri')
 
-
 # Create the Venafi agent service account if one does not already exist
 while true; do
-    tenantID=$(curl --fail-with-body -sSL -H "tppl-api-key: $VEN_API_KEY" https://${VEN_API_HOST}/v1/serviceaccounts \
-                   | jq -r '.[] | select(.issuerURL==$issuerURL and .subject == $subject) | .companyId' \
-                        --arg issuerURL "${issuerURL}" \
-                        --arg subject "${subject}")
+  tenantID=$(curl --fail-with-body -sSL -H "tppl-api-key: $VEN_API_KEY" https://${VEN_API_HOST}/v1/serviceaccounts \
+    | jq -r '.[] | select(.issuerURL==$issuerURL and .subject == $subject) | .companyId' \
+      --arg issuerURL "${issuerURL}" \
+      --arg subject "${subject}")
 
-    if [[ "${tenantID}" != "" ]]; then
-        break
-    fi
+  if [[ "${tenantID}" != "" ]]; then
+    break
+  fi
 
-    jq  -n '{
+  jq -n '{
       "name": "venafi-kubernetes-agent-e2e-agent-\($random)",
       "authenticationType": "rsaKeyFederated",
       "scopes": ["kubernetes-discovery-federated", "certificate-issuance"],
@@ -159,17 +154,17 @@ while true; do
       "applications": [$applications.applications[].id],
       "owner": $owningTeamID
     }' \
-        --arg random "${RANDOM}" \
-        --arg subject "${subject}" \
-        --arg audience "${audience}" \
-        --arg issuerURL "${issuerURL}" \
-        --arg jwksURI "${jwksURI}" \
-        --arg owningTeamID "{$owningTeamID}" \
-        --argjson applications "$(curl https://${VEN_API_HOST}/outagedetection/v1/applications --fail-with-body -sSL -H tppl-api-key:\ ${VEN_API_KEY})" \
-        | curl https://${VEN_API_HOST}/v1/serviceaccounts \
-               -H "tppl-api-key: $VEN_API_KEY" \
-               --fail-with-body \
-               -sSL --json @-
+    --arg random "${RANDOM}" \
+    --arg subject "${subject}" \
+    --arg audience "${audience}" \
+    --arg issuerURL "${issuerURL}" \
+    --arg jwksURI "${jwksURI}" \
+    --arg owningTeamID "$(curl --fail-with-body -sS "https://${VEN_API_HOST}/v1/teams" -H "tppl-api-key: $VEN_API_KEY" | jq '.teams[0].id' -r)" \
+    --argjson applications "$(curl https://${VEN_API_HOST}/outagedetection/v1/applications --fail-with-body -sSL -H tppl-api-key:\ ${VEN_API_KEY})" \
+    | curl https://${VEN_API_HOST}/v1/serviceaccounts \
+      -H "tppl-api-key: $VEN_API_KEY" \
+      --fail-with-body \
+      -sSL --json @-
 done
 
 kubectl apply -n venafi -f - <<EOF
@@ -190,14 +185,14 @@ spec:
         tenantID: ${tenantID}
 EOF
 
-envsubst < application-team-1.yaml | kubectl apply -f -
+envsubst <application-team-1.yaml | kubectl apply -f -
 kubectl -n team-1 wait certificate app-0 --for=condition=Ready
 
 # Wait for log message indicating success.
 # Filter out distracting data gatherer errors and warnings.
 # Show other useful log messages on stderr.
 kubectl logs deployments/venafi-kubernetes-agent \
-        --follow \
-        --namespace venafi \
-    | tee >(grep -v -e "reflector\.go" -e "datagatherer" -e "data gatherer" > /dev/stderr) \
-    | grep -q "Data sent successfully"
+  --follow \
+  --namespace venafi \
+  | tee >(grep -v -e "reflector\.go" -e "datagatherer" -e "data gatherer" >/dev/stderr) \
+  | grep -q "Data sent successfully"
