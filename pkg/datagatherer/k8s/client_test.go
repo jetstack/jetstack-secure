@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -55,7 +54,7 @@ func TestNewDiscoveryClient_InferredKubeconfig(t *testing.T) {
 }
 
 func writeConfigToFile(t *testing.T, cfg clientcmdapi.Config) string {
-	f, err := ioutil.TempFile("", "testcase-*")
+	f, err := os.CreateTemp("", "testcase-*")
 	if err != nil {
 		t.Fatal(err)
 	}

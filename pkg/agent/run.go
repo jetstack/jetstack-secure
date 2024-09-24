@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -50,7 +50,7 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 	defer file.Close()
 
-	b, err := ioutil.ReadAll(file)
+	b, err := io.ReadAll(file)
 	if err != nil {
 		logs.Log.Fatalf("Failed to read config file: %s", err)
 	}
@@ -194,7 +194,7 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 
 	if Flags.InputPath != "" {
 		logs.Log.Printf("Reading data from local file: %s", Flags.InputPath)
-		data, err := ioutil.ReadFile(Flags.InputPath)
+		data, err := os.ReadFile(Flags.InputPath)
 		if err != nil {
 			logs.Log.Fatalf("failed to read local data file: %s", err)
 		}
@@ -211,7 +211,7 @@ func gatherAndOutputData(config Config, preflightClient client.Client, dataGathe
 		if err != nil {
 			logs.Log.Fatal("failed to marshal JSON")
 		}
-		err = ioutil.WriteFile(Flags.OutputPath, data, 0644)
+		err = os.WriteFile(Flags.OutputPath, data, 0644)
 		if err != nil {
 			logs.Log.Fatalf("failed to output to local file: %s", err)
 		}
@@ -320,7 +320,7 @@ func postData(config Config, preflightClient client.Client, readings []*api.Data
 		}
 		if code := res.StatusCode; code < 200 || code >= 300 {
 			errorContent := ""
-			body, _ := ioutil.ReadAll(res.Body)
+			body, _ := io.ReadAll(res.Body)
 			if err == nil {
 				errorContent = string(body)
 			}
