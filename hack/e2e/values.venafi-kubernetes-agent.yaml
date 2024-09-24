@@ -6,3 +6,7 @@ config:
 authentication:
   venafiConnection:
     enabled: true
+
+crds:
+  venafiConnection:
+    include: true
