@@ -38,10 +38,6 @@ set -o xtrace
 # doesn't allow you to create registry service accounts.
 : ${VEN_API_KEY_PULL?}
 
-# The Venafi Cloud team which will be the owner of the generated Venafi service
-# accounts.
-: ${VEN_OWNING_TEAM?}
-
 # The Venafi Cloud zone (application/issuing_template) which will be used by the
 # issuer an policy.
 : ${VEN_ZONE?}
@@ -87,12 +83,16 @@ if ! gcloud container clusters get-credentials "${CLUSTER_NAME}"; then
 fi
 kubectl create ns venafi || true
 
+# Let's pick the first team as the owning team as it doesn't matter for this
+# test.
+owningTeamID=$(curl --fail-with-body -sS https://api.venafi.cloud/v1/teams -H "tppl-api-key: $VEN_API_KEY" | jq '.teams[0].id' -r)
+
 # Pull secret for Venafi OCI registry
 if ! kubectl get secret venafi-image-pull-secret -n venafi; then
     venctl iam service-accounts registry create \
            --api-key "${VEN_API_KEY_PULL}" \
            --no-prompts \
-           --owning-team "${VEN_OWNING_TEAM}" \
+           --owning-team "${owningTeamID}" \
            --name "venafi-kubernetes-agent-e2e-registry-${RANDOM}" \
            --scopes enterprise-cert-manager,enterprise-venafi-issuer,enterprise-approver-policy \
     | jq '{
@@ -129,11 +129,13 @@ venctl components kubernetes apply \
 
 kubectl apply -n venafi -f venafi-components.yaml
 
+
 subject="system:serviceaccount:venafi:venafi-components"
 audience="https://${VEN_API_HOST}"
 issuerURL="$(kubectl create token -n venafi venafi-components | step crypto jwt inspect --insecure | jq -r '.payload.iss')"
 openidDiscoveryURL="${issuerURL}/.well-known/openid-configuration"
 jwksURI=$(curl --fail-with-body -sSL ${openidDiscoveryURL} | jq -r '.jwks_uri')
+
 
 # Create the Venafi agent service account if one does not already exist
 while true; do
@@ -155,15 +157,14 @@ while true; do
       "issuerURL": $issuerURL,
       "jwksURI": $jwksURI,
       "applications": [$applications.applications[].id],
-      "owner": $teams.teams[] | select(.name==$teamName) | .id
+      "owner": $owningTeamID
     }' \
         --arg random "${RANDOM}" \
-        --arg teamName "${VEN_OWNING_TEAM}" \
         --arg subject "${subject}" \
         --arg audience "${audience}" \
         --arg issuerURL "${issuerURL}" \
         --arg jwksURI "${jwksURI}" \
-        --argjson teams "$(curl https://${VEN_API_HOST}/v1/teams --fail-with-body -sSL -H tppl-api-key:\ ${VEN_API_KEY})" \
+        --arg owningTeamID "{$owningTeamID}" \
         --argjson applications "$(curl https://${VEN_API_HOST}/outagedetection/v1/applications --fail-with-body -sSL -H tppl-api-key:\ ${VEN_API_KEY})" \
         | curl https://${VEN_API_HOST}/v1/serviceaccounts \
                -H "tppl-api-key: $VEN_API_KEY" \
