@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"time"
@@ -66,7 +65,7 @@ func (c *APITokenClient) PostDataReadings(orgID, clusterID string, readings []*a
 
 	if code := res.StatusCode; code < 200 || code >= 300 {
 		errorContent := ""
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		if err == nil {
 			errorContent = string(body)
 		}

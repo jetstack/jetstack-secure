@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -120,7 +119,7 @@ func (c *OAuthClient) PostDataReadings(orgID, clusterID string, readings []*api.
 
 	if code := res.StatusCode; code < 200 || code >= 300 {
 		errorContent := ""
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		if err == nil {
 			errorContent = string(body)
 		}
@@ -187,7 +186,7 @@ func (c *OAuthClient) renewAccessToken() error {
 		return errors.WithStack(err)
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return errors.WithStack(err)
 	}

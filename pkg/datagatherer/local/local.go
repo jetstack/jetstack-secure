@@ -3,7 +3,7 @@ package local
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
 )
@@ -55,7 +55,7 @@ func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
 
 // Fetch loads and returns the data from the LocalDatagatherer's dataPath
 func (g *DataGatherer) Fetch() (interface{}, int, error) {
-	dataBytes, err := ioutil.ReadFile(g.dataPath)
+	dataBytes, err := os.ReadFile(g.dataPath)
 	if err != nil {
 		return nil, -1, err
 	}
