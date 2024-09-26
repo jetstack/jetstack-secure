@@ -25,8 +25,9 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
-	"github.com/jetstack/preflight/api"
 	"github.com/microcosm-cc/bluemonday"
+
+	"github.com/jetstack/preflight/api"
 )
 
 type (
@@ -42,13 +43,15 @@ type (
 		accessToken   *venafiCloudAccessToken
 		baseURL       string
 		agentMetadata *api.AgentMetadata
-		client        *http.Client
 
 		uploaderID    string
 		uploadPath    string
 		privateKey    crypto.PrivateKey
 		jwtSigningAlg jwt.SigningMethod
 		lock          sync.RWMutex
+
+		// Made public for testing purposes.
+		Client *http.Client
 	}
 
 	VenafiSvcAccountCredentials struct {
@@ -83,18 +86,19 @@ const (
 // to authenticate to the backend API.
 func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiSvcAccountCredentials, baseURL string, uploaderID string, uploadPath string) (*VenafiCloudClient, error) {
 	if err := credentials.Validate(); err != nil {
-		return nil, fmt.Errorf("cannot create VenafiCloudClient: %v", err)
+		return nil, fmt.Errorf("cannot create VenafiCloudClient: %w", err)
 	}
 	privateKey, jwtSigningAlg, err := parsePrivateKeyAndExtractSigningMethod(credentials.PrivateKeyFile)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing private key file %v", err)
+		return nil, fmt.Errorf("while parsing private key file: %w", err)
 	}
 	if baseURL == "" {
 		return nil, fmt.Errorf("cannot create VenafiCloudClient: baseURL cannot be empty")
 	}
 
-	if !credentials.IsClientSet() {
-		return nil, fmt.Errorf("cannot create VenafiCloudClient: invalid Venafi Cloud client configuration")
+	ok, why := credentials.IsClientSet()
+	if !ok {
+		return nil, fmt.Errorf("%s", why)
 	}
 
 	if uploadPath == "" {
@@ -107,7 +111,7 @@ func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiS
 		credentials:   credentials,
 		baseURL:       baseURL,
 		accessToken:   &venafiCloudAccessToken{},
-		client:        &http.Client{Timeout: time.Minute},
+		Client:        &http.Client{Timeout: time.Minute},
 		uploaderID:    uploaderID,
 		uploadPath:    uploadPath,
 		privateKey:    privateKey,
@@ -149,9 +153,17 @@ func (c *VenafiSvcAccountCredentials) Validate() error {
 	return result.ErrorOrNil()
 }
 
-// IsClientSet returns whether the client credentials are set or not.
-func (c *VenafiSvcAccountCredentials) IsClientSet() bool {
-	return c.ClientID != "" && c.PrivateKeyFile != ""
+// IsClientSet returns whether the client credentials are set or not. `why` is
+// only returned when `ok` is false.
+func (c *VenafiSvcAccountCredentials) IsClientSet() (ok bool, why string) {
+	if c.ClientID == "" {
+		return false, "ClientID is empty"
+	}
+	if c.PrivateKeyFile == "" {
+		return false, "PrivateKeyFile is empty"
+	}
+
+	return true, ""
 }
 
 // PostDataReadingsWithOptions uploads the slice of api.DataReading to the Venafi Cloud backend to be processed.
@@ -260,7 +272,7 @@ func (c *VenafiCloudClient) Post(path string, body io.Reader) (*http.Response, e
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.accessToken))
 	}
 
-	return c.client.Do(req)
+	return c.Client.Do(req)
 }
 
 // getValidAccessToken returns a valid access token. It will fetch a new access
@@ -315,7 +327,7 @@ func (c *VenafiCloudClient) updateAccessToken() error {
 }
 
 func (c *VenafiCloudClient) sendHTTPRequest(request *http.Request, responseObject interface{}) error {
-	response, err := c.client.Do(request)
+	response, err := c.Client.Do(request)
 	if err != nil {
 		return err
 	}
@@ -370,7 +382,7 @@ func parsePrivateKeyFromPemFile(privateKeyFilePath string) (crypto.PrivateKey, e
 
 	der, _ := pem.Decode(pkBytes)
 	if der == nil {
-		return nil, fmt.Errorf("error decoding private key from pem file %q", privateKeyFilePath)
+		return nil, fmt.Errorf("while decoding the PEM-encoded private key %v, its content were: %s", privateKeyFilePath, string(pkBytes))
 	}
 
 	if key, err := x509.ParsePKCS1PrivateKey(der.Bytes); err == nil {
@@ -381,13 +393,13 @@ func parsePrivateKeyFromPemFile(privateKeyFilePath string) (crypto.PrivateKey, e
 		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey:
 			return key, nil
 		default:
-			return nil, fmt.Errorf("found unknown private key type in PKCS#8 wrapping")
+			return nil, fmt.Errorf("found unknown private key type in PKCS#8 wrapping: %T", key)
 		}
 	}
 	if key, err := x509.ParseECPrivateKey(der.Bytes); err == nil {
 		return key, nil
 	}
-	return nil, fmt.Errorf("failed to parse private key")
+	return nil, fmt.Errorf("while parsing EC private: %w", err)
 }
 
 func parsePrivateKeyAndExtractSigningMethod(privateKeyFile string) (crypto.PrivateKey, jwt.SigningMethod, error) {

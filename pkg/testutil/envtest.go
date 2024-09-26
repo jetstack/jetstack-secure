@@ -1,6 +1,8 @@
 package testutil
 
 import (
+	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"io"
 	"net/http"
@@ -22,6 +24,8 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	ctrlruntime "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+
+	"github.com/jetstack/preflight/pkg/client"
 )
 
 // To see the API server logs, set:
@@ -99,71 +103,52 @@ func WithKubeconfig(t testing.TB, restCfg *rest.Config) string {
 	return kubeconfig.Name()
 }
 
-// Undent removes leading indentation/white-space from given string and returns
-// it as a string. Useful for inlining YAML manifests in Go code. Inline YAML
-// manifests in the Go test files makes it easier to read the test case as
-// opposed to reading verbose-y Go structs.
-//
-// This was copied from https://github.com/jimeh/Undent/blob/main/Undent.go, all
-// credit goes to the author, Jim Myhrberg.
-func Undent(s string) string {
-	const (
-		tab = 9
-		lf  = 10
-		spc = 32
-	)
+// Tests calling to VenConnClient.PostDataReadingsWithOptions must call this
+// function to start the VenafiConnection watcher. If you don't call this, the
+// test will stall.
+func VenConnStartWatching(t *testing.T, cl client.Client) {
+	t.Helper()
 
-	if len(s) == 0 {
-		return ""
+	require.IsType(t, &client.VenConnClient{}, cl)
+
+	// This `cancel` is important because the below func `Start(ctx)` needs to
+	// be stopped before the apiserver is stopped. Otherwise, the test fail with
+	// the message "timeout waiting for process kube-apiserver to stop". See:
+	// https://github.com/jetstack/venafi-connection-lib/pull/158#issuecomment-1949002322
+	// https://github.com/kubernetes-sigs/controller-runtime/issues/1571#issuecomment-945535598
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		err := cl.(*client.VenConnClient).Start(ctx)
+		require.NoError(t, err)
+	}()
+	t.Cleanup(cancel)
+}
+
+// Works with VenafiCloudClient and VenConnClient. Allows you to trust a given
+// CA.
+func TrustCA(t *testing.T, cl client.Client, cert *x509.Certificate) {
+	t.Helper()
+
+	var httpClient *http.Client
+	switch c := cl.(type) {
+	case *client.VenafiCloudClient:
+		httpClient = c.Client
+	case *client.VenConnClient:
+		httpClient = c.Client
+	default:
+		t.Fatalf("unsupported client type: %T", cl)
 	}
 
-	// find smallest indent relative to each line-feed
-	min := 99999999999
-	count := 0
+	pool := x509.NewCertPool()
+	pool.AddCert(cert)
 
-	lfs := make([]int, 0, strings.Count(s, "\n"))
-	if s[0] != lf {
-		lfs = append(lfs, -1)
+	if httpClient.Transport == nil {
+		httpClient.Transport = http.DefaultTransport
 	}
-
-	indent := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == lf {
-			lfs = append(lfs, i)
-			indent = 0
-		} else if indent < min {
-			switch s[i] {
-			case spc, tab:
-				indent++
-			default:
-				if indent > 0 {
-					count++
-				}
-				if indent < min {
-					min = indent
-				}
-			}
-		}
+	if httpClient.Transport.(*http.Transport).TLSClientConfig == nil {
+		httpClient.Transport.(*http.Transport).TLSClientConfig = &tls.Config{}
 	}
-
-	// extract each line without indentation
-	out := make([]byte, 0, len(s)-(min*count))
-
-	for i := 0; i < len(lfs); i++ {
-		offset := lfs[i] + 1
-		end := len(s)
-		if i+1 < len(lfs) {
-			end = lfs[i+1] + 1
-		}
-
-		if offset+min <= end {
-			out = append(out, s[offset+min:end]...)
-		} else if offset < end {
-			out = append(out, s[offset:end]...)
-		}
-	}
-
-	return string(out)
+	httpClient.Transport.(*http.Transport).TLSClientConfig.RootCAs = pool
 }
 
 // Parses the YAML manifest. Useful for inlining YAML manifests in Go test
@@ -206,25 +191,30 @@ func FakeVenafiCloud(t *testing.T) (_ *httptest.Server, _ *x509.Certificate, set
 		defer assertFnMu.Unlock()
 		assertFn(t, r)
 
+		if r.URL.Path == "/v1/oauth2/v2.0/756db001-280e-11ee-84fb-991f3177e2d0/token" {
+			_, _ = w.Write([]byte(`{"access_token":"VALID_ACCESS_TOKEN","expires_in":900,"token_type":"bearer"}`))
+			return
+		} else if r.URL.Path == "/v1/oauth/token/serviceaccount" {
+			_, _ = w.Write([]byte(`{"access_token":"VALID_ACCESS_TOKEN","expires_in":900,"token_type":"bearer"}`))
+			return
+		}
+
 		accessToken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		apiKey := r.Header.Get("tppl-api-key")
 		if accessToken != "VALID_ACCESS_TOKEN" && apiKey != "VALID_API_KEY" {
 			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error":"expected header 'Authorization: Bearer VALID_ACCESS_TOKEN' or 'tppl-api-key: VALID_API_KEY', but got Authorization=` + r.Header.Get("Authorization") + ` and tppl-api-key=` + r.Header.Get("tppl-api-key")))
 			return
 		}
 		if r.URL.Path == "/v1/tlspk/upload/clusterdata/no" {
 			if r.URL.Query().Get("name") != "test cluster name" {
 				w.WriteHeader(http.StatusBadRequest)
-				_, _ = w.Write([]byte(`{"error":"unexpected name query param in the test server: ` + r.URL.Query().Get("name") + `"}`))
+				_, _ = w.Write([]byte(`{"error":"unexpected name query param in the test server: ` + r.URL.Query().Get("name") + `, expected: 'test cluster name'"}`))
 				return
 			}
 			_, _ = w.Write([]byte(`{"status":"ok","organization":"756db001-280e-11ee-84fb-991f3177e2d0"}`))
 		} else if r.URL.Path == "/v1/useraccounts" {
-			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"user": {"username": "user","id": "76a126f0-280e-11ee-84fb-991f3177e2d0"}}`))
-
-		} else if r.URL.Path == "/v1/oauth2/v2.0/756db001-280e-11ee-84fb-991f3177e2d0/token" {
-			_, _ = w.Write([]byte(`{"access_token":"VALID_ACCESS_TOKEN","expires_in":900,"token_type":"bearer"}`))
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"error":"unexpected path in the test server","path":"` + r.URL.Path + `"}`))
@@ -269,7 +259,11 @@ func FakeTPP(t testing.TB) (*httptest.Server, *x509.Certificate) {
 
 // Generated using:
 //
-//	helm template ./deploy/charts/venafi-kubernetes-agent -n venafi --set venafiConnection.include=true --show-only templates/venafi-connection-VenConnRBAC.yaml | grep -ivE '(helm|\/version)'
+//	helm template ./deploy/charts/venafi-kubernetes-agent -n venafi --set crds.venafiConnection.include=true --show-only templates/venafi-connection-rbac.yaml | grep -ivE '(helm|\/version)'
+//
+// TODO(mael): Once we get the Makefile modules setup, we should generate this
+// based on the Helm chart rather than having it hardcoded here. Ticket:
+// https://venafi.atlassian.net/browse/VC-36331
 const VenConnRBAC = `
 apiVersion: v1
 kind: Namespace

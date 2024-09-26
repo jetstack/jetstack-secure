@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/d4l3k/messagediff"
-	"github.com/jetstack/preflight/api"
 	"github.com/pmylund/go-cache"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/jetstack/preflight/api"
 )
 
 func makeGatheredResource(obj runtime.Object, deletedAt api.Time) *api.GatheredResource {

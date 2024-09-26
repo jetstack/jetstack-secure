@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jetstack/preflight/pkg/datagatherer"
 	"k8s.io/client-go/discovery"
+
+	"github.com/jetstack/preflight/pkg/datagatherer"
 )
 
 // ConfigDiscovery contains the configuration for the k8s-discovery data-gatherer

@@ -12,20 +12,20 @@ import (
 	"time"
 
 	"github.com/d4l3k/messagediff"
-	"github.com/jetstack/preflight/api"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
+
+	"github.com/jetstack/preflight/api"
 )
 
 func getObject(version, kind, name, namespace string, withManagedFields bool) *unstructured.Unstructured {

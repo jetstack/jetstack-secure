@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/pkg/errors"
 	"github.com/pmylund/go-cache"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -27,6 +26,7 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/logs"
 )
 
 // ConfigDynamic contains the configuration for the data-gatherer.

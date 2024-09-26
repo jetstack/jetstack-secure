@@ -9,6 +9,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+	"k8s.io/client-go/rest"
+
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
@@ -16,10 +21,6 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer/local"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
 	"github.com/jetstack/preflight/pkg/version"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
-	"k8s.io/client-go/rest"
 )
 
 const (
@@ -28,24 +29,34 @@ const (
 
 // Config wraps the options for a run of the agent.
 type Config struct {
+	// Deprecated: Schedule doesn't do anything. Use `period` instead.
 	Schedule string        `yaml:"schedule"`
 	Period   time.Duration `yaml:"period"`
-	// Deprecated: Endpoint is being replaced with Server.
+
+	// Deprecated: Use `server` instead.
 	Endpoint Endpoint `yaml:"endpoint"`
-	// Server is the base url for the Preflight server.
-	// It defaults to https://preflight.jetstack.io.
+
+	// Server is the base URL for the Preflight server. It defaults to
+	// https://preflight.jetstack.io in Jetstack Secure OAuth and Jetstack
+	// Secure API Token modes, and https://api.venafi.cloud in Venafi Cloud Key
+	// Pair Service Account mode. It is ignored in Venafi Cloud VenafiConnection
+	// mode.
 	Server string `yaml:"server"`
-	// OrganizationID within Preflight that will receive the data.
+
+	// OrganizationID is only used in Jetstack Secure OAuth and Jetstack Secure
+	// API Token modes.
 	OrganizationID string `yaml:"organization_id"`
-	// ClusterID is the cluster that the agent is scanning.
-	ClusterID          string         `yaml:"cluster_id"`
-	ClusterDescription string         `yaml:"cluster_description"`
-	DataGatherers      []DataGatherer `yaml:"data-gatherers"`
-	// InputPath replaces DataGatherers with input data file
+
+	// ClusterID is the cluster that the agent is scanning. Used in all modes.
+	ClusterID          string             `yaml:"cluster_id"`
+	ClusterDescription string             `yaml:"cluster_description"`
+	DataGatherers      []DataGatherer     `yaml:"data-gatherers"`
+	VenafiCloud        *VenafiCloudConfig `yaml:"venafi-cloud,omitempty"`
+
+	// For testing purposes.
 	InputPath string `yaml:"input-path"`
-	// OutputPath replaces Server with output data file
-	OutputPath  string             `yaml:"output-path"`
-	VenafiCloud *VenafiCloudConfig `yaml:"venafi-cloud,omitempty"`
+	// For testing purposes.
+	OutputPath string `yaml:"output-path"`
 }
 
 type Endpoint struct {
@@ -62,10 +73,14 @@ type DataGatherer struct {
 }
 
 type VenafiCloudConfig struct {
-	// UploaderID is the upload ID that will be used when
-	// creating a cluster connection
+	// Deprecated: UploaderID is ignored by the backend and is not needed.
+	// UploaderID is the upload ID that will be used when creating a cluster
+	// connection. This field is ignored by the backend and is often arbitrarily
+	// set to "no".
 	UploaderID string `yaml:"uploader_id,omitempty"`
-	// UploadPath is the endpoint path for the upload API.
+
+	// UploadPath is the endpoint path for the upload API. Only used in Venafi
+	// Cloud Key Pair Service Account mode.
 	UploadPath string `yaml:"upload_path,omitempty"`
 }
 
@@ -74,33 +89,44 @@ type AgentCmdFlags struct {
 	// YAML file.
 	ConfigFilePath string
 
-	// Period (--period, -p) is the time waited between scans.
+	// Period (--period, -p) is the time waited between scans. It takes
+	// precedence over the config field `period`.
 	Period time.Duration
 
-	// OneShot (--one-shot) flag causes agent to run once.
-	OneShot bool
-
-	// VenafiCloudMode (--venafi-cloud) determines which format to load for
-	// config and credential type.
+	// VenafiCloudMode (--venafi-cloud) turns on the Venafi Cloud Key Pair
+	// Service Account mode. Must be used in conjunction with
+	// --credentials-file.
 	VenafiCloudMode bool
 
-	// ClientID (--client-id) is the clientID in case of Venafi Cloud mode.
+	// ClientID (--client-id) is the clientID in case of Venafi Cloud Key Pair
+	// Service Account mode.
 	ClientID string
 
 	// PrivateKeyPath (--private-key-path) is the path for the service account
-	// private key in case of Venafi Cloud mode.
+	// private key in case of Venafi Cloud Key Pair Service Account mode.
 	PrivateKeyPath string
 
-	// CredentialsPath (--credentials-file, -k) is the path to the credentials )
-	// is where the agent will try to loads the credentials (Experimental).
+	// CredentialsPath (--credentials-file, -k) lets you specify the location of
+	// the credentials file. This is used for the Jetstack Secure OAuth and
+	// Venafi Cloud Key Pair Service Account modes. In Venafi Cloud Key Pair
+	// Service Account mode, you also need to pass --venafi-cloud.
 	CredentialsPath string
 
-	// OutputPath (--output-path) is where the agent will write data to instead
-	// of uploading to server.
+	// OneShot (--one-shot) is used for testing purposes. The agent will run
+	// once and exit. It is often used in conjunction with --output-path and/or
+	// --input-path.
+	OneShot bool
+
+	// OutputPath (--output-path) is used for testing purposes. In conjunction
+	// with --one-shot, it allows you to write the data readings to a file
+	// instead uploading them to the Venafi Cloud API.
 	OutputPath string
 
-	// InputPath (--input-path) is where the agent will read data from instead
-	// of gathering data from clusters.
+	// InputPath (--input-path) is used for testing purposes. In conjunction
+	// with --one-shot, it allows you to push manually crafted data readings (in
+	// JSON format) to the Venafi Cloud API without the need to connect to a
+	// Kubernetes cluster. See the jscp-testing-cli's README for more info:
+	// https://gitlab.com/venafi/vaas/applications/tls-protect-for-k8s/cloud-services/-/tree/master/jscp-testing-cli
 	InputPath string
 
 	// BackoffMaxTime (--backoff-max-time) is the maximum time for which data
@@ -110,8 +136,8 @@ type AgentCmdFlags struct {
 	// StrictMode (--strict) causes the agent to fail at the first attempt.
 	StrictMode bool
 
-	// APIToken (--api-token) is an authentication token used for the backend
-	// API as an alternative to OAuth flows.
+	// APIToken (--api-token) allows you to use the Jetstack Secure API Token
+	// mode. Defaults to the value of the env var API_TOKEN.
 	APIToken string
 
 	// VenConnName (--venafi-connection) is the name of the VenafiConnection
@@ -160,49 +186,52 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		"credentials-file",
 		"k",
 		"",
-		"Location of the credentials file. For OAuth2 based authentication.",
+		fmt.Sprintf("Location of the credentials file. For the %s and %s modes.", JetstackSecureOAuth, VenafiCloudKeypair),
 	)
 	c.PersistentFlags().BoolVarP(
 		&cfg.VenafiCloudMode,
 		"venafi-cloud",
 		"",
 		false,
-		"Runs agent with parsing config (and credentials file if provided) in Venafi Cloud format if true.",
+		fmt.Sprintf("Turns on the %s mode. The flag --credentials-file must also be passed.", JetstackSecureOAuth),
 	)
+	c.PersistentFlags().MarkHidden("venafi-cloud")
 	c.PersistentFlags().StringVarP(
 		&cfg.ClientID,
 		"client-id",
 		"",
 		"",
-		"Venafi Cloud Service Account client ID. If you use this flag you don't need to use --venafi-cloud as it will assume you are authenticating against Venafi Cloud. Using this removes the need to use a credentials file with Venafi Cloud mode.",
+		fmt.Sprintf("Turns on the %s mode. If you use this flag you don't need to use --venafi-cloud "+
+			"as it will assume you are authenticating with Venafi Cloud. Using this removes the need to use a "+
+			"credentials file.", VenafiCloudKeypair),
 	)
 	c.PersistentFlags().StringVarP(
 		&cfg.PrivateKeyPath,
 		"private-key-path",
 		"",
-		"/etc/venafi/agent/key/privatekey.pem",
-		"Venafi Cloud Service Account private key path.",
+		"",
+		fmt.Sprintf("To be used in conjunction with --client-id. The path to the private key file for the service account."),
 	)
 	c.PersistentFlags().BoolVarP(
 		&cfg.OneShot,
 		"one-shot",
 		"",
 		false,
-		"Runs agent a single time if true, or continously if false",
+		"For testing purposes. The agent will run once and exit. It is often used in conjunction with --output-path and/or --input-path.",
 	)
 	c.PersistentFlags().StringVarP(
 		&cfg.OutputPath,
 		"output-path",
 		"",
 		"",
-		"Output file path, if used, it will write data to a local file instead of uploading to the preflight server",
+		"For testing purposes. In conjunction with --one-shot, it allows you to write the data readings to a file instead of uploading to the server.",
 	)
 	c.PersistentFlags().StringVarP(
 		&cfg.InputPath,
 		"input-path",
 		"",
 		"",
-		"Input file path, if used, it will read data from a local file instead of gathering data from clusters",
+		"For testing purposes. In conjunction with --one-shot, it allows you to push manually crafted data readings (in JSON format) to the Venafi Cloud API without the need to connect to a Kubernetes cluster.",
 	)
 	c.PersistentFlags().DurationVarP(
 		&cfg.BackoffMaxTime,
@@ -222,25 +251,30 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		&cfg.APIToken,
 		"api-token",
 		os.Getenv("API_TOKEN"),
-		"Token used for authentication when API tokens are in use on the backend",
+		"Turns on the "+string(JetstackSecureAPIToken)+" mode. Defaults to the value of the env var API_TOKEN.",
 	)
 	c.PersistentFlags().StringVar(
 		&cfg.VenConnName,
 		"venafi-connection",
 		"",
-		"Name of the VenafiConnection to be used. Using this flag will enable the VenafiConnection mode.",
+		"Turns on the "+string(VenafiCloudVenafiConnection)+" mode. "+
+			"This flag configures the name of the VenafiConnection to be used.",
 	)
 	c.PersistentFlags().StringVar(
 		&cfg.VenConnNS,
 		"venafi-connection-namespace",
 		"",
-		"Namespace of the VenafiConnection to be used. It is only useful when the VenafiConnection isn't in the same namespace as the agent. The field `allowReferencesFrom` must be present on the cross-namespace VenafiConnection for the agent to use it.",
+		"Namespace of the VenafiConnection to be used. It is only useful when the "+
+			"VenafiConnection isn't in the same namespace as the agent. The field `allowReferencesFrom` "+
+			"must be present on the cross-namespace VenafiConnection for the agent to use it.",
 	)
 	c.PersistentFlags().StringVar(
 		&cfg.InstallNS,
 		"install-namespace",
 		"",
-		"Namespace in which the agent is running. Only needed when running the agent outside of Kubernetes. Used for testing purposes.",
+		"For testing purposes. Namespace in which the agent is running. "+
+			"Only needed with the "+string(VenafiCloudVenafiConnection)+" mode"+
+			"when running the agent outside of Kubernetes.",
 	)
 	c.PersistentFlags().BoolVarP(
 		&cfg.Profiling,
@@ -256,153 +290,436 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		false,
 		"Enables Prometheus metrics server on the agent (port: 8081).",
 	)
+
 }
 
-// getConfiguration combines the input configuration with the flags passed to
-// the agent and returns the final configuration as well as the Venafi client to
-// be used to upload data.
-func getConfiguration(log *log.Logger, cfg Config, flags AgentCmdFlags) (Config, client.Client, error) {
-	// If the ClientID of the service account is specified, then assume we are in Venafi Cloud mode.
-	if flags.ClientID != "" || flags.VenConnName != "" {
-		flags.VenafiCloudMode = true
+type AuthMode string
+
+const (
+	JetstackSecureOAuth         AuthMode = "Jetstack Secure OAuth"
+	JetstackSecureAPIToken      AuthMode = "Jetstack Secure API Token"
+	VenafiCloudKeypair          AuthMode = "Venafi Cloud Key Pair Service Account"
+	VenafiCloudVenafiConnection AuthMode = "Venafi Cloud VenafiConnection"
+)
+
+// The command-line flags and the config file are combined into this struct by
+// ValidateAndCombineConfig.
+type CombinedConfig struct {
+	AuthMode AuthMode
+
+	// Used by all modes.
+	ClusterID      string
+	DataGatherers  []DataGatherer
+	Period         time.Duration
+	BackoffMaxTime time.Duration
+	StrictMode     bool
+	OneShot        bool
+
+	// Used by JetstackSecureOAuth, JetstackSecureAPIToken, and
+	// VenafiCloudKeypair. Ignored in VenafiCloudVenafiConnection mode.
+	Server string
+
+	// JetstackSecureOAuth and JetstackSecureAPIToken modes only.
+	OrganizationID string
+	EndpointPath   string // Deprecated.
+
+	// VenafiCloudKeypair mode only.
+	UploadPath         string
+	ClusterDescription string
+
+	// VenafiCloudVenafiConnection mode only.
+	VenConnName string
+	VenConnNS   string
+	InstallNS   string
+
+	// Only used for testing purposes.
+	OutputPath string
+	InputPath  string
+}
+
+// ValidateAndCombineConfig combines and validates the input configuration with
+// the flags passed to the agent and returns the final configuration as well as
+// the Venafi client to be used to upload data. Does not do any network call.
+// The logger can be changed for testing purposes. You do not need to call
+// ValidateDataGatherers as ValidateAndCombineConfig already does that.
+//
+// The error returned may be a multierror.Error. Use multierror.Prefix(err,
+// "context:") rather than fmt.Errorf("context: %w", err) when wrapping the
+// error.
+func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) (CombinedConfig, client.Client, error) {
+	res := CombinedConfig{}
+	var errs error
+
+	{
+		var mode AuthMode
+		switch {
+		case flags.VenafiCloudMode && flags.CredentialsPath != "":
+			mode = VenafiCloudKeypair
+			log.Printf("Using the %s auth mode since --venafi-cloud and --credentials-path were specified.", mode)
+		case flags.ClientID != "" && flags.PrivateKeyPath != "":
+			mode = VenafiCloudKeypair
+			log.Printf("Using the %s auth mode since --client-id and --private-key-path were specified.", mode)
+		case flags.ClientID != "":
+			return CombinedConfig{}, nil, fmt.Errorf("if --client-id is specified, --private-key-path must also be specified")
+		case flags.PrivateKeyPath != "":
+			return CombinedConfig{}, nil, fmt.Errorf("--private-key-path is specified, --client-id must also be specified")
+		case flags.VenConnName != "":
+			mode = VenafiCloudVenafiConnection
+			log.Printf("Using the %s auth mode since --venafi-connection was specified.", mode)
+		case flags.APIToken != "":
+			mode = JetstackSecureAPIToken
+			log.Printf("Using the %s auth mode since --api-token was specified.", mode)
+		case !flags.VenafiCloudMode && flags.CredentialsPath != "":
+			mode = JetstackSecureOAuth
+			log.Printf("Using the %s auth mode since --credentials-file was specified without --venafi-cloud.", mode)
+		default:
+			return CombinedConfig{}, nil, fmt.Errorf("no auth mode specified. You can use one of four auth modes:\n" +
+				" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
+				" - Use --venafi-connection for the " + string(VenafiCloudVenafiConnection) + " mode.\n" +
+				" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
+				" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.\n")
+		}
+		res.AuthMode = mode
 	}
 
-	// In VenafiConnection mode, we don't need the server field. For the other
-	// modes, we do need to validate the server field.
-	var baseURL string
-	if flags.VenConnName != "" {
-		if cfg.Server != "" {
-			log.Printf("ignoring the server field specified in the config file. In Venafi Connection mode, this field is not needed. Use the VenafiConnection's spec.vcp.url field instead.")
-		}
-	} else {
-		baseURL = cfg.Server
-		if baseURL == "" {
+	// Validation and defaulting of `server` and the deprecated `endpoint.path`.
+	{
+		hasEndpointField := cfg.Endpoint.Host != "" && cfg.Endpoint.Path != ""
+		hasServerField := cfg.Server != ""
+		var server string
+		var endpointPath string // Deprecated. Only used when the `endpoint` field is set.
+		switch {
+		case hasServerField && !hasEndpointField:
+			server = cfg.Server
+		case hasServerField && hasEndpointField:
+			// The `server` field takes precedence over the deprecated
+			// `endpoint` field.
+			log.Printf("The `server` and `endpoint` fields are both set in the config; using the `server` field.")
+			server = cfg.Server
+		case !hasServerField && hasEndpointField:
 			log.Printf("Using deprecated Endpoint configuration. User Server instead.")
-			baseURL = fmt.Sprintf("%s://%s", cfg.Endpoint.Protocol, cfg.Endpoint.Host)
-			_, err := url.Parse(baseURL)
-			if err != nil {
-				return Config{}, nil, fmt.Errorf("failed to parse server URL: %w", err)
+			if cfg.Endpoint.Protocol == "" && cfg.Server == "" {
+				cfg.Endpoint.Protocol = "http"
+			}
+			server = fmt.Sprintf("%s://%s", cfg.Endpoint.Protocol, cfg.Endpoint.Host)
+			endpointPath = cfg.Endpoint.Path
+		case !hasServerField && !hasEndpointField:
+			server = "https://preflight.jetstack.io"
+			if res.AuthMode == VenafiCloudKeypair {
+				// The VenafiCloudVenafiConnection mode doesn't need a server.
+				server = client.VenafiCloudProdURL
 			}
 		}
+		url, urlErr := url.Parse(server)
+		if urlErr != nil || url.Hostname() == "" {
+			errs = multierror.Append(errs, fmt.Errorf("server %q is not a valid URL", server))
+		}
+		if res.AuthMode == VenafiCloudVenafiConnection && server != "" {
+			log.Printf("ignoring the server field specified in the config file. In %s mode, this field is not needed.", VenafiCloudVenafiConnection)
+			server = ""
+		}
+		res.Server = server
+		res.EndpointPath = endpointPath
 	}
 
-	if flags.Period == 0 && cfg.Period == 0 && !flags.OneShot {
-		return Config{}, nil, fmt.Errorf("period must be set as a flag or in config")
+	// Validation of `venafi-cloud.upload_path`.
+	{
+		var uploadPath string
+		switch {
+		case res.AuthMode == VenafiCloudKeypair:
+			if cfg.VenafiCloud == nil || cfg.VenafiCloud.UploadPath == "" {
+				errs = multierror.Append(errs, fmt.Errorf("the venafi-cloud.upload_path field is required when using the %s mode", res.AuthMode))
+				break // Skip to the end of the switch statement.
+			}
+			_, urlErr := url.Parse(cfg.VenafiCloud.UploadPath)
+			if urlErr != nil {
+				errs = multierror.Append(errs, fmt.Errorf("upload_path is not a valid URL"))
+				break // Skip to the end of the switch statement.
+			}
+
+			uploadPath = cfg.VenafiCloud.UploadPath
+		case res.AuthMode == VenafiCloudVenafiConnection:
+			// The venafi-cloud.upload_path was initially meant to let users
+			// configure HTTP proxies, but it has never been used since HTTP
+			// proxies don't rewrite paths. Thus, we've disabled the ability to
+			// change this value with the new --venafi-connection flag, and this
+			// field is simply ignored.
+			if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploadPath != "" {
+				log.Printf(`ignoring the venafi-cloud.upload_path field in the config file. In %s mode, this field is not needed.`, res.AuthMode)
+			}
+			uploadPath = ""
+		}
+		res.UploadPath = uploadPath
 	}
 
-	var credentials client.Credentials
-	var err error
-	if flags.ClientID != "" {
-		credentials = &client.VenafiSvcAccountCredentials{
-			ClientID:       flags.ClientID,
-			PrivateKeyFile: flags.PrivateKeyPath,
-		}
-	} else if flags.CredentialsPath != "" {
-		file, err := os.Open(flags.CredentialsPath)
-		if err != nil {
-			return Config{}, nil, fmt.Errorf("failed to load credentials from file %s: %w", flags.CredentialsPath, err)
-		}
-		defer file.Close()
-
-		b, err := io.ReadAll(file)
-		if err != nil {
-			return Config{}, nil, fmt.Errorf("failed to read credentials file: %w", err)
-		}
-		if flags.VenafiCloudMode {
-			credentials, err = client.ParseVenafiCredentials(b)
-		} else {
-			credentials, err = client.ParseOAuthCredentials(b)
-		}
-		if err != nil {
-			return Config{}, nil, fmt.Errorf("failed to parse credentials file: %w", err)
-		}
-	}
-
-	venConnMode := flags.VenConnName != ""
-
-	if venConnMode && flags.InstallNS == "" {
-		flags.InstallNS, err = getInClusterNamespace()
-		if err != nil {
-			return Config{}, nil, fmt.Errorf("could not guess which namespace the agent is running in: %w", err)
-		}
-	}
-	if venConnMode && flags.VenConnNS == "" {
-		flags.VenConnNS = flags.InstallNS
-	}
-
-	agentMetadata := &api.AgentMetadata{
-		Version:   version.PreflightVersion,
-		ClusterID: cfg.ClusterID,
-	}
-
-	var preflightClient client.Client
-	switch {
-	case credentials != nil:
-		preflightClient, err = createCredentialClient(log, credentials, cfg, agentMetadata, baseURL)
-	case flags.VenConnName != "":
-		// Why wasn't this added to the createCredentialClient instead? Because
-		// the --venafi-connection mode of authentication doesn't need any
-		// secrets (or any other information for that matter) to be loaded from
-		// disk (using --credentials-path). Everything is passed as flags.
-		log.Println("Venafi Connection mode was specified, using Venafi Connection authentication.")
-
-		// The venafi-cloud.upload_path was initially meant to let users
-		// configure HTTP proxies, but it has never been used since HTTP proxies
-		// don't rewrite paths. Thus, we've disabled the ability to change this
-		// value with the new --venafi-connection flag, and this field is simply
-		// ignored.
-		if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploadPath != "" {
-			log.Printf(`ignoring venafi-cloud.upload_path. In Venafi Connection mode, this field is not needed.`)
-		}
-
-		// Regarding venafi-cloud.uploader_id, we found that it doesn't do
-		// anything in the backend. Since the backend requires it for historical
-		// reasons (but cannot be empty), we just ignore whatever the user has
-		// set in the config file, and set it to an arbitrary value in the
-		// client since it doesn't matter.
+	// Validation of `uploader_id`.
+	//
+	// We found that `venafi-cloud.uploader_id` doesn't do anything in the
+	// backend. Since the backend requires it for historical reasons (but cannot
+	// be empty), we just ignore whatever the user has set in the config file,
+	// and set it to an arbitrary value in the client since it doesn't matter.
+	//
+	// TODO(mael): Remove the arbitrary `/no` path parameter from the Agent once
+	// https://venafi.atlassian.net/browse/VC-35385 is done.
+	{
 		if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploaderID != "" {
-			log.Printf(`ignoring venafi-cloud.uploader_id. In Venafi Connection mode, this field is not needed.`)
+			log.Printf(`ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in %s mode.`, res.AuthMode)
 		}
-
-		var restCfg *rest.Config
-		restCfg, err = kubeconfig.LoadRESTConfig("")
-		if err != nil {
-			return Config{}, nil, fmt.Errorf("failed to load kubeconfig: %w", err)
-		}
-
-		preflightClient, err = client.NewVenConnClient(restCfg, agentMetadata, flags.InstallNS, flags.VenConnName, flags.VenConnNS, nil)
-	case flags.APIToken != "":
-		log.Println("An API token was specified, using API token authentication.")
-		preflightClient, err = client.NewAPITokenClient(agentMetadata, flags.APIToken, baseURL)
-	default:
-		log.Println("No credentials were specified, using with no authentication.")
-		preflightClient, err = client.NewUnauthenticatedClient(agentMetadata, baseURL)
 	}
 
+	// Validation of `cluster_id` and `organization_id`.
+	{
+		var clusterID string
+		var organizationID string // Only used by the old jetstack-secure mode.
+		switch {
+		case res.AuthMode == VenafiCloudKeypair:
+			if cfg.ClusterID == "" {
+				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.AuthMode))
+			}
+			clusterID = cfg.ClusterID
+		case res.AuthMode == VenafiCloudVenafiConnection:
+			if cfg.ClusterID == "" {
+				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.AuthMode))
+			}
+			clusterID = cfg.ClusterID
+		case res.AuthMode == JetstackSecureOAuth || res.AuthMode == JetstackSecureAPIToken:
+			if cfg.OrganizationID == "" {
+				errs = multierror.Append(errs, fmt.Errorf("organization_id is required"))
+			}
+			if cfg.ClusterID == "" {
+				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required"))
+			}
+			organizationID = cfg.OrganizationID
+			clusterID = cfg.ClusterID
+		}
+		res.OrganizationID = organizationID
+		res.ClusterID = clusterID
+		res.ClusterDescription = cfg.ClusterDescription
+
+		// Validation of `data-gatherers`.
+		dgErr := ValidateDataGatherers(cfg.DataGatherers)
+		if dgErr != nil {
+			errs = multierror.Append(errs, dgErr)
+		}
+		res.DataGatherers = cfg.DataGatherers
+	}
+
+	// Validation of --period, -p, and the `period` field, as well as
+	// --backoff-max-time, --one-shot, and --strict. The flag --period/-p takes
+	// precedence over the config `period`.
+	{
+		var period time.Duration
+		switch {
+		case flags.OneShot:
+			// OneShot mode doesn't need a period, skipping validation.
+		case flags.Period == 0 && cfg.Period == 0:
+			errs = multierror.Append(errs, fmt.Errorf("period must be set using --period or -p, or using the 'period' field in the config file"))
+		case flags.Period == 0 && cfg.Period > 0:
+			log.Printf("Using period from config %s", cfg.Period)
+			period = cfg.Period
+		case flags.Period > 0 && cfg.Period == 0:
+			period = flags.Period
+		case flags.Period > 0 && cfg.Period > 0:
+			// The flag takes precedence.
+			log.Printf("Both the 'period' field and --period are set. Using the value provided with --period.")
+			period = flags.Period
+		}
+		res.Period = period
+		res.OneShot = flags.OneShot
+		res.BackoffMaxTime = flags.BackoffMaxTime
+		res.StrictMode = flags.StrictMode
+	}
+
+	// Validation of --venafi-connection, --venafi-connection-namespace, and
+	// --install-namespace.
+	if res.AuthMode == VenafiCloudVenafiConnection {
+		var installNS string = flags.InstallNS
+		if flags.InstallNS == "" {
+			var err error
+			installNS, err = getInClusterNamespace()
+			if err != nil {
+				errs = multierror.Append(errs, fmt.Errorf("could not guess which namespace the agent is running in: %w", err))
+			}
+		}
+		res.InstallNS = installNS
+		res.VenConnName = flags.VenConnName
+
+		var venConnNS string = flags.VenConnNS
+		if flags.VenConnNS == "" {
+			venConnNS = installNS
+		}
+		res.VenConnNS = venConnNS
+	}
+
+	// Validation of --output-path, --input-path, `output-path`, and
+	// `input-path`. The flags --output-path and --input-path take precedence.
+	{
+		res.InputPath = cfg.InputPath
+		res.OutputPath = cfg.OutputPath
+		if flags.OutputPath != "" {
+			res.OutputPath = flags.OutputPath
+		}
+		if flags.InputPath != "" {
+			res.InputPath = flags.InputPath
+		}
+	}
+
+	if errs != nil {
+		return CombinedConfig{}, nil, errs
+	}
+
+	preflightClient, err := validateCredsAndCreateClient(log, flags.CredentialsPath, flags.ClientID, flags.PrivateKeyPath, flags.APIToken, res)
 	if err != nil {
-		return Config{}, nil, fmt.Errorf("failed to create client: %w", err)
+		return CombinedConfig{}, nil, multierror.Prefix(err, "validating creds:")
 	}
 
-	return cfg, preflightClient, nil
+	return res, preflightClient, nil
 }
 
-func createCredentialClient(log *log.Logger, credentials client.Credentials, config Config, agentMetadata *api.AgentMetadata, baseURL string) (client.Client, error) {
+// Validation of --credentials-file/-k, --client-id, and --private-key-path,
+// --api-token, and creation of the client.
+//
+// The error returned may be a multierror.Error. Use multierror.Prefix(err,
+// "context:") rather than fmt.Errorf("context: %w", err) when wrapping the
+// error.
+func validateCredsAndCreateClient(log *log.Logger, flagCredentialsPath, flagClientID, flagPrivateKeyPath, flagAPIToken string, cfg CombinedConfig) (client.Client, error) {
+	var errs error
+
+	var preflightClient client.Client
+	metadata := &api.AgentMetadata{Version: version.PreflightVersion, ClusterID: cfg.ClusterID}
+	switch {
+	case cfg.AuthMode == JetstackSecureOAuth:
+		// Note that there are no command line flags to configure the
+		// JetstackSecureOAuth mode.
+		credsBytes, err := readCredentialsFile(flagCredentialsPath)
+		if err != nil {
+			errs = multierror.Append(errs, multierror.Prefix(err, "credentials file:"))
+			break // Don't continue with parsing if could not load the file.
+		}
+
+		creds, err := client.ParseOAuthCredentials(credsBytes)
+		if err != nil {
+			errs = multierror.Append(errs, multierror.Prefix(err, "credentials file:"))
+			break // Don't continue with the client if credentials file invalid.
+		}
+
+		preflightClient, err = createCredentialClient(log, creds, cfg, metadata)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+	case cfg.AuthMode == VenafiCloudKeypair:
+		var creds client.Credentials
+
+		if flagClientID != "" && flagCredentialsPath != "" {
+			errs = multierror.Append(errs, fmt.Errorf("--client-id and --credentials-file cannot be used simultanously"))
+			break
+		}
+		if flagPrivateKeyPath != "" && flagCredentialsPath != "" {
+			errs = multierror.Append(errs, fmt.Errorf("--private-key-path and --credentials-file cannot be used simultanously"))
+			break
+		}
+		if flagClientID == "" && flagPrivateKeyPath == "" && flagCredentialsPath == "" {
+			errs = multierror.Append(errs, fmt.Errorf("either --client-id and --private-key-path or --credentials-file must be provided"))
+			break
+		}
+
+		if flagClientID != "" && flagPrivateKeyPath != "" {
+			// If --client-id and --private-key-path are passed, then
+			// --credentials-file is ignored.
+			creds = &client.VenafiSvcAccountCredentials{
+				ClientID:       flagClientID,
+				PrivateKeyFile: flagPrivateKeyPath,
+			}
+		} else if flagCredentialsPath != "" {
+			credsBytes, err := readCredentialsFile(flagCredentialsPath)
+			if err != nil {
+				errs = multierror.Append(errs, multierror.Prefix(err, "credentials file:"))
+				break // Don't continue if couldn't read the creds file.
+			}
+			creds, err = client.ParseVenafiCredentials(credsBytes)
+			if err != nil {
+				errs = multierror.Append(errs, multierror.Prefix(err, "credentials file:"))
+				break // Don't continue with the client since creds is invalid.
+			}
+		} else {
+			return nil, fmt.Errorf("programmer mistake: --client-id and --private-key-path or --credentials-file must have been provided")
+		}
+
+		var err error
+		preflightClient, err = createCredentialClient(log, creds, cfg, metadata)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+	case cfg.AuthMode == VenafiCloudVenafiConnection:
+		var restCfg *rest.Config
+		restCfg, err := kubeconfig.LoadRESTConfig("")
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("loading kubeconfig: %w", err))
+			break // Don't continue with the client if kubeconfig wasn't loaded.
+		}
+
+		preflightClient, err = client.NewVenConnClient(restCfg, metadata, cfg.InstallNS, cfg.VenConnName, cfg.VenConnNS, nil)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+	case cfg.AuthMode == JetstackSecureAPIToken:
+		var err error
+		preflightClient, err = client.NewAPITokenClient(metadata, flagAPIToken, cfg.Server)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+	default:
+		panic(fmt.Errorf("programmer mistake: auth mode not implemented: %s", cfg.AuthMode))
+	}
+
+	if errs != nil {
+		return nil, fmt.Errorf("failed loading config using the %s mode: %w", cfg.AuthMode, errs)
+	}
+
+	return preflightClient, nil
+}
+
+// Same as ValidateAndCombineConfig but just for validating the data gatherers.
+// This is separate because the `rbac` command only needs to validate the data
+// gatherers, nothing else.
+//
+// The error returned may be a multierror.Error. Use multierror.Prefix(err,
+// "context:") rather than fmt.Errorf("context: %w", err) when wrapping the
+// error.
+func ValidateDataGatherers(dataGatherers []DataGatherer) error {
+	var err error
+	for i, v := range dataGatherers {
+		if v.Kind == "" {
+			err = multierror.Append(err, fmt.Errorf("datagatherer %d/%d is missing a kind", i+1, len(dataGatherers)))
+		}
+		if v.Name == "" {
+			err = multierror.Append(err, fmt.Errorf("datagatherer %d/%d is missing a name", i+1, len(dataGatherers)))
+		}
+	}
+
+	return err
+}
+
+// The error returned may be a multierror.Error. Instead of adding context to
+// the error with fmt.Errorf("%w", err), use multierror.Prefix(err, "context").
+func createCredentialClient(log *log.Logger, credentials client.Credentials, cfg CombinedConfig, agentMetadata *api.AgentMetadata) (client.Client, error) {
 	switch creds := credentials.(type) {
 	case *client.VenafiSvcAccountCredentials:
-		log.Println("Venafi Cloud mode was specified, using Venafi Service Account authentication.")
-		// check if config has Venafi Cloud data, use config data if it's present
-		uploaderID := creds.ClientID
-		uploadPath := ""
-		if config.VenafiCloud != nil {
-			log.Println("Loading uploader_id and upload_path from \"venafi-cloud\" configuration.")
-			uploaderID = config.VenafiCloud.UploaderID
-			uploadPath = config.VenafiCloud.UploadPath
+		// The uploader ID isn't actually used in the backend, let's use an
+		// arbitrary value.
+		uploaderID := "no"
+
+		var uploadPath string
+		if cfg.AuthMode == VenafiCloudKeypair {
+			// We don't do this for the VenafiCloudVenafiConnection mode because
+			// the upload_path field is ignored in that mode.
+			log.Println("Loading upload_path from \"venafi-cloud\" configuration.")
+			uploadPath = cfg.UploadPath
 		}
-		return client.NewVenafiCloudClient(agentMetadata, creds, baseURL, uploaderID, uploadPath)
+		return client.NewVenafiCloudClient(agentMetadata, creds, cfg.Server, uploaderID, uploadPath)
 
 	case *client.OAuthCredentials:
-		log.Println("A credentials file was specified, using oauth authentication.")
-		return client.NewOAuthClient(agentMetadata, creds, baseURL)
+		return client.NewOAuthClient(agentMetadata, creds, cfg.Server)
 	default:
 		return nil, errors.New("credentials file is in unknown format")
 	}
@@ -498,47 +815,10 @@ func (c *Config) Dump() (string, error) {
 	return string(d), nil
 }
 
-func (c *Config) validate(isVenafiCloudMode bool) error {
-	var result *multierror.Error
-
-	// configured for Venafi Cloud
-	if c.VenafiCloud != nil {
-		if c.VenafiCloud.UploadPath == "" {
-			result = multierror.Append(result, fmt.Errorf("upload_path is required in Venafi Cloud mode"))
-		}
-
-		if _, err := url.Parse(c.VenafiCloud.UploadPath); err != nil {
-			result = multierror.Append(result, fmt.Errorf("upload_path is not a valid URL"))
-		}
-	} else if !isVenafiCloudMode {
-		if c.OrganizationID == "" {
-			result = multierror.Append(result, fmt.Errorf("organization_id is required"))
-		}
-		if c.ClusterID == "" {
-			result = multierror.Append(result, fmt.Errorf("cluster_id is required"))
-		}
-	}
-
-	if c.Server != "" {
-		if url, err := url.Parse(c.Server); err != nil || url.Hostname() == "" {
-			result = multierror.Append(result, fmt.Errorf("server is not a valid URL"))
-		}
-	}
-
-	for i, v := range c.DataGatherers {
-		if v.Kind == "" {
-			result = multierror.Append(result, fmt.Errorf("datagatherer %d/%d is missing a kind", i+1, len(c.DataGatherers)))
-		}
-		if v.Name == "" {
-			result = multierror.Append(result, fmt.Errorf("datagatherer %d/%d is missing a name", i+1, len(c.DataGatherers)))
-		}
-	}
-
-	return result.ErrorOrNil()
-}
-
-// ParseConfig reads config into a struct used to configure running agents
-func ParseConfig(data []byte, isVenafiCloudMode bool) (Config, error) {
+// ParseConfig only parses. It does not validate anything except for the data
+// gatherer types. To validate the config, use ValidateDataGatherers or
+// getConfiguration.
+func ParseConfig(data []byte) (Config, error) {
 	var config Config
 
 	err := yaml.Unmarshal(data, &config)
@@ -546,21 +826,27 @@ func ParseConfig(data []byte, isVenafiCloudMode bool) (Config, error) {
 		return config, err
 	}
 
-	if config.Server == "" && config.Endpoint.Host == "" && config.Endpoint.Path == "" {
-		config.Server = "https://preflight.jetstack.io"
-		if config.VenafiCloud != nil || isVenafiCloudMode {
-			config.Server = client.VenafiCloudProdURL
-		}
-	}
-
-	if config.Endpoint.Protocol == "" && config.Server == "" {
-		config.Endpoint.Protocol = "http"
-	}
-
-	err = config.validate(isVenafiCloudMode)
-	if err != nil {
-		return config, err
-	}
-
 	return config, nil
+}
+
+type credType string
+
+const (
+	CredOldJetstackSecureOAuth credType = "CredOldJetstackSecureOAuth"
+	CredVenafiCloudKeypair     credType = "CredVenafiCloudKeypair"
+)
+
+func readCredentialsFile(path string) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load credentials from file %s: %w", path, err)
+	}
+	defer file.Close()
+
+	b, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read credentials file: %w", err)
+	}
+
+	return b, nil
 }

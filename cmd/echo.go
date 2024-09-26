@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"github.com/jetstack/preflight/pkg/echo"
 	"github.com/spf13/cobra"
+
+	"github.com/jetstack/preflight/pkg/echo"
 )
 
 var echoCmd = &cobra.Command{

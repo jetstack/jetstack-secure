@@ -3,12 +3,13 @@ package permissions
 import (
 	"testing"
 
-	"github.com/jetstack/preflight/pkg/agent"
-	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/maxatome/go-testdeep/td"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/jetstack/preflight/pkg/agent"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 )
 
 func TestGenerateAgentRBACManifestsString(t *testing.T) {
