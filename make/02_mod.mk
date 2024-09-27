@@ -6,6 +6,7 @@ GITHUB_OUTPUT ?= /dev/stderr
 ## @category [shared] Release
 release: $(helm_chart_archive)
 	$(MAKE) oci-push-preflight
+	$(HELM) push "$(helm_chart_archive)" "$(helm_chart_repo_base)"
 
 	@echo "RELEASE_OCI_preflight_IMAGE=$(oci_preflight_image_name)" >> "$(GITHUB_OUTPUT)"
 	@echo "RELEASE_OCI_preflight_TAG=$(oci_preflight_image_tag)" >> "$(GITHUB_OUTPUT)"
@@ -42,3 +43,4 @@ $(helm_chart_source_dir)/templates/venafi-connection-crd.yaml: $(helm_chart_sour
 # "generate". Let's replace it with "generate-crds-venconn".
 shared_generate_targets := $(filter-out generate-crds,$(shared_generate_targets))
 shared_generate_targets += generate-crds-venconn
+
