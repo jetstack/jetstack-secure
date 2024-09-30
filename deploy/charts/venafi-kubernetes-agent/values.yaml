@@ -60,8 +60,8 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: "v0.0.0"
 
-# Specify image pull credentials if using a private registry
-# example: - name: my-pull-secret
+# Specify image pull credentials if using a private registry. Example:
+#  - name: my-pull-secret
 imagePullSecrets: []
 
 # Helm default setting to override release name, usually leave blank.
@@ -71,22 +71,27 @@ nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  # Specifies whether a service account should be created
+  # Specifies whether a service account should be created.
   create: true
-  # Annotations YAML to add to the service account
+  # Annotations YAML to add to the service account.
   annotations: {}
-  # The name of the service account to use.
-  # If blank and `serviceAccount.create` is true, a name is generated using the fullname template of the release.
+  # The name of the service account to use. If blank and `serviceAccount.create`
+  # is true, a name is generated using the fullname template of the release.
   name: ""
 
 # Additional YAML annotations to add the the pod.
 podAnnotations: {}
 
-# Optional Pod (all containers) `SecurityContext` options, see https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod.
+# Optional Pod (all containers) `SecurityContext` options, see
+# https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod.
+#
+# Example:
+#
+#  podSecurityContext
+#    runAsUser: 1000
+#    runAsGroup: 3000
+#    fsGroup: 2000
 podSecurityContext: {}
-  # runAsUser: 1000
-  # runAsGroup: 3000
-  # fsGroup: 2000
 
 # Use these variables to configure the HTTP_PROXY environment variables.
 
@@ -141,7 +146,7 @@ affinity: {}
 command: []
 
 # Specify additional arguments to pass to the agent binary.
-# For example `["--strict", "--oneshot"]`
+# Example: `["--strict", "--oneshot"]`
 extraArgs: []
 
 # Additional volumes to add to the Venafi Kubernetes Agent container. This is
@@ -208,11 +213,13 @@ config:
   # Control Plane. You can obtain the cliend ID by creating a Key Pair Service
   # Account in the Venafi Control Plane.
   clientId: ""
-  # Send data back to the platform every minute unless changed
+  # Send data back to the platform every minute unless changed.
   period: "0h1m0s"
-  # Name for the cluster resource if it needs to be created in Venafi Control Plane
+  # Name for the cluster resource if it needs to be created in Venafi Control
+  # Plane.
   clusterName: ""
-  # Description for the cluster resource if it needs to be created in Venafi Control Plane
+  # Description for the cluster resource if it needs to be created in Venafi
+  # Control Plane.
   clusterDescription: ""
 
   # Reduce the memory usage of the agent and reduce the load on the Kubernetes
