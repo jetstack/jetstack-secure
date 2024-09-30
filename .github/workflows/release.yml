@@ -1,4 +1,3 @@
----
 name: release
 on:
   push:
@@ -9,19 +8,21 @@ env:
   VERSION: ${{ github.ref_name }}
 
 jobs:
-  build_images:
+  artifacts:
     runs-on: ubuntu-latest
 
     permissions:
       contents: read # needed for checkout
-      packages: write # needed for push images
-      id-token: write # needed for keyless signing
-
-    env:
-      GOPRIVATE: github.com/jetstack/venafi-connection-lib
+      id-token: write # needed for keyless signing & google auth
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/repo_access
+        with:
+          DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
 
       - id: go-version
         run: |
@@ -31,33 +32,19 @@ jobs:
         with:
           go-version: ${{ steps.go-version.outputs.result }}
 
-      - name: Configure jetstack/venafi-connection-lib repo pull access
-        run: |
-          mkdir ~/.ssh
-          chmod 700 ~/.ssh
-
-          echo "${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}" > ~/.ssh/venafi_connection_lib_id
-          chmod 600 ~/.ssh/venafi_connection_lib_id
-
-          cat <<EOT >> ~/.ssh/config
-          Host venafi-connection-lib.github.com
-          HostName github.com
-          IdentityFile ~/.ssh/venafi_connection_lib_id
-          IdentitiesOnly yes
-          EOT
-
-          cat <<EOT >> ~/.gitconfig
-          [url "git@venafi-connection-lib.github.com:jetstack/venafi-connection-lib"]
-            insteadOf = https://github.com/jetstack/venafi-connection-lib
-          EOT
-
-      - uses: actions/cache@v4
+      - uses: docker/login-action@v3
         with:
-          path: _bin/downloaded
-          key: downloaded-${{ runner.os }}-${{ hashFiles('make/_shared/tools/00_mod.mk') }}-${{ hashFiles('make/_shared/kind/00_kind_image_versions.mk') }}
+          registry: quay.io
+          username: ${{ secrets.QUAY_USER }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - id: release
-        run: make release
+        run: make -j release
 
       - uses: actions/upload-artifact@v4
         with:
@@ -102,7 +89,7 @@ jobs:
             --draft \
             --verify-tag \
             --notes-file .notes-file
-
+          
           gh release upload "$VERSION" \
             --repo="$GITHUB_REPOSITORY" \
             "${{ steps.chart_download.outputs.download-path }}/${{ needs.build_images.outputs.RELEASE_HELM_CHART_NAME }}-${{ needs.build_images.outputs.RELEASE_HELM_CHART_VERSION }}.tgz"

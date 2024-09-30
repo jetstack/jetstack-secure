@@ -1,0 +1,65 @@
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/repo_access
+        with:
+          DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
+
+      - id: go-version
+        run: |
+          make print-go-version >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go-version.outputs.result }}
+
+      - uses: actions/cache@v4
+        with:
+          path: _bin/downloaded
+          key: downloaded-${{ runner.os }}-${{ hashFiles('klone.yaml') }}-verify
+
+      - run: make -j verify
+
+  test-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read # needed for checkout
+      id-token: write # needed for google auth
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/repo_access
+        with:
+          DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
+
+      - id: go-version
+        run: |
+          make print-go-version >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go-version.outputs.result }}
+
+      - uses: actions/cache@v4
+        with:
+          path: _bin/downloaded
+          key: downloaded-${{ runner.os }}-${{ hashFiles('klone.yaml') }}-test-unit
+
+      - run: make -j test-unit
