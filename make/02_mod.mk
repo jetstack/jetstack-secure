@@ -27,7 +27,7 @@ release: $(helm_chart_archive)
 generate-crds-venconn: $(addprefix $(helm_chart_source_dir)/templates/,venafi-connection-crd.yaml venafi-connection-crd.without-validations.yaml)
 
 $(helm_chart_source_dir)/crd_bases/jetstack.io_venaficonnections.yaml: go.mod | $(NEEDS_GO)
-	$(GO) run ./make/connection_crd >>$@
+	$(GO) run ./make/connection_crd >$@
 
 $(helm_chart_source_dir)/templates/venafi-connection-crd.without-validations.yaml: $(helm_chart_source_dir)/crd_bases/jetstack.io_venaficonnections.yaml $(helm_chart_source_dir)/crd_bases/crd.header.yaml $(helm_chart_source_dir)/crd_bases/crd.footer.yaml | $(NEEDS_YQ)
 	cat $(helm_chart_source_dir)/crd_bases/crd.header.yaml >$@
