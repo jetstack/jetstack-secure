@@ -63,7 +63,6 @@ The timeout before a metrics scrape fails.
 > ```
 
 Additional labels to add to the PodMonitor.
-
 #### **metrics.podmonitor.annotations** ~ `object`
 > Default value:
 > ```yaml
@@ -96,9 +95,6 @@ endpointAdditionalProperties:
    - __meta_kubernetes_pod_node_name
    targetLabel: instance
 ```
-
-
-
 #### **replicaCount** ~ `number`
 > Default value:
 > ```yaml
@@ -113,7 +109,6 @@ default replicas, do not scale up
 > ```
 
 The container image for the Venafi Enhanced Issuer manager.
-
 #### **image.pullPolicy** ~ `string`
 > Default value:
 > ```yaml
@@ -121,7 +116,6 @@ The container image for the Venafi Enhanced Issuer manager.
 > ```
 
 Kubernetes imagePullPolicy on Deployment.
-
 #### **image.tag** ~ `string`
 > Default value:
 > ```yaml
@@ -129,14 +123,14 @@ Kubernetes imagePullPolicy on Deployment.
 > ```
 
 Overrides the image tag whose default is the chart appVersion.
-
 #### **imagePullSecrets** ~ `array`
 > Default value:
 > ```yaml
 > []
 > ```
 
-Specify image pull credentials if using a private registry example: - name: my-pull-secret
+Specify image pull credentials if using a private registry. Example:  
+ - name: my-pull-secret
 #### **nameOverride** ~ `string`
 > Default value:
 > ```yaml
@@ -157,22 +151,21 @@ Helm default setting, use this to shorten the full install name.
 > true
 > ```
 
-Specifies whether a service account should be created
+Specifies whether a service account should be created.
 #### **serviceAccount.annotations** ~ `object`
 > Default value:
 > ```yaml
 > {}
 > ```
 
-Annotations YAML to add to the service account
+Annotations YAML to add to the service account.
 #### **serviceAccount.name** ~ `string`
 > Default value:
 > ```yaml
 > ""
 > ```
 
-The name of the service account to use.  
-If blank and `serviceAccount.create` is true, a name is generated using the fullname template of the release.
+The name of the service account to use. If blank and `serviceAccount.create` is true, a name is generated using the fullname template of the release.
 #### **podAnnotations** ~ `object`
 > Default value:
 > ```yaml
@@ -186,7 +179,17 @@ Additional YAML annotations to add the the pod.
 > {}
 > ```
 
-Optional Pod (all containers) `SecurityContext` options, see https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod.
+Optional Pod (all containers) `SecurityContext` options, see https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod.  
+  
+Example:  
+  
+ podSecurityContext
+
+```yaml
+runAsUser: 1000
+runAsGroup: 3000
+fsGroup: 2000
+```
 #### **http_proxy** ~ `string`
 
 Configures the HTTP_PROXY environment variable where a HTTP proxy is required.
@@ -267,7 +270,7 @@ Specify the command to run overriding default binary.
 > ```
 
 Specify additional arguments to pass to the agent binary.  
-For example `["--strict", "--oneshot"]`
+Example: `["--strict", "--oneshot"]`
 #### **volumes** ~ `array`
 > Default value:
 > ```yaml
@@ -372,21 +375,23 @@ Account in the Venafi Control Plane.
 > 0h1m0s
 > ```
 
-Send data back to the platform every minute unless changed
+Send data back to the platform every minute unless changed.
 #### **config.clusterName** ~ `string`
 > Default value:
 > ```yaml
 > ""
 > ```
 
-Name for the cluster resource if it needs to be created in Venafi Control Plane
+Name for the cluster resource if it needs to be created in Venafi Control  
+Plane.
 #### **config.clusterDescription** ~ `string`
 > Default value:
 > ```yaml
 > ""
 > ```
 
-Description for the cluster resource if it needs to be created in Venafi Control Plane
+Description for the cluster resource if it needs to be created in Venafi  
+Control Plane.
 #### **config.ignoredSecretTypes[0]** ~ `string`
 > Default value:
 > ```yaml

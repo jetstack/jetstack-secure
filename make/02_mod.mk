@@ -22,8 +22,8 @@ release: $(helm_chart_archive)
 #
 # We aren't using "generate-crds" because "generate-crds" only work for projects
 # from which controller-gen can be used to generate the plain CRDs (plain CRDs =
-# the non-templated CRDs). In this project, we generate the plain CRDs using
-# `run ./make/connection_crd` instead.
+# the non-templated CRDs). In this project, we generate the plain CRDs using `go
+# run ./make/connection_crd` instead.
 generate-crds-venconn: $(addprefix $(helm_chart_source_dir)/templates/,venafi-connection-crd.yaml venafi-connection-crd.without-validations.yaml)
 
 $(helm_chart_source_dir)/crd_bases/jetstack.io_venaficonnections.yaml: go.mod | $(NEEDS_GO)
