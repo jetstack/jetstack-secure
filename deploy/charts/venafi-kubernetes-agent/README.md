@@ -1,9 +1,5 @@
 # venafi-kubernetes-agent
 
-The Venafi Kubernetes Agent connects your Kubernetes or Openshift cluster to the Venafi Control Plane.
-
-![Version: 0.1.49](https://img.shields.io/badge/Version-0.1.49-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.49](https://img.shields.io/badge/AppVersion-v0.1.49-informational?style=flat-square)
-
 The Venafi Kubernetes Agent connects your Kubernetes or OpenShift cluster to the Venafi Control Plane.
 You will require a Venafi Control Plane account to connect your cluster.
 If you do not have one, you can sign up for a free trial now at:
