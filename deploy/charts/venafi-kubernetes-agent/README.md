@@ -14,55 +14,447 @@ If you do not have one, you can sign up for a free trial now at:
 
 ## Values
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| affinity | object | `{}` | Embed YAML for Node affinity settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes-using-node-affinity/. |
-| authentication | object | `{"secretKey":"privatekey.pem","secretName":"agent-credentials","venafiConnection":{"enabled":false,"name":"venafi-components","namespace":"venafi"}}` | Authentication details for the Venafi Kubernetes Agent |
-| authentication.secretKey | string | `"privatekey.pem"` | Key name in the referenced secret |
-| authentication.secretName | string | `"agent-credentials"` | Name of the secret containing the private key |
-| authentication.venafiConnection | object | `{"enabled":false,"name":"venafi-components","namespace":"venafi"}` | Configure VenafiConnection authentication |
-| authentication.venafiConnection.enabled | bool | `false` | When set to true, the Venafi Kubernetes Agent will authenticate to Venafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the Secret with `authentication.secretName` will _not_ be mounted into the Venafi Kubernetes Agent Pod. |
-| authentication.venafiConnection.name | string | `"venafi-components"` | The name of a VenafiConnection resource which contains the configuration for authenticating to Venafi. |
-| authentication.venafiConnection.namespace | string | `"venafi"` | The namespace of a VenafiConnection resource which contains the configuration for authenticating to Venafi. |
-| command | list | `[]` | Specify the command to run overriding default binary. |
-| config | object | `{"clientId":"","clusterDescription":"","clusterName":"","configmap":{"key":null,"name":null},"ignoredSecretTypes":["kubernetes.io/service-account-token","kubernetes.io/dockercfg","kubernetes.io/dockerconfigjson","kubernetes.io/basic-auth","kubernetes.io/ssh-auth","bootstrap.kubernetes.io/token","helm.sh/release.v1"],"period":"0h1m0s","server":"https://api.venafi.cloud/"}` | Configuration section for the Venafi Kubernetes Agent itself |
-| config.clientId | string | `""` | The client-id to be used for authenticating with the Venafi Control Plane. Only useful when using a Key Pair Service Account in the Venafi Control Plane. You can obtain the cliend ID by creating a Key Pair Service Account in the Venafi Control Plane. |
-| config.clusterDescription | string | `""` | Description for the cluster resource if it needs to be created in Venafi Control Plane |
-| config.clusterName | string | `""` | Name for the cluster resource if it needs to be created in Venafi Control Plane |
-| config.configmap | object | `{"key":null,"name":null}` | Specify ConfigMap details to load config from an existing resource. This should be blank by default unless you have you own config. |
-| config.ignoredSecretTypes | list | `["kubernetes.io/service-account-token","kubernetes.io/dockercfg","kubernetes.io/dockerconfigjson","kubernetes.io/basic-auth","kubernetes.io/ssh-auth","bootstrap.kubernetes.io/token","helm.sh/release.v1"]` | Reduce the memory usage of the agent and reduce the load on the Kubernetes API server by omitting various common Secret types when listing Secrets. These Secret types will be added to a "type!=<type>" field selector in the agent config. * https://docs.venafi.cloud/vaas/k8s-components/t-cfg-tlspk-agent/#configuration * https://kubernetes.io/docs/concepts/configuration/secret/#secret-types * https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/#list-of-supported-fields |
-| config.period | string | `"0h1m0s"` | Send data back to the platform every minute unless changed |
-| config.server | string | `"https://api.venafi.cloud/"` | API URL of the Venafi Control Plane API. For EU tenants, set this value to https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the VenafiConnection resource instead. |
-| crds.forceRemoveValidationAnnotations | bool | `false` | The 'x-kubernetes-validations' annotation is not supported in Kubernetes 1.22 and below. This annotation is used by CEL, which is a feature introduced in Kubernetes 1.25 that improves how validation is performed. This option allows to force the 'x-kubernetes-validations' annotation to be excluded, even on Kubernetes 1.25+ clusters. |
-| crds.venafiConnection | object | `{"include":false}` | Optionally include the VenafiConnection CRDs |
-| crds.venafiConnection.include | bool | `false` | When set to false, the rendered output does not contain the VenafiConnection CRDs and RBAC. This is useful for when the Venafi Connection resources are already installed separately. |
-| extraArgs | list | `[]` | Specify additional arguments to pass to the agent binary. For example `["--strict", "--oneshot"]` |
-| fullnameOverride | string | `""` | Helm default setting, use this to shorten the full install name. |
-| image.pullPolicy | string | `"IfNotPresent"` | Defaults to only pull if not already present |
-| image.repository | string | `"registry.venafi.cloud/venafi-agent/venafi-agent"` | Default to Open Source image repository |
-| imagePullSecrets | list | `[]` | Specify image pull credentials if using a private registry example: - name: my-pull-secret |
-| metrics.enabled | bool | `true` | Enable the metrics server. If false, the metrics server will be disabled and the other metrics fields below will be ignored. |
-| metrics.podmonitor.annotations | object | `{}` | Additional annotations to add to the PodMonitor. |
-| metrics.podmonitor.enabled | bool | `false` | Create a PodMonitor to add the metrics to Prometheus, if you are using Prometheus Operator. See https://prometheus-operator.dev/docs/operator/api/#monitoring.coreos.com/v1.PodMonitor |
-| metrics.podmonitor.endpointAdditionalProperties | object | `{}` | EndpointAdditionalProperties allows setting additional properties on the endpoint such as relabelings, metricRelabelings etc.  For example:  endpointAdditionalProperties:   relabelings:   - action: replace     sourceLabels:     - __meta_kubernetes_pod_node_name     targetLabel: instance  |
-| metrics.podmonitor.honorLabels | bool | `false` | Keep labels from scraped data, overriding server-side labels. |
-| metrics.podmonitor.interval | string | `"60s"` | The interval to scrape metrics. |
-| metrics.podmonitor.labels | object | `{}` | Additional labels to add to the PodMonitor. |
-| metrics.podmonitor.prometheusInstance | string | `"default"` | Specifies the `prometheus` label on the created PodMonitor. This is used when different Prometheus instances have label selectors matching different PodMonitors. |
-| metrics.podmonitor.scrapeTimeout | string | `"30s"` | The timeout before a metrics scrape fails. |
-| nameOverride | string | `""` | Helm default setting to override release name, usually leave blank. |
-| nodeSelector | object | `{}` | Embed YAML for nodeSelector settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/ |
-| podAnnotations | object | `{}` | Additional YAML annotations to add the the pod. |
-| podDisruptionBudget | object | `{"enabled":false}` | Configure a PodDisruptionBudget for the agent's Deployment. If running with multiple replicas, consider setting podDisruptionBudget.enabled to true. |
-| podDisruptionBudget.enabled | bool | `false` | Enable or disable the PodDisruptionBudget resource, which helps prevent downtime during voluntary disruptions such as during a Node upgrade. |
-| podSecurityContext | object | `{}` | Optional Pod (all containers) `SecurityContext` options, see https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod. |
-| replicaCount | int | `1` | default replicas, do not scale up |
-| resources | object | `{"limits":{"memory":"500Mi"},"requests":{"cpu":"200m","memory":"200Mi"}}` | Set resource requests and limits for the pod.  Read [Venafi Kubernetes components deployment best practices](https://docs.venafi.cloud/vaas/k8s-components/c-k8s-components-best-practice/#scaling) to learn how to choose suitable CPU and memory resource requests and limits. |
-| securityContext | object | `{"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true}` | Add Container specific SecurityContext settings to the container. Takes precedence over `podSecurityContext` when set. See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container |
-| serviceAccount.annotations | object | `{}` | Annotations YAML to add to the service account |
-| serviceAccount.create | bool | `true` | Specifies whether a service account should be created |
-| serviceAccount.name | string | `""` | The name of the service account to use. If blank and `serviceAccount.create` is true, a name is generated using the fullname template of the release. |
-| tolerations | list | `[]` | Embed YAML for toleration settings, see https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
-| volumeMounts | list | `[]` | Additional volume mounts to add to the Venafi Kubernetes Agent container. This is useful for mounting a custom CA bundle. Any PEM certificate mounted under /etc/ssl/certs will be loaded by the Venafi Kubernetes Agent. For example:      volumeMounts:       - name: cabundle         mountPath: /etc/ssl/certs/cabundle         subPath: cabundle         readOnly: true |
-| volumes | list | `[]` | Additional volumes to add to the Venafi Kubernetes Agent container. This is useful for mounting a custom CA bundle. For example:      volumes:       - name: cabundle         configMap:           name: cabundle           optional: false           defaultMode: 0644  In order to create the ConfigMap, you can use the following command:      kubectl create configmap cabundle \       --from-file=cabundle=./your/custom/ca/bundle.pem |
+<!-- AUTO-GENERATED -->
 
+#### **metrics.enabled** ~ `bool`
+> Default value:
+> ```yaml
+> true
+> ```
+
+-- Enable the metrics server.  
+If false, the metrics server will be disabled and the other metrics fields below will be ignored.
+#### **metrics.podmonitor.enabled** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+-- Create a PodMonitor to add the metrics to Prometheus, if you are using Prometheus Operator.  
+See https://prometheus-operator.dev/docs/operator/api/#monitoring.coreos.com/v1.PodMonitor
+#### **metrics.podmonitor.namespace** ~ `string`
+
+-- The namespace that the pod monitor should live in.  
+Defaults to the venafi-kubernetes-agent namespace.
+
+#### **metrics.podmonitor.prometheusInstance** ~ `string`
+> Default value:
+> ```yaml
+> default
+> ```
+
+-- Specifies the `prometheus` label on the created PodMonitor.  
+This is used when different Prometheus instances have label selectors matching different PodMonitors.
+#### **metrics.podmonitor.interval** ~ `string`
+> Default value:
+> ```yaml
+> 60s
+> ```
+
+-- The interval to scrape metrics.
+#### **metrics.podmonitor.scrapeTimeout** ~ `string`
+> Default value:
+> ```yaml
+> 30s
+> ```
+
+-- The timeout before a metrics scrape fails.
+#### **metrics.podmonitor.labels** ~ `object`
+> Default value:
+> ```yaml
+> {}
+> ```
+
+-- Additional labels to add to the PodMonitor.
+#### **metrics.podmonitor.annotations** ~ `object`
+> Default value:
+> ```yaml
+> {}
+> ```
+
+-- Additional annotations to add to the PodMonitor.
+#### **metrics.podmonitor.honorLabels** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+-- Keep labels from scraped data, overriding server-side labels.
+#### **metrics.podmonitor.endpointAdditionalProperties** ~ `object`
+> Default value:
+> ```yaml
+> {}
+> ```
+
+-- EndpointAdditionalProperties allows setting additional properties on the endpoint such as relabelings, metricRelabelings etc.  
+  
+For example:
+
+```yaml
+endpointAdditionalProperties:
+ relabelings:
+ - action: replace
+   sourceLabels:
+   - __meta_kubernetes_pod_node_name
+   targetLabel: instance
+```
+
+
+#### **replicaCount** ~ `number`
+> Default value:
+> ```yaml
+> 1
+> ```
+
+-- default replicas, do not scale up
+#### **image.repository** ~ `string`
+> Default value:
+> ```yaml
+> registry.venafi.cloud/venafi-agent/venafi-agent
+> ```
+
+-- Default to Open Source image repository
+#### **image.pullPolicy** ~ `string`
+> Default value:
+> ```yaml
+> IfNotPresent
+> ```
+
+-- Defaults to only pull if not already present
+#### **imagePullSecrets** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
+
+-- Specify image pull credentials if using a private registry  
+example: - name: my-pull-secret
+#### **nameOverride** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+-- Helm default setting to override release name, usually leave blank.
+#### **fullnameOverride** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+-- Helm default setting, use this to shorten the full install name.
+#### **serviceAccount.create** ~ `bool`
+> Default value:
+> ```yaml
+> true
+> ```
+
+-- Specifies whether a service account should be created
+#### **serviceAccount.annotations** ~ `object`
+> Default value:
+> ```yaml
+> {}
+> ```
+
+-- Annotations YAML to add to the service account
+#### **serviceAccount.name** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+-- The name of the service account to use.  
+If blank and `serviceAccount.create` is true, a name is generated using the fullname template of the release.
+#### **podAnnotations** ~ `object`
+> Default value:
+> ```yaml
+> {}
+> ```
+
+-- Additional YAML annotations to add the the pod.
+#### **podSecurityContext** ~ `object`
+> Default value:
+> ```yaml
+> {}
+> ```
+
+-- Optional Pod (all containers) `SecurityContext` options, see https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod.
+#### **http_proxy** ~ `string`
+
+Configures the HTTP_PROXY environment variable where a HTTP proxy is required.
+
+#### **https_proxy** ~ `string`
+
+Configures the HTTPS_PROXY environment variable where a HTTP proxy is required.
+
+#### **no_proxy** ~ `string`
+
+Configures the NO_PROXY environment variable where a HTTP proxy is required, but certain domains should be excluded.
+
+#### **securityContext.capabilities.drop[0]** ~ `string`
+> Default value:
+> ```yaml
+> ALL
+> ```
+#### **securityContext.readOnlyRootFilesystem** ~ `bool`
+> Default value:
+> ```yaml
+> true
+> ```
+#### **securityContext.runAsNonRoot** ~ `bool`
+> Default value:
+> ```yaml
+> true
+> ```
+#### **resources.requests.memory** ~ `string`
+> Default value:
+> ```yaml
+> 200Mi
+> ```
+#### **resources.requests.cpu** ~ `string`
+> Default value:
+> ```yaml
+> 200m
+> ```
+#### **resources.limits.memory** ~ `string`
+> Default value:
+> ```yaml
+> 500Mi
+> ```
+#### **nodeSelector** ~ `object`
+> Default value:
+> ```yaml
+> {}
+> ```
+
+-- Embed YAML for nodeSelector settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/
+#### **tolerations** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
+
+-- Embed YAML for toleration settings, see https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+#### **affinity** ~ `object`
+> Default value:
+> ```yaml
+> {}
+> ```
+
+-- Embed YAML for Node affinity settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes-using-node-affinity/.
+#### **command** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
+
+-- Specify the command to run overriding default binary.
+#### **extraArgs** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
+
+-- Specify additional arguments to pass to the agent binary.  
+For example `["--strict", "--oneshot"]`
+#### **volumes** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
+
+-- Additional volumes to add to the Venafi Kubernetes Agent container. This is  
+useful for mounting a custom CA bundle. For example:
+
+```yaml
+volumes:
+  - name: cabundle
+    configMap:
+      name: cabundle
+      optional: false
+      defaultMode: 0644
+```
+
+In order to create the ConfigMap, you can use the following command:  
+  
+    kubectl create configmap cabundle \  
+      --from-file=cabundle=./your/custom/ca/bundle.pem
+#### **volumeMounts** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
+
+-- Additional volume mounts to add to the Venafi Kubernetes Agent container.  
+This is useful for mounting a custom CA bundle. Any PEM certificate mounted under /etc/ssl/certs will be loaded by the Venafi Kubernetes Agent. For
+
+```yaml
+example:
+```
+
+
+
+```yaml
+volumeMounts:
+  - name: cabundle
+    mountPath: /etc/ssl/certs/cabundle
+    subPath: cabundle
+    readOnly: true
+```
+#### **authentication.secretName** ~ `string`
+> Default value:
+> ```yaml
+> agent-credentials
+> ```
+
+-- Name of the secret containing the private key
+#### **authentication.secretKey** ~ `string`
+> Default value:
+> ```yaml
+> privatekey.pem
+> ```
+
+-- Key name in the referenced secret
+### Venafi Connection
+
+
+-- Configure VenafiConnection authentication
+#### **authentication.venafiConnection.enabled** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+-- When set to true, the Venafi Kubernetes Agent will authenticate to  
+Venafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the  
+Venafi Kubernetes Agent Pod.
+#### **authentication.venafiConnection.name** ~ `string`
+> Default value:
+> ```yaml
+> venafi-components
+> ```
+
+-- The name of a VenafiConnection resource which contains the configuration  
+for authenticating to Venafi.
+#### **authentication.venafiConnection.namespace** ~ `string`
+> Default value:
+> ```yaml
+> venafi
+> ```
+
+-- The namespace of a VenafiConnection resource which contains the  
+configuration for authenticating to Venafi.
+#### **config.server** ~ `string`
+> Default value:
+> ```yaml
+> https://api.venafi.cloud/
+> ```
+
+-- API URL of the Venafi Control Plane API. For EU tenants, set this value to  
+https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the  
+VenafiConnection resource instead.
+#### **config.clientId** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+-- The client-id to be used for authenticating with the Venafi Control  
+Plane. Only useful when using a Key Pair Service Account in the Venafi. Control Plane. You can obtain the cliend ID by creating a Key Pair Service  
+Account in the Venafi Control Plane.
+#### **config.period** ~ `string`
+> Default value:
+> ```yaml
+> 0h1m0s
+> ```
+
+-- Send data back to the platform every minute unless changed
+#### **config.clusterName** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+-- Name for the cluster resource if it needs to be created in Venafi Control Plane
+#### **config.clusterDescription** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+-- Description for the cluster resource if it needs to be created in Venafi Control Plane
+#### **config.ignoredSecretTypes[0]** ~ `string`
+> Default value:
+> ```yaml
+> kubernetes.io/service-account-token
+> ```
+#### **config.ignoredSecretTypes[1]** ~ `string`
+> Default value:
+> ```yaml
+> kubernetes.io/dockercfg
+> ```
+#### **config.ignoredSecretTypes[2]** ~ `string`
+> Default value:
+> ```yaml
+> kubernetes.io/dockerconfigjson
+> ```
+#### **config.ignoredSecretTypes[3]** ~ `string`
+> Default value:
+> ```yaml
+> kubernetes.io/basic-auth
+> ```
+#### **config.ignoredSecretTypes[4]** ~ `string`
+> Default value:
+> ```yaml
+> kubernetes.io/ssh-auth
+> ```
+#### **config.ignoredSecretTypes[5]** ~ `string`
+> Default value:
+> ```yaml
+> bootstrap.kubernetes.io/token
+> ```
+#### **config.ignoredSecretTypes[6]** ~ `string`
+> Default value:
+> ```yaml
+> helm.sh/release.v1
+> ```
+#### **config.configmap.name** ~ `unknown`
+> Default value:
+> ```yaml
+> null
+> ```
+#### **config.configmap.key** ~ `unknown`
+> Default value:
+> ```yaml
+> null
+> ```
+#### **podDisruptionBudget.enabled** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+-- Enable or disable the PodDisruptionBudget resource, which helps prevent downtime  
+during voluntary disruptions such as during a Node upgrade.
+### CRDs
+
+
+The CRDs installed by this chart are annotated with "helm.sh/resource-policy: keep", this prevents them from being accidentally removed by Helm when this chart is deleted. After deleting the installed chart, the user still has to manually remove the remaining CRDs.
+#### **crds.forceRemoveValidationAnnotations** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+-- The 'x-kubernetes-validations' annotation is not supported in Kubernetes 1.22 and below.  
+This annotation is used by CEL, which is a feature introduced in Kubernetes 1.25 that improves how validation is performed. This option allows to force the 'x-kubernetes-validations' annotation to be excluded, even on Kubernetes 1.25+ clusters.
+#### **crds.venafiConnection.include** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+-- When set to false, the rendered output does not contain the  
+VenafiConnection CRDs and RBAC. This is useful for when the. Venafi Connection resources are already installed separately.
+
+<!-- /AUTO-GENERATED -->

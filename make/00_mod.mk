@@ -35,13 +35,14 @@ helm_docs_use_helm_tool := 1
 helm_generate_schema := 1
 helm_verify_values := 1
 
-# Allows us to replace the Helm values.yaml's image.repository and image.tag
-# with the right values. We use "=" and not ":=" because $(YQ) isn't defined yet
-# in 00_mod.mk, so we need this var to be lazy.
-helm_values_mutation_function = $(YQ) \
+golangci_lint_config := .golangci.yaml
+
+define helm_values_mutation_function
+$(YQ) \
 	'( .image.repository = "$(oci_preflight_image_name)" ) | \
 	( .image.tag = "$(oci_preflight_image_tag)" )' \
 	$1 --inplace
+endef
 
 golangci_lint_config := .golangci.yaml
 go_header_file := /dev/null
