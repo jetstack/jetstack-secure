@@ -440,6 +440,16 @@ Control Plane.
 > ```
 
 Enable or disable the PodDisruptionBudget resource, which helps prevent downtime during voluntary disruptions such as during a Node upgrade.
+#### **podDisruptionBudget.minAvailable** ~ `number`
+
+Configure the minimum available pods for disruptions. Can either be set to an integer (e.g. 1) or a percentage value (e.g. 25%).  
+Cannot be used if `maxUnavailable` is set.
+
+#### **podDisruptionBudget.maxUnavailable** ~ `number`
+
+Configure the maximum unavailable pods for disruptions. Can either be set to an integer (e.g. 1) or a percentage value (e.g. 25%).  
+Cannot be used if `minAvailable` is set.
+
 ### CRDs
 
 
@@ -465,20 +475,5 @@ This option makes it so that the "helm.sh/resource-policy": keep annotation is a
 > ```
 
 When set to false, the rendered output does not contain the. VenafiConnection CRDs and RBAC. This is useful for when the. Venafi Connection resources are already installed separately.
-#### **podDisruptionBudget.enabled** ~ `bool`
-> Default value:
-> ```yaml
-> false
-> ```
-#### **podDisruptionBudget.minAvailable** ~ `number`
-> Default value:
-> ```yaml
-> 1
-> ```
-#### **podDisruptionBudget.maxUnavailable** ~ `number`
-> Default value:
-> ```yaml
-> 1
-> ```
 
 <!-- /AUTO-GENERATED -->
