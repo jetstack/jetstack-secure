@@ -26,7 +26,7 @@ oci_preflight_image_name_development := jetstack.local/venafi-agent
 deploy_name := venafi-kubernetes-agent
 deploy_namespace := venafi
 
-helm_chart_repo_base := oci://registry.venafi.cloud/charts
+helm_chart_repo_base := oci://quay.io/jetstack/charts
 helm_chart_source_dir := deploy/charts/venafi-kubernetes-agent
 helm_chart_name := venafi-kubernetes-agent
 helm_chart_version := $(VERSION:v%=%)
