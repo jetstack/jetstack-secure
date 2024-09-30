@@ -28,11 +28,9 @@ metrics:
     scrapeTimeout: 30s
 
     # Additional labels to add to the PodMonitor.
-    # +docs:property
     labels: {}
 
     # Additional annotations to add to the PodMonitor.
-    # +docs:property
     annotations: {}
 
     # Keep labels from scraped data, overriding server-side labels.
@@ -47,8 +45,6 @@ metrics:
     #     sourceLabels:
     #     - __meta_kubernetes_pod_node_name
     #     targetLabel: instance
-    #
-    # +docs:property
     endpointAdditionalProperties: {}
 
 # default replicas, do not scale up
@@ -56,15 +52,12 @@ replicaCount: 1
 
 image:
   # The container image for the Venafi Enhanced Issuer manager.
-  # +docs:property
   repository: registry.venafi.cloud/venafi-agent/venafi-agent
 
   # Kubernetes imagePullPolicy on Deployment.
-  # +docs:property
   pullPolicy: IfNotPresent
 
   # Overrides the image tag whose default is the chart appVersion.
-  # +docs:property
   tag: "v0.0.0"
 
 # Specify image pull credentials if using a private registry
