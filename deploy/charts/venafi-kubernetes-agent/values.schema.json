@@ -1,0 +1,609 @@
+{
+  "$defs": {
+    "helm-values": {
+      "additionalProperties": false,
+      "properties": {
+        "affinity": {
+          "$ref": "#/$defs/helm-values.affinity"
+        },
+        "authentication": {
+          "$ref": "#/$defs/helm-values.authentication"
+        },
+        "command": {
+          "$ref": "#/$defs/helm-values.command"
+        },
+        "config": {
+          "$ref": "#/$defs/helm-values.config"
+        },
+        "crds": {
+          "$ref": "#/$defs/helm-values.crds"
+        },
+        "extraArgs": {
+          "$ref": "#/$defs/helm-values.extraArgs"
+        },
+        "fullnameOverride": {
+          "$ref": "#/$defs/helm-values.fullnameOverride"
+        },
+        "global": {
+          "$ref": "#/$defs/helm-values.global"
+        },
+        "http_proxy": {
+          "$ref": "#/$defs/helm-values.http_proxy"
+        },
+        "https_proxy": {
+          "$ref": "#/$defs/helm-values.https_proxy"
+        },
+        "image": {
+          "$ref": "#/$defs/helm-values.image"
+        },
+        "imagePullSecrets": {
+          "$ref": "#/$defs/helm-values.imagePullSecrets"
+        },
+        "metrics": {
+          "$ref": "#/$defs/helm-values.metrics"
+        },
+        "nameOverride": {
+          "$ref": "#/$defs/helm-values.nameOverride"
+        },
+        "no_proxy": {
+          "$ref": "#/$defs/helm-values.no_proxy"
+        },
+        "nodeSelector": {
+          "$ref": "#/$defs/helm-values.nodeSelector"
+        },
+        "podAnnotations": {
+          "$ref": "#/$defs/helm-values.podAnnotations"
+        },
+        "podDisruptionBudget": {
+          "$ref": "#/$defs/helm-values.podDisruptionBudget"
+        },
+        "podSecurityContext": {
+          "$ref": "#/$defs/helm-values.podSecurityContext"
+        },
+        "replicaCount": {
+          "$ref": "#/$defs/helm-values.replicaCount"
+        },
+        "resources": {
+          "$ref": "#/$defs/helm-values.resources"
+        },
+        "securityContext": {
+          "$ref": "#/$defs/helm-values.securityContext"
+        },
+        "serviceAccount": {
+          "$ref": "#/$defs/helm-values.serviceAccount"
+        },
+        "tolerations": {
+          "$ref": "#/$defs/helm-values.tolerations"
+        },
+        "volumeMounts": {
+          "$ref": "#/$defs/helm-values.volumeMounts"
+        },
+        "volumes": {
+          "$ref": "#/$defs/helm-values.volumes"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.affinity": {
+      "default": {},
+      "description": "-- Embed YAML for Node affinity settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes-using-node-affinity/.",
+      "type": "object"
+    },
+    "helm-values.authentication": {
+      "additionalProperties": false,
+      "properties": {
+        "secretKey": {
+          "$ref": "#/$defs/helm-values.authentication.secretKey"
+        },
+        "secretName": {
+          "$ref": "#/$defs/helm-values.authentication.secretName"
+        },
+        "venafiConnection": {
+          "$ref": "#/$defs/helm-values.authentication.venafiConnection"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.authentication.secretKey": {
+      "default": "privatekey.pem",
+      "description": "-- Key name in the referenced secret",
+      "type": "string"
+    },
+    "helm-values.authentication.secretName": {
+      "default": "agent-credentials",
+      "description": "-- Name of the secret containing the private key",
+      "type": "string"
+    },
+    "helm-values.authentication.venafiConnection": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "$ref": "#/$defs/helm-values.authentication.venafiConnection.enabled"
+        },
+        "name": {
+          "$ref": "#/$defs/helm-values.authentication.venafiConnection.name"
+        },
+        "namespace": {
+          "$ref": "#/$defs/helm-values.authentication.venafiConnection.namespace"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.authentication.venafiConnection.enabled": {
+      "default": false,
+      "description": "-- When set to true, the Venafi Kubernetes Agent will authenticate to\nVenafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the\nVenafi Kubernetes Agent Pod.",
+      "type": "boolean"
+    },
+    "helm-values.authentication.venafiConnection.name": {
+      "default": "venafi-components",
+      "description": "-- The name of a VenafiConnection resource which contains the configuration\nfor authenticating to Venafi.",
+      "type": "string"
+    },
+    "helm-values.authentication.venafiConnection.namespace": {
+      "default": "venafi",
+      "description": "-- The namespace of a VenafiConnection resource which contains the\nconfiguration for authenticating to Venafi.",
+      "type": "string"
+    },
+    "helm-values.command": {
+      "default": [],
+      "description": "-- Specify the command to run overriding default binary.",
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.config": {
+      "additionalProperties": false,
+      "properties": {
+        "clientId": {
+          "$ref": "#/$defs/helm-values.config.clientId"
+        },
+        "clusterDescription": {
+          "$ref": "#/$defs/helm-values.config.clusterDescription"
+        },
+        "clusterName": {
+          "$ref": "#/$defs/helm-values.config.clusterName"
+        },
+        "configmap": {
+          "$ref": "#/$defs/helm-values.config.configmap"
+        },
+        "ignoredSecretTypes": {
+          "$ref": "#/$defs/helm-values.config.ignoredSecretTypes"
+        },
+        "period": {
+          "$ref": "#/$defs/helm-values.config.period"
+        },
+        "server": {
+          "$ref": "#/$defs/helm-values.config.server"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.config.clientId": {
+      "default": "",
+      "description": "-- The client-id to be used for authenticating with the Venafi Control\nPlane. Only useful when using a Key Pair Service Account in the Venafi. Control Plane. You can obtain the cliend ID by creating a Key Pair Service\nAccount in the Venafi Control Plane.",
+      "type": "string"
+    },
+    "helm-values.config.clusterDescription": {
+      "default": "",
+      "description": "-- Description for the cluster resource if it needs to be created in Venafi Control Plane",
+      "type": "string"
+    },
+    "helm-values.config.clusterName": {
+      "default": "",
+      "description": "-- Name for the cluster resource if it needs to be created in Venafi Control Plane",
+      "type": "string"
+    },
+    "helm-values.config.configmap": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/helm-values.config.configmap.key"
+        },
+        "name": {
+          "$ref": "#/$defs/helm-values.config.configmap.name"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.config.configmap.key": {},
+    "helm-values.config.configmap.name": {},
+    "helm-values.config.ignoredSecretTypes": {
+      "items": {
+        "$ref": "#/$defs/helm-values.config.ignoredSecretTypes[0]"
+      },
+      "type": "array"
+    },
+    "helm-values.config.ignoredSecretTypes[0]": {
+      "default": "kubernetes.io/service-account-token",
+      "type": "string"
+    },
+    "helm-values.config.ignoredSecretTypes[1]": {
+      "default": "kubernetes.io/dockercfg",
+      "type": "string"
+    },
+    "helm-values.config.ignoredSecretTypes[2]": {
+      "default": "kubernetes.io/dockerconfigjson",
+      "type": "string"
+    },
+    "helm-values.config.ignoredSecretTypes[3]": {
+      "default": "kubernetes.io/basic-auth",
+      "type": "string"
+    },
+    "helm-values.config.ignoredSecretTypes[4]": {
+      "default": "kubernetes.io/ssh-auth",
+      "type": "string"
+    },
+    "helm-values.config.ignoredSecretTypes[5]": {
+      "default": "bootstrap.kubernetes.io/token",
+      "type": "string"
+    },
+    "helm-values.config.ignoredSecretTypes[6]": {
+      "default": "helm.sh/release.v1",
+      "type": "string"
+    },
+    "helm-values.config.period": {
+      "default": "0h1m0s",
+      "description": "-- Send data back to the platform every minute unless changed",
+      "type": "string"
+    },
+    "helm-values.config.server": {
+      "default": "https://api.venafi.cloud/",
+      "description": "-- API URL of the Venafi Control Plane API. For EU tenants, set this value to\nhttps://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the\nVenafiConnection resource instead.",
+      "type": "string"
+    },
+    "helm-values.crds": {
+      "additionalProperties": false,
+      "properties": {
+        "forceRemoveValidationAnnotations": {
+          "$ref": "#/$defs/helm-values.crds.forceRemoveValidationAnnotations"
+        },
+        "venafiConnection": {
+          "$ref": "#/$defs/helm-values.crds.venafiConnection"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.crds.forceRemoveValidationAnnotations": {
+      "default": false,
+      "description": "-- The 'x-kubernetes-validations' annotation is not supported in Kubernetes 1.22 and below.\nThis annotation is used by CEL, which is a feature introduced in Kubernetes 1.25 that improves how validation is performed. This option allows to force the 'x-kubernetes-validations' annotation to be excluded, even on Kubernetes 1.25+ clusters.",
+      "type": "boolean"
+    },
+    "helm-values.crds.venafiConnection": {
+      "additionalProperties": false,
+      "properties": {
+        "include": {
+          "$ref": "#/$defs/helm-values.crds.venafiConnection.include"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.crds.venafiConnection.include": {
+      "default": false,
+      "description": "-- When set to false, the rendered output does not contain the\nVenafiConnection CRDs and RBAC. This is useful for when the. Venafi Connection resources are already installed separately.",
+      "type": "boolean"
+    },
+    "helm-values.extraArgs": {
+      "default": [],
+      "description": "-- Specify additional arguments to pass to the agent binary.\nFor example `[\"--strict\", \"--oneshot\"]`",
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.fullnameOverride": {
+      "default": "",
+      "description": "-- Helm default setting, use this to shorten the full install name.",
+      "type": "string"
+    },
+    "helm-values.global": {
+      "description": "Global values shared across all (sub)charts"
+    },
+    "helm-values.http_proxy": {
+      "description": "Configures the HTTP_PROXY environment variable where a HTTP proxy is required.",
+      "type": "string"
+    },
+    "helm-values.https_proxy": {
+      "description": "Configures the HTTPS_PROXY environment variable where a HTTP proxy is required.",
+      "type": "string"
+    },
+    "helm-values.image": {
+      "additionalProperties": false,
+      "properties": {
+        "pullPolicy": {
+          "$ref": "#/$defs/helm-values.image.pullPolicy"
+        },
+        "repository": {
+          "$ref": "#/$defs/helm-values.image.repository"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.image.pullPolicy": {
+      "default": "IfNotPresent",
+      "description": "-- Defaults to only pull if not already present",
+      "type": "string"
+    },
+    "helm-values.image.repository": {
+      "default": "registry.venafi.cloud/venafi-agent/venafi-agent",
+      "description": "-- Default to Open Source image repository",
+      "type": "string"
+    },
+    "helm-values.imagePullSecrets": {
+      "default": [],
+      "description": "-- Specify image pull credentials if using a private registry\nexample: - name: my-pull-secret",
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.metrics": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "$ref": "#/$defs/helm-values.metrics.enabled"
+        },
+        "podmonitor": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.metrics.enabled": {
+      "default": true,
+      "description": "-- Enable the metrics server.\nIf false, the metrics server will be disabled and the other metrics fields below will be ignored.",
+      "type": "boolean"
+    },
+    "helm-values.metrics.podmonitor": {
+      "additionalProperties": false,
+      "properties": {
+        "annotations": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.annotations"
+        },
+        "enabled": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.enabled"
+        },
+        "endpointAdditionalProperties": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.endpointAdditionalProperties"
+        },
+        "honorLabels": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.honorLabels"
+        },
+        "interval": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.interval"
+        },
+        "labels": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.labels"
+        },
+        "namespace": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.namespace"
+        },
+        "prometheusInstance": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.prometheusInstance"
+        },
+        "scrapeTimeout": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.scrapeTimeout"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.metrics.podmonitor.annotations": {
+      "default": {},
+      "description": "-- Additional annotations to add to the PodMonitor.",
+      "type": "object"
+    },
+    "helm-values.metrics.podmonitor.enabled": {
+      "default": false,
+      "description": "-- Create a PodMonitor to add the metrics to Prometheus, if you are using Prometheus Operator.\nSee https://prometheus-operator.dev/docs/operator/api/#monitoring.coreos.com/v1.PodMonitor",
+      "type": "boolean"
+    },
+    "helm-values.metrics.podmonitor.endpointAdditionalProperties": {
+      "default": {},
+      "description": "-- EndpointAdditionalProperties allows setting additional properties on the endpoint such as relabelings, metricRelabelings etc.\n\nFor example:\nendpointAdditionalProperties:\n relabelings:\n - action: replace\n   sourceLabels:\n   - __meta_kubernetes_pod_node_name\n   targetLabel: instance",
+      "type": "object"
+    },
+    "helm-values.metrics.podmonitor.honorLabels": {
+      "default": false,
+      "description": "-- Keep labels from scraped data, overriding server-side labels.",
+      "type": "boolean"
+    },
+    "helm-values.metrics.podmonitor.interval": {
+      "default": "60s",
+      "description": "-- The interval to scrape metrics.",
+      "type": "string"
+    },
+    "helm-values.metrics.podmonitor.labels": {
+      "default": {},
+      "description": "-- Additional labels to add to the PodMonitor.",
+      "type": "object"
+    },
+    "helm-values.metrics.podmonitor.namespace": {
+      "description": "-- The namespace that the pod monitor should live in.\nDefaults to the venafi-kubernetes-agent namespace.",
+      "type": "string"
+    },
+    "helm-values.metrics.podmonitor.prometheusInstance": {
+      "default": "default",
+      "description": "-- Specifies the `prometheus` label on the created PodMonitor.\nThis is used when different Prometheus instances have label selectors matching different PodMonitors.",
+      "type": "string"
+    },
+    "helm-values.metrics.podmonitor.scrapeTimeout": {
+      "default": "30s",
+      "description": "-- The timeout before a metrics scrape fails.",
+      "type": "string"
+    },
+    "helm-values.nameOverride": {
+      "default": "",
+      "description": "-- Helm default setting to override release name, usually leave blank.",
+      "type": "string"
+    },
+    "helm-values.no_proxy": {
+      "description": "Configures the NO_PROXY environment variable where a HTTP proxy is required, but certain domains should be excluded.",
+      "type": "string"
+    },
+    "helm-values.nodeSelector": {
+      "default": {},
+      "description": "-- Embed YAML for nodeSelector settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/",
+      "type": "object"
+    },
+    "helm-values.podAnnotations": {
+      "default": {},
+      "description": "-- Additional YAML annotations to add the the pod.",
+      "type": "object"
+    },
+    "helm-values.podDisruptionBudget": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "$ref": "#/$defs/helm-values.podDisruptionBudget.enabled"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.podDisruptionBudget.enabled": {
+      "default": false,
+      "description": "-- Enable or disable the PodDisruptionBudget resource, which helps prevent downtime\nduring voluntary disruptions such as during a Node upgrade.",
+      "type": "boolean"
+    },
+    "helm-values.podSecurityContext": {
+      "default": {},
+      "description": "-- Optional Pod (all containers) `SecurityContext` options, see https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod.",
+      "type": "object"
+    },
+    "helm-values.replicaCount": {
+      "default": 1,
+      "description": "-- default replicas, do not scale up",
+      "type": "number"
+    },
+    "helm-values.resources": {
+      "additionalProperties": false,
+      "properties": {
+        "limits": {
+          "$ref": "#/$defs/helm-values.resources.limits"
+        },
+        "requests": {
+          "$ref": "#/$defs/helm-values.resources.requests"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.resources.limits": {
+      "additionalProperties": false,
+      "properties": {
+        "memory": {
+          "$ref": "#/$defs/helm-values.resources.limits.memory"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.resources.limits.memory": {
+      "default": "500Mi",
+      "type": "string"
+    },
+    "helm-values.resources.requests": {
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "$ref": "#/$defs/helm-values.resources.requests.cpu"
+        },
+        "memory": {
+          "$ref": "#/$defs/helm-values.resources.requests.memory"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.resources.requests.cpu": {
+      "default": "200m",
+      "type": "string"
+    },
+    "helm-values.resources.requests.memory": {
+      "default": "200Mi",
+      "type": "string"
+    },
+    "helm-values.securityContext": {
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "$ref": "#/$defs/helm-values.securityContext.capabilities"
+        },
+        "readOnlyRootFilesystem": {
+          "$ref": "#/$defs/helm-values.securityContext.readOnlyRootFilesystem"
+        },
+        "runAsNonRoot": {
+          "$ref": "#/$defs/helm-values.securityContext.runAsNonRoot"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.securityContext.capabilities": {
+      "additionalProperties": false,
+      "properties": {
+        "drop": {
+          "$ref": "#/$defs/helm-values.securityContext.capabilities.drop"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.securityContext.capabilities.drop": {
+      "items": {
+        "$ref": "#/$defs/helm-values.securityContext.capabilities.drop[0]"
+      },
+      "type": "array"
+    },
+    "helm-values.securityContext.capabilities.drop[0]": {
+      "default": "ALL",
+      "type": "string"
+    },
+    "helm-values.securityContext.readOnlyRootFilesystem": {
+      "default": true,
+      "type": "boolean"
+    },
+    "helm-values.securityContext.runAsNonRoot": {
+      "default": true,
+      "type": "boolean"
+    },
+    "helm-values.serviceAccount": {
+      "additionalProperties": false,
+      "properties": {
+        "annotations": {
+          "$ref": "#/$defs/helm-values.serviceAccount.annotations"
+        },
+        "create": {
+          "$ref": "#/$defs/helm-values.serviceAccount.create"
+        },
+        "name": {
+          "$ref": "#/$defs/helm-values.serviceAccount.name"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.serviceAccount.annotations": {
+      "default": {},
+      "description": "-- Annotations YAML to add to the service account",
+      "type": "object"
+    },
+    "helm-values.serviceAccount.create": {
+      "default": true,
+      "description": "-- Specifies whether a service account should be created",
+      "type": "boolean"
+    },
+    "helm-values.serviceAccount.name": {
+      "default": "",
+      "description": "-- The name of the service account to use.\nIf blank and `serviceAccount.create` is true, a name is generated using the fullname template of the release.",
+      "type": "string"
+    },
+    "helm-values.tolerations": {
+      "default": [],
+      "description": "-- Embed YAML for toleration settings, see https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/",
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.volumeMounts": {
+      "default": [],
+      "description": "-- Additional volume mounts to add to the Venafi Kubernetes Agent container.\nThis is useful for mounting a custom CA bundle. Any PEM certificate mounted under /etc/ssl/certs will be loaded by the Venafi Kubernetes Agent. For\nexample:\n\nvolumeMounts:\n  - name: cabundle\n    mountPath: /etc/ssl/certs/cabundle\n    subPath: cabundle\n    readOnly: true",
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.volumes": {
+      "default": [],
+      "description": "-- Additional volumes to add to the Venafi Kubernetes Agent container. This is\nuseful for mounting a custom CA bundle. For example:\nvolumes:\n  - name: cabundle\n    configMap:\n      name: cabundle\n      optional: false\n      defaultMode: 0644\nIn order to create the ConfigMap, you can use the following command:\n\n    kubectl create configmap cabundle \\\n      --from-file=cabundle=./your/custom/ca/bundle.pem",
+      "items": {},
+      "type": "array"
+    }
+  },
+  "$ref": "#/$defs/helm-values",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

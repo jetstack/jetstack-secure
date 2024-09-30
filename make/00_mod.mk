@@ -35,8 +35,8 @@ helm_docs_use_helm_tool := 1
 helm_generate_schema := 1
 helm_verify_values := 1
 
-golangci_lint_config := .golangci.yaml
-
+# Allows us to replace the Helm values.yaml's image.repository and image.tag
+# with the right values.
 define helm_values_mutation_function
 $(YQ) \
 	'( .image.repository = "$(oci_preflight_image_name)" ) | \

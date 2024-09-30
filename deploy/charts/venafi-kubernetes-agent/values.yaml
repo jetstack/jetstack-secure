@@ -3,40 +3,42 @@
 # Declare variables to be passed into your templates.
 
 metrics:
-  # -- Enable the metrics server.
+  # Enable the metrics server.
   # If false, the metrics server will be disabled and the other metrics fields below will be ignored.
   enabled: true
   podmonitor:
-    # -- Create a PodMonitor to add the metrics to Prometheus, if you are using Prometheus Operator.
+    # Create a PodMonitor to add the metrics to Prometheus, if you are using Prometheus Operator.
     # See https://prometheus-operator.dev/docs/operator/api/#monitoring.coreos.com/v1.PodMonitor
     enabled: false
 
-    # -- The namespace that the pod monitor should live in.
+    # The namespace that the pod monitor should live in.
     # Defaults to the venafi-kubernetes-agent namespace.
     # +docs:property
     # namespace: venafi
 
-    # -- Specifies the `prometheus` label on the created PodMonitor.
+    # Specifies the `prometheus` label on the created PodMonitor.
     # This is used when different Prometheus instances have label selectors
     # matching different PodMonitors.
     prometheusInstance: default
 
-    # -- The interval to scrape metrics.
+    # The interval to scrape metrics.
     interval: 60s
 
-    # -- The timeout before a metrics scrape fails.
+    # The timeout before a metrics scrape fails.
     scrapeTimeout: 30s
 
-    # -- Additional labels to add to the PodMonitor.
+    # Additional labels to add to the PodMonitor.
+    # +docs:property
     labels: {}
 
-    # -- Additional annotations to add to the PodMonitor.
+    # Additional annotations to add to the PodMonitor.
+    # +docs:property
     annotations: {}
 
-    # -- Keep labels from scraped data, overriding server-side labels.
+    # Keep labels from scraped data, overriding server-side labels.
     honorLabels: false
 
-    # -- EndpointAdditionalProperties allows setting additional properties on the endpoint such as relabelings, metricRelabelings etc.
+    # EndpointAdditionalProperties allows setting additional properties on the endpoint such as relabelings, metricRelabelings etc.
     #
     # For example:
     #  endpointAdditionalProperties:
@@ -46,42 +48,48 @@ metrics:
     #     - __meta_kubernetes_pod_node_name
     #     targetLabel: instance
     #
+    # +docs:property
     endpointAdditionalProperties: {}
 
-# -- default replicas, do not scale up
+# default replicas, do not scale up
 replicaCount: 1
 
 image:
-  # -- Default to Open Source image repository
+  # The container image for the Venafi Enhanced Issuer manager.
+  # +docs:property
   repository: registry.venafi.cloud/venafi-agent/venafi-agent
-  # -- Defaults to only pull if not already present
-  pullPolicy: IfNotPresent
-  # -- Overrides the image tag whose default is the chart appVersion
-  # tag: "v0.0.0"
 
-# -- Specify image pull credentials if using a private registry
+  # Kubernetes imagePullPolicy on Deployment.
+  # +docs:property
+  pullPolicy: IfNotPresent
+
+  # Overrides the image tag whose default is the chart appVersion.
+  # +docs:property
+  tag: "v0.0.0"
+
+# Specify image pull credentials if using a private registry
 # example: - name: my-pull-secret
 imagePullSecrets: []
 
-# -- Helm default setting to override release name, usually leave blank.
+# Helm default setting to override release name, usually leave blank.
 nameOverride: ""
 
-# -- Helm default setting, use this to shorten the full install name.
+# Helm default setting, use this to shorten the full install name.
 fullnameOverride: ""
 
 serviceAccount:
-  # -- Specifies whether a service account should be created
+  # Specifies whether a service account should be created
   create: true
-  # -- Annotations YAML to add to the service account
+  # Annotations YAML to add to the service account
   annotations: {}
-  # -- The name of the service account to use.
+  # The name of the service account to use.
   # If blank and `serviceAccount.create` is true, a name is generated using the fullname template of the release.
   name: ""
 
-# -- Additional YAML annotations to add the the pod.
+# Additional YAML annotations to add the the pod.
 podAnnotations: {}
 
-# -- Optional Pod (all containers) `SecurityContext` options, see https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod.
+# Optional Pod (all containers) `SecurityContext` options, see https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod.
 podSecurityContext: {}
   # runAsUser: 1000
   # runAsGroup: 3000
@@ -102,7 +110,9 @@ podSecurityContext: {}
 # +docs:property
 # no_proxy: 127.0.0.1,localhost
 
-# -- Add Container specific SecurityContext settings to the container. Takes precedence over `podSecurityContext` when set. See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container
+# Add Container specific SecurityContext settings to the container. Takes
+# precedence over `podSecurityContext` when set. See
+# https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container
 securityContext:
   capabilities:
     drop:
@@ -110,9 +120,10 @@ securityContext:
   readOnlyRootFilesystem: true
   runAsNonRoot: true
 
-# -- Set resource requests and limits for the pod.
+# Set resource requests and limits for the pod.
 #
-# Read [Venafi Kubernetes components deployment best practices](https://docs.venafi.cloud/vaas/k8s-components/c-k8s-components-best-practice/#scaling)
+# Read [Venafi Kubernetes components deployment best
+# practices](https://docs.venafi.cloud/vaas/k8s-components/c-k8s-components-best-practice/#scaling)
 # to learn how to choose suitable CPU and memory resource requests and limits.
 resources:
   requests:
@@ -121,23 +132,26 @@ resources:
   limits:
     memory: 500Mi
 
-# -- Embed YAML for nodeSelector settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/
+# Embed YAML for nodeSelector settings, see
+# https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/
 nodeSelector: {}
 
-# -- Embed YAML for toleration settings, see https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+# Embed YAML for toleration settings, see
+# https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
 tolerations: []
 
-# -- Embed YAML for Node affinity settings, see https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes-using-node-affinity/.
+# Embed YAML for Node affinity settings, see
+# https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes-using-node-affinity/.
 affinity: {}
 
-# -- Specify the command to run overriding default binary.
+# Specify the command to run overriding default binary.
 command: []
 
-# -- Specify additional arguments to pass to the agent binary.
+# Specify additional arguments to pass to the agent binary.
 # For example `["--strict", "--oneshot"]`
 extraArgs: []
 
-# -- Additional volumes to add to the Venafi Kubernetes Agent container. This is
+# Additional volumes to add to the Venafi Kubernetes Agent container. This is
 # useful for mounting a custom CA bundle. For example:
 #
 #     volumes:
@@ -153,7 +167,7 @@ extraArgs: []
 #       --from-file=cabundle=./your/custom/ca/bundle.pem
 volumes: []
 
-# -- Additional volume mounts to add to the Venafi Kubernetes Agent container.
+# Additional volume mounts to add to the Venafi Kubernetes Agent container.
 # This is useful for mounting a custom CA bundle. Any PEM certificate mounted
 # under /etc/ssl/certs will be loaded by the Venafi Kubernetes Agent. For
 # example:
@@ -165,50 +179,50 @@ volumes: []
 #         readOnly: true
 volumeMounts: []
 
-# -- Authentication details for the Venafi Kubernetes Agent
+# Authentication details for the Venafi Kubernetes Agent
 authentication:
-  # -- Name of the secret containing the private key
+  # Name of the secret containing the private key
   secretName: agent-credentials
-  # -- Key name in the referenced secret
+  # Key name in the referenced secret
   secretKey: "privatekey.pem"
 
   # +docs:section=Venafi Connection
-  # -- Configure VenafiConnection authentication
+  # Configure VenafiConnection authentication
   venafiConnection:
-    # -- When set to true, the Venafi Kubernetes Agent will authenticate to
+    # When set to true, the Venafi Kubernetes Agent will authenticate to
     # Venafi using the configuration in a VenafiConnection resource.
     # Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/).
     # When set to true, the `authentication.secret` values will be ignored and the
     # Secret with `authentication.secretName` will _not_ be mounted into the
     # Venafi Kubernetes Agent Pod.
     enabled: false
-    # -- The name of a VenafiConnection resource which contains the configuration
+    # The name of a VenafiConnection resource which contains the configuration
     # for authenticating to Venafi.
     name: venafi-components
-    # -- The namespace of a VenafiConnection resource which contains the
+    # The namespace of a VenafiConnection resource which contains the
     # configuration for authenticating to Venafi.
     namespace: venafi
 
-# -- Configuration section for the Venafi Kubernetes Agent itself
+# Configuration section for the Venafi Kubernetes Agent itself
 config:
-  # -- API URL of the Venafi Control Plane API. For EU tenants, set this value to
+  # API URL of the Venafi Control Plane API. For EU tenants, set this value to
   # https://api.venafi.eu/. If you are using the VenafiConnection authentication
   # method, you must set the API URL using the field `spec.vcp.url` on the
   # VenafiConnection resource instead.
   server: "https://api.venafi.cloud/"
-  # -- The client-id to be used for authenticating with the Venafi Control
+  # The client-id to be used for authenticating with the Venafi Control
   # Plane. Only useful when using a Key Pair Service Account in the Venafi
   # Control Plane. You can obtain the cliend ID by creating a Key Pair Service
   # Account in the Venafi Control Plane.
   clientId: ""
-  # -- Send data back to the platform every minute unless changed
+  # Send data back to the platform every minute unless changed
   period: "0h1m0s"
-  # -- Name for the cluster resource if it needs to be created in Venafi Control Plane
+  # Name for the cluster resource if it needs to be created in Venafi Control Plane
   clusterName: ""
-  # -- Description for the cluster resource if it needs to be created in Venafi Control Plane
+  # Description for the cluster resource if it needs to be created in Venafi Control Plane
   clusterDescription: ""
 
-  # -- Reduce the memory usage of the agent and reduce the load on the Kubernetes
+  # Reduce the memory usage of the agent and reduce the load on the Kubernetes
   # API server by omitting various common Secret types when listing Secrets.
   # These Secret types will be added to a "type!=<type>" field selector in the
   # agent config.
@@ -224,25 +238,25 @@ config:
   - bootstrap.kubernetes.io/token
   - helm.sh/release.v1
 
-  # -- Specify ConfigMap details to load config from an existing resource.
+  # Specify ConfigMap details to load config from an existing resource.
   # This should be blank by default unless you have you own config.
   configmap:
     name:
     key:
 
-# -- Configure a PodDisruptionBudget for the agent's Deployment. If running with multiple
+# Configure a PodDisruptionBudget for the agent's Deployment. If running with multiple
 # replicas, consider setting podDisruptionBudget.enabled to true.
 podDisruptionBudget:
-  # -- Enable or disable the PodDisruptionBudget resource, which helps prevent downtime
+  # Enable or disable the PodDisruptionBudget resource, which helps prevent downtime
   # during voluntary disruptions such as during a Node upgrade.
   enabled: false
 
-  # -- Configure the minimum available pods for disruptions. Can either be set to
+  # Configure the minimum available pods for disruptions. Can either be set to
   # an integer (e.g. 1) or a percentage value (e.g. 25%).
   # Cannot be used if `maxUnavailable` is set.
   # minAvailable: 1
 
-  # -- Configure the maximum unavailable pods for disruptions. Can either be set to
+  # Configure the maximum unavailable pods for disruptions. Can either be set to
   # an integer (e.g. 1) or a percentage value (e.g. 25%).
   # Cannot be used if `minAvailable` is set.
   # maxUnavailable: 1
@@ -252,16 +266,26 @@ podDisruptionBudget:
 # prevents them from being accidentally removed by Helm when this chart is deleted. After
 # deleting the installed chart, the user still has to manually remove the remaining CRDs.
 crds:
-  # -- The 'x-kubernetes-validations' annotation is not supported in Kubernetes 1.22 and below.
+  # The 'x-kubernetes-validations' annotation is not supported in Kubernetes 1.22 and below.
   # This annotation is used by CEL, which is a feature introduced in Kubernetes 1.25 that
   # improves how validation is performed.
   # This option allows to force the 'x-kubernetes-validations' annotation to be excluded,
   # even on Kubernetes 1.25+ clusters.
   forceRemoveValidationAnnotations: false
 
-  # -- Optionally include the VenafiConnection CRDs
+  # This option makes it so that the "helm.sh/resource-policy": keep
+  # annotation is added to the CRD. This will prevent Helm from uninstalling
+  # the CRD when the Helm release is uninstalled.
+  keep: false
+
+  # Optionally include the VenafiConnection CRDs
   venafiConnection:
-    # -- When set to false, the rendered output does not contain the
+    # When set to false, the rendered output does not contain the
     # VenafiConnection CRDs and RBAC. This is useful for when the
     # Venafi Connection resources are already installed separately.
     include: false
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  maxUnavailable: 1
