@@ -2,17 +2,18 @@ package cmd
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
 func printVersion(verbose bool) {
-	fmt.Println("Preflight version: ", version.PreflightVersion, version.Platform)
+	fmt.Println("Preflight version: ", version.PreflightVersion, runtime.GOOS+"/"+runtime.GOARCH)
 	if verbose {
 		fmt.Println("  Commit: ", version.Commit)
 		fmt.Println("  Built:  ", version.BuildDate)
-		fmt.Println("  Go:     ", version.GoVersion)
+		fmt.Println("  Go:     ", runtime.Version())
 	}
 }
 

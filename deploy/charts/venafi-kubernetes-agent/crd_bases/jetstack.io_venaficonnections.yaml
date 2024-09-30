@@ -1,10 +1,9 @@
-# DO NOT EDIT. Use 'make generate-crds-venconn' to regenerate.
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
   name: venaficonnections.jetstack.io
 spec:
   group: jetstack.io
@@ -140,7 +139,7 @@ spec:
                                 /v1/auth/oidc/login
                               type: string
                             clientId:
-                              description: 'DEPRECATED: This field does nothing and
+                              description: 'Deprecated: This field does nothing and
                                 will be removed in the future.'
                               type: string
                             role:
@@ -167,7 +166,6 @@ spec:
                               description: |-
                                 The fields are Vault keys pointing to the secrets passed to the next
                                 SecretSource step.
-
 
                                 Example 1 (TPP, username and password): imagining that you have stored
                                 the username and password for TPP under the keys "username" and
@@ -352,7 +350,7 @@ spec:
                                 /v1/auth/oidc/login
                               type: string
                             clientId:
-                              description: 'DEPRECATED: This field does nothing and
+                              description: 'Deprecated: This field does nothing and
                                 will be removed in the future.'
                               type: string
                             role:
@@ -379,7 +377,6 @@ spec:
                               description: |-
                                 The fields are Vault keys pointing to the secrets passed to the next
                                 SecretSource step.
-
 
                                 Example 1 (TPP, username and password): imagining that you have stored
                                 the username and password for TPP under the keys "username" and
@@ -550,7 +547,7 @@ spec:
                                 /v1/auth/oidc/login
                               type: string
                             clientId:
-                              description: 'DEPRECATED: This field does nothing and
+                              description: 'Deprecated: This field does nothing and
                                 will be removed in the future.'
                               type: string
                             role:
@@ -577,7 +574,6 @@ spec:
                               description: |-
                                 The fields are Vault keys pointing to the secrets passed to the next
                                 SecretSource step.
-
 
                                 Example 1 (TPP, username and password): imagining that you have stored
                                 the username and password for TPP under the keys "username" and
@@ -761,7 +757,7 @@ spec:
                                 /v1/auth/oidc/login
                               type: string
                             clientId:
-                              description: 'DEPRECATED: This field does nothing and
+                              description: 'Deprecated: This field does nothing and
                                 will be removed in the future.'
                               type: string
                             role:
@@ -788,7 +784,6 @@ spec:
                               description: |-
                                 The fields are Vault keys pointing to the secrets passed to the next
                                 SecretSource step.
-
 
                                 Example 1 (TPP, username and password): imagining that you have stored
                                 the username and password for TPP under the keys "username" and
@@ -959,7 +954,7 @@ spec:
                                 /v1/auth/oidc/login
                               type: string
                             clientId:
-                              description: 'DEPRECATED: This field does nothing and
+                              description: 'Deprecated: This field does nothing and
                                 will be removed in the future.'
                               type: string
                             role:
@@ -986,7 +981,6 @@ spec:
                               description: |-
                                 The fields are Vault keys pointing to the secrets passed to the next
                                 SecretSource step.
-
 
                                 Example 1 (TPP, username and password): imagining that you have stored
                                 the username and password for TPP under the keys "username" and
