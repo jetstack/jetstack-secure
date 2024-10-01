@@ -254,11 +254,13 @@ podDisruptionBudget:
   # Configure the minimum available pods for disruptions. Can either be set to
   # an integer (e.g. 1) or a percentage value (e.g. 25%).
   # Cannot be used if `maxUnavailable` is set.
+  # +docs:property
   # minAvailable: 1
 
   # Configure the maximum unavailable pods for disruptions. Can either be set to
   # an integer (e.g. 1) or a percentage value (e.g. 25%).
   # Cannot be used if `minAvailable` is set.
+  # +docs:property
   # maxUnavailable: 1
 
 # +docs:section=CRDs
@@ -284,8 +286,3 @@ crds:
     # VenafiConnection CRDs and RBAC. This is useful for when the
     # Venafi Connection resources are already installed separately.
     include: false
-
-podDisruptionBudget:
-  enabled: false
-  minAvailable: 1
-  maxUnavailable: 1

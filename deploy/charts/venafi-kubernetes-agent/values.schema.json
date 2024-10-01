@@ -477,14 +477,15 @@
     },
     "helm-values.podDisruptionBudget.enabled": {
       "default": false,
+      "description": "Enable or disable the PodDisruptionBudget resource, which helps prevent downtime during voluntary disruptions such as during a Node upgrade.",
       "type": "boolean"
     },
     "helm-values.podDisruptionBudget.maxUnavailable": {
-      "default": 1,
+      "description": "Configure the maximum unavailable pods for disruptions. Can either be set to an integer (e.g. 1) or a percentage value (e.g. 25%).\nCannot be used if `minAvailable` is set.",
       "type": "number"
     },
     "helm-values.podDisruptionBudget.minAvailable": {
-      "default": 1,
+      "description": "Configure the minimum available pods for disruptions. Can either be set to an integer (e.g. 1) or a percentage value (e.g. 25%).\nCannot be used if `maxUnavailable` is set.",
       "type": "number"
     },
     "helm-values.podSecurityContext": {
