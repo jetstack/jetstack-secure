@@ -75,30 +75,32 @@ func Run(cmd *cobra.Command, args []string) {
 			}
 		}()
 	}
-	if Flags.Prometheus {
-		logs.Log.Printf("Prometheus was enabled.\nRunning prometheus server on port :8081")
-		go func() {
+
+	go func() {
+		server := http.NewServeMux()
+
+		if Flags.Prometheus {
+			logs.Log.Printf("Prometheus was enabled.\nRunning prometheus on port :8081")
 			prometheus.MustRegister(metricPayloadSize)
-			metricsServer := http.NewServeMux()
+			server.Handle("/metrics", promhttp.Handler())
+		}
 
-			// Health check endpoint. Since we haven't figured a good way of knowning
-			// what "ready" means for the agent, we just return 200 OK inconditionally.
-			// The goal is to satisfy some Kubernetes distributions, like OpenShift,
-			// that require a liveness and health probe to be present for each pod.
-			metricsServer.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-			})
-			metricsServer.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-			})
+		// Health check endpoint. Since we haven't figured a good way of knowning
+		// what "ready" means for the agent, we just return 200 OK inconditionally.
+		// The goal is to satisfy some Kubernetes distributions, like OpenShift,
+		// that require a liveness and health probe to be present for each pod.
+		server.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+		server.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
 
-			metricsServer.Handle("/metrics", promhttp.Handler())
-			err := http.ListenAndServe(":8081", metricsServer)
-			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logs.Log.Fatalf("failed to run prometheus server: %s", err)
-			}
-		}()
-	}
+		err := http.ListenAndServe(":8081", server)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logs.Log.Fatalf("failed to run the health check server: %s", err)
+		}
+	}()
 
 	_, isVenConn := preflightClient.(*client.VenConnClient)
 	if isVenConn {
