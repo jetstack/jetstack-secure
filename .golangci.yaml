@@ -1,74 +1,26 @@
 issues:
   exclude-rules:
     - linters:
-        - staticcheck
-        - errcheck
-        - unconvert
-        - unparam
-        - dupword
-        - gosimple
-        - nilerr
-        - nilnil
-        # TODO(mael): add the following linters one by one and fix the issues
-        # they report. I didn't have time to do that when I migrated to
-        # makefile-modules.
-        - asasalint
-        - asciicheck
-        - bidichk
         - bodyclose
-        - contextcheck
-        - decorder
-        - dogsled
         - dupword
-        - durationcheck
         - errcheck
         - errchkjson
-        - errname
-        - execinquery
-        - exhaustive
-        - exportloopref
         - forbidigo
         - gci
-        - ginkgolinter
-        - gocheckcompilerdirectives
-        - gochecksumtype
         - gocritic
         - gofmt
-        - goheader
-        - goprintffuncname
         - gosec
         - gosimple
-        - gosmopolitan
         - govet
-        - grouper
-        - importas
-        - ineffassign
-        - interfacebloat
-        - loggercheck
-        - makezero
-        - mirror
         - misspell
         - musttag
-        - nakedret
         - nilerr
-        - nilnil
-        - noctx
-        - nosprintfhostport
-        - predeclared
-        - promlinter
-        - protogetter
-        - reassign
-        - sloglint
         - staticcheck
-        - tagalign
-        - tenv
-        - testableexamples
-        - typecheck
+        - noctx
         - unconvert
         - unparam
-        - unused
         - usestdlibvars
-        - wastedassign
+        - predeclared
       text: ".*"
 linters:
   # Explicitly define all enabled linters
