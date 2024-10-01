@@ -80,6 +80,18 @@ func Run(cmd *cobra.Command, args []string) {
 		go func() {
 			prometheus.MustRegister(metricPayloadSize)
 			metricsServer := http.NewServeMux()
+
+			// Health check endpoint. Since we haven't figured a good way of knowning
+			// what "ready" means for the agent, we just return 200 OK inconditionally.
+			// The goal is to satisfy some Kubernetes distributions, like OpenShift,
+			// that require a liveness and health probe to be present for each pod.
+			metricsServer.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+			metricsServer.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
+
 			metricsServer.Handle("/metrics", promhttp.Handler())
 			err := http.ListenAndServe(":8081", metricsServer)
 			if err != nil && !errors.Is(err, http.ErrServerClosed) {
