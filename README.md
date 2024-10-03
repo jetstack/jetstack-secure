@@ -92,15 +92,28 @@ The Helm charts are:
 
 The release process is semi-automated.
 
-### Step 1: Incrementing Versions And Git Tag
+### Step 1: Git Tag and GitHub Release
 
-1. Go to the GitHub Releases page and click "Draft a New Release".
-   - Click "Create a new tag" with the version number prefixed with `v` (e.g., `v1.1.0`).
-   - Use the title "v1.1.0",
-   - Click "Generate Release Notes"
-   - Edit the release notes to make them readable to the end-user.
-   - Click "Publish" (don't select "Draft")
-2. Inform Michael McLoughlin of the new release so he can update the
+1. Create a tag for the new release:
+    ```sh
+   export VERSION=v0.6.0-alpha.0
+   git tag --annotate --message="Release ${VERSION}" "${VERSION}"
+   git push origin "${VERSION}"
+   ```
+2. A GitHub action will see the new tag and do the following:
+    - Build and publish the container image at `quay.io/jetstack/venafi-agent`,
+    - Build and publish the Helm chart at `oci://quay.io/jetstack/charts/venafi-kubernetes-agent`,
+    - Create a draft GitHub release,
+    - Upload the Helm chart tarball to the GitHub release.
+3. Navigate to the GitHub Releases page and select the draft release to edit.
+    2. Click on “Generate release notes” to automatically compile the changelog.
+    3. Review and refine the generated notes to ensure they’re clear and useful
+       for end users.
+    4. Remove any irrelevant entries, such as “update deps,” “update CI,”
+       “update docs,” or similar internal changes that do not impact user
+       functionality.
+4. Publish the release.
+5. Inform Michael McLoughlin of the new release so he can update the
    documentation at <https://docs.venafi.cloud/>.
 
 > [!NOTE]
@@ -166,16 +179,24 @@ NOTE(mael): TBD
 This step is performed by Peter Fiddes and Adrian Lai separately from the main
 release process.
 
-Run the Helm Chart workflow
-[release_js-agent_chart.yaml](https://github.com/jetstack/enterprise-builds/actions/workflows/release_js-agent_chart.yaml).
+The `jetstack-secure` chart is for [Jetstack
+Secure](https://platform.jetstack.io/documentation/installation/agent#jetstack-agent-helm-chart-installation).
+It is composed of two OCI Helm charts:
 
-The [jetstack-agent](deploy/charts/jetstack-agent/README.md) chart has a different version number to the agent.
-This is because the first version of _this_ chart was given version `0.1.0`,
-while the app version at the time was `0.1.38`.
-And this allows the chart to be updated and released more frequently than the Docker image if necessary.
-This chart is for [Jetstack Secure](https://platform.jetstack.io/documentation/installation/agent#jetstack-agent-helm-chart-installation).
+- `oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`
+- `oci://us.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`
 
-1. Create a branch
+> [!NOTE]
+>
+> The [jetstack-agent](deploy/charts/jetstack-agent/README.md) chart has a
+> different version number to the agent. This is because the first version of
+> _this_ chart was given version `0.1.0`, while the app version at the time was
+> `0.1.38`. And this allows the chart to be updated and released more frequently
+> than the Docker image if necessary.
+
+The process is as follows:
+
+1. Create a branch.
 2. Increment version numbers.
    1. Increment the `version` value in [Chart.yaml](deploy/charts/jetstack-agent/Chart.yaml).
       DO NOT use a `v` prefix.
@@ -190,10 +211,6 @@ This chart is for [Jetstack Secure](https://platform.jetstack.io/documentation/i
       ```
 3. Create a pull request and wait for it to be approved.
 4. Merge the branch
-5. Push a tag, using the format: `chart-vX.Y.Z`.
-   This unique tag format is recognized by the private CI pipeline that builds and publishes the chart.
-
-The chart will be published to
-the [Jetstack Enterprise Registry](https://platform.jetstack.io/documentation/installation/agent#1-obtain-oci-registry-credentials)
-by a private CI pipeline managed by Venafi.
+5. Manually trigger the Helm Chart workflow:
+[release_js-agent_chart.yaml](https://github.com/jetstack/enterprise-builds/actions/workflows/release_js-agent_chart.yaml).
 
