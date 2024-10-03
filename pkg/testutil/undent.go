@@ -122,7 +122,7 @@ func Undent(s string) string {
 
 		// Case 1: we want the user to be able to omit some tabs or spaces in
 		// the last line for readability purposes.
-		case line == len(lineOffsets)-1 && s[last] != '\n' && isIndent(s[first:last]):
+		case line == len(lineOffsets)-1 && s[last] != '\n' && isIndent(s[first:last+1]):
 			lineStr = ""
 
 		// Case 2: we want the user to be able to omit the indentations for

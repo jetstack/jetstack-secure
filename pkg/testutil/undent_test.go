@@ -34,6 +34,7 @@ func Test_Undent(t *testing.T) {
 
 		bar
 	`, "foo\n\nbar\n"))
+	t.Run("bug fix: last char is not omitted", runTest_Undent("\t\t{\n\t\t    \"kind\": \"Secret\"\n\t\t}", "{\n    \"kind\": \"Secret\"\n}"))
 }
 
 func runTest_Undent(given, expected string) func(t *testing.T) {
