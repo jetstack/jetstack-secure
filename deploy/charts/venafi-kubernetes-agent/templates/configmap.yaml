@@ -27,6 +27,12 @@ data:
         resource-type:
           resource: pods
           version: v1
+    - kind: "k8s-dynamic"
+      name: "k8s/namespaces"
+      config:
+        resource-type:
+          resource: namespaces
+          version: v1
     # gather services for pod readiness probe rules
     - kind: "k8s-dynamic"
       name: "k8s/services"
