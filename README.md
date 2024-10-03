@@ -128,20 +128,28 @@ The release process is semi-automated.
 > | `oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent`        | Automatically mirrored by Harbor Replication rule [private-img-and-chart-replication.tf][] that runs every 10 minutes, all image tags containing `X.X.X` are replicated, including e.g. `v1.0.0-alpha.0` |
 > | `oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent`           | Automatically mirrored by Harbor Replication rule [private-img-and-chart-replication.tf][] that runs every 10 minutes, all image tags containing `X.X.X` are replicated, including e.g. `v1.0.0-alpha.0` |
 >
-> Here is the flow replication:
+> Here is replication flow for OCI Helm charts:
 >
 > ```text
-> v1.1.0 (Git tag)
->  ├── oci://quay.io/jetstack/charts/venafi-kubernetes-agent --version 1.1.0 (this project's GitHub Actions)
->  │  ├── oci://us.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent (Enterprise Builds's GitHub Actions)
->  │  └── oci://eu.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent (Enterprise Builds's GitHub Actions)
->  │      ├── oci://registry.venafi.cloud/charts/venafi-kubernetes-agent --version 1.1.0 (Harbor Replication)
->  │      └── oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent --version 1.1.0 (Harbor Replication)
->  │      └── oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent --version 1.1.0 (Harbor Replication)
->  └─ quay.io/jetstack/venafi-agent:v1.1.0 (this project's GitHub Actions)
->      ├── registry.venafi.cloud/venafi-agent/venafi-agent:v1.1.0 (Harbor Replication)
->      ├── private-registry.venafi.cloud/venafi-agent/venafi-agent:v1.1.0 (Harbor Replication)
->      └── private-registry.venafi.eu/venafi-agent/venafi-agent:v1.1.0 (Harbor Replication)
+> v1.1.0 (Git tag in the jetstack-secure repo)
+>  └── oci://quay.io/jetstack/charts/venafi-kubernetes-agent --version 1.1.0 (GitHub Actions in the jetstack-secure repo)
+>     ├── oci://us.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent (Enterprise Builds's GitHub Actions)
+>     └── oci://eu.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent (Enterprise Builds's GitHub Actions)
+>         ├── oci://registry.venafi.cloud/charts/venafi-kubernetes-agent --version 1.1.0 (Harbor Replication)
+>         └── oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent --version 1.1.0 (Harbor Replication)
+>         └── oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent --version 1.1.0 (Harbor Replication)
+> ```
+>
+> And the replication flow for Docker images:
+>
+> ```text
+> v1.1.0 (Git tag in the jetstack-secure repo)
+>  └── quay.io/jetstack/venafi-agent:v1.1.0 (GitHub Actions in the jetstack-secure repo)
+>      ├── us.gcr.io/jetstack-secure-enterprise/venafi-agent (Enterprise Builds's GitHub Actions)
+>      └── eu.gcr.io/jetstack-secure-enterprise/venafi-agent (Enterprise Builds's GitHub Actions)
+>          ├── registry.venafi.cloud/venafi-agent/venafi-agent:v1.1.0 (Harbor Replication)
+>          ├── private-registry.venafi.cloud/venafi-agent/venafi-agent:v1.1.0 (Harbor Replication)
+>          └── private-registry.venafi.eu/venafi-agent/venafi-agent:v1.1.0 (Harbor Replication)
 > ```
 
 [public-img-and-chart-replication.tf]: https://gitlab.com/venafi/vaas/delivery/harbor/-/blob/3d114f54092eb44a1deb0edc7c4e8a2d4f855aa2/public-registry/module/subsystems/tlspk/replication.tf
