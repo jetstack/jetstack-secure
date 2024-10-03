@@ -51,18 +51,18 @@ If you use the Prometheus Operator, you can use `--set metrics.podmonitor.enable
 which will add the venafi-kubernetes-agent metrics to your Prometheus server.
 
 The following metrics are collected:
- * Go collector: via the [default registry](https://github.com/prometheus/client_golang/blob/34e02e282dc4a3cb55ca6441b489ec182e654d59/prometheus/registry.go#L60-L63) in Prometheus client_golang.
- * Process collector: via the [default registry](https://github.com/prometheus/client_golang/blob/34e02e282dc4a3cb55ca6441b489ec182e654d59/prometheus/registry.go#L60-L63) in Prometheus client_golang.
- * Agent metrics:
-  * `data_readings_upload_size`: Data readings upload size (in bytes) sent by the jscp in-cluster agent.
 
+- Go collector: via the [default registry](https://github.com/prometheus/client_golang/blob/34e02e282dc4a3cb55ca6441b489ec182e654d59/prometheus/registry.go#L60-L63) in Prometheus client_golang.
+- Process collector: via the [default registry](https://github.com/prometheus/client_golang/blob/34e02e282dc4a3cb55ca6441b489ec182e654d59/prometheus/registry.go#L60-L63) in Prometheus client_golang.
+- Agent metrics:
+- `data_readings_upload_size`: Data readings upload size (in bytes) sent by the jscp in-cluster agent.
 
 ## Tiers, Images and Helm Charts
 
 The Docker images are:
 
-|                           Image                           | Access  |                    Tier                     |            Docs             |
-|-----------------------------------------------------------|---------|---------------------------------------------|-----------------------------|
+| Image                                                     | Access  | Tier                                        | Docs                        |
+| --------------------------------------------------------- | ------- | ------------------------------------------- | --------------------------- |
 | `quay.io/jetstack/preflight`                              | Public  | Tier 1 and 2 of Jetstack Secure             |                             |
 | `quay.io/jetstack/venafi-agent`                           | Public  | Not meant for users, used for mirroring     |                             |
 | `registry.venafi.cloud/venafi-agent/venafi-agent`         | Public  | Tier 1 of Venafi TLS Protect for Kubernetes |                             |
@@ -74,14 +74,16 @@ The Docker images are:
 
 The Helm charts are:
 
-|                              Helm Chart                              | Access  |                    Tier                     |          Documentation           |
-|----------------------------------------------------------------------|---------|---------------------------------------------|----------------------------------|
-| `oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`   | Private | Tier 2 of Jetstack Secure                   | [Jetstack Enterprise Registry][] |
-| `oci://us.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`   | Private | Tier 2 of Jetstack Secure                   | [Jetstack Enterprise Registry][] |
-| `oci://registry.venafi.cloud/charts/venafi-kubernetes-agent`         | Public  | Tier 1 of Venafi TLS Protect for Kubernetes |                                  |
-| `oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent` | Private | Tier 2 of Venafi TLS Protect for Kubernetes |                                  |
-| `oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent`    | Private | Tier 2 of Venafi TLS Protect for Kubernetes |                                  |
-
+| Helm Chart                                                                  | Access  | Tier                                        | Access Documentation             |
+| --------------------------------------------------------------------------- | ------- | ------------------------------------------- | -------------------------------- |
+| `oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`          | Private | Tier 2 of Jetstack Secure                   | [Jetstack Enterprise Registry][] |
+| `oci://us.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`          | Private | Tier 2 of Jetstack Secure                   | [Jetstack Enterprise Registry][] |
+| `oci://quay.io/jetstack/charts/venafi-kubernetes-agent`                     | Public  | Not meant for users, used for mirroring     |                                  |
+| `oci://eu.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent` | Private | Not meant for users, used for mirroring     |                                  |
+| `oci://us.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent` | Private | Not meant for users, used for mirroring     |                                  |
+| `oci://registry.venafi.cloud/charts/venafi-kubernetes-agent`                | Public  | Tier 1 of Venafi TLS Protect for Kubernetes |                                  |
+| `oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent`        | Private | Tier 2 of Venafi TLS Protect for Kubernetes | [Venafi Private Registry][]      |
+| `oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent`           | Private | Tier 2 of Venafi TLS Protect for Kubernetes | [Venafi Private Registry][]      |
 
 ## Release Process
 
@@ -92,99 +94,98 @@ The release process is semi-automated.
 
 ### Step 1: Incrementing Versions And Git Tag
 
-1. Choose the next semver version number.
-   This project has only ever incremented the "patch" number (never the "minor" number) regardless of the scope of the changes.
-1. Create a branch.
-1. Increment version numbers in the `venafi-kubernetes-agent` Helm chart.
-   (the `jetstack-secure` Helm chart uses a different version scheme and is updated and released separately):
-   1. Increment the `version` value in [Chart.yaml](deploy/charts/venafi-kubernetes-agent/Chart.yaml).
-      DO NOT use a `v` prefix.
-      The `v` prefix [breaks Helm OCI operations](https://github.com/helm/helm/issues/11107).
-   1. Increment `appVersion` value in [Chart.yaml](deploy/charts/venafi-kubernetes-agent/Chart.yaml).
-      Use a `v` prefix, to match the Docker image tag.
-   1. Commit the changes.
-1. Create a pull request and wait for it to be approved.
-1. Merge the branch.
 1. Go to the GitHub Releases page and click "Draft a New Release".
-   - Click "Create a new tag" with the version number prefixed with `v` (e.g., `v0.1.49`).
-   - Use the title "v0.1.49",
+   - Click "Create a new tag" with the version number prefixed with `v` (e.g., `v1.1.0`).
+   - Use the title "v1.1.0",
    - Click "Generate Release Notes"
    - Edit the release notes to make them readable to the end-user.
    - Click "Publish" (don't select "Draft")
-
-> [!WARNING]
-> 
-> Don't worry about the "signing" pipeline job failing. It hasn't be working for a while. It should be removed as we don't need the provenance steps anymore. We are now signing our image during the replication of the OCI images to Harbor using the Venafi keys.
+2. Inform Michael McLoughlin of the new release so he can update the
+   documentation at <https://docs.venafi.cloud/>.
 
 > [!NOTE]
 >
-> For context, the new tag will trigger the following:
+> For context, the new tag will create the following images:
 >
-> | Image                                                     | Automation                                                                     |
-> | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
-> | `quay.io/jetstack/preflight`                              | Built by GitHub Actions [release-master](.github/workflows/release-master.yml) |
-> | `quay.io/jetstack/venafi-agent`                           | Built by GitHub Actions [release-master](.github/workflows/release-master.yml) |
-> | `registry.venafi.cloud/venafi-agent/venafi-agent`         | Mirrored by a GitLab cron job                                                  |
-> | `private-registry.venafi.cloud/venafi-agent/venafi-agent` | Mirrored by a GitLab cron job                                                  |
-> | `private-registry.venafi.eu/venafi-agent/venafi-agent`    | Mirrored by a GitLab cron job                                                  |
+> | Image                                                     | Automation                                                                                                                                                                                              |
+> | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+> | `quay.io/jetstack/preflight`                              | No longer built. Use `quay.io/jetstack/venafi-agent` instead.                                                                                                                                           |
+> | `quay.io/jetstack/venafi-agent`                           | Automatically built by GitHub Actions [release-master](.github/workflows/release-master.yml) on Git tags                                                                                                |
+> | `registry.venafi.cloud/venafi-agent/venafi-agent`         | Automatically mirrored by Harbor Replication rule [public-img-and-chart-replication.tf][] that runs every 30 minutes, all image tags containing `X.X.X` are replicated, including e.g. `1.0.0-alpha.0`  |
+> | `private-registry.venafi.cloud/venafi-agent/venafi-agent` | Automatically mirrored by Harbor Replication rule [private-img-and-chart-replication.tf][] that runs every 10 minutes, all image tags containing `X.X.X` are replicated, including e.g. `1.0.0-alpha.0` |
+> | `private-registry.venafi.eu/venafi-agent/venafi-agent`    | Automatically mirrored by Harbor Replication rule [private-img-and-chart-replication.tf][] that runs every 10 minutes, all image tags containing `X.X.X` are replicated, including e.g. `1.0.0-alpha.0` |
 >
-> The above GitLab cron job is managed by David Barranco. It mirrors the image
-> `quay.io/jetstack/venafi-agent`.
+> and the following OCI Helm charts:
+>
+> | Helm Chart                                                                  | Automation                                                                                                                                                                                               |
+> | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+> | `oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`          | Manually triggered, GitHub Actions workflow [release_venafi-agent_chart.yaml][]                                                                                                                          |
+> | `oci://us.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`          | Manually triggered, GitHub Actions workflow [release_venafi-agent_chart.yaml][]                                                                                                                          |
+> | `oci://quay.io/jetstack/charts/venafi-kubernetes-agent`                     | Automatically built by GitHub Actions [release-master](.github/workflows/release-master.yml) on Git tags[]                                                                                               |
+> | `oci://eu.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent` | Manually triggered, GitHub Actions workflow [release_js-agent_chart.yaml][]                                                                                                                              |
+> | `oci://us.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent` | Manually triggered, GitHub Actions workflow [release_js-agent_chart.yaml][]                                                                                                                              |
+> | `oci://registry.venafi.cloud/charts/venafi-kubernetes-agent`                | Automatically mirrored by Harbor Replication rule [public-img-and-chart-replication.tf][] that runs every 30 minutes, all image tags containing `X.X.X` are replicated, including e.g. `v1.0.0-alpha.0`  |
+> | `oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent`        | Automatically mirrored by Harbor Replication rule [private-img-and-chart-replication.tf][] that runs every 10 minutes, all image tags containing `X.X.X` are replicated, including e.g. `v1.0.0-alpha.0` |
+> | `oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent`           | Automatically mirrored by Harbor Replication rule [private-img-and-chart-replication.tf][] that runs every 10 minutes, all image tags containing `X.X.X` are replicated, including e.g. `v1.0.0-alpha.0` |
+>
+> Here is the flow replication:
+>
+> ```text
+> v1.1.0 (Git tag)
+>  ├── oci://quay.io/jetstack/charts/venafi-kubernetes-agent --version 1.1.0 (this project's GitHub Actions)
+>  │  ├── oci://us.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent (Enterprise Builds's GitHub Actions)
+>  │  └── oci://eu.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent (Enterprise Builds's GitHub Actions)
+>  │      ├── oci://registry.venafi.cloud/charts/venafi-kubernetes-agent --version 1.1.0 (Harbor Replication)
+>  │      └── oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent --version 1.1.0 (Harbor Replication)
+>  │      └── oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent --version 1.1.0 (Harbor Replication)
+>  └─ quay.io/jetstack/venafi-agent:v1.1.0 (this project's GitHub Actions)
+>      ├── registry.venafi.cloud/venafi-agent/venafi-agent:v1.1.0 (Harbor Replication)
+>      ├── private-registry.venafi.cloud/venafi-agent/venafi-agent:v1.1.0 (Harbor Replication)
+>      └── private-registry.venafi.eu/venafi-agent/venafi-agent:v1.1.0 (Harbor Replication)
+> ```
 
-### Step 2: Release the Helm Chart "venafi-kubernetes-agent"
+[public-img-and-chart-replication.tf]: https://gitlab.com/venafi/vaas/delivery/harbor/-/blob/3d114f54092eb44a1deb0edc7c4e8a2d4f855aa2/public-registry/module/subsystems/tlspk/replication.tf
+[private-img-and-chart-replication.tf]: https://gitlab.com/venafi/vaas/delivery/harbor/-/blob/3d114f54092eb44a1deb0edc7c4e8a2d4f855aa2/private-registry/module/subsystems/tlspk/replication.tf
+[release_venafi-agent_chart.yaml]: https://github.com/jetstack/enterprise-builds/blob/main/.github/workflows/release_venafi-agent_chart.yaml
+[release_js-agent_chart.yaml]: https://github.com/jetstack/enterprise-builds/blob/main/.github/workflows/release_js-agent_chart.yaml
 
-The [venafi-kubernetes-agent](deploy/charts/venafi-kubernetes-agent/README.md) chart
-is released manually, as follows:
+### Step 2: Test the Helm chart "venafi-kubernetes-agent" with venctl connect
 
-```sh
-export VERSION=0.1.43
-helm package deploy/charts/venafi-kubernetes-agent --version "${VERSION}"
-docker login -u oauth2accesstoken --password-stdin eu.gcr.io < <(gcloud auth application-default print-access-token)
-helm push venafi-kubernetes-agent-${VERSION}.tgz oci://eu.gcr.io/jetstack-secure-enterprise/charts
-```
+NOTE(mael): TBD
 
-> ℹ️ To test the Helm chart before releasing it, use a [pre-release suffix](https://semver.org/#spec-item-9). E.g.
-> `export VERSION=0.1.43-alpha.0`.
-
-The chart will be mirrored to:
- * `registry.venafi.cloud/charts/venafi-kubernetes-agent` (Public)
- * `private-registry.venafi.cloud/charts/venafi-kubernetes-agent` (Private, US)
- * `private-registry.venafi.eu/charts/venafi-kubernetes-agent` (Private, EU)
-
-### Step 3: Release the Helm Chart "jetstack-secure"
+### (Optional) Step 3: Release the Helm Chart "jetstack-secure"
 
 This step is performed by Peter Fiddes and Adrian Lai separately from the main
 release process.
 
+Run the Helm Chart workflow
+[release_js-agent_chart.yaml](https://github.com/jetstack/enterprise-builds/actions/workflows/release_js-agent_chart.yaml).
+
 The [jetstack-agent](deploy/charts/jetstack-agent/README.md) chart has a different version number to the agent.
-This is because the first version of *this* chart was given version `0.1.0`,
+This is because the first version of _this_ chart was given version `0.1.0`,
 while the app version at the time was `0.1.38`.
 And this allows the chart to be updated and released more frequently than the Docker image if necessary.
 This chart is for [Jetstack Secure](https://platform.jetstack.io/documentation/installation/agent#jetstack-agent-helm-chart-installation).
 
 1. Create a branch
-1. Increment version numbers.
+2. Increment version numbers.
    1. Increment the `version` value in [Chart.yaml](deploy/charts/jetstack-agent/Chart.yaml).
       DO NOT use a `v` prefix.
       The `v` prefix [breaks Helm OCI operations](https://github.com/helm/helm/issues/11107).
-   1. Increment the `appVersion` value in [Chart.yaml](deploy/charts/jetstack-agent/Chart.yaml).
+   2. Increment the `appVersion` value in [Chart.yaml](deploy/charts/jetstack-agent/Chart.yaml).
       Use a `v` prefix, to match the Docker image tag.
-   1. Increment the `image.tag` value in [values.yaml](deploy/charts/jetstack-agent/values.yaml).
+   3. Increment the `image.tag` value in [values.yaml](deploy/charts/jetstack-agent/values.yaml).
       Use a `v` prefix, to match the Docker image tag.
-   1. Update the Helm unit test snapshots:
-       ```sh
-       helm unittest ./deploy/charts/jetstack-agent --update-snapshot
-       ```
-1. Create a pull request and wait for it to be approved.
-1. Merge the branch
-1. Push a tag, using the format: `chart-vX.Y.Z`.
+   4. Update the Helm unit test snapshots:
+      ```sh
+      helm unittest ./deploy/charts/jetstack-agent --update-snapshot
+      ```
+3. Create a pull request and wait for it to be approved.
+4. Merge the branch
+5. Push a tag, using the format: `chart-vX.Y.Z`.
    This unique tag format is recognized by the private CI pipeline that builds and publishes the chart.
 
 The chart will be published to
 the [Jetstack Enterprise Registry](https://platform.jetstack.io/documentation/installation/agent#1-obtain-oci-registry-credentials)
 by a private CI pipeline managed by Venafi.
-
-### Step 4: Document the release
-
-Finally, inform Michael McLoughlin of the new release so he can update the documentation at https://docs.venafi.cloud/.
 
