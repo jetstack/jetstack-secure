@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/jetstack/preflight/pkg/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func TestSelect(t *testing.T) {
-	// secret objects
-	secretResource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+	t.Run("secret", run_TestSelect(
+		map[string]interface{}{
 			"apiVersion": "v1",
 			"kind":       "Secret",
 			"metadata": map[string]interface{}{
@@ -19,6 +21,9 @@ func TestSelect(t *testing.T) {
 				"annotations": map[string]string{
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
 				},
+				"labels": map[string]string{
+					"foo": "bar",
+				},
 			},
 			"type": "kubernetes.io/tls",
 			"data": map[string]interface{}{
@@ -26,38 +31,41 @@ func TestSelect(t *testing.T) {
 				"tls.key": "secret",
 			},
 		},
-	}
+		SecretSelectedFields,
+		map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]interface{}{
+				"name":      "example",
+				"namespace": "example",
+				"annotations": map[string]interface{}{
+					// The "last-applied-configuration" isn't ignored in
+					// "Select". "Redact" removes it.
+					"kubectl.kubernetes.io/last-applied-configuration": "secret",
+				},
+				"labels": map[string]interface{}{
+					"foo": "bar",
+				},
+			},
+			"type": "kubernetes.io/tls",
+			"data": map[string]interface{}{
+				// The "tls.key" is ignored.
+				"tls.crt": "cert data",
+			},
+		},
+	))
 
-	secretFieldsToSelect := []string{
-		"apiVersion",
-		"kind",
-		"metadata.name",
-		"metadata.namespace",
-		"type",
-		"/data/tls.crt",
-	}
-
-	secretExpectedJSON := `{
-    "apiVersion": "v1",
-    "data": {
-        "tls.crt": "cert data"
-    },
-    "kind": "Secret",
-    "metadata": {
-        "name": "example",
-        "namespace": "example"
-    },
-    "type": "kubernetes.io/tls"
-}`
-	// route objects
-	routeResource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+	t.Run("route", run_TestSelect(
+		map[string]interface{}{
 			"apiVersion": "v1",
 			"kind":       "Route",
 			"metadata": map[string]interface{}{
 				"name": "example",
 				"annotations": map[string]string{
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
+				},
+				"labels": map[string]string{
+					"foo": "bar",
 				},
 			},
 			"spec": map[string]interface{}{
@@ -74,68 +82,44 @@ func TestSelect(t *testing.T) {
 					"destinationCACertificate": "destinationCaCert data",
 				},
 			},
+		}, RouteSelectedFields,
+		map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Route",
+			"metadata": map[string]interface{}{
+				"name": "example",
+				"annotations": map[string]interface{}{
+					// The "last-applied-configuration" isn't ignored in
+					// "Select". "Redact" removes it.
+					"kubectl.kubernetes.io/last-applied-configuration": "secret",
+				},
+			},
+			"spec": map[string]interface{}{
+				"host": "www.example.com",
+				"to": map[string]interface{}{
+					"kind": "Service",
+					"name": "frontend",
+				},
+				"tls": map[string]interface{}{
+					"termination": "reencrypt",
+					// The "key" field is ignored.
+					"certificate":              "cert data",
+					"caCertificate":            "caCert data",
+					"destinationCACertificate": "destinationCaCert data",
+				},
+			},
 		},
-	}
+	))
+}
 
-	routeFieldsToSelect := []string{
-		"apiVersion",
-		"kind",
-		"metadata.name",
-		"spec.host",
-		"spec.to.kind",
-		"spec.to.name",
-		"spec.tls.termination",
-		"spec.tls.certificate",
-		"spec.tls.caCertificate",
-		"spec.tls.destinationCACertificate",
-	}
+func run_TestSelect(given map[string]interface{}, givenSelect []string, expect map[string]interface{}) func(*testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
+		givenPtr := unstructured.Unstructured{Object: given}
+		err := Select(givenSelect, &givenPtr)
+		require.NoError(t, err)
 
-	routeExpectedJSON := `{
-    "apiVersion": "v1",
-    "kind": "Route",
-    "metadata": {
-        "name": "example"
-    },
-    "spec": {
-        "host": "www.example.com",
-        "tls": {
-            "caCertificate": "caCert data",
-            "certificate": "cert data",
-            "destinationCACertificate": "destinationCaCert data",
-            "termination": "reencrypt"
-        },
-        "to": {
-            "kind": "Service",
-            "name": "frontend"
-        }
-    }
-}`
-
-	tests := map[string]struct {
-		resource       *unstructured.Unstructured
-		fieldsToSelect []string
-		expectedJSON   string
-	}{
-		"secret": {secretResource, secretFieldsToSelect, secretExpectedJSON},
-		"route":  {routeResource, routeFieldsToSelect, routeExpectedJSON},
-	}
-
-	for name, test := range tests {
-		err := Select(test.fieldsToSelect, test.resource)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-
-		bytes, err := json.MarshalIndent(test.resource, "", "    ")
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-
-		t.Run(name, func(t *testing.T) {
-			if string(bytes) != test.expectedJSON {
-				t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), test.expectedJSON)
-			}
-		})
+		assert.Equal(t, expect, givenPtr.Object)
 	}
 }
 
@@ -153,21 +137,15 @@ func TestSelectMissingSelectedField(t *testing.T) {
 	}
 
 	err := Select(fieldsToSelect, resource)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
+	require.NoError(t, err)
 	bytes, err := json.MarshalIndent(resource, "", "    ")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	require.NoError(t, err)
 
-	expectedJSON := `{
-    "kind": "Secret"
-}`
-	if string(bytes) != expectedJSON {
-		t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), expectedJSON)
-	}
+	expectedJSON := testutil.Undent(`
+		{
+		    "kind": "Secret"
+		}`)
+	assert.Equal(t, expectedJSON, string(bytes))
 }
 
 func TestRedactSecret(t *testing.T) {
@@ -198,30 +176,25 @@ func TestRedactSecret(t *testing.T) {
 	}
 
 	err := Redact(fieldsToRedact, resource)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	require.NoError(t, err)
 
 	bytes, err := json.MarshalIndent(resource, "", "    ")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	expectedJSON := `{
-    "apiVersion": "v1",
-    "data": {
-        "tls.crt": "cert data"
-    },
-    "kind": "Secret",
-    "metadata": {
-        "annotations": {},
-        "name": "example",
-        "namespace": "example"
-    },
-    "type": "kubernetes.io/tls"
-}`
-	if string(bytes) != expectedJSON {
-		t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), expectedJSON)
-	}
+	require.NoError(t, err)
+	expectedJSON := testutil.Undent(`
+		{
+		    "apiVersion": "v1",
+		    "data": {
+		        "tls.crt": "cert data"
+		    },
+		    "kind": "Secret",
+		    "metadata": {
+		        "annotations": {},
+		        "name": "example",
+		        "namespace": "example"
+		    },
+		    "type": "kubernetes.io/tls"
+		}`)
+	assert.Equal(t, expectedJSON, string(bytes))
 }
 
 func TestRedactPod(t *testing.T) {
@@ -245,28 +218,23 @@ func TestRedactPod(t *testing.T) {
 	}
 
 	err := Redact(fieldsToRedact, resource)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	require.NoError(t, err)
 
 	bytes, err := json.MarshalIndent(resource, "", "    ")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	expectedJSON := `{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "name": "example",
-        "namespace": "example"
-    },
-    "spec": {
-        "serviceAccountName": "example"
-    }
-}`
-	if string(bytes) != expectedJSON {
-		t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), expectedJSON)
-	}
+	require.NoError(t, err)
+	expectedJSON := testutil.Undent(`
+		{
+		    "apiVersion": "v1",
+		    "kind": "Pod",
+		    "metadata": {
+		        "name": "example",
+		        "namespace": "example"
+		    },
+		    "spec": {
+		        "serviceAccountName": "example"
+		    }
+		}`)
+	assert.Equal(t, expectedJSON, string(bytes))
 }
 
 func TestRedactMissingField(t *testing.T) {
@@ -282,19 +250,13 @@ func TestRedactMissingField(t *testing.T) {
 	}
 
 	err := Redact(fieldsToRedact, resource)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
+	require.NoError(t, err)
 	bytes, err := json.MarshalIndent(resource, "", "    ")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	require.NoError(t, err)
 
-	expectedJSON := `{
-    "kind": "Secret"
-}`
-	if string(bytes) != expectedJSON {
-		t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(bytes), expectedJSON)
-	}
+	expectedJSON := testutil.Undent(`
+		{
+		    "kind": "Secret"
+		}`)
+	assert.Equal(t, expectedJSON, string(bytes))
 }

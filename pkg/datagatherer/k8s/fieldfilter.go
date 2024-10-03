@@ -15,6 +15,7 @@ var SecretSelectedFields = []string{
 	"kind",
 	"apiVersion",
 	"metadata.annotations",
+	"metadata.labels",
 	"metadata.name",
 	"metadata.namespace",
 	"metadata.ownerReferences",
