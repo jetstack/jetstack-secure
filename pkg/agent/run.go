@@ -23,6 +23,7 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 
@@ -125,6 +126,24 @@ func Run(cmd *cobra.Command, args []string) {
 			logs.Log.Fatalf("failed to wait for controller-runtime component to stop: %v", err)
 		}
 	}()
+
+	// Data gatherers are loaded depending on what the Kubernetes API supports.
+	// First, let's do a /api discovery to see what the API supports.
+	discoveryClient, err := k8s.NewDiscoveryClient("")
+	if err != nil {
+		logs.Log.Fatalf("failed to create a discovery client: %v", err)
+	}
+
+	apigroups, resources, err := discoveryClient.ServerGroupsAndResources()
+	if err != nil {
+		logs.Log.Fatalf("failed to get server groups and resources: %v", err)
+	}
+
+	// Loop that creates and removes resources dynamically. Since there is no
+	// way to watch the /api endpoint, 
+
+	logs.Log.Printf("API groups: %v", apigroups)
+	logs.Log.Printf("API resources: %v", resources)
 
 	// load datagatherer config and boot each one
 	for _, dgConfig := range config.DataGatherers {
