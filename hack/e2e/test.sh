@@ -3,16 +3,12 @@
 # Build and install venafi-kubernetes-agent for VenafiConnection based authentication.
 # Wait for it to log a message indicating successful data upload.
 #
-# venafi-kubernetes-agent is packaged using ko and Helm and installed in a Kind cluster.
 # A VenafiConnection resource is created which directly loads a bearer token
 # from a Kubernetes Secret.
 # This is the simplest way of testing the VenafiConnection integration,
 # but it does not fully test "secretless" (workload identity federation) authentication.
 #
 # Prerequisites:
-# * ko: https://github.com/ko-build/ko/releases/tag/v0.16.0
-# * helm: https://helm.sh/docs/intro/install/
-# * kind: https://kubernetes.io/docs/tasks/tools/#kind
 # * kubectl: https://kubernetes.io/docs/tasks/tools/#kubectl
 # * venctl: https://docs.venafi.cloud/vaas/venctl/t-venctl-install/
 # * jq: https://jqlang.github.io/jq/download/
@@ -31,6 +27,7 @@ set -o nounset
 set -o errexit
 set -o pipefail
 set -o xtrace
+
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 root_dir=$(cd "${script_dir}/../.." && pwd)
 export TERM=dumb
@@ -62,17 +59,18 @@ export TERM=dumb
 # The name of the cluster to create
 : ${CLUSTER_NAME?}
 
-# IMPORTANT: we pick the first team as the owning team for the registry and
-# workload identity service account as it doesn't matter.
-
-version=$(git describe --tags --always --match='v*' --abbrev=14 --dirty)
 
 cd "${script_dir}"
 
 pushd "${root_dir}"
-KO_DOCKER_REPO=$OCI_BASE/images/venafi-agent ko build --bare --tags "${version}"
-helm package deploy/charts/venafi-kubernetes-agent --version "${version}" --app-version "${version}"
-helm push "venafi-kubernetes-agent-${version}.tgz" "oci://${OCI_BASE}/charts"
+> release.env
+make release \
+     OCI_SIGN_ON_PUSH=false \
+     oci_platforms=linux/amd64 \
+     oci_preflight_image_name=$OCI_BASE/images/venafi-agent \
+     helm_chart_repo_base=oci://$OCI_BASE/charts \
+     GITHUB_OUTPUT=release.env
+source release.env
 popd
 
 export USE_GKE_GCLOUD_AUTH_PLUGIN=True
@@ -85,6 +83,8 @@ fi
 kubectl create ns venafi || true
 
 # Pull secret for Venafi OCI registry
+# IMPORTANT: we pick the first team as the owning team for the registry and
+# workload identity service account as it doesn't matter.
 if ! kubectl get secret venafi-image-pull-secret -n venafi; then
   venctl iam service-accounts registry create \
     --api-key "${VEN_API_KEY_PULL}" \
@@ -115,11 +115,12 @@ fi
 
 export VENAFI_KUBERNETES_AGENT_CLIENT_ID="not-used-but-required-by-venctl"
 venctl components kubernetes apply \
+  --region $VEN_VCP_REGION \
   --cert-manager \
   --venafi-enhanced-issuer \
   --approver-policy-enterprise \
   --venafi-kubernetes-agent \
-  --venafi-kubernetes-agent-version "${version}" \
+  --venafi-kubernetes-agent-version "${RELEASE_HELM_CHART_VERSION}" \
   --venafi-kubernetes-agent-values-files "${script_dir}/values.venafi-kubernetes-agent.yaml" \
   --venafi-kubernetes-agent-custom-image-registry "${OCI_BASE}/images" \
   --venafi-kubernetes-agent-custom-chart-repository "oci://${OCI_BASE}/charts"
@@ -133,6 +134,8 @@ openidDiscoveryURL="${issuerURL}/.well-known/openid-configuration"
 jwksURI=$(curl --fail-with-body -sSL ${openidDiscoveryURL} | jq -r '.jwks_uri')
 
 # Create the Venafi agent service account if one does not already exist
+# IMPORTANT: we pick the first team as the owning team for the registry and
+# workload identity service account as it doesn't matter.
 while true; do
   tenantID=$(curl --fail-with-body -sSL -H "tppl-api-key: $VEN_API_KEY" https://${VEN_API_HOST}/v1/serviceaccounts \
     | jq -r '.[] | select(.issuerURL==$issuerURL and .subject == $subject) | .companyId' \
@@ -191,6 +194,9 @@ kubectl -n team-1 wait certificate app-0 --for=condition=Ready
 # Wait for log message indicating success.
 # Filter out distracting data gatherer errors and warnings.
 # Show other useful log messages on stderr.
+# Disable pipefail to prevent SIGPIPE (141) errors from tee
+# See https://unix.stackexchange.com/questions/274120/pipe-fail-141-when-piping-output-into-tee-why
+set +o pipefail
 kubectl logs deployments/venafi-kubernetes-agent \
   --follow \
   --namespace venafi \
