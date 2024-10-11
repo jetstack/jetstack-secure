@@ -230,7 +230,7 @@ func newEventf(installNS string) (Eventf, error) {
 		}
 		broadcaster := record.NewBroadcaster()
 		broadcaster.StartRecordingToSink(&clientgocorev1.EventSinkImpl{Interface: eventClient.CoreV1().Events(installNS)})
-		eventRec := broadcaster.NewRecorder(scheme, corev1.EventSource{})
+		eventRec := broadcaster.NewRecorder(scheme, corev1.EventSource{Component: "venafi-kubernetes-agent", Host: os.Getenv("POD_NODE")})
 		eventf = func(eventType, reason, msg string, args ...interface{}) {
 			eventRec.Eventf(&corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: podName, Namespace: installNS, UID: types.UID(os.Getenv("POD_UID"))}}, eventType, reason, msg, args...)
 		}
