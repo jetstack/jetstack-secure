@@ -45,3 +45,11 @@ $(helm_chart_source_dir)/templates/venafi-connection-crd.yaml: $(helm_chart_sour
 shared_generate_targets := $(filter-out generate-crds,$(shared_generate_targets))
 shared_generate_targets += generate-crds-venconn
 
+.PHONY: test-e2e-gke
+## Run a basic E2E test on a GKE cluster
+## Build and install venafi-kubernetes-agent for VenafiConnection based authentication.
+## Wait for it to log a message indicating successful data upload.
+## See `hack/e2e/test.sh` for the full test script.
+## @category Testing
+test-e2e-gke:
+	./hack/e2e/test.sh
