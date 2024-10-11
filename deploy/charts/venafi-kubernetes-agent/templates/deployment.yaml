@@ -98,6 +98,10 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+          - name: POD_UID
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.uid
           {{- if .Values.metrics.enabled }}
           ports:
             - containerPort: 8081

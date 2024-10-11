@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	clientgocorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -231,7 +232,7 @@ func newEventf(installNS string) (Eventf, error) {
 		broadcaster.StartRecordingToSink(&clientgocorev1.EventSinkImpl{Interface: eventClient.CoreV1().Events(installNS)})
 		eventRec := broadcaster.NewRecorder(scheme, corev1.EventSource{})
 		eventf = func(eventType, reason, msg string, args ...interface{}) {
-			eventRec.Eventf(&corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: podName, Namespace: installNS}}, eventType, reason, msg, args...)
+			eventRec.Eventf(&corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: podName, Namespace: installNS, UID: types.UID(os.Getenv("POD_UID"))}}, eventType, reason, msg, args...)
 		}
 	}
 
