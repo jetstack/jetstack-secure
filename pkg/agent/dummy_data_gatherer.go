@@ -44,7 +44,7 @@ func (g *dummyDataGatherer) Delete() error {
 	return nil
 }
 
-func (c *dummyDataGatherer) Fetch() (interface{}, int, error) {
+func (c *dummyDataGatherer) Fetch(_ context.Context) (interface{}, int, error) {
 	var err error
 	if c.attemptNumber < c.FailedAttempts {
 		err = fmt.Errorf("First %d attempts will fail", c.FailedAttempts)

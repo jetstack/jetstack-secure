@@ -16,7 +16,7 @@ var agentCmd = &cobra.Command{
 	Short: "start the preflight agent",
 	Long: `The agent will periodically gather data for the configured data
 	gatherers and send it to a remote backend for evaluation`,
-	Run: agent.Run,
+	RunE: agent.Run,
 }
 
 var agentInfoCmd = &cobra.Command{
