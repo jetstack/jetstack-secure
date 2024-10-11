@@ -18,6 +18,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/jetstack/preflight/api"
@@ -26,6 +28,7 @@ import (
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 
+	"net/http/pprof"
 	_ "net/http/pprof"
 )
 
@@ -40,91 +43,98 @@ var Flags AgentCmdFlags
 const schemaVersion string = "v2.0.0"
 
 // Run starts the agent process
-func Run(cmd *cobra.Command, args []string) {
-	logs.Log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
-	ctx, cancel := context.WithCancel(context.Background())
+func Run(cmd *cobra.Command, args []string) (runErr error) {
+	log := Flags.LogOptions.Initialize()
+
+	ctx, cancel := context.WithCancel(klog.NewContext(context.Background(), log))
 	defer cancel()
+
+	log.Info("starting", "version", version.PreflightVersion, "commit", version.Commit)
 
 	file, err := os.Open(Flags.ConfigFilePath)
 	if err != nil {
-		logs.Log.Fatalf("Failed to load config file for agent from: %s", Flags.ConfigFilePath)
+		return fmt.Errorf("Failed to load config file for agent from %q: %s", Flags.ConfigFilePath, err)
 	}
 	defer file.Close()
 
 	b, err := io.ReadAll(file)
 	if err != nil {
-		logs.Log.Fatalf("Failed to read config file: %s", err)
+		return fmt.Errorf("Failed to read config file: %s", err)
 	}
 
 	cfg, err := ParseConfig(b)
 	if err != nil {
-		logs.Log.Fatalf("Failed to parse config file: %s", err)
+		return fmt.Errorf("Failed to parse config file: %s", err)
 	}
 
-	config, preflightClient, err := ValidateAndCombineConfig(logs.Log, cfg, Flags)
+	config, preflightClient, err := ValidateAndCombineConfig(log, cfg, Flags)
 	if err != nil {
-		logs.Log.Fatalf("While evaluating configuration: %v", err)
+		return fmt.Errorf("Failed to evaluate configuration: %s", err)
 	}
+
+	serverMux := http.NewServeMux()
 
 	if Flags.Profiling {
-		logs.Log.Printf("pprof profiling was enabled.\nRunning profiling on port :6060")
-		go func() {
-			err := http.ListenAndServe(":6060", nil)
-			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logs.Log.Fatalf("failed to run pprof profiler: %s", err)
-			}
-		}()
+		log.Info("pprof profiling enabled")
+		serverMux.HandleFunc("/debug/pprof/", pprof.Index)
+		serverMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		serverMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		serverMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		serverMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
 	}
 
-	go func() {
-		server := http.NewServeMux()
+	if Flags.Prometheus {
+		log.Info("Prometheus metrics enabled")
+		prometheus.MustRegister(metricPayloadSize)
+		serverMux.Handle("/metrics", promhttp.Handler())
+	}
 
-		if Flags.Prometheus {
-			logs.Log.Printf("Prometheus was enabled.\nRunning prometheus on port :8081")
-			prometheus.MustRegister(metricPayloadSize)
-			server.Handle("/metrics", promhttp.Handler())
-		}
+	// Health check endpoint. Since we haven't figured a good way of knowning
+	// what "ready" means for the agent, we just return 200 OK inconditionally.
+	// The goal is to satisfy some Kubernetes distributions, like OpenShift,
+	// that require a liveness and health probe to be present for each pod.
+	serverMux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	serverMux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 
-		// Health check endpoint. Since we haven't figured a good way of knowning
-		// what "ready" means for the agent, we just return 200 OK inconditionally.
-		// The goal is to satisfy some Kubernetes distributions, like OpenShift,
-		// that require a liveness and health probe to be present for each pod.
-		server.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
+	serverPort := ":8081"
+	server := http.Server{Addr: serverPort, Handler: serverMux}
+
+	group, gCTX := errgroup.WithContext(ctx)
+	defer func() {
+		cancel()
+		err = utilerrors.NewAggregate([]error{
+			runErr,
+			group.Wait(),
 		})
-		server.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		})
-
-		err := http.ListenAndServe(":8081", server)
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logs.Log.Fatalf("failed to run the health check server: %s", err)
-		}
 	}()
+
+	group.Go(func() error {
+		err := server.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("failed to HTTP server: %s", err)
+		}
+		return nil
+	})
+	group.Go(func() error {
+		<-gCTX.Done()
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(gCTX), time.Second*3)
+		defer cancel()
+		return server.Shutdown(ctx)
+	})
 
 	_, isVenConn := preflightClient.(*client.VenConnClient)
 	if isVenConn {
-		go func() {
-			err := preflightClient.(manager.Runnable).Start(ctx)
-			if err != nil {
-				logs.Log.Fatalf("failed to start a controller-runtime component: %v", err)
-			}
-
-			// The agent must stop if the controller-runtime component stops.
-			cancel()
-		}()
+		group.Go(func() error {
+			return preflightClient.(manager.Runnable).Start(gCTX)
+		})
 	}
 
 	dataGatherers := map[string]datagatherer.DataGatherer{}
-	group, gctx := errgroup.WithContext(ctx)
-
-	defer func() {
-		// TODO: replace Fatalf log calls with Errorf and return the error
-		cancel()
-		if err := group.Wait(); err != nil {
-			logs.Log.Fatalf("failed to wait for controller-runtime component to stop: %v", err)
-		}
-	}()
 
 	// load datagatherer config and boot each one
 	for _, dgConfig := range config.DataGatherers {
@@ -134,16 +144,16 @@ func Run(cmd *cobra.Command, args []string) {
 			logs.Log.Fatalf("running data gatherer %s of type %s as Local, data-path override present: %s", dgConfig.Name, dgConfig.Kind, dgConfig.DataPath)
 		}
 
-		newDg, err := dgConfig.Config.NewDataGatherer(gctx)
+		newDg, err := dgConfig.Config.NewDataGatherer(gCTX)
 		if err != nil {
-			logs.Log.Fatalf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
+			return fmt.Errorf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
 		}
 
-		logs.Log.Printf("starting %q datagatherer", dgConfig.Name)
+		log.Info("starting datagatherer", "name", dgConfig.Name)
 
 		// start the data gatherers and wait for the cache sync
 		group.Go(func() error {
-			if err := newDg.Run(gctx.Done()); err != nil {
+			if err := newDg.Run(gCTX.Done()); err != nil {
 				return fmt.Errorf("failed to start %q data gatherer %q: %v", kind, dgConfig.Name, err)
 			}
 			return nil
@@ -163,7 +173,7 @@ func Run(cmd *cobra.Command, args []string) {
 	// seconds to perform an initial sync. It may fail, and that's fine
 	// too, it will backoff and retry of its own accord. Initial boot
 	// will only be delayed by a max of 5 seconds.
-	bootCtx, bootCancel := context.WithTimeout(gctx, 5*time.Second)
+	bootCtx, bootCancel := context.WithTimeout(gCTX, 5*time.Second)
 	defer bootCancel()
 	for _, dgConfig := range config.DataGatherers {
 		dg := dataGatherers[dgConfig.Name]
@@ -172,7 +182,7 @@ func Run(cmd *cobra.Command, args []string) {
 		// the run.
 		if err := dg.WaitForCacheSync(bootCtx.Done()); err != nil {
 			// log sync failure, this might recover in future
-			logs.Log.Printf("failed to complete initial sync of %q data gatherer %q: %v", dgConfig.Kind, dgConfig.Name, err)
+			log.Error(err, "failed to complete initial sync of data gatherer", "kind", dgConfig.Kind, "name", dgConfig.Name)
 		}
 	}
 
@@ -180,7 +190,9 @@ func Run(cmd *cobra.Command, args []string) {
 	// configured output using data in datagatherer caches or refreshing from
 	// APIs each cycle depending on datagatherer implementation
 	for {
-		gatherAndOutputData(config, preflightClient, dataGatherers)
+		if err := gatherAndOutputData(gCTX, config, preflightClient, dataGatherers); err != nil {
+			return err
+		}
 
 		if config.OneShot {
 			break
@@ -188,69 +200,74 @@ func Run(cmd *cobra.Command, args []string) {
 
 		time.Sleep(config.Period)
 	}
+	return nil
 }
 
-func gatherAndOutputData(config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) {
+func gatherAndOutputData(ctx context.Context, config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) error {
+	log := klog.FromContext(ctx)
 	var readings []*api.DataReading
 
 	if config.InputPath != "" {
-		logs.Log.Printf("Reading data from local file: %s", config.InputPath)
+		log.Info("Reading data from local file", "path", config.InputPath)
 		data, err := os.ReadFile(config.InputPath)
 		if err != nil {
-			logs.Log.Fatalf("failed to read local data file: %s", err)
+			fmt.Errorf("failed to read local data file: %s", err)
 		}
 		err = json.Unmarshal(data, &readings)
 		if err != nil {
-			logs.Log.Fatalf("failed to unmarshal local data file: %s", err)
+			return fmt.Errorf("failed to unmarshal local data file: %s", err)
 		}
 	} else {
-		readings = gatherData(config, dataGatherers)
+
+		if readings, err := gatherData(ctx, config, dataGatherers); err != nil {
+			return err
+		} else {
+			readings = readings
+		}
 	}
 
 	if config.OutputPath != "" {
 		data, err := json.MarshalIndent(readings, "", "  ")
 		if err != nil {
-			logs.Log.Fatal("failed to marshal JSON")
+			return fmt.Errorf("failed to marshal JSON")
 		}
 		err = os.WriteFile(config.OutputPath, data, 0644)
 		if err != nil {
-			logs.Log.Fatalf("failed to output to local file: %s", err)
+			return fmt.Errorf("failed to output to local file: %s", err)
 		}
-		logs.Log.Printf("Data saved to local file: %s", config.OutputPath)
+		log.Info("Data saved to local file", "path", config.OutputPath)
 	} else {
 		backOff := backoff.NewExponentialBackOff()
 		backOff.InitialInterval = 30 * time.Second
 		backOff.MaxInterval = 3 * time.Minute
 		backOff.MaxElapsedTime = config.BackoffMaxTime
 		post := func() error {
-			return postData(config, preflightClient, readings)
+			return postData(ctx, config, preflightClient, readings)
 		}
 		err := backoff.RetryNotify(post, backOff, func(err error, t time.Duration) {
-			logs.Log.Printf("retrying in %v after error: %s", t, err)
+			log.Error(err, "retrying", "in", t)
 		})
 		if err != nil {
-			logs.Log.Fatalf("Exiting due to fatal error uploading: %v", err)
+			return fmt.Errorf("Exiting due to fatal error uploading: %v", err)
 		}
 	}
+	return nil
 }
 
-func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
+func gatherData(ctx context.Context, config CombinedConfig, dataGatherers map[string]datagatherer.DataGatherer) ([]*api.DataReading, error) {
+	log := klog.FromContext(ctx).WithName("gather-data")
 	var readings []*api.DataReading
 
 	var dgError *multierror.Error
 	for k, dg := range dataGatherers {
-		dgData, count, err := dg.Fetch()
+		dgData, count, err := dg.Fetch(ctx)
 		if err != nil {
 			dgError = multierror.Append(dgError, fmt.Errorf("error in datagatherer %s: %w", k, err))
 
 			continue
 		}
 
-		if count >= 0 {
-			logs.Log.Printf("successfully gathered %d items from %q datagatherer", count, k)
-		} else {
-			logs.Log.Printf("successfully gathered data from %q datagatherer", k)
-		}
+		log.Info("success", "count", count, "name", k)
 		readings = append(readings, &api.DataReading{
 			ClusterID:     config.ClusterID,
 			DataGatherer:  k,
@@ -273,16 +290,18 @@ func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.Dat
 	}
 
 	if config.StrictMode && dgError.ErrorOrNil() != nil {
-		logs.Log.Fatalf("halting datagathering in strict mode due to error: %s", dgError.ErrorOrNil())
+		return nil, fmt.Errorf("halting datagathering in strict mode due to error: %s", dgError.ErrorOrNil())
 	}
 
-	return readings
+	return readings, nil
 }
 
-func postData(config CombinedConfig, preflightClient client.Client, readings []*api.DataReading) error {
+func postData(ctx context.Context, config CombinedConfig, preflightClient client.Client, readings []*api.DataReading) error {
+	log := klog.FromContext(ctx)
+
 	baseURL := config.Server
 
-	logs.Log.Println("Posting data to:", baseURL)
+	log.Info("Posting data", "URL", baseURL)
 
 	if config.AuthMode == VenafiCloudKeypair || config.AuthMode == VenafiCloudVenafiConnection {
 		// orgID and clusterID are not required for Venafi Cloud auth
@@ -293,7 +312,7 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 		if err != nil {
 			return fmt.Errorf("post to server failed: %+v", err)
 		}
-		logs.Log.Println("Data sent successfully.")
+		log.Info("Data sent successfully")
 
 		return nil
 	}
@@ -301,7 +320,7 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 	if config.OrganizationID == "" {
 		data, err := json.Marshal(readings)
 		if err != nil {
-			logs.Log.Fatalf("Cannot marshal readings: %+v", err)
+			return fmt.Errorf("Cannot marshal readings: %+v", err)
 		}
 
 		// log and collect metrics about the upload size
@@ -309,7 +328,7 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 			prometheus.Labels{"organization": config.OrganizationID, "cluster": config.ClusterID},
 		)
 		metric.Set(float64(len(data)))
-		logs.Log.Printf("Data readings upload size: %d", len(data))
+		log.Info("Data readings upload size: %d", len(data))
 		path := config.EndpointPath
 		if path == "" {
 			path = "/api/v1/datareadings"
@@ -329,7 +348,7 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 
 			return fmt.Errorf("received response with status code %d. Body: [%s]", code, errorContent)
 		}
-		logs.Log.Println("Data sent successfully.")
+		log.Info("Data sent successfully")
 		return err
 	}
 
@@ -341,7 +360,7 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 	if err != nil {
 		return fmt.Errorf("post to server failed: %+v", err)
 	}
-	logs.Log.Println("Data sent successfully.")
+	log.Info("Data sent successfully")
 
 	return nil
 }

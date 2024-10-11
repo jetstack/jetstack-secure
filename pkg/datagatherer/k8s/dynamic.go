@@ -305,7 +305,7 @@ func (g *DataGathererDynamic) Delete() error {
 
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
-func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
+func (g *DataGathererDynamic) Fetch(_ context.Context) (interface{}, int, error) {
 	if g.groupVersionResource.String() == "" {
 		return nil, -1, fmt.Errorf("resource type must be specified")
 	}

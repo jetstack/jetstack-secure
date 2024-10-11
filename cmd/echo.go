@@ -11,7 +11,7 @@ var echoCmd = &cobra.Command{
 	Short: "starts an echo server to test the agent",
 	Long: `The agent sends data to a server. This echo server
 can be used to act as the server part and echo the data received by the agent.`,
-	Run: echo.Echo,
+	RunE: echo.Echo,
 }
 
 func init() {

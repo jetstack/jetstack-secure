@@ -3,11 +3,11 @@ package agent
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/url"
 	"os"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -20,6 +20,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/datagatherer/local"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
+	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -164,9 +165,12 @@ type AgentCmdFlags struct {
 
 	// Prometheus (--enable-metrics) enables the Prometheus metrics server.
 	Prometheus bool
+
+	LogOptions logs.LogOptions
 }
 
 func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
+	logs.SetupFlags(c.Flags(), &cfg.LogOptions)
 	c.PersistentFlags().StringVarP(
 		&cfg.ConfigFilePath,
 		"agent-config-file",
@@ -346,32 +350,35 @@ type CombinedConfig struct {
 // The error returned may be a multierror.Error. Use multierror.Prefix(err,
 // "context:") rather than fmt.Errorf("context: %w", err) when wrapping the
 // error.
-func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) (CombinedConfig, client.Client, error) {
+func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) (CombinedConfig, client.Client, error) {
 	res := CombinedConfig{}
 	var errs error
 
 	{
-		var mode AuthMode
+		var (
+			mode   AuthMode
+			reason string
+		)
 		switch {
 		case flags.VenafiCloudMode && flags.CredentialsPath != "":
 			mode = VenafiCloudKeypair
-			log.Printf("Using the %s auth mode since --venafi-cloud and --credentials-path were specified.", mode)
+			reason = "--venafi-cloud and --credentials-path were specified."
 		case flags.ClientID != "" && flags.PrivateKeyPath != "":
 			mode = VenafiCloudKeypair
-			log.Printf("Using the %s auth mode since --client-id and --private-key-path were specified.", mode)
+			reason = "--client-id and --private-key-path were specified."
 		case flags.ClientID != "":
 			return CombinedConfig{}, nil, fmt.Errorf("if --client-id is specified, --private-key-path must also be specified")
 		case flags.PrivateKeyPath != "":
 			return CombinedConfig{}, nil, fmt.Errorf("--private-key-path is specified, --client-id must also be specified")
 		case flags.VenConnName != "":
 			mode = VenafiCloudVenafiConnection
-			log.Printf("Using the %s auth mode since --venafi-connection was specified.", mode)
+			reason = "--venafi-connection was specified."
 		case flags.APIToken != "":
 			mode = JetstackSecureAPIToken
-			log.Printf("Using the %s auth mode since --api-token was specified.", mode)
+			reason = "--api-token was specified."
 		case !flags.VenafiCloudMode && flags.CredentialsPath != "":
 			mode = JetstackSecureOAuth
-			log.Printf("Using the %s auth mode since --credentials-file was specified without --venafi-cloud.", mode)
+			reason = "--credentials-file was specified without --venafi-cloud."
 		default:
 			return CombinedConfig{}, nil, fmt.Errorf("no auth mode specified. You can use one of four auth modes:\n" +
 				" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
@@ -379,6 +386,7 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 				" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
 				" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.\n")
 		}
+		log.Info("Auth mode", "mode", mode, "reason", reason)
 		res.AuthMode = mode
 	}
 
@@ -394,10 +402,10 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 		case hasServerField && hasEndpointField:
 			// The `server` field takes precedence over the deprecated
 			// `endpoint` field.
-			log.Printf("The `server` and `endpoint` fields are both set in the config; using the `server` field.")
+			log.Info("The `server` and `endpoint` fields are both set in the config; using the `server` field.")
 			server = cfg.Server
 		case !hasServerField && hasEndpointField:
-			log.Printf("Using deprecated Endpoint configuration. User Server instead.")
+			log.Info("Using deprecated Endpoint configuration. User Server instead.")
 			if cfg.Endpoint.Protocol == "" && cfg.Server == "" {
 				cfg.Endpoint.Protocol = "http"
 			}
@@ -415,7 +423,10 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 			errs = multierror.Append(errs, fmt.Errorf("server %q is not a valid URL", server))
 		}
 		if res.AuthMode == VenafiCloudVenafiConnection && server != "" {
-			log.Printf("ignoring the server field specified in the config file. In %s mode, this field is not needed.", VenafiCloudVenafiConnection)
+			log.Info(
+				"ignoring the server field specified in the config file.",
+				"reason", fmt.Sprintf("In %s mode, this field is not needed.", VenafiCloudVenafiConnection),
+			)
 			server = ""
 		}
 		res.Server = server
@@ -445,7 +456,10 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 			// change this value with the new --venafi-connection flag, and this
 			// field is simply ignored.
 			if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploadPath != "" {
-				log.Printf(`ignoring the venafi-cloud.upload_path field in the config file. In %s mode, this field is not needed.`, res.AuthMode)
+				log.Info(
+					"ignoring the venafi-cloud.upload_path field in the config file.",
+					"reason", fmt.Sprintf(`In %s mode, this field is not needed.`, res.AuthMode),
+				)
 			}
 			uploadPath = ""
 		}
@@ -463,7 +477,10 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 	// https://venafi.atlassian.net/browse/VC-35385 is done.
 	{
 		if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploaderID != "" {
-			log.Printf(`ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in %s mode.`, res.AuthMode)
+			log.Info(
+				"ignoring the venafi-cloud.uploader_id field in the config file.",
+				"reason", fmt.Sprintf("This field is not needed in %s mode.", res.AuthMode),
+			)
 		}
 	}
 
@@ -515,13 +532,13 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 		case flags.Period == 0 && cfg.Period == 0:
 			errs = multierror.Append(errs, fmt.Errorf("period must be set using --period or -p, or using the 'period' field in the config file"))
 		case flags.Period == 0 && cfg.Period > 0:
-			log.Printf("Using period from config %s", cfg.Period)
+			log.Info("Using period from config", "period", cfg.Period)
 			period = cfg.Period
 		case flags.Period > 0 && cfg.Period == 0:
 			period = flags.Period
 		case flags.Period > 0 && cfg.Period > 0:
 			// The flag takes precedence.
-			log.Printf("Both the 'period' field and --period are set. Using the value provided with --period.")
+			log.Info("Both the 'period' field and --period are set. Using the value provided with --period.")
 			period = flags.Period
 		}
 		res.Period = period
@@ -582,7 +599,7 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 // The error returned may be a multierror.Error. Use multierror.Prefix(err,
 // "context:") rather than fmt.Errorf("context: %w", err) when wrapping the
 // error.
-func validateCredsAndCreateClient(log *log.Logger, flagCredentialsPath, flagClientID, flagPrivateKeyPath, flagAPIToken string, cfg CombinedConfig) (client.Client, error) {
+func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClientID, flagPrivateKeyPath, flagAPIToken string, cfg CombinedConfig) (client.Client, error) {
 	var errs error
 
 	var preflightClient client.Client
@@ -702,7 +719,7 @@ func ValidateDataGatherers(dataGatherers []DataGatherer) error {
 
 // The error returned may be a multierror.Error. Instead of adding context to
 // the error with fmt.Errorf("%w", err), use multierror.Prefix(err, "context").
-func createCredentialClient(log *log.Logger, credentials client.Credentials, cfg CombinedConfig, agentMetadata *api.AgentMetadata) (client.Client, error) {
+func createCredentialClient(log logr.Logger, credentials client.Credentials, cfg CombinedConfig, agentMetadata *api.AgentMetadata) (client.Client, error) {
 	switch creds := credentials.(type) {
 	case *client.VenafiSvcAccountCredentials:
 		// The uploader ID isn't actually used in the backend, let's use an
@@ -713,7 +730,7 @@ func createCredentialClient(log *log.Logger, credentials client.Credentials, cfg
 		if cfg.AuthMode == VenafiCloudKeypair {
 			// We don't do this for the VenafiCloudVenafiConnection mode because
 			// the upload_path field is ignored in that mode.
-			log.Println("Loading upload_path from \"venafi-cloud\" configuration.")
+			log.Info("Loading upload_path from \"venafi-cloud\" configuration.")
 			uploadPath = cfg.UploadPath
 		}
 		return client.NewVenafiCloudClient(agentMetadata, creds, cfg.Server, uploaderID, uploadPath)

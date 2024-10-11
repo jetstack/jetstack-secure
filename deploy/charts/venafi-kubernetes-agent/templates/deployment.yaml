@@ -55,6 +55,7 @@ spec:
           {{- end }}
           args:
             - "agent"
+            - "--log-format=json"
             - "-c"
             - "/etc/venafi/agent/config/{{ default "config.yaml" .Values.config.configmap.key }}"
             {{- if .Values.authentication.venafiConnection.enabled }}
