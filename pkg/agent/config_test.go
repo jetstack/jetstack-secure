@@ -258,6 +258,23 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		assert.IsType(t, &client.VenafiCloudClient{}, cl)
 	})
 
+	t.Run("venafi-cloud-keypair-auth: it is possible to use --client-id with --venafi-cloud", func(t *testing.T) {
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				server: "http://localhost:8080"
+				period: 1h
+				cluster_id: "the cluster name"
+				venafi-cloud:
+				  upload_path: "/foo/bar"
+			`)),
+			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath, "--venafi-cloud"),
+		)
+		require.NoError(t, err)
+		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
+		assert.IsType(t, &client.VenafiCloudClient{}, cl)
+	})
+
 	t.Run("jetstack-secure-oauth-auth: fail if organization_id or cluster_id is missing and --venafi-cloud not enabled", func(t *testing.T) {
 		credsPath := withFile(t, `{"user_id":"fpp2624799349@affectionate-hertz6.platform.jetstack.io","user_secret":"foo","client_id": "k3TrDbfLhCgnpAbOiiT2kIE1AbovKzjo","client_secret": "f39w_3KT9Vp0VhzcPzvh-uVbudzqCFmHER3Huj0dvHgJwVrjxsoOQPIw_1SDiCfa","auth_server_domain":"auth.jetstack.io"}`)
 		_, _, err := ValidateAndCombineConfig(discardLogs(), withConfig(""), withCmdLineFlags("--credentials-file", credsPath))
