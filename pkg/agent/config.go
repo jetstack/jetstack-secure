@@ -23,10 +23,6 @@ import (
 	"github.com/jetstack/preflight/pkg/version"
 )
 
-const (
-	inClusterNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
-)
-
 // Config wraps the options for a run of the agent.
 type Config struct {
 	// Deprecated: Schedule doesn't do anything. Use `period` instead.
@@ -154,9 +150,8 @@ type AgentCmdFlags struct {
 	// InstallNS (--install-namespace) is the namespace in which the agent is
 	// running in. Only needed when running the agent outside of Kubernetes.
 	//
-	// May be left empty when running in Kubernetes. In this case, the namespace
-	// is read from the file
-	// /var/run/secrets/kubernetes.io/serviceaccount/namespace.
+	// May be left empty when running in Kubernetes. In Kubernetes, the
+	// namespace is read from the environment variable `POD_NAMESPACE`.
 	InstallNS string
 
 	// Profiling (--enable-pprof) enables the pprof server.
@@ -273,8 +268,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		"install-namespace",
 		"",
 		"For testing purposes. Namespace in which the agent is running. "+
-			"Only needed with the "+string(VenafiCloudVenafiConnection)+" mode"+
-			"when running the agent outside of Kubernetes.",
+			"Only needed when running the agent outside of Kubernetes.",
 	)
 	c.PersistentFlags().BoolVarP(
 		&cfg.Profiling,
@@ -314,6 +308,7 @@ type CombinedConfig struct {
 	BackoffMaxTime time.Duration
 	StrictMode     bool
 	OneShot        bool
+	InstallNS      string
 
 	// Used by JetstackSecureOAuth, JetstackSecureAPIToken, and
 	// VenafiCloudKeypair. Ignored in VenafiCloudVenafiConnection mode.
@@ -330,7 +325,6 @@ type CombinedConfig struct {
 	// VenafiCloudVenafiConnection mode only.
 	VenConnName string
 	VenConnNS   string
-	InstallNS   string
 
 	// Only used for testing purposes.
 	OutputPath string
@@ -530,20 +524,20 @@ func ValidateAndCombineConfig(log *log.Logger, cfg Config, flags AgentCmdFlags) 
 		res.StrictMode = flags.StrictMode
 	}
 
-	// Validation of --venafi-connection, --venafi-connection-namespace, and
-	// --install-namespace.
-	if res.AuthMode == VenafiCloudVenafiConnection {
-		var installNS string = flags.InstallNS
-		if flags.InstallNS == "" {
-			var err error
-			installNS, err = getInClusterNamespace()
-			if err != nil {
-				errs = multierror.Append(errs, fmt.Errorf("could not guess which namespace the agent is running in: %w", err))
-			}
+	// Validation of --install-namespace.
+	var installNS string = flags.InstallNS
+	if flags.InstallNS == "" {
+		var err error
+		installNS, err = getInClusterNamespace()
+		if err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("could not guess which namespace the agent is running in: %w", err))
 		}
-		res.InstallNS = installNS
-		res.VenConnName = flags.VenConnName
+	}
+	res.InstallNS = installNS
 
+	// Validation of --venafi-connection and --venafi-connection-namespace.
+	if res.AuthMode == VenafiCloudVenafiConnection {
+		res.VenConnName = flags.VenConnName
 		var venConnNS string = flags.VenConnNS
 		if flags.VenConnNS == "" {
 			venConnNS = installNS
@@ -727,21 +721,12 @@ func createCredentialClient(log *log.Logger, credentials client.Credentials, cfg
 
 // Inspired by the controller-runtime project.
 func getInClusterNamespace() (string, error) {
-	// Check whether the namespace file exists.
-	// If not, we are not running in cluster so can't guess the namespace.
-	_, err := os.Stat(inClusterNamespacePath)
-	if os.IsNotExist(err) {
-		return "", fmt.Errorf("not running in cluster, please use --install-namespace to specify the namespace in which the agent is running")
-	}
-	if err != nil {
-		return "", fmt.Errorf("error checking namespace file: %w", err)
+	ns := os.Getenv("POD_NAMESPACE")
+	if ns != "" {
+		return ns, nil
 	}
 
-	namespace, err := os.ReadFile(inClusterNamespacePath)
-	if err != nil {
-		return "", fmt.Errorf("error reading namespace file: %w", err)
-	}
-	return string(namespace), nil
+	return "", fmt.Errorf("POD_NAMESPACE env var not set, meaning that you are probably not running in cluster. Please use --install-namespace or POD_NAMESPACE to specify the namespace in which the agent is running.")
 }
 
 func reMarshal(rawConfig interface{}, config datagatherer.Config) error {
