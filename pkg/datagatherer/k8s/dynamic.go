@@ -361,16 +361,16 @@ func redactList(list []*api.GatheredResource) error {
 			for _, gvk := range gvks {
 				// secret object
 				if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
-					Select(SecretSelectedFields, resource)
+					resource.Object = FilterSecret(resource.Object)
 
 					// route object
 				} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io" {
-					Select(RouteSelectedFields, resource)
+					resource.Object = FilterRoute(resource.Object)
 				}
 			}
 
 			// remove managedFields from all resources
-			Redact(RedactFields, resource)
+			DropNoisyFieldsObject(resource.Object)
 			continue
 		}
 

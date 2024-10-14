@@ -7,18 +7,17 @@ import (
 	"github.com/jetstack/preflight/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func TestSelect(t *testing.T) {
-	t.Run("secret", run_TestSelect(
-		map[string]interface{}{
+func TestFilterSecret(t *testing.T) {
+	t.Run("full object", func(t *testing.T) {
+		given := map[string]interface{}{
 			"apiVersion": "v1",
 			"kind":       "Secret",
 			"metadata": map[string]interface{}{
 				"name":      "example",
 				"namespace": "example",
-				"annotations": map[string]string{
+				"annotations": map[string]interface{}{
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
 				},
 				"labels": map[string]string{
@@ -30,15 +29,14 @@ func TestSelect(t *testing.T) {
 				"tls.crt": "cert data",
 				"tls.key": "secret",
 			},
-		},
-		SecretSelectedFields,
-		map[string]interface{}{
+		}
+		expect := map[string]interface{}{
 			"apiVersion": "v1",
 			"kind":       "Secret",
 			"metadata": map[string]interface{}{
 				"name":      "example",
 				"namespace": "example",
-				"annotations": map[string]interface{}{
+				"annotations": map[string]string{
 					// The "last-applied-configuration" isn't ignored in
 					// "Select". "Redact" removes it.
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
@@ -52,105 +50,87 @@ func TestSelect(t *testing.T) {
 				// The "tls.key" is ignored.
 				"tls.crt": "cert data",
 			},
-		},
-	))
+		}
 
-	t.Run("route", run_TestSelect(
-		map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "Route",
-			"metadata": map[string]interface{}{
-				"name": "example",
-				"annotations": map[string]string{
-					"kubectl.kubernetes.io/last-applied-configuration": "secret",
-				},
-				"labels": map[string]string{
-					"foo": "bar",
-				},
-			},
-			"spec": map[string]interface{}{
-				"host": "www.example.com",
-				"to": map[string]string{
-					"kind": "Service",
-					"name": "frontend",
-				},
-				"tls": map[string]interface{}{
-					"termination":              "reencrypt",
-					"key":                      "secret",
-					"certificate":              "cert data",
-					"caCertificate":            "caCert data",
-					"destinationCACertificate": "destinationCaCert data",
-				},
-			},
-		}, RouteSelectedFields,
-		map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "Route",
-			"metadata": map[string]interface{}{
-				"name": "example",
-				"annotations": map[string]interface{}{
-					// The "last-applied-configuration" isn't ignored in
-					// "Select". "Redact" removes it.
-					"kubectl.kubernetes.io/last-applied-configuration": "secret",
-				},
-			},
-			"spec": map[string]interface{}{
-				"host": "www.example.com",
-				"to": map[string]interface{}{
-					"kind": "Service",
-					"name": "frontend",
-				},
-				"tls": map[string]interface{}{
-					"termination": "reencrypt",
-					// The "key" field is ignored.
-					"certificate":              "cert data",
-					"caCertificate":            "caCert data",
-					"destinationCACertificate": "destinationCaCert data",
-				},
-			},
-		},
-	))
-}
+		got := FilterSecret(given)
+		assert.Equal(t, expect, got)
+	})
 
-func run_TestSelect(given map[string]interface{}, givenSelect []string, expect map[string]interface{}) func(*testing.T) {
-	return func(t *testing.T) {
-		t.Helper()
-		givenPtr := unstructured.Unstructured{Object: given}
-		err := Select(givenSelect, &givenPtr)
-		require.NoError(t, err)
-
-		assert.Equal(t, expect, givenPtr.Object)
-	}
-}
-
-func TestSelectMissingSelectedField(t *testing.T) {
-	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+	t.Run("works even when some fields are missing", func(t *testing.T) {
+		given := map[string]interface{}{
 			"kind": "Secret",
+		}
+		expect := map[string]interface{}{
+			"kind": "Secret",
+		}
+		got := FilterSecret(given)
+		assert.Equal(t, expect, got)
+	})
+}
+
+func TestFilterRoute(t *testing.T) {
+	given := map[string]interface{}{
+		"apiVersion": "v1",
+		"kind":       "Route",
+		"metadata": map[string]interface{}{
+			"name": "example",
+			"annotations": map[string]string{
+				"kubectl.kubernetes.io/last-applied-configuration": "secret",
+			},
+			"labels": map[string]string{
+				"foo": "bar",
+			},
+		},
+		"spec": map[string]interface{}{
+			"host": "www.example.com",
+			"to": map[string]string{
+				"kind": "Service",
+				"name": "frontend",
+			},
+			"tls": map[string]interface{}{
+				"termination":              "reencrypt",
+				"key":                      "secret",
+				"certificate":              "cert data",
+				"caCertificate":            "caCert data",
+				"destinationCACertificate": "destinationCaCert data",
+			},
+		},
+	}
+	expect := map[string]interface{}{
+		"apiVersion": "v1",
+		"kind":       "Route",
+		"metadata": map[string]interface{}{
+			"name": "example",
+			"annotations": map[string]interface{}{
+				// The "last-applied-configuration" isn't ignored in
+				// "Select". "Redact" removes it.
+				"kubectl.kubernetes.io/last-applied-configuration": "secret",
+			},
+		},
+		"spec": map[string]interface{}{
+			"host": "www.example.com",
+			"to": map[string]interface{}{
+				"kind": "Service",
+				"name": "frontend",
+			},
+			"tls": map[string]interface{}{
+				"termination": "reencrypt",
+				// The "key" field is ignored.
+				"certificate":              "cert data",
+				"caCertificate":            "caCert data",
+				"destinationCACertificate": "destinationCaCert data",
+			},
 		},
 	}
 
-	fieldsToSelect := []string{
-		"kind", // required for unstructured unmarshal
-		"missing",
-		"/missing",
-	}
+	got := FilterRoute(given)
+	assert.Equal(t, expect, got)
 
-	err := Select(fieldsToSelect, resource)
-	require.NoError(t, err)
-	bytes, err := json.MarshalIndent(resource, "", "    ")
-	require.NoError(t, err)
-
-	expectedJSON := testutil.Undent(`
-		{
-		    "kind": "Secret"
-		}`)
-	assert.Equal(t, expectedJSON, string(bytes))
 }
 
-func TestRedactSecret(t *testing.T) {
-	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+func Test_DropNoisyFieldsObject(t *testing.T) {
+	t.Run("secret", func(t *testing.T) {
+		given := map[string]interface{}{
 			"apiVersion": "v1",
 			"kind":       "Secret",
 			"metadata": map[string]interface{}{
@@ -166,40 +146,31 @@ func TestRedactSecret(t *testing.T) {
 				"tls.crt": "cert data",
 				"tls.key": "secret",
 			},
-		},
-	}
+		}
+		var expect map[string]interface{}
+		err := json.Unmarshal([]byte(testutil.Undent(`
+			{
+			    "apiVersion": "v1",
+			    "data": {
+			        "tls.crt": "cert data"
+			    },
+			    "kind": "Secret",
+			    "metadata": {
+			        "annotations": {},
+			        "name": "example",
+			        "namespace": "example"
+			    },
+			    "type": "kubernetes.io/tls"
+			}
+		`)), &expect)
+		require.NoError(t, err)
 
-	fieldsToRedact := []string{
-		"metadata.managedFields",
-		"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration",
-		"/data/tls.key",
-	}
+		DropNoisyFieldsObject(given)
+		assert.Equal(t, expect, given)
+	})
 
-	err := Redact(fieldsToRedact, resource)
-	require.NoError(t, err)
-
-	bytes, err := json.MarshalIndent(resource, "", "    ")
-	require.NoError(t, err)
-	expectedJSON := testutil.Undent(`
-		{
-		    "apiVersion": "v1",
-		    "data": {
-		        "tls.crt": "cert data"
-		    },
-		    "kind": "Secret",
-		    "metadata": {
-		        "annotations": {},
-		        "name": "example",
-		        "namespace": "example"
-		    },
-		    "type": "kubernetes.io/tls"
-		}`)
-	assert.Equal(t, expectedJSON, string(bytes))
-}
-
-func TestRedactPod(t *testing.T) {
-	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+	t.Run("pod", func(t *testing.T) {
+		given := map[string]interface{}{
 			"apiVersion": "v1",
 			"kind":       "Pod",
 			"metadata": map[string]interface{}{
@@ -210,53 +181,35 @@ func TestRedactPod(t *testing.T) {
 			"spec": map[string]interface{}{
 				"serviceAccountName": "example",
 			},
-		},
-	}
+		}
+		var expect map[string]interface{}
+		err := json.Unmarshal([]byte(testutil.Undent(`
+			{
+			    "apiVersion": "v1",
+			    "kind": "Pod",
+			    "metadata": {
+			        "name": "example",
+			        "namespace": "example"
+			    },
+			    "spec": {
+			        "serviceAccountName": "example"
+			    }
+			}
+		`)), &expect)
+		require.NoError(t, err)
 
-	fieldsToRedact := []string{
-		"metadata.managedFields",
-	}
+		DropNoisyFieldsObject(given)
+		assert.Equal(t, expect, given)
+	})
 
-	err := Redact(fieldsToRedact, resource)
-	require.NoError(t, err)
-
-	bytes, err := json.MarshalIndent(resource, "", "    ")
-	require.NoError(t, err)
-	expectedJSON := testutil.Undent(`
-		{
-		    "apiVersion": "v1",
-		    "kind": "Pod",
-		    "metadata": {
-		        "name": "example",
-		        "namespace": "example"
-		    },
-		    "spec": {
-		        "serviceAccountName": "example"
-		    }
-		}`)
-	assert.Equal(t, expectedJSON, string(bytes))
-}
-
-func TestRedactMissingField(t *testing.T) {
-	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+	t.Run("still works when fields are missing", func(t *testing.T) {
+		given := map[string]interface{}{
 			"kind": "Secret",
-		},
-	}
-
-	fieldsToRedact := []string{
-		"missing",
-		"/missing",
-	}
-
-	err := Redact(fieldsToRedact, resource)
-	require.NoError(t, err)
-	bytes, err := json.MarshalIndent(resource, "", "    ")
-	require.NoError(t, err)
-
-	expectedJSON := testutil.Undent(`
-		{
-		    "kind": "Secret"
-		}`)
-	assert.Equal(t, expectedJSON, string(bytes))
+		}
+		expect := map[string]interface{}{
+			"kind": "Secret",
+		}
+		DropNoisyFieldsObject(given)
+		assert.Equal(t, expect, given)
+	})
 }
