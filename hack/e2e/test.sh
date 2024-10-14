@@ -191,14 +191,11 @@ EOF
 envsubst <application-team-1.yaml | kubectl apply -f -
 kubectl -n team-1 wait certificate app-0 --for=condition=Ready
 
-# Wait for log message indicating success.
-# Filter out distracting data gatherer errors and warnings.
-# Show other useful log messages on stderr.
+# Wait 60s for log message indicating success.
+# Parse logs as JSON using jq to ensure logs are all JSON formatted.
 # Disable pipefail to prevent SIGPIPE (141) errors from tee
 # See https://unix.stackexchange.com/questions/274120/pipe-fail-141-when-piping-output-into-tee-why
-set +o pipefail
 kubectl logs deployments/venafi-kubernetes-agent \
-  --follow \
-  --namespace venafi \
-  | tee >(grep -v -e "reflector\.go" -e "datagatherer" -e "data gatherer" >/dev/stderr) \
-  | grep -q "Data sent successfully"
+        --follow \
+        --namespace venafi \
+    | timeout 60 jq 'if .msg | test("Data sent successfully") then . | halt_error(0) end'

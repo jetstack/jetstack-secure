@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -17,6 +18,9 @@ var rootCmd = &cobra.Command{
 configuration checks using Open Policy Agent (OPA).
 
 Preflight checks are bundled into Packages`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		logs.Initialize()
+	},
 }
 
 func init() {
@@ -28,6 +32,8 @@ func init() {
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	logs.AddFlags(rootCmd.PersistentFlags())
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
