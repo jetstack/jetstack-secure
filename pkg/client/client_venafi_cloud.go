@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -50,6 +51,8 @@ type (
 		jwtSigningAlg jwt.SigningMethod
 		lock          sync.RWMutex
 
+		disableCompression bool
+
 		// Made public for testing purposes.
 		Client *http.Client
 	}
@@ -84,7 +87,7 @@ const (
 
 // NewVenafiCloudClient returns a new instance of the VenafiCloudClient type that will perform HTTP requests using a bearer token
 // to authenticate to the backend API.
-func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiSvcAccountCredentials, baseURL string, uploaderID string, uploadPath string) (*VenafiCloudClient, error) {
+func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiSvcAccountCredentials, baseURL string, uploaderID string, uploadPath string, disableCompression bool) (*VenafiCloudClient, error) {
 	if err := credentials.Validate(); err != nil {
 		return nil, fmt.Errorf("cannot create VenafiCloudClient: %w", err)
 	}
@@ -107,15 +110,16 @@ func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiS
 	}
 
 	return &VenafiCloudClient{
-		agentMetadata: agentMetadata,
-		credentials:   credentials,
-		baseURL:       baseURL,
-		accessToken:   &venafiCloudAccessToken{},
-		Client:        &http.Client{Timeout: time.Minute},
-		uploaderID:    uploaderID,
-		uploadPath:    uploadPath,
-		privateKey:    privateKey,
-		jwtSigningAlg: jwtSigningAlg,
+		agentMetadata:      agentMetadata,
+		credentials:        credentials,
+		baseURL:            baseURL,
+		accessToken:        &venafiCloudAccessToken{},
+		Client:             &http.Client{Timeout: time.Minute},
+		uploaderID:         uploaderID,
+		uploadPath:         uploadPath,
+		privateKey:         privateKey,
+		jwtSigningAlg:      jwtSigningAlg,
+		disableCompression: disableCompression,
 	}, nil
 }
 
@@ -260,11 +264,39 @@ func (c *VenafiCloudClient) Post(path string, body io.Reader) (*http.Response, e
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, path), body)
+	var encodedBody io.Reader
+	if c.disableCompression {
+		encodedBody = body
+	} else {
+		compressed := new(bytes.Buffer)
+		gz := gzip.NewWriter(compressed)
+		if _, err := io.Copy(gz, body); err != nil {
+			return nil, err
+		}
+		err := gz.Close()
+		if err != nil {
+			return nil, err
+		}
+		encodedBody = compressed
+	}
+
+	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, path), encodedBody)
 	if err != nil {
 		return nil, err
 	}
 
+	// We have noticed that NGINX, which is Venafi Control Plane's API gateway,
+	// has a limit on the request body size we can send (client_max_body_size).
+	// On large clusters, the agent may exceed this limit, triggering the error
+	// "413 Request Entity Too Large". Although this limit has been raised to
+	// 1GB, NGINX still buffers the requests that the agent sends because
+	// proxy_request_buffering isn't set to off. To reduce the strain on NGINX'
+	// memory and disk, to avoid further 413s, and to avoid reaching the maximum
+	// request body size of customer's proxies, we have decided to enable GZIP
+	// compression. Ref: https://venafi.atlassian.net/browse/VC-36434.
+	if !c.disableCompression {
+		req.Header.Set("Content-Encoding", "gzip")
+	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 
