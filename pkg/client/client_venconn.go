@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
@@ -157,7 +158,10 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 		DataGatherTime: time.Now().UTC(),
 		DataReadings:   readings,
 	}
-	data, err := json.Marshal(payload)
+
+	encodedBody := &bytes.Buffer{}
+	gz := gzip.NewWriter(encodedBody)
+	err = json.NewEncoder(gz).Encode(payload)
 	if err != nil {
 		return err
 	}
@@ -165,7 +169,7 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 	// The path parameter "no" is a dummy parameter to make the Venafi Cloud
 	// backend happy. This parameter, named `uploaderID` in the backend, is not
 	// actually used by the backend.
-	req, err := http.NewRequest(http.MethodPost, fullURL(token.BaseURL, "/v1/tlspk/upload/clusterdata/no"), bytes.NewBuffer(data))
+	req, err := http.NewRequest(http.MethodPost, fullURL(token.BaseURL, "/v1/tlspk/upload/clusterdata/no"), encodedBody)
 	if err != nil {
 		return err
 	}

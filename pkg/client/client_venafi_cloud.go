@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -260,13 +261,20 @@ func (c *VenafiCloudClient) Post(path string, body io.Reader) (*http.Response, e
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, path), body)
+	encodedBody := &bytes.Buffer{}
+	gz := gzip.NewWriter(encodedBody)
+	if _, err := io.Copy(gz, body); err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, path), encodedBody)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
 
 	if len(token.accessToken) > 0 {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.accessToken))
