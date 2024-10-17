@@ -272,9 +272,18 @@ func (c *VenafiCloudClient) Post(path string, body io.Reader) (*http.Response, e
 		return nil, err
 	}
 
+	// We have noticed that NGINX, which is Venafi Control Plane's API gateway,
+	// has a limit on the request body size we can send (client_max_body_size).
+	// On large clusters, the agent may exceed this limit, triggering the error
+	// "413 Request Entity Too Large". Although this limit has been raised to
+	// 1GB, NGINX still buffers the requests that the agent sends because
+	// proxy_request_buffering isn't set to off. To reduce the strain on NGINX'
+	// memory and disk, to avoid further 413s, and to avoid reaching the maximum
+	// request body size of customer's proxies, we have decided to enable GZIP
+	// compression. Ref: https://venafi.atlassian.net/browse/VC-36434.
+	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Content-Encoding", "gzip")
 
 	if len(token.accessToken) > 0 {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.accessToken))
