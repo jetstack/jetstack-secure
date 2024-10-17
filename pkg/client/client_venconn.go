@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
@@ -157,7 +158,10 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 		DataGatherTime: time.Now().UTC(),
 		DataReadings:   readings,
 	}
-	data, err := json.Marshal(payload)
+
+	encodedBody := &bytes.Buffer{}
+	gz := gzip.NewWriter(encodedBody)
+	err = json.NewEncoder(gz).Encode(payload)
 	if err != nil {
 		return err
 	}
@@ -165,11 +169,21 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 	// The path parameter "no" is a dummy parameter to make the Venafi Cloud
 	// backend happy. This parameter, named `uploaderID` in the backend, is not
 	// actually used by the backend.
-	req, err := http.NewRequest(http.MethodPost, fullURL(token.BaseURL, "/v1/tlspk/upload/clusterdata/no"), bytes.NewBuffer(data))
+	req, err := http.NewRequest(http.MethodPost, fullURL(token.BaseURL, "/v1/tlspk/upload/clusterdata/no"), encodedBody)
 	if err != nil {
 		return err
 	}
 
+	// We have noticed that NGINX, which is Venafi Control Plane's API gateway,
+	// has a limit on the request body size we can send (client_max_body_size).
+	// On large clusters, the agent may exceed this limit, triggering the error
+	// "413 Request Entity Too Large". Although this limit has been raised to
+	// 1GB, NGINX still buffers the requests that the agent sends because
+	// proxy_request_buffering isn't set to off. To reduce the strain on NGINX'
+	// memory and disk, to avoid further 413s, and to avoid reaching the maximum
+	// request body size of customer's proxies, we have decided to enable GZIP
+	// compression. Ref: https://venafi.atlassian.net/browse/VC-36434.
+	req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
 

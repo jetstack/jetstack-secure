@@ -233,6 +233,7 @@ func run_TestVenConnClient_PostDataReadingsWithOptions(restcfg *rest.Config, kcl
 			// Let's make sure we didn't forget to add the arbitrary "/no"
 			// (uploader_id) path segment to /v1/tlspk/upload/clusterdata.
 			assert.Equal(t, "/v1/tlspk/upload/clusterdata/no", r.URL.Path)
+			assert.Equal(t, "gzip", r.Header.Get("Content-Encoding"))
 		})
 
 		certPool := x509.NewCertPool()
