@@ -112,7 +112,10 @@ The release process is semi-automated.
    3. Remove any irrelevant entries, such as “update deps,” “update CI,” “update
       docs,” or similar internal changes that do not impact user functionality.
 4. Publish the release.
-5. Inform Michael McLoughlin of the new release so he can update the
+5. Inform the `#venctl` channel that a new version of Venafi Kubernetes Agent has been
+   released. Make sure to share any breaking change that may affect `venctl connect`
+   or `venctl generate`.
+7. Inform Michael McLoughlin of the new release so he can update the
    documentation at <https://docs.venafi.cloud/>.
 
 > [!NOTE]
