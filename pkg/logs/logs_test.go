@@ -15,6 +15,7 @@ import (
 
 	_ "github.com/Venafi/vcert/v5"
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2"
 
@@ -315,4 +316,77 @@ func replaceWithStaticTimestamps(input string) string {
 	input = fileAndLineRegexpJSON.ReplaceAllString(input, `"caller":"$1.go:000"`)
 	input = fileAndLineRegexpKlog.ReplaceAllString(input, " $1.go:000")
 	return input
+}
+
+func TestLogToSlogWriter(t *testing.T) {
+	// This test makes sure that all the agent's Log.Fatalf calls are correctly
+	// translated to slog.Error calls.
+	//
+	// This list was generated using:
+	//  grep -r "Log\.Fatalf" ./cmd ./pkg
+	given := strings.TrimPrefix(`
+Failed to load config file for agent from
+Failed to read config file
+Failed to parse config file
+While evaluating configuration
+failed to run pprof profiler
+failed to run the health check server
+failed to start a controller-runtime component
+failed to wait for controller-runtime component to stop
+running data gatherer %s of type %s as Local, data-path override present
+failed to instantiate %q data gatherer
+failed to read local data file
+failed to unmarshal local data file
+failed to output to local file
+Exiting due to fatal error uploading
+halting datagathering in strict mode due to error
+Cannot marshal readings
+Failed to read config file
+Failed to parse config file
+Failed to validate data gatherers
+this is a happy log that should show as INFO`, "\n")
+	expect := strings.TrimPrefix(`
+level=ERROR msg="Failed to load config file for agent from" source=agent
+level=ERROR msg="Failed to read config file" source=agent
+level=ERROR msg="Failed to parse config file" source=agent
+level=ERROR msg="While evaluating configuration" source=agent
+level=ERROR msg="failed to run pprof profiler" source=agent
+level=ERROR msg="failed to run the health check server" source=agent
+level=ERROR msg="failed to start a controller-runtime component" source=agent
+level=ERROR msg="failed to wait for controller-runtime component to stop" source=agent
+level=ERROR msg="running data gatherer %!s(MISSING) of type %!s(MISSING) as Local, data-path override present" source=agent
+level=ERROR msg="failed to instantiate %!q(MISSING) data gatherer" source=agent
+level=ERROR msg="failed to read local data file" source=agent
+level=ERROR msg="failed to unmarshal local data file" source=agent
+level=ERROR msg="failed to output to local file" source=agent
+level=ERROR msg="Exiting due to fatal error uploading" source=agent
+level=ERROR msg="halting datagathering in strict mode due to error" source=agent
+level=ERROR msg="Cannot marshal readings" source=agent
+level=ERROR msg="Failed to read config file" source=agent
+level=ERROR msg="Failed to parse config file" source=agent
+level=ERROR msg="Failed to validate data gatherers" source=agent
+level=INFO msg="this is a happy log that should show as INFO" source=agent
+`, "\n")
+
+	gotBuf := &bytes.Buffer{}
+	slogHandler := slog.NewTextHandler(gotBuf, &slog.HandlerOptions{
+		// Remove the timestamp from the logs so that we can compare them.
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == "time" {
+				return slog.Attr{}
+			}
+			return a
+		},
+	})
+	slogLogger := slog.New(slogHandler)
+
+	logger := log.New(&bytes.Buffer{}, "", 0)
+	logger.SetOutput(logs.LogToSlogWriter{Slog: slogLogger, Source: "agent"})
+
+	for _, line := range strings.Split(given, "\n") {
+		// Simulate the current agent's logs.
+		logger.Printf(line)
+	}
+
+	assert.Equal(t, expect, gotBuf.String())
 }
