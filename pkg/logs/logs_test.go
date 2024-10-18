@@ -124,7 +124,7 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 			name:  "modified-defaults",
 			flags: "",
 			expectStdout: `
-{"ts":0000000000000.000,"caller":"log/log.go:000","msg":"log Print","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs.go:000","msg":"log Print","source":"vcert","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Info","v":0}
@@ -141,7 +141,7 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 			name:  "logging-format-json",
 			flags: "--logging-format=json",
 			expectStdout: `
-{"ts":0000000000000.000,"caller":"log/log.go:000","msg":"log Print","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs.go:000","msg":"log Print","source":"vcert","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Info","v":0}
@@ -158,7 +158,7 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 			name:  "log-json-split-stream-false",
 			flags: "--logging-format=json --log-json-split-stream=false",
 			expectStderr: `
-{"ts":0000000000000.000,"caller":"log/log.go:000","msg":"log Print","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs.go:000","msg":"log Print","source":"vcert","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Error"}
@@ -173,7 +173,7 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 			name:  "logging-format-text",
 			flags: "--logging-format=text",
 			expectStdout: `
-I0000 00:00:00.000000   00000 log.go:000] log Print
+I0000 00:00:00.000000   00000 logs.go:000] "log Print" source="vcert"
 I0000 00:00:00.000000   00000 logs_test.go:000] "slog Info"
 I0000 00:00:00.000000   00000 logs_test.go:000] klog Info
 I0000 00:00:00.000000   00000 logs_test.go:000] "klog InfoS" key="value"
@@ -190,7 +190,7 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 			name:  "log-text-split-stream-false",
 			flags: "--logging-format=text --log-text-split-stream=false",
 			expectStderr: `
-I0000 00:00:00.000000   00000 log.go:000] log Print
+I0000 00:00:00.000000   00000 logs.go:000] "log Print" source="vcert"
 I0000 00:00:00.000000   00000 logs_test.go:000] "slog Info"
 W0000 00:00:00.000000   00000 logs_test.go:000] "slog Warn"
 E0000 00:00:00.000000   00000 logs_test.go:000] "slog Error"
@@ -205,7 +205,7 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 			name:  "v-level-3",
 			flags: "--v=3",
 			expectStdout: `
-{"ts":0000000000000.000,"caller":"log/log.go:000","msg":"log Print","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs.go:000","msg":"log Print","source":"vcert","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Info","v":0}
@@ -223,7 +223,7 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 			name:  "vmodule-level-3",
 			flags: "--logging-format=text --vmodule=logs_test=3",
 			expectStdout: `
-I0000 00:00:00.000000   00000 log.go:000] log Print
+I0000 00:00:00.000000   00000 logs.go:000] "log Print" source="vcert"
 I0000 00:00:00.000000   00000 logs_test.go:000] "slog Info"
 I0000 00:00:00.000000   00000 logs_test.go:000] klog Info
 I0000 00:00:00.000000   00000 logs_test.go:000] "klog InfoS" key="value"

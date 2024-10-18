@@ -1,9 +1,12 @@
 package logs
 
 import (
+	"bytes"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -33,8 +36,13 @@ import (
 //   upon which this code was based.
 
 var (
-	// Deprecated: Log is a `log` logger, which is being phased out.
-	Log = log.Default()
+	// This is the Agent's logger. For now, it is still a *log.Logger, but we
+	// mean to migrate everything to slog with the klog backend. We avoid using
+	// log.Default because log.Default is already used by the VCert library, and
+	// we need to keep the agent's logger from the VCert's logger to be able to
+	// remove the `vCert: ` prefix from the VCert logs.
+	Log *log.Logger
+
 	// All but the essential logging flags will be hidden to avoid overwhelming
 	// the user. The hidden flags can still be used. For example if a user does
 	// not like the split-stream behavior and a Venafi field engineer can
@@ -95,13 +103,52 @@ func AddFlags(fs *pflag.FlagSet) {
 // Initialize uses k8s.io/component-base/logs, to configure the following global
 // loggers: log, slog, and klog. All are configured to write in the same format.
 func Initialize() {
+	// This configures the global logger in klog *and* slog, if compiled
+	// with Go >= 1.21.
+	logs.InitLogs()
 	if err := logsapi.ValidateAndApply(configuration, features); err != nil {
 		fmt.Fprintf(os.Stderr, "Error in logging configuration: %v\n", err)
 		os.Exit(2)
 	}
-	// This is a work around for a bug in vcert where it adds a `vcert: ` prefix
-	// to the global log logger.
-	// Can be removed when this is fixed upstream in vcert:  https://github.com/Venafi/vcert/pull/512
-	log.SetPrefix("")
-	logs.InitLogs()
+
+	// Thanks to logs.InitLogs(), slog.Default() now uses klog as its backend.
+	// Thus, the client-go library, which relies on klog.Info, has the same
+	// logger as the agent, which still uses log.Printf.
+	slog := slog.Default()
+
+	Log = &log.Logger{}
+	Log.SetOutput(logToSlogWriter{slog: slog, source: "agent"})
+
+	// Let's make sure the VCert library, which is the only library we import to
+	// be using the global log.Default, also uses the common slog logger.
+	vcertLog := log.Default()
+	vcertLog.SetOutput(logToSlogWriter{slog: slog, source: "vcert"})
+	// This is a work around for a bug in vcert where it adds a `vCert: ` prefix
+	// to the global log logger. It can be removed when this is fixed upstream
+	// in vcert:  https://github.com/Venafi/vcert/pull/512
+	vcertLog.SetPrefix("")
+}
+
+type logToSlogWriter struct {
+	slog   *slog.Logger
+	source string
+}
+
+func (w logToSlogWriter) Write(p []byte) (n int, err error) {
+	// log.Printf writes a newline at the end of the message, so we need to trim
+	// it.
+	p = bytes.TrimSuffix(p, []byte("\n"))
+
+	message := string(p)
+	if isCritical(message) {
+		w.slog.With("source", w.source).Error(message)
+	} else {
+		w.slog.With("source", w.source).Info(message)
+	}
+	return len(p), nil
+}
+
+func isCritical(msg string) bool {
+	// You can implement more robust logic to detect critical log messages
+	return strings.Contains(msg, "FATAL") || strings.Contains(msg, "ERROR")
 }
