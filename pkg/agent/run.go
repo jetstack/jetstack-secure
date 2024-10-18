@@ -18,11 +18,19 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	clientgocorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/kubeconfig"
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 
@@ -115,6 +123,13 @@ func Run(cmd *cobra.Command, args []string) {
 		}()
 	}
 
+	// To help users notice issues with the agent, we show the error messages in
+	// the agent pod's events.
+	eventf, err := newEventf(config.InstallNS)
+	if err != nil {
+		logs.Log.Fatalf("failed to create event recorder: %v", err)
+	}
+
 	dataGatherers := map[string]datagatherer.DataGatherer{}
 	group, gctx := errgroup.WithContext(ctx)
 
@@ -180,7 +195,7 @@ func Run(cmd *cobra.Command, args []string) {
 	// configured output using data in datagatherer caches or refreshing from
 	// APIs each cycle depending on datagatherer implementation
 	for {
-		gatherAndOutputData(config, preflightClient, dataGatherers)
+		gatherAndOutputData(eventf, config, preflightClient, dataGatherers)
 
 		if config.OneShot {
 			break
@@ -190,7 +205,44 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 }
 
-func gatherAndOutputData(config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) {
+// Creates an event recorder for the agent's Pod object. Expects the env var
+// POD_NAME to contain the pod name. Note that the RBAC rule allowing sending
+// events is attached to the pod's service account, not the impersonated service
+// account (venafi-connection).
+func newEventf(installNS string) (Eventf, error) {
+	restcfg, err := kubeconfig.LoadRESTConfig("")
+	if err != nil {
+		logs.Log.Fatalf("failed to load kubeconfig: %v", err)
+	}
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	var eventf Eventf
+	if os.Getenv("POD_NAME") == "" {
+		eventf = func(eventType, reason, msg string, args ...interface{}) {}
+		logs.Log.Printf("error messages will not show in the pod's events because the POD_NAME environment variable is empty")
+	} else {
+		podName := os.Getenv("POD_NAME")
+
+		eventClient, err := kubernetes.NewForConfig(restcfg)
+		if err != nil {
+			return eventf, fmt.Errorf("failed to create event client: %v", err)
+		}
+		broadcaster := record.NewBroadcaster()
+		broadcaster.StartRecordingToSink(&clientgocorev1.EventSinkImpl{Interface: eventClient.CoreV1().Events(installNS)})
+		eventRec := broadcaster.NewRecorder(scheme, corev1.EventSource{Component: "venafi-kubernetes-agent", Host: os.Getenv("POD_NODE")})
+		eventf = func(eventType, reason, msg string, args ...interface{}) {
+			eventRec.Eventf(&corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: podName, Namespace: installNS, UID: types.UID(os.Getenv("POD_UID"))}}, eventType, reason, msg, args...)
+		}
+	}
+
+	return eventf, nil
+}
+
+// Like Printf but for sending events to the agent's Pod object.
+type Eventf func(eventType, reason, msg string, args ...interface{})
+
+func gatherAndOutputData(eventf Eventf, config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) {
 	var readings []*api.DataReading
 
 	if config.InputPath != "" {
@@ -226,6 +278,7 @@ func gatherAndOutputData(config CombinedConfig, preflightClient client.Client, d
 			return postData(config, preflightClient, readings)
 		}
 		err := backoff.RetryNotify(post, backOff, func(err error, t time.Duration) {
+			eventf("Warning", "PushingErr", "retrying in %v after error: %s", t, err)
 			logs.Log.Printf("retrying in %v after error: %s", t, err)
 		})
 		if err != nil {
