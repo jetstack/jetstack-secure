@@ -116,38 +116,39 @@ func Initialize() {
 	slog := slog.Default()
 
 	Log = &log.Logger{}
-	Log.SetOutput(logToSlogWriter{slog: slog, source: "agent"})
+	Log.SetOutput(LogToSlogWriter{Slog: slog, Source: "agent"})
 
 	// Let's make sure the VCert library, which is the only library we import to
 	// be using the global log.Default, also uses the common slog logger.
 	vcertLog := log.Default()
-	vcertLog.SetOutput(logToSlogWriter{slog: slog, source: "vcert"})
+	vcertLog.SetOutput(LogToSlogWriter{Slog: slog, Source: "vcert"})
 	// This is a work around for a bug in vcert where it adds a `vCert: ` prefix
 	// to the global log logger. It can be removed when this is fixed upstream
 	// in vcert:  https://github.com/Venafi/vcert/pull/512
 	vcertLog.SetPrefix("")
 }
 
-type logToSlogWriter struct {
-	slog   *slog.Logger
-	source string
+type LogToSlogWriter struct {
+	Slog   *slog.Logger
+	Source string
 }
 
-func (w logToSlogWriter) Write(p []byte) (n int, err error) {
+func (w LogToSlogWriter) Write(p []byte) (n int, err error) {
 	// log.Printf writes a newline at the end of the message, so we need to trim
 	// it.
 	p = bytes.TrimSuffix(p, []byte("\n"))
 
 	message := string(p)
-	if isCritical(message) {
-		w.slog.With("source", w.source).Error(message)
+	if strings.Contains(message, "error") ||
+		strings.Contains(message, "failed") ||
+		strings.Contains(message, "fatal") ||
+		strings.Contains(message, "Failed") ||
+		strings.Contains(message, "While evaluating configuration") ||
+		strings.Contains(message, "data-path override present") ||
+		strings.Contains(message, "Cannot marshal readings") {
+		w.Slog.With("source", w.Source).Error(message)
 	} else {
-		w.slog.With("source", w.source).Info(message)
+		w.Slog.With("source", w.Source).Info(message)
 	}
 	return len(p), nil
-}
-
-func isCritical(msg string) bool {
-	// You can implement more robust logic to detect critical log messages
-	return strings.Contains(msg, "FATAL") || strings.Contains(msg, "ERROR")
 }
