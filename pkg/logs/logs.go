@@ -17,23 +17,22 @@ import (
 	_ "k8s.io/component-base/logs/json/register"
 )
 
-// venafi-kubernetes-agent follows [Kubernetes Logging Conventions]
-// and writes logs in [Kubernetes JSON logging format] by default.
-// It does not support named levels (AKA severity), instead it uses arbitrary levels.
-// Errors are logged to stderr and Info messages to stdout, because that is how
-// some cloud logging systems (notably Google Cloud Logs Explorer) assign a
-// severity (INFO or ERROR) in the UI.
-// Messages logged using the legacy log module are all logged as Info messages
-// with level=0.
+// venafi-kubernetes-agent follows [Kubernetes Logging Conventions] and writes
+// logs in [Kubernetes JSON logging format] by default. It does not support
+// named levels (aka. severity), instead it uses arbitrary levels. Errors and
+// warnings are logged to stderr and Info messages to stdout, because that is
+// how some cloud logging systems (notably Google Cloud Logs Explorer) assign a
+// severity (INFO or ERROR) in the UI. The agent's and vcert's logs are written
+// logged as Info messages with level=0.
 //
 // Further reading:
-// - [Kubernetes logging conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-instrumentation/logging.md)
-// - [Kubernetes JSON logging format](https://kubernetes.io/docs/concepts/cluster-administration/system-logs/#json-log-format)
-// - [Why not named levels, like Info/Warning/Error?](https://github.com/go-logr/logr?tab=readme-ov-file#why-not-named-levels-like-infowarningerror)
-// - [GKE logs best practices](https://cloud.google.com/kubernetes-engine/docs/concepts/about-logs#best_practices)
-// - [Structured Logging KEP](https://github.com/kubernetes/enhancements/blob/master/keps/sig-instrumentation/1602-structured-logging/README.md)
-// - [Examples of using k8s.io/component-base/logs](https://github.com/kubernetes/kubernetes/tree/master/staging/src/k8s.io/component-base/logs/example),
-//   upon which this code was based.
+//  - [Kubernetes logging conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-instrumentation/logging.md)
+//  - [Kubernetes JSON logging format](https://kubernetes.io/docs/concepts/cluster-administration/system-logs/#json-log-format)
+//  - [Why not named levels, like Info/Warning/Error?](https://github.com/go-logr/logr?tab=readme-ov-file#why-not-named-levels-like-infowarningerror)
+//  - [GKE logs best practices](https://cloud.google.com/kubernetes-engine/docs/concepts/about-logs#best_practices)
+//  - [Structured Logging KEP](https://github.com/kubernetes/enhancements/blob/master/keps/sig-instrumentation/1602-structured-logging/README.md)
+//  - [Examples of using k8s.io/component-base/logs](https://github.com/kubernetes/kubernetes/tree/master/staging/src/k8s.io/component-base/logs/example),
+//    upon which this code was based.
 
 var (
 	// This is the Agent's logger. For now, it is still a *log.Logger, but we
@@ -103,17 +102,17 @@ func AddFlags(fs *pflag.FlagSet) {
 // Initialize uses k8s.io/component-base/logs, to configure the following global
 // loggers: log, slog, and klog. All are configured to write in the same format.
 func Initialize() {
-	// This configures the global logger in klog *and* slog, if compiled
-	// with Go >= 1.21.
+	// This configures the global logger in klog *and* slog, if compiled with Go
+	// >= 1.21.
 	logs.InitLogs()
 	if err := logsapi.ValidateAndApply(configuration, features); err != nil {
 		fmt.Fprintf(os.Stderr, "Error in logging configuration: %v\n", err)
 		os.Exit(2)
 	}
 
-	// Thanks to logs.InitLogs(), slog.Default() now uses klog as its backend.
-	// Thus, the client-go library, which relies on klog.Info, has the same
-	// logger as the agent, which still uses log.Printf.
+	// Thanks to logs.InitLogs, slog.Default now uses klog as its backend. Thus,
+	// the client-go library, which relies on klog.Info, has the same logger as
+	// the agent, which still uses log.Printf.
 	slog := slog.Default()
 
 	Log = &log.Logger{}
