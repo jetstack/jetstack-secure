@@ -8,13 +8,13 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	_ "github.com/Venafi/vcert/v5"
 	"github.com/spf13/pflag"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2"
 
@@ -64,54 +64,178 @@ func TestLogs(t *testing.T) {
 		flags         string
 		skipIntialize bool
 		expectError   bool
+		expectStdout  string
+		expectStderr  string
 	}{
 		{
 			name:        "help",
 			flags:       "-h",
 			expectError: true,
+			expectStdout: `
+pflag: help requested
+`,
+			expectStderr: `
+Usage of test-logs:
+      --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "json")
+  -v, --v Level                 number for the log level verbosity
+      --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
+`,
 		},
 		{
 			name:        "unrecognized-flag",
 			flags:       "--foo",
 			expectError: true,
+			expectStdout: `
+unknown flag: --foo
+`,
+			expectStderr: `
+unknown flag: --foo
+Usage of test-logs:
+      --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "json")
+  -v, --v Level                 number for the log level verbosity
+      --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
+`,
 		},
 		{
 			name:        "logging-format-unrecognized",
 			flags:       "--logging-format=foo",
 			expectError: true,
+			expectStderr: `
+Error in logging configuration: format: Invalid value: "foo": Unsupported log format
+`,
 		},
 		{
 			name:          "original-defaults",
 			flags:         "",
 			skipIntialize: true,
+			expectStderr: `
+vCert: 0000/00/00 00:00:00 log Print
+vCert: 0000/00/00 00:00:00 INFO slog Info
+vCert: 0000/00/00 00:00:00 WARN slog Warn
+vCert: 0000/00/00 00:00:00 ERROR slog Error
+I0000 00:00:00.000000   00000 logs_test.go:000] klog Info
+W0000 00:00:00.000000   00000 logs_test.go:000] klog Warning
+E0000 00:00:00.000000   00000 logs_test.go:000] "klog Error" err="fake-error"
+I0000 00:00:00.000000   00000 logs_test.go:000] "klog InfoS" key="value"
+E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-error" logger="foo" key="value"
+`,
 		},
 		{
 			name:  "modified-defaults",
 			flags: "",
+			expectStdout: `
+{"ts":0000000000000.000,"caller":"log/log.go:000","msg":"log Print","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Info","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Warning","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog InfoS","v":0,"key":"value"}
+`,
+			expectStderr: `
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Error"}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Error","err":"fake-error"}
+{"ts":0000000000000.000,"logger":"foo","caller":"logs/logs_test.go:000","msg":"Contextual error","key":"value","err":"fake-error"}
+`,
 		},
 		{
 			name:  "logging-format-json",
 			flags: "--logging-format=json",
+			expectStdout: `
+{"ts":0000000000000.000,"caller":"log/log.go:000","msg":"log Print","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Info","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Warning","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog InfoS","v":0,"key":"value"}
+`,
+			expectStderr: `
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Error"}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Error","err":"fake-error"}
+{"ts":0000000000000.000,"logger":"foo","caller":"logs/logs_test.go:000","msg":"Contextual error","key":"value","err":"fake-error"}
+`,
 		},
 		{
 			name:  "log-json-split-stream-false",
 			flags: "--logging-format=json --log-json-split-stream=false",
+			expectStderr: `
+{"ts":0000000000000.000,"caller":"log/log.go:000","msg":"log Print","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Error"}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Info","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Warning","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Error","err":"fake-error"}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog InfoS","v":0,"key":"value"}
+{"ts":0000000000000.000,"logger":"foo","caller":"logs/logs_test.go:000","msg":"Contextual error","key":"value","err":"fake-error"}
+`,
 		},
 		{
 			name:  "logging-format-text",
 			flags: "--logging-format=text",
+			expectStdout: `
+I0000 00:00:00.000000   00000 log.go:000] log Print
+I0000 00:00:00.000000   00000 logs_test.go:000] "slog Info"
+I0000 00:00:00.000000   00000 logs_test.go:000] klog Info
+I0000 00:00:00.000000   00000 logs_test.go:000] "klog InfoS" key="value"
+`,
+			expectStderr: `
+W0000 00:00:00.000000   00000 logs_test.go:000] "slog Warn"
+E0000 00:00:00.000000   00000 logs_test.go:000] "slog Error"
+W0000 00:00:00.000000   00000 logs_test.go:000] klog Warning
+E0000 00:00:00.000000   00000 logs_test.go:000] "klog Error" err="fake-error"
+E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-error" logger="foo" key="value"
+`,
 		},
 		{
 			name:  "log-text-split-stream-false",
 			flags: "--logging-format=text --log-text-split-stream=false",
+			expectStderr: `
+I0000 00:00:00.000000   00000 log.go:000] log Print
+I0000 00:00:00.000000   00000 logs_test.go:000] "slog Info"
+W0000 00:00:00.000000   00000 logs_test.go:000] "slog Warn"
+E0000 00:00:00.000000   00000 logs_test.go:000] "slog Error"
+I0000 00:00:00.000000   00000 logs_test.go:000] klog Info
+W0000 00:00:00.000000   00000 logs_test.go:000] klog Warning
+E0000 00:00:00.000000   00000 logs_test.go:000] "klog Error" err="fake-error"
+I0000 00:00:00.000000   00000 logs_test.go:000] "klog InfoS" key="value"
+E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-error" logger="foo" key="value"
+`,
 		},
 		{
 			name:  "v-level-3",
 			flags: "--v=3",
+			expectStdout: `
+{"ts":0000000000000.000,"caller":"log/log.go:000","msg":"log Print","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Info","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Warning","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog InfoS","v":0,"key":"value"}
+{"ts":0000000000000.000,"logger":"foo","caller":"logs/logs_test.go:000","msg":"Contextual Info Level 3","v":3,"key":"value"}
+`,
+			expectStderr: `
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Error"}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Error","err":"fake-error"}
+{"ts":0000000000000.000,"logger":"foo","caller":"logs/logs_test.go:000","msg":"Contextual error","key":"value","err":"fake-error"}
+`,
 		},
 		{
 			name:  "vmodule-level-3",
 			flags: "--logging-format=text --vmodule=logs_test=3",
+			expectStdout: `
+I0000 00:00:00.000000   00000 log.go:000] log Print
+I0000 00:00:00.000000   00000 logs_test.go:000] "slog Info"
+I0000 00:00:00.000000   00000 logs_test.go:000] klog Info
+I0000 00:00:00.000000   00000 logs_test.go:000] "klog InfoS" key="value"
+I0000 00:00:00.000000   00000 logs_test.go:000] "Contextual Info Level 3" logger="foo" key="value"
+`,
+			expectStderr: `
+W0000 00:00:00.000000   00000 logs_test.go:000] "slog Warn"
+E0000 00:00:00.000000   00000 logs_test.go:000] "slog Error"
+W0000 00:00:00.000000   00000 logs_test.go:000] klog Warning
+E0000 00:00:00.000000   00000 logs_test.go:000] "klog Error" err="fake-error"
+E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-error" logger="foo" key="value"
+`,
 		},
 	}
 
@@ -138,8 +262,10 @@ func TestLogs(t *testing.T) {
 
 			t.Logf("FLAGS\n%s\n", test.flags)
 			// Remove the standard output generated by `-test.v`
-			t.Logf("STDOUT\n%s\n", strings.TrimPrefix(stdout.String(), "=== RUN   TestLogs\n"))
-			t.Logf("STDERR\n%s\n", stderr.String())
+			stdoutStr := strings.TrimPrefix(stdout.String(), "=== RUN   TestLogs\n")
+			stderrStr := stderr.String()
+			t.Logf("STDOUT\n%s\n", stdoutStr)
+			t.Logf("STDERR\n%s\n", stderrStr)
 			if test.expectError {
 				var target *exec.ExitError
 				require.ErrorAs(t, err, &target)
@@ -148,6 +274,45 @@ func TestLogs(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+
+			// This trick helps with the readability of the table test: we can
+			// have the first "expected" log line at the same level as the other
+			// lines.
+			test.expectStdout = strings.TrimPrefix(test.expectStdout, "\n")
+			test.expectStderr = strings.TrimPrefix(test.expectStderr, "\n")
+
+			require.Equal(t, test.expectStdout, replaceWithStaticTimestamps(stdoutStr), "stdout doesn't match")
+			require.Equal(t, test.expectStderr, replaceWithStaticTimestamps(stderrStr), "stderr doesn't match")
 		})
 	}
+}
+
+var (
+	timestampRegexpStdLog = regexp.MustCompile(`\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}`)
+	timestampRegexpKlog   = regexp.MustCompile(`\d{4} \d{2}:\d{2}:\d{2}\.\d{6}   \d{5}`)
+	timestampRegexpJSON   = regexp.MustCompile(`"ts":\d+\.\d+`)
+	fileAndLineRegexpJSON = regexp.MustCompile(`"caller":"([^"]+).go:\d+"`)
+	fileAndLineRegexpKlog = regexp.MustCompile(` ([^:]+).go:\d+`)
+)
+
+// Replaces the klog and JSON timestamps with a static timestamp to make it
+// easier to assert the logs. It also replaces the line number with 000 as it
+// often changes.
+//
+//	I1018 15:12:57.953433   22183 logs.go:000] log
+//	{"ts":1729258473588.828,"caller":"log/log.go:000","msg":"log Print","v":0}
+//	2024/10/18 15:40:50 log Print
+//
+// to the fixed:
+//
+//	I0000 00:00:00.000000   00000 logs.go:000] log
+//	{"ts":0000000000000.000,"caller":"log/log.go:000","msg":"log Print","v":0}
+//	0000/00/00 00:00:00 log Print
+func replaceWithStaticTimestamps(input string) string {
+	input = timestampRegexpKlog.ReplaceAllString(input, "0000 00:00:00.000000   00000")
+	input = timestampRegexpJSON.ReplaceAllString(input, `"ts":0000000000000.000`)
+	input = timestampRegexpStdLog.ReplaceAllString(input, "0000/00/00 00:00:00")
+	input = fileAndLineRegexpJSON.ReplaceAllString(input, `"caller":"$1.go:000"`)
+	input = fileAndLineRegexpKlog.ReplaceAllString(input, " $1.go:000")
+	return input
 }
