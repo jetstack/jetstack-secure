@@ -36,7 +36,12 @@ func TestLogs(t *testing.T) {
 			logs.AddFlags(fs)
 			fs.Parse(strings.Split(flags, " "))
 			logs.Initialize()
-			assert.Equal(t, "", log.Prefix(), "removes the `vCert: ` prefix from the global log logger")
+
+			// Remember to not use `assert.Equal` from within the sub-process
+			// since (for some reason) `assert.Equal` doesn't cause the test
+			// sub-process to exit with 1. Instead, it exits with 0, which means
+			// we can't notice the error from the parent process.
+			require.Equal(t, "", log.Prefix(), "logs.Initialize should remove the `vCert: ` prefix from the global log logger")
 		}
 
 		log.Print("log Print")
