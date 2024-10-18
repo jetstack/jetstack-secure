@@ -77,8 +77,8 @@ pflag: help requested
 `,
 			expectStderr: `
 Usage of test-logs:
+  -v, --log-level Level         number for the log level verbosity
       --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "json")
-  -v, --v Level                 number for the log level verbosity
       --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
 `,
 		},
@@ -92,8 +92,23 @@ unknown flag: --foo
 			expectStderr: `
 unknown flag: --foo
 Usage of test-logs:
+  -v, --log-level Level         number for the log level verbosity
       --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "json")
-  -v, --v Level                 number for the log level verbosity
+      --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
+`,
+		},
+		{
+			name:        "v-long-form-not-available",
+			flags:       "--v=3",
+			expectError: true,
+			expectStdout: `
+unknown flag: --v
+`,
+			expectStderr: `
+unknown flag: --v
+Usage of test-logs:
+  -v, --log-level Level         number for the log level verbosity
+      --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "json")
       --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
 `,
 		},
@@ -204,7 +219,7 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 		},
 		{
 			name:  "v-level-3",
-			flags: "--v=3",
+			flags: "-v=3",
 			expectStdout: `
 {"ts":0000000000000.000,"caller":"logs/logs.go:000","msg":"log Print","source":"vcert","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
@@ -213,6 +228,23 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Warning","v":0}
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog InfoS","v":0,"key":"value"}
 {"ts":0000000000000.000,"logger":"foo","caller":"logs/logs_test.go:000","msg":"Contextual Info Level 3","v":3,"key":"value"}
+`,
+			expectStderr: `
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Error"}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Error","err":"fake-error"}
+{"ts":0000000000000.000,"logger":"foo","caller":"logs/logs_test.go:000","msg":"Contextual error","key":"value","err":"fake-error"}
+`,
+		},
+		{
+			name:  "v-level-long-form",
+			flags: "--log-level=0",
+			expectStdout: `
+{"ts":0000000000000.000,"caller":"logs/logs.go:000","msg":"log Print","source":"vcert","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Info","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Warning","v":0}
+{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog InfoS","v":0,"key":"value"}
 `,
 			expectStderr: `
 {"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Error"}
