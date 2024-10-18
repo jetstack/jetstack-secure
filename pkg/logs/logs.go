@@ -78,6 +78,7 @@ func AddFlags(fs *pflag.FlagSet) {
 		if !visibleFlagNames.Has(f.Name) {
 			tfs.MarkHidden(f.Name)
 		}
+
 		// The default is "text" and the usage string includes details about how
 		// JSON logging is only available when BETA logging features are
 		// enabled, but that's not relevant here because the feature is enabled
@@ -94,6 +95,17 @@ func AddFlags(fs *pflag.FlagSet) {
 		if f.Name == "log-json-split-stream" {
 			f.DefValue = "true"
 			runtime.Must(f.Value.Set("true"))
+		}
+
+		// Since `--v` (which is the long form of `-v`) isn't the standard in
+		// our projects (it only exists in cert-manager, webhook, and such),
+		// let's rename it to the more commong `--log-level`, which appears in
+		// openshift-routes, csi-driver, trust-manager, and approver-policy.
+		// More details at:
+		// https://github.com/jetstack/jetstack-secure/pull/596#issuecomment-2421708181
+		if f.Name == "v" {
+			f.Name = "log-level"
+			f.Shorthand = "v"
 		}
 	})
 	fs.AddFlagSet(&tfs)
