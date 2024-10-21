@@ -52,17 +52,22 @@ func getObject(version, kind, name, namespace string, withManagedFields bool) *u
 	}
 }
 
-func getSecret(name, namespace string, data map[string]interface{}, isTLS bool, withLastApplied bool) *unstructured.Unstructured {
+type secretType string
+
+var (
+	opaque secretType = "Opaque"
+	tls    secretType = "kubernetes.io/tls"
+	istio  secretType = "istio.io/ca-root"
+)
+
+func getSecret(name, namespace string, data map[string]interface{}, t secretType, withLastApplied bool) *unstructured.Unstructured {
 	object := getObject("v1", "Secret", name, namespace, false)
 
 	if data != nil {
 		object.Object["data"] = data
 	}
 
-	object.Object["type"] = "Opaque"
-	if isTLS {
-		object.Object["type"] = "kubernetes.io/tls"
-	}
+	object.Object["type"] = string(t)
 
 	metadata, _ := object.Object["metadata"].(map[string]interface{})
 	annotations := make(map[string]interface{})
@@ -538,17 +543,17 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			addObjects: []runtime.Object{
 				getSecret("testsecret", "testns1", map[string]interface{}{
 					"secretKey": "secretValue",
-				}, false, true),
+				}, opaque, true),
 				getSecret("anothertestsecret", "testns2", map[string]interface{}{
 					"secretNumber": "12345",
-				}, false, true),
+				}, opaque, true),
 			},
 			expected: []*api.GatheredResource{
 				{
-					Resource: getSecret("testsecret", "testns1", nil, false, false),
+					Resource: getSecret("testsecret", "testns1", nil, opaque, false),
 				},
 				{
-					Resource: getSecret("anothertestsecret", "testns2", nil, false, false),
+					Resource: getSecret("anothertestsecret", "testns2", nil, opaque, false),
 				},
 			},
 		},
@@ -562,11 +567,11 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 					"tls.key": "secretValue",
 					"tls.crt": "value",
 					"ca.crt":  "value",
-				}, true, true),
+				}, tls, true),
 				getSecret("anothertestsecret", "testns2", map[string]interface{}{
 					"example.key": "secretValue",
 					"example.crt": "value",
-				}, true, true),
+				}, tls, true),
 			},
 			expected: []*api.GatheredResource{
 				{
@@ -574,11 +579,43 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 					Resource: getSecret("testsecret", "testns1", map[string]interface{}{
 						"tls.crt": "value",
 						"ca.crt":  "value",
-					}, true, false),
+					}, tls, false),
 				},
 				{
 					// all other keys removed
-					Resource: getSecret("anothertestsecret", "testns2", nil, true, false),
+					Resource: getSecret("anothertestsecret", "testns2", nil, tls, false),
+				},
+			},
+		},
+		"Secret of type istio.io/ca-root should have crts and not keys": {
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+			},
+			addObjects: []runtime.Object{
+				getSecret("cacerts", "testns1", map[string]interface{}{
+					"root-cert.pem":  "cert",
+					"ca-cert.pem":    "cert",
+					"ca-key.pem":     "privatekey",
+					"cert-chain.pem": "cert",
+				}, opaque, true),
+				getSecret("istio-ca-secret", "testns2", map[string]interface{}{
+					"ca-cert.pem": "cert",
+					"ca-key.pem":  "privatekey",
+				}, istio, true),
+			},
+			expected: []*api.GatheredResource{
+				{
+					Resource: getSecret("cacerts", "testns1", map[string]interface{}{
+						"root-cert.pem":  "cert",
+						"ca-cert.pem":    "cert",
+						"cert-chain.pem": "cert",
+					}, opaque, false),
+				},
+				{
+					Resource: getSecret("istio-ca-secret", "testns2", map[string]interface{}{
+						"ca-cert.pem": "cert",
+					}, istio, false),
 				},
 			},
 		},
