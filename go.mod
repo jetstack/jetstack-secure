@@ -3,14 +3,12 @@ module github.com/jetstack/preflight
 go 1.22.0
 
 require (
-	github.com/Jeffail/gabs/v2 v2.7.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/d4l3k/messagediff v1.2.1
 	github.com/fatih/color v1.17.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jetstack/venafi-connection-lib v0.1.1-0.20240909145535-cd2301fd4e7c
-	github.com/json-iterator/go v1.1.12
 	github.com/maxatome/go-testdeep v1.14.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pkg/errors v0.9.1
@@ -44,6 +42,7 @@ require (
 	github.com/google/gnostic-models v0.6.9-0.20230804172637-c7be7c783f49 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
+	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/sosodev/duration v1.2.0 // indirect

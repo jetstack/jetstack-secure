@@ -18,10 +18,10 @@ func TestSelect(t *testing.T) {
 			"metadata": map[string]interface{}{
 				"name":      "example",
 				"namespace": "example",
-				"annotations": map[string]string{
+				"annotations": map[string]interface{}{
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
 				},
-				"labels": map[string]string{
+				"labels": map[string]interface{}{
 					"foo": "bar",
 				},
 			},
@@ -61,16 +61,16 @@ func TestSelect(t *testing.T) {
 			"kind":       "Route",
 			"metadata": map[string]interface{}{
 				"name": "example",
-				"annotations": map[string]string{
+				"annotations": map[string]interface{}{
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
 				},
-				"labels": map[string]string{
+				"labels": map[string]interface{}{
 					"foo": "bar",
 				},
 			},
 			"spec": map[string]interface{}{
 				"host": "www.example.com",
-				"to": map[string]string{
+				"to": map[string]interface{}{
 					"kind": "Service",
 					"name": "frontend",
 				},
@@ -112,7 +112,7 @@ func TestSelect(t *testing.T) {
 	))
 }
 
-func run_TestSelect(given map[string]interface{}, givenSelect []string, expect map[string]interface{}) func(*testing.T) {
+func run_TestSelect(given map[string]interface{}, givenSelect []FieldPath, expect map[string]interface{}) func(*testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		givenPtr := unstructured.Unstructured{Object: given}
@@ -130,10 +130,9 @@ func TestSelectMissingSelectedField(t *testing.T) {
 		},
 	}
 
-	fieldsToSelect := []string{
-		"kind", // required for unstructured unmarshal
-		"missing",
-		"/missing",
+	fieldsToSelect := []FieldPath{
+		{"kind"}, // required for unstructured unmarshal
+		{"missing"},
 	}
 
 	err := Select(fieldsToSelect, resource)
@@ -156,7 +155,7 @@ func TestRedactSecret(t *testing.T) {
 			"metadata": map[string]interface{}{
 				"name":      "example",
 				"namespace": "example",
-				"annotations": map[string]string{
+				"annotations": map[string]interface{}{
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
 				},
 				"managedFields": nil,
@@ -169,10 +168,10 @@ func TestRedactSecret(t *testing.T) {
 		},
 	}
 
-	fieldsToRedact := []string{
-		"metadata.managedFields",
-		"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration",
-		"/data/tls.key",
+	fieldsToRedact := []FieldPath{
+		{"metadata", "managedFields"},
+		{"metadata", "annotations", "kubectl.kubernetes.io/last-applied-configuration"},
+		{"data", "tls.key"},
 	}
 
 	err := Redact(fieldsToRedact, resource)
@@ -213,8 +212,8 @@ func TestRedactPod(t *testing.T) {
 		},
 	}
 
-	fieldsToRedact := []string{
-		"metadata.managedFields",
+	fieldsToRedact := []FieldPath{
+		{"metadata", "managedFields"},
 	}
 
 	err := Redact(fieldsToRedact, resource)
@@ -244,9 +243,8 @@ func TestRedactMissingField(t *testing.T) {
 		},
 	}
 
-	fieldsToRedact := []string{
-		"missing",
-		"/missing",
+	fieldsToRedact := []FieldPath{
+		{"missing"},
 	}
 
 	err := Redact(fieldsToRedact, resource)
