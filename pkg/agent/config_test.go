@@ -383,7 +383,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				organization_id: foo
 				cluster_id: bar
 				`)),
-			withCmdLineFlags("--disable-compression", "--credentials-file", path))
+			withCmdLineFlags("--disable-compression", "--credentials-file", path, "--install-namespace", "venafi"))
 		require.EqualError(t, err, "1 error occurred:\n\t* --disable-compression can only be used with the Venafi Cloud Key Pair Service Account and Venafi Cloud VenafiConnection modes\n\n")
 	})
 
@@ -674,8 +674,9 @@ func Test_ValidateAndCombineConfig_VenafiCloudKeyPair(t *testing.T) {
 				  uploader_id: no
 				  upload_path: /v1/tlspk/upload/clusterdata
 			`)),
-			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath),
+			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath, "--install-namespace", "venafi"),
 		)
+		require.NoError(t, err)
 		testutil.TrustCA(t, cl, cert)
 		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
 		require.NoError(t, err)
@@ -712,8 +713,9 @@ func Test_ValidateAndCombineConfig_VenafiCloudKeyPair(t *testing.T) {
 				  uploader_id: no
 				  upload_path: /v1/tlspk/upload/clusterdata
 			`)),
-			withCmdLineFlags("--disable-compression", "--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath),
+			withCmdLineFlags("--disable-compression", "--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath, "--install-namespace", "venafi"),
 		)
+		require.NoError(t, err)
 		testutil.TrustCA(t, cl, cert)
 		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
 		require.NoError(t, err)
