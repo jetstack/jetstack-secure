@@ -78,7 +78,7 @@ pflag: help requested
 			expectStderr: `
 Usage of test-logs:
   -v, --log-level Level         number for the log level verbosity
-      --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "json")
+      --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "text")
       --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
 `,
 		},
@@ -93,7 +93,7 @@ unknown flag: --foo
 unknown flag: --foo
 Usage of test-logs:
   -v, --log-level Level         number for the log level verbosity
-      --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "json")
+      --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "text")
       --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
 `,
 		},
@@ -108,7 +108,7 @@ unknown flag: --v
 unknown flag: --v
 Usage of test-logs:
   -v, --log-level Level         number for the log level verbosity
-      --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "json")
+      --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "text")
       --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
 `,
 		},
@@ -140,17 +140,17 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 			name:  "modified-defaults",
 			flags: "",
 			expectStdout: `
-{"ts":0000000000000.000,"caller":"logs/logs.go:000","msg":"log Print","source":"vcert","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Info","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Warning","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog InfoS","v":0,"key":"value"}
+I0000 00:00:00.000000   00000 logs.go:000] "log Print" source="vcert"
+I0000 00:00:00.000000   00000 logs_test.go:000] "slog Info"
+I0000 00:00:00.000000   00000 logs_test.go:000] klog Info
+I0000 00:00:00.000000   00000 logs_test.go:000] "klog InfoS" key="value"
 `,
 			expectStderr: `
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Error"}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Error","err":"fake-error"}
-{"ts":0000000000000.000,"logger":"foo","caller":"logs/logs_test.go:000","msg":"Contextual error","key":"value","err":"fake-error"}
+W0000 00:00:00.000000   00000 logs_test.go:000] "slog Warn"
+E0000 00:00:00.000000   00000 logs_test.go:000] "slog Error"
+W0000 00:00:00.000000   00000 logs_test.go:000] klog Warning
+E0000 00:00:00.000000   00000 logs_test.go:000] "klog Error" err="fake-error"
+E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-error" logger="foo" key="value"
 `,
 		},
 		{
@@ -221,40 +221,41 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 			name:  "v-level-3",
 			flags: "-v=3",
 			expectStdout: `
-{"ts":0000000000000.000,"caller":"logs/logs.go:000","msg":"log Print","source":"vcert","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Info","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Warning","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog InfoS","v":0,"key":"value"}
-{"ts":0000000000000.000,"logger":"foo","caller":"logs/logs_test.go:000","msg":"Contextual Info Level 3","v":3,"key":"value"}
+I0000 00:00:00.000000   00000 logs.go:000] "log Print" source="vcert"
+I0000 00:00:00.000000   00000 logs_test.go:000] "slog Info"
+I0000 00:00:00.000000   00000 logs_test.go:000] klog Info
+I0000 00:00:00.000000   00000 logs_test.go:000] "klog InfoS" key="value"
+I0000 00:00:00.000000   00000 logs_test.go:000] "Contextual Info Level 3" logger="foo" key="value"
 `,
 			expectStderr: `
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Error"}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Error","err":"fake-error"}
-{"ts":0000000000000.000,"logger":"foo","caller":"logs/logs_test.go:000","msg":"Contextual error","key":"value","err":"fake-error"}
+W0000 00:00:00.000000   00000 logs_test.go:000] "slog Warn"
+E0000 00:00:00.000000   00000 logs_test.go:000] "slog Error"
+W0000 00:00:00.000000   00000 logs_test.go:000] klog Warning
+E0000 00:00:00.000000   00000 logs_test.go:000] "klog Error" err="fake-error"
+E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-error" logger="foo" key="value"
 `,
 		},
 		{
-			name:  "v-level-long-form",
-			flags: "--log-level=0",
+			name:  "log-level-3",
+			flags: "--log-level=3",
 			expectStdout: `
-{"ts":0000000000000.000,"caller":"logs/logs.go:000","msg":"log Print","source":"vcert","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Info","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Warning","v":0}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog InfoS","v":0,"key":"value"}
+I0000 00:00:00.000000   00000 logs.go:000] "log Print" source="vcert"
+I0000 00:00:00.000000   00000 logs_test.go:000] "slog Info"
+I0000 00:00:00.000000   00000 logs_test.go:000] klog Info
+I0000 00:00:00.000000   00000 logs_test.go:000] "klog InfoS" key="value"
+I0000 00:00:00.000000   00000 logs_test.go:000] "Contextual Info Level 3" logger="foo" key="value"
 `,
 			expectStderr: `
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Error"}
-{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"klog Error","err":"fake-error"}
-{"ts":0000000000000.000,"logger":"foo","caller":"logs/logs_test.go:000","msg":"Contextual error","key":"value","err":"fake-error"}
+W0000 00:00:00.000000   00000 logs_test.go:000] "slog Warn"
+E0000 00:00:00.000000   00000 logs_test.go:000] "slog Error"
+W0000 00:00:00.000000   00000 logs_test.go:000] klog Warning
+E0000 00:00:00.000000   00000 logs_test.go:000] "klog Error" err="fake-error"
+E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-error" logger="foo" key="value"
 `,
 		},
 		{
 			name:  "vmodule-level-3",
-			flags: "--logging-format=text --vmodule=logs_test=3",
+			flags: "--vmodule=logs_test=3",
 			expectStdout: `
 I0000 00:00:00.000000   00000 logs.go:000] "log Print" source="vcert"
 I0000 00:00:00.000000   00000 logs_test.go:000] "slog Info"

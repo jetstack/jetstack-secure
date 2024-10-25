@@ -18,7 +18,7 @@ import (
 )
 
 // venafi-kubernetes-agent follows [Kubernetes Logging Conventions] and writes
-// logs in [Kubernetes JSON logging format] by default. It does not support
+// logs in [Kubernetes text logging format] by default. It does not support
 // named levels (aka. severity), instead it uses arbitrary levels. Errors and
 // warnings are logged to stderr and Info messages to stdout, because that is
 // how some cloud logging systems (notably Google Cloud Logs Explorer) assign a
@@ -27,7 +27,7 @@ import (
 //
 // Further reading:
 //  - [Kubernetes logging conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-instrumentation/logging.md)
-//  - [Kubernetes JSON logging format](https://kubernetes.io/docs/concepts/cluster-administration/system-logs/#json-log-format)
+//  - [Kubernetes text logging format](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-instrumentation/logging.md#text-logging-format)
 //  - [Why not named levels, like Info/Warning/Error?](https://github.com/go-logr/logr?tab=readme-ov-file#why-not-named-levels-like-infowarningerror)
 //  - [GKE logs best practices](https://cloud.google.com/kubernetes-engine/docs/concepts/about-logs#best_practices)
 //  - [Structured Logging KEP](https://github.com/kubernetes/enhancements/blob/master/keps/sig-instrumentation/1602-structured-logging/README.md)
@@ -79,14 +79,12 @@ func AddFlags(fs *pflag.FlagSet) {
 			tfs.MarkHidden(f.Name)
 		}
 
-		// The default is "text" and the usage string includes details about how
+		// The original usage string includes details about how
 		// JSON logging is only available when BETA logging features are
 		// enabled, but that's not relevant here because the feature is enabled
 		// by default.
 		if f.Name == "logging-format" {
 			f.Usage = `Sets the log format. Permitted formats: "json", "text".`
-			f.DefValue = "json"
-			runtime.Must(f.Value.Set("json"))
 		}
 		if f.Name == "log-text-split-stream" {
 			f.DefValue = "true"
@@ -99,7 +97,7 @@ func AddFlags(fs *pflag.FlagSet) {
 
 		// Since `--v` (which is the long form of `-v`) isn't the standard in
 		// our projects (it only exists in cert-manager, webhook, and such),
-		// let's rename it to the more commong `--log-level`, which appears in
+		// let's rename it to the more common `--log-level`, which appears in
 		// openshift-routes, csi-driver, trust-manager, and approver-policy.
 		// More details at:
 		// https://github.com/jetstack/jetstack-secure/pull/596#issuecomment-2421708181
