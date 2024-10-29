@@ -50,7 +50,7 @@ var Flags AgentCmdFlags
 const schemaVersion string = "v2.0.0"
 
 // Run starts the agent process
-func Run(cmd *cobra.Command, args []string) {
+func Run(cmd *cobra.Command, args []string) error {
 	logs.Log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
 	ctx, cancel := context.WithCancel(
 		klog.NewContext(
@@ -62,31 +62,33 @@ func Run(cmd *cobra.Command, args []string) {
 
 	file, err := os.Open(Flags.ConfigFilePath)
 	if err != nil {
-		logs.Log.Fatalf("Failed to load config file for agent from: %s", Flags.ConfigFilePath)
+		return fmt.Errorf("Failed to load config file for agent from: %s", Flags.ConfigFilePath)
 	}
 	defer file.Close()
 
 	b, err := io.ReadAll(file)
 	if err != nil {
-		logs.Log.Fatalf("Failed to read config file: %s", err)
+		return fmt.Errorf("Failed to read config file: %s", err)
 	}
 
 	cfg, err := ParseConfig(b)
 	if err != nil {
-		logs.Log.Fatalf("Failed to parse config file: %s", err)
+		return fmt.Errorf("Failed to parse config file: %s", err)
 	}
 
 	config, preflightClient, err := ValidateAndCombineConfig(logs.Log, cfg, Flags)
 	if err != nil {
-		logs.Log.Fatalf("While evaluating configuration: %v", err)
+		return fmt.Errorf("While evaluating configuration: %v", err)
 	}
 
 	group, gctx := errgroup.WithContext(ctx)
 	defer func() {
-		// TODO: replace Fatalf log calls with Errorf and return the error
 		cancel()
-		if err := group.Wait(); err != nil {
-			logs.Log.Fatalf("failed to wait for controller-runtime component to stop: %v", err)
+		if groupErr := group.Wait(); groupErr != nil {
+			err = multierror.Append(
+				err,
+				fmt.Errorf("failed to wait for controller-runtime component to stop: %v", groupErr),
+			)
 		}
 	}()
 
@@ -159,7 +161,7 @@ func Run(cmd *cobra.Command, args []string) {
 	// the agent pod's events.
 	eventf, err := newEventf(config.InstallNS)
 	if err != nil {
-		logs.Log.Fatalf("failed to create event recorder: %v", err)
+		return fmt.Errorf("failed to create event recorder: %v", err)
 	}
 
 	dataGatherers := map[string]datagatherer.DataGatherer{}
@@ -169,12 +171,12 @@ func Run(cmd *cobra.Command, args []string) {
 		kind := dgConfig.Kind
 		if dgConfig.DataPath != "" {
 			kind = "local"
-			logs.Log.Fatalf("running data gatherer %s of type %s as Local, data-path override present: %s", dgConfig.Name, dgConfig.Kind, dgConfig.DataPath)
+			return fmt.Errorf("running data gatherer %s of type %s as Local, data-path override present: %s", dgConfig.Name, dgConfig.Kind, dgConfig.DataPath)
 		}
 
 		newDg, err := dgConfig.Config.NewDataGatherer(gctx)
 		if err != nil {
-			logs.Log.Fatalf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
+			return fmt.Errorf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
 		}
 
 		logs.Log.Printf("starting %q datagatherer", dgConfig.Name)
@@ -225,7 +227,9 @@ func Run(cmd *cobra.Command, args []string) {
 	// TODO(wallrj): Pass a context to gatherAndOutputData, so that we don't
 	// have to wait for it to finish before exiting the process.
 	for {
-		gatherAndOutputData(eventf, config, preflightClient, dataGatherers)
+		if err := gatherAndOutputData(eventf, config, preflightClient, dataGatherers); err != nil {
+			return err
+		}
 
 		if config.OneShot {
 			break
@@ -233,10 +237,11 @@ func Run(cmd *cobra.Command, args []string) {
 
 		select {
 		case <-gctx.Done():
-			return
+			return nil
 		case <-time.After(config.Period):
 		}
 	}
+	return nil
 }
 
 // Creates an event recorder for the agent's Pod object. Expects the env var
@@ -246,7 +251,7 @@ func Run(cmd *cobra.Command, args []string) {
 func newEventf(installNS string) (Eventf, error) {
 	restcfg, err := kubeconfig.LoadRESTConfig("")
 	if err != nil {
-		logs.Log.Fatalf("failed to load kubeconfig: %v", err)
+		return nil, fmt.Errorf("failed to load kubeconfig: %v", err)
 	}
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
@@ -276,31 +281,35 @@ func newEventf(installNS string) (Eventf, error) {
 // Like Printf but for sending events to the agent's Pod object.
 type Eventf func(eventType, reason, msg string, args ...interface{})
 
-func gatherAndOutputData(eventf Eventf, config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) {
+func gatherAndOutputData(eventf Eventf, config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) error {
 	var readings []*api.DataReading
 
 	if config.InputPath != "" {
 		logs.Log.Printf("Reading data from local file: %s", config.InputPath)
 		data, err := os.ReadFile(config.InputPath)
 		if err != nil {
-			logs.Log.Fatalf("failed to read local data file: %s", err)
+			return fmt.Errorf("failed to read local data file: %s", err)
 		}
 		err = json.Unmarshal(data, &readings)
 		if err != nil {
-			logs.Log.Fatalf("failed to unmarshal local data file: %s", err)
+			return fmt.Errorf("failed to unmarshal local data file: %s", err)
 		}
 	} else {
-		readings = gatherData(config, dataGatherers)
+		var err error
+		readings, err = gatherData(config, dataGatherers)
+		if err != nil {
+			return err
+		}
 	}
 
 	if config.OutputPath != "" {
 		data, err := json.MarshalIndent(readings, "", "  ")
 		if err != nil {
-			logs.Log.Fatal("failed to marshal JSON")
+			return fmt.Errorf("failed to marshal JSON: %s", err)
 		}
 		err = os.WriteFile(config.OutputPath, data, 0644)
 		if err != nil {
-			logs.Log.Fatalf("failed to output to local file: %s", err)
+			return fmt.Errorf("failed to output to local file: %s", err)
 		}
 		logs.Log.Printf("Data saved to local file: %s", config.OutputPath)
 	} else {
@@ -316,12 +325,13 @@ func gatherAndOutputData(eventf Eventf, config CombinedConfig, preflightClient c
 			logs.Log.Printf("retrying in %v after error: %s", t, err)
 		})
 		if err != nil {
-			logs.Log.Fatalf("Exiting due to fatal error uploading: %v", err)
+			return fmt.Errorf("Exiting due to fatal error uploading: %v", err)
 		}
 	}
+	return nil
 }
 
-func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
+func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.DataGatherer) ([]*api.DataReading, error) {
 	var readings []*api.DataReading
 
 	var dgError *multierror.Error
@@ -360,10 +370,10 @@ func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.Dat
 	}
 
 	if config.StrictMode && dgError.ErrorOrNil() != nil {
-		logs.Log.Fatalf("halting datagathering in strict mode due to error: %s", dgError.ErrorOrNil())
+		return nil, fmt.Errorf("halting datagathering in strict mode due to error: %s", dgError.ErrorOrNil())
 	}
 
-	return readings
+	return readings, nil
 }
 
 func postData(config CombinedConfig, preflightClient client.Client, readings []*api.DataReading) error {
@@ -388,7 +398,7 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 	if config.OrganizationID == "" {
 		data, err := json.Marshal(readings)
 		if err != nil {
-			logs.Log.Fatalf("Cannot marshal readings: %+v", err)
+			return fmt.Errorf("Cannot marshal readings: %+v", err)
 		}
 
 		// log and collect metrics about the upload size
