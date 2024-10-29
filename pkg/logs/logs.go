@@ -64,11 +64,8 @@ func init() {
 
 // AddFlags adds log related flags to the supplied flag set.
 //
-// The default logging format is changed to JSON. The default in Kubernetes
-// component base is "text", for backwards compatibility, but that is not a
-// concern for venafi-kubernetes-agent.
 // The split-stream options are enabled by default, so that errors are logged to
-// stderr and info to stdout, allowing cloud logging systems to assign an
+// stderr and info to stdout, allowing cloud logging systems to assign a
 // severity INFO or ERROR to the messages.
 func AddFlags(fs *pflag.FlagSet) {
 	var tfs pflag.FlagSet
