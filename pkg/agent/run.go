@@ -74,7 +74,16 @@ func Run(cmd *cobra.Command, args []string) {
 		logs.Log.Fatalf("While evaluating configuration: %v", err)
 	}
 
-	go func() {
+	group, gctx := errgroup.WithContext(ctx)
+	defer func() {
+		// TODO: replace Fatalf log calls with Errorf and return the error
+		cancel()
+		if err := group.Wait(); err != nil {
+			logs.Log.Fatalf("failed to wait for controller-runtime component to stop: %v", err)
+		}
+	}()
+
+	group.Go(func() error {
 		server := http.NewServeMux()
 
 		if Flags.Profiling {
@@ -105,21 +114,25 @@ func Run(cmd *cobra.Command, args []string) {
 
 		err := http.ListenAndServe(":8081", server)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logs.Log.Fatalf("failed to run the health check server: %s", err)
+			return fmt.Errorf("failed to run the health check server: %s", err)
 		}
-	}()
+		// The agent must stop if the management server stops
+		cancel()
+		return nil
+	})
 
 	_, isVenConn := preflightClient.(*client.VenConnClient)
 	if isVenConn {
-		go func() {
-			err := preflightClient.(manager.Runnable).Start(ctx)
+		group.Go(func() error {
+			err := preflightClient.(manager.Runnable).Start(gctx)
 			if err != nil {
-				logs.Log.Fatalf("failed to start a controller-runtime component: %v", err)
+				return fmt.Errorf("failed to start a controller-runtime component: %v", err)
 			}
 
 			// The agent must stop if the controller-runtime component stops.
 			cancel()
-		}()
+			return nil
+		})
 	}
 
 	// To help users notice issues with the agent, we show the error messages in
@@ -130,15 +143,6 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 
 	dataGatherers := map[string]datagatherer.DataGatherer{}
-	group, gctx := errgroup.WithContext(ctx)
-
-	defer func() {
-		// TODO: replace Fatalf log calls with Errorf and return the error
-		cancel()
-		if err := group.Wait(); err != nil {
-			logs.Log.Fatalf("failed to wait for controller-runtime component to stop: %v", err)
-		}
-	}()
 
 	// load datagatherer config and boot each one
 	for _, dgConfig := range config.DataGatherers {
@@ -160,6 +164,8 @@ func Run(cmd *cobra.Command, args []string) {
 			if err := newDg.Run(gctx.Done()); err != nil {
 				return fmt.Errorf("failed to start %q data gatherer %q: %v", kind, dgConfig.Name, err)
 			}
+			// The agent must stop if any of the data gatherers stops
+			cancel()
 			return nil
 		})
 
@@ -192,7 +198,12 @@ func Run(cmd *cobra.Command, args []string) {
 
 	// begin the datagathering loop, periodically sending data to the
 	// configured output using data in datagatherer caches or refreshing from
-	// APIs each cycle depending on datagatherer implementation
+	// APIs each cycle depending on datagatherer implementation.
+	// If any of the go routines exit (with nil or error) the main context will
+	// be cancelled, which will cause this blocking loop to exit
+	// instead of waiting for the time period.
+	// TODO(wallrj): Pass a context to gatherAndOutputData, so that we don't
+	// have to wait for it to finish before exiting the process.
 	for {
 		gatherAndOutputData(eventf, config, preflightClient, dataGatherers)
 
@@ -200,7 +211,11 @@ func Run(cmd *cobra.Command, args []string) {
 			break
 		}
 
-		time.Sleep(config.Period)
+		select {
+		case <-gctx.Done():
+			return
+		case <-time.After(config.Period):
+		}
 	}
 }
 
