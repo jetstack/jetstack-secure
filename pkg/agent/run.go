@@ -34,7 +34,7 @@ import (
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 
-	_ "net/http/pprof"
+	"net/http/pprof"
 )
 
 var Flags AgentCmdFlags
@@ -74,18 +74,17 @@ func Run(cmd *cobra.Command, args []string) {
 		logs.Log.Fatalf("While evaluating configuration: %v", err)
 	}
 
-	if Flags.Profiling {
-		logs.Log.Printf("pprof profiling was enabled.\nRunning profiling on port :6060")
-		go func() {
-			err := http.ListenAndServe(":6060", nil)
-			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logs.Log.Fatalf("failed to run pprof profiler: %s", err)
-			}
-		}()
-	}
-
 	go func() {
 		server := http.NewServeMux()
+
+		if Flags.Profiling {
+			logs.Log.Printf("pprof profiling was enabled.")
+			server.HandleFunc("/debug/pprof/", pprof.Index)
+			server.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+			server.HandleFunc("/debug/pprof/profile", pprof.Profile)
+			server.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+			server.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		}
 
 		if Flags.Prometheus {
 			logs.Log.Printf("Prometheus was enabled.\nRunning prometheus on port :8081")
