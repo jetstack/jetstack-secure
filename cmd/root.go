@@ -23,6 +23,14 @@ Preflight checks are bundled into Packages`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		logs.Initialize()
 	},
+	// SilenceErrors and SilenceUsage prevents this command or any sub-command
+	// from printing arbitrary text to stderr.
+	// Why? To ensure that each line of output can be parsed as a single message
+	// for consumption by logging agents such as fluentd.
+	// Usage information is still available on stdout with the `-h` and `--help`
+	// flags.
+	SilenceErrors: true,
+	SilenceUsage:  true,
 }
 
 func init() {
