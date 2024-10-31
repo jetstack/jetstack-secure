@@ -281,7 +281,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		"enable-pprof",
 		"",
 		false,
-		"Enables the pprof profiling server on the agent (port: 6060).",
+		"Enables the pprof profiling endpoints on the agent server (port: 8081).",
 	)
 	c.PersistentFlags().BoolVarP(
 		&cfg.Prometheus,
