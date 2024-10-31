@@ -35,13 +35,6 @@ import (
 //    upon which this code was based.
 
 var (
-	// This is the Agent's logger. For now, it is still a *log.Logger, but we
-	// mean to migrate everything to slog with the klog backend. We avoid using
-	// log.Default because log.Default is already used by the VCert library, and
-	// we need to keep the agent's logger from the VCert's logger to be able to
-	// remove the `vCert: ` prefix from the VCert logs.
-	Log *log.Logger
-
 	// All but the essential logging flags will be hidden to avoid overwhelming
 	// the user. The hidden flags can still be used. For example if a user does
 	// not like the split-stream behavior and a Venafi field engineer can
@@ -121,9 +114,6 @@ func Initialize() {
 	// the client-go library, which relies on klog.Info, has the same logger as
 	// the agent, which still uses log.Printf.
 	slog := slog.Default()
-
-	Log = &log.Logger{}
-	Log.SetOutput(LogToSlogWriter{Slog: slog, Source: "agent"})
 
 	// Let's make sure the VCert library, which is the only library we import to
 	// be using the global log.Default, also uses the common slog logger.

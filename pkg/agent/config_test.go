@@ -6,15 +6,16 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/testutil"
@@ -86,7 +87,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 
 	t.Run("--period flag takes precedence over period field in config, shows warning", func(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
-		log, gotLogs := recordLogs()
+		log, gotLogs := recordLogs(t)
 		got, _, err := ValidateAndCombineConfig(log,
 			withConfig(testutil.Undent(`
 				server: https://api.venafi.eu
@@ -97,8 +98,8 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--period", "99m", "--credentials-file", fakeCredsPath))
 		require.NoError(t, err)
 		assert.Equal(t, testutil.Undent(`
-			Using the Jetstack Secure OAuth auth mode since --credentials-file was specified without --venafi-cloud.
-			Both the 'period' field and --period are set. Using the value provided with --period.
+			INFO Using the Jetstack Secure OAuth auth mode since --credentials-file was specified without --venafi-cloud.
+			INFO Both the 'period' field and --period are set. Using the value provided with --period.
 		`), gotLogs.String())
 		assert.Equal(t, 99*time.Minute, got.Period)
 	})
@@ -573,7 +574,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 	t.Run("venafi-cloud-workload-identity-auth: warning about server, venafi-cloud.uploader_id, and venafi-cloud.upload_path being skipped", func(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
 		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
-		log, gotLogs := recordLogs()
+		log, gotLogs := recordLogs(t)
 		got, gotCl, err := ValidateAndCombineConfig(log,
 			withConfig(testutil.Undent(`
 				server: https://api.venafi.eu
@@ -587,11 +588,11 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		)
 		require.NoError(t, err)
 		assert.Equal(t, testutil.Undent(`
-			Using the Venafi Cloud VenafiConnection auth mode since --venafi-connection was specified.
-			ignoring the server field specified in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
-			ignoring the venafi-cloud.upload_path field in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
-			ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in Venafi Cloud VenafiConnection mode.
-			Using period from config 1h0m0s
+			INFO Using the Venafi Cloud VenafiConnection auth mode since --venafi-connection was specified.
+			INFO Ignoring the server field specified in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
+			INFO Ignoring the venafi-cloud.upload_path field in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
+			INFO Ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in Venafi Cloud VenafiConnection mode.
+			INFO Using period from config period="1h0m0s"
 		`), gotLogs.String())
 		assert.Equal(t, VenafiCloudVenafiConnection, got.AuthMode)
 		assert.IsType(t, &client.VenConnClient{}, gotCl)
@@ -994,13 +995,15 @@ func withFile(t testing.TB, content string) string {
 	return f.Name()
 }
 
-func recordLogs() (*log.Logger, *bytes.Buffer) {
-	b := bytes.Buffer{}
-	return log.New(&b, "", 0), &b
+func recordLogs(t *testing.T) (logr.Logger, ktesting.Buffer) {
+	log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.BufferLogs(true)))
+	testingLogger, ok := log.GetSink().(ktesting.Underlier)
+	require.True(t, ok)
+	return log, testingLogger.GetBuffer()
 }
 
-func discardLogs() *log.Logger {
-	return log.New(io.Discard, "", 0)
+func discardLogs() logr.Logger {
+	return logr.Discard()
 }
 
 // Shortcut for ParseConfig.

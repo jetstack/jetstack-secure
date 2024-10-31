@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -26,7 +27,6 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
-	"github.com/jetstack/preflight/pkg/logs"
 )
 
 // ConfigDynamic contains the configuration for the data-gatherer.
@@ -271,9 +271,9 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 	// attach WatchErrorHandler, it needs to be set before starting an informer
 	err := g.informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
 		if strings.Contains(fmt.Sprintf("%s", err), "the server could not find the requested resource") {
-			logs.Log.Printf("server missing resource for datagatherer of %q ", g.groupVersionResource)
+			slog.Warn("server missing resource for datagatherer", "gvk", g.groupVersionResource)
 		} else {
-			logs.Log.Printf("datagatherer informer for %q has failed and is backing off due to error: %s", g.groupVersionResource, err)
+			slog.Error("dataGatherer Informer for has failed and is backing off", "gvk", g.groupVersionResource, "err", err)
 		}
 	})
 	if err != nil {

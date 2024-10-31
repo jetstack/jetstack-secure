@@ -1,13 +1,13 @@
 package k8s
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/pmylund/go-cache"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/jetstack/preflight/api"
-	"github.com/jetstack/preflight/pkg/logs"
 )
 
 // time interface, this is used to fetch the current time
@@ -41,8 +41,8 @@ func onAdd(obj interface{}, dgCache *cache.Cache) {
 		dgCache.Set(string(item.GetUID()), cacheObject, cache.DefaultExpiration)
 		return
 	}
-	logs.Log.Printf("could not %q resource to the cache, missing metadata/uid field", "add")
 
+	slog.Error("Could not update cache", "reason", "missing metadata/uid field", "event", "add")
 }
 
 // onUpdate handles the informer update events, replacing the old object with the new one
@@ -56,7 +56,7 @@ func onUpdate(old, new interface{}, dgCache *cache.Cache) {
 		return
 	}
 
-	logs.Log.Printf("could not %q resource to the cache, missing metadata/uid field", "update")
+	slog.Error("Could not update cache", "reason", "missing metadata/uid field", "event", "update")
 }
 
 // onDelete handles the informer deletion events, updating the object's properties with the deletion
@@ -70,7 +70,7 @@ func onDelete(obj interface{}, dgCache *cache.Cache) {
 		dgCache.Set(string(item.GetUID()), cacheObject, cache.DefaultExpiration)
 		return
 	}
-	logs.Log.Printf("could not %q resource to the cache, missing metadata/uid field", "delete")
+	slog.Error("Could not update cache", "reason", "missing metadata/uid field", "event", "delete")
 }
 
 // creates a new updated instance of a cache object, with the resource

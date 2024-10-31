@@ -27,6 +27,7 @@ func TestRunOneShot(t *testing.T) {
 		t.Setenv("KUBECONFIG", "testdata/one-shot/success/kubeconfig.yaml")
 
 		c := &cobra.Command{}
+		c.SetContext(context.Background())
 		InitAgentCmdFlags(c, &Flags)
 		logs.AddFlags(c.Flags())
 
