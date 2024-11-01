@@ -147,12 +147,7 @@ func (w LogToSlogWriter) Write(p []byte) (n int, err error) {
 
 	message := string(p)
 	if strings.Contains(message, "error") ||
-		strings.Contains(message, "failed") ||
-		strings.Contains(message, "fatal") ||
-		strings.Contains(message, "Failed") ||
-		strings.Contains(message, "While evaluating configuration") ||
-		strings.Contains(message, "data-path override present") ||
-		strings.Contains(message, "Cannot marshal readings") {
+		strings.Contains(message, "failed") {
 		w.Slog.With("source", w.Source).Error(message)
 	} else {
 		w.Slog.With("source", w.Source).Info(message)

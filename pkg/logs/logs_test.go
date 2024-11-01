@@ -375,52 +375,22 @@ func Test_replaceWithStaticTimestamps(t *testing.T) {
 }
 
 func TestLogToSlogWriter(t *testing.T) {
-	// This test makes sure that all the agent's Log.Fatalf calls are correctly
-	// translated to slog.Error calls.
+	// This test makes sure that all the agent's remaining Log calls are correctly
+	// translated to slog.Error calls where appropriate.
 	//
 	// This list was generated using:
-	//  grep -r "Log\.Fatalf" ./cmd ./pkg
+	//  git grep -i "log\.\(print\|fatal\)" pkg/ cmd/  | fgrep -e error -e failed
 	given := strings.TrimPrefix(`
-Failed to load config file for agent from
-Failed to read config file
-Failed to parse config file
-While evaluating configuration
-failed to run pprof profiler
-failed to run the health check server
-failed to start a controller-runtime component
-failed to wait for controller-runtime component to stop
-running data gatherer %s of type %s as Local, data-path override present
-failed to instantiate %q data gatherer
-failed to read local data file
-failed to unmarshal local data file
-failed to output to local file
-Exiting due to fatal error uploading
-halting datagathering in strict mode due to error
-Cannot marshal readings
-Failed to read config file
-Failed to parse config file
-Failed to validate data gatherers
+failed to complete initial sync of %q data gatherer %q: %v
+error messages will not show in the pod's events because the POD_NAME environment variable is empty
+retrying in %v after error: %s
+datagatherer informer for %q has failed and is backing off due to error: %s
 this is a happy log that should show as INFO`, "\n")
 	expect := strings.TrimPrefix(`
-level=ERROR msg="Failed to load config file for agent from" source=agent
-level=ERROR msg="Failed to read config file" source=agent
-level=ERROR msg="Failed to parse config file" source=agent
-level=ERROR msg="While evaluating configuration" source=agent
-level=ERROR msg="failed to run pprof profiler" source=agent
-level=ERROR msg="failed to run the health check server" source=agent
-level=ERROR msg="failed to start a controller-runtime component" source=agent
-level=ERROR msg="failed to wait for controller-runtime component to stop" source=agent
-level=ERROR msg="running data gatherer %!s(MISSING) of type %!s(MISSING) as Local, data-path override present" source=agent
-level=ERROR msg="failed to instantiate %!q(MISSING) data gatherer" source=agent
-level=ERROR msg="failed to read local data file" source=agent
-level=ERROR msg="failed to unmarshal local data file" source=agent
-level=ERROR msg="failed to output to local file" source=agent
-level=ERROR msg="Exiting due to fatal error uploading" source=agent
-level=ERROR msg="halting datagathering in strict mode due to error" source=agent
-level=ERROR msg="Cannot marshal readings" source=agent
-level=ERROR msg="Failed to read config file" source=agent
-level=ERROR msg="Failed to parse config file" source=agent
-level=ERROR msg="Failed to validate data gatherers" source=agent
+level=ERROR msg="failed to complete initial sync of %!q(MISSING) data gatherer %!q(MISSING): %!v(MISSING)" source=agent
+level=ERROR msg="error messages will not show in the pod's events because the POD_NAME environment variable is empty" source=agent
+level=ERROR msg="retrying in %!v(MISSING) after error: %!s(MISSING)" source=agent
+level=ERROR msg="datagatherer informer for %!q(MISSING) has failed and is backing off due to error: %!s(MISSING)" source=agent
 level=INFO msg="this is a happy log that should show as INFO" source=agent
 `, "\n")
 
