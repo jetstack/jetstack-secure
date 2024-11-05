@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/jetstack/preflight/pkg/agent"
-	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/permissions"
 )
 
@@ -16,7 +15,7 @@ var agentCmd = &cobra.Command{
 	Short: "start the preflight agent",
 	Long: `The agent will periodically gather data for the configured data
 	gatherers and send it to a remote backend for evaluation`,
-	Run: agent.Run,
+	RunE: agent.Run,
 }
 
 var agentInfoCmd = &cobra.Command{
@@ -34,24 +33,25 @@ var agentRBACCmd = &cobra.Command{
 	Use:   "rbac",
 	Short: "print the agent's minimal RBAC manifest",
 	Long:  `Print RBAC string by reading GVRs`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 
 		b, err := os.ReadFile(agent.Flags.ConfigFilePath)
 		if err != nil {
-			logs.Log.Fatalf("Failed to read config file: %s", err)
+			return fmt.Errorf("Failed to read config file: %s", err)
 		}
 		cfg, err := agent.ParseConfig(b)
 		if err != nil {
-			logs.Log.Fatalf("Failed to parse config file: %s", err)
+			return fmt.Errorf("Failed to parse config file: %s", err)
 		}
 
 		err = agent.ValidateDataGatherers(cfg.DataGatherers)
 		if err != nil {
-			logs.Log.Fatalf("Failed to validate data gatherers: %s", err)
+			return fmt.Errorf("Failed to validate data gatherers: %s", err)
 		}
 
 		out := permissions.GenerateFullManifest(cfg.DataGatherers)
 		fmt.Print(out)
+		return nil
 	},
 }
 
