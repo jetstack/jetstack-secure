@@ -1,0 +1,4 @@
+# Just enough venafi-kubernetes-agent config to allow it to run with an input
+# file in one-shot mode.
+cluster_id: "venafi-kubernetes-agent-e2e"
+organization_id: "venafi-kubernetes-agent-e2e"
