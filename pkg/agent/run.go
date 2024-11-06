@@ -50,7 +50,7 @@ var Flags AgentCmdFlags
 const schemaVersion string = "v2.0.0"
 
 // Run starts the agent process
-func Run(cmd *cobra.Command, args []string) error {
+func Run(cmd *cobra.Command, args []string) (returnErr error) {
 	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
 	log := klog.FromContext(ctx).WithName("Run")
@@ -82,12 +82,7 @@ func Run(cmd *cobra.Command, args []string) error {
 	group, gctx := errgroup.WithContext(ctx)
 	defer func() {
 		cancel()
-		if groupErr := group.Wait(); groupErr != nil {
-			err = multierror.Append(
-				err,
-				fmt.Errorf("failed to wait for controller-runtime component to stop: %v", groupErr),
-			)
-		}
+		returnErr = errors.Join(returnErr, group.Wait())
 	}()
 
 	{
@@ -123,8 +118,12 @@ func Run(cmd *cobra.Command, args []string) error {
 			w.WriteHeader(http.StatusOK)
 		})
 
-		group.Go(func() error {
-			err := listenAndServe(
+		group.Go(func() (err error) {
+			log.Info("Starting")
+			defer func() {
+				log.Info("Stopped", "reason", err)
+			}()
+			err = listenAndServe(
 				klog.NewContext(gctx, log),
 				&http.Server{
 					Addr:    serverAddress,
@@ -137,20 +136,28 @@ func Run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return fmt.Errorf("APIServer: %s", err)
 			}
+			if err := context.Cause(gctx); err == nil {
+				return fmt.Errorf("APIServer exited unexpectedly")
+			}
 			return nil
 		})
 	}
 
 	_, isVenConn := preflightClient.(*client.VenConnClient)
 	if isVenConn {
-		group.Go(func() error {
-			err := preflightClient.(manager.Runnable).Start(gctx)
+		group.Go(func() (err error) {
+			log := log.WithName("VenConnClient")
+			log.Info("Starting")
+			defer func() {
+				log.Info("Stopped", "reason", err)
+			}()
+			err = preflightClient.(manager.Runnable).Start(gctx)
 			if err != nil {
 				return fmt.Errorf("failed to start a controller-runtime component: %v", err)
 			}
-
-			// The agent must stop if the controller-runtime component stops.
-			cancel()
+			if err := context.Cause(gctx); err == nil {
+				return fmt.Errorf("VenConnClient exited unexpectedly")
+			}
 			return nil
 		})
 	}
@@ -177,16 +184,17 @@ func Run(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
 		}
 
-		log.Info("Starting datagatherer", "gatherer", dgConfig.Name)
-
 		// start the data gatherers and wait for the cache sync
-		group.Go(func() error {
+		group.Go(func() (err error) {
+			log := log.WithName("DataGatherer.Run").WithValues("DataGatherer.name", dgConfig.Name)
+			log.V(1).Info("Starting")
+			defer func() {
+				log.V(1).Info("Stopped", "reason", err)
+			}()
 			if err := newDg.Run(gctx.Done()); err != nil {
 				return fmt.Errorf("failed to start %q data gatherer %q: %v", kind, dgConfig.Name, err)
 			}
-			// The agent must stop if any of the data gatherers stops
-			cancel()
-			return nil
+			return context.Cause(gctx)
 		})
 
 		// regardless of success, this dataGatherers has been given a
@@ -225,9 +233,27 @@ func Run(cmd *cobra.Command, args []string) error {
 	// TODO(wallrj): Pass a context to gatherAndOutputData, so that we don't
 	// have to wait for it to finish before exiting the process.
 	for {
-		if err := gatherAndOutputData(ctx, eventf, config, preflightClient, dataGatherers); err != nil {
-			return err
+		timeLimit := time.Second * 5
+		timeoutCTX, cancelTimeout := context.WithTimeoutCause(gctx, time.Second*5, fmt.Errorf("timeout after %s", timeLimit))
+		defer cancelTimeout()
+
+		cancelCTX, cancelCause := context.WithCancelCause(timeoutCTX)
+		go func() {
+			err := gatherAndOutputData(cancelCTX, eventf, config, preflightClient, dataGatherers)
+			cancelCause(err)
+		}()
+
+		select {
+		case <-cancelCTX.Done():
+			err := context.Cause(cancelCTX)
+			if err != nil && !errors.Is(err, context.Canceled) {
+				return fmt.Errorf("gatherAndOutputData: %s", err)
+			}
+		case <-timeoutCTX.Done():
+			return fmt.Errorf("gatherAndOutputData: %s", context.Cause(timeoutCTX))
 		}
+
+		cancelTimeout()
 
 		if config.OneShot {
 			break
@@ -346,7 +372,7 @@ func gatherData(ctx context.Context, config CombinedConfig, dataGatherers map[st
 			continue
 		}
 
-		log.Info("Successfully gathered data", "gatherer", k, "count", count)
+		log.V(1).Info("Successfully gathered data", "gatherer", k, "count", count)
 
 		readings = append(readings, &api.DataReading{
 			ClusterID:     config.ClusterID,
