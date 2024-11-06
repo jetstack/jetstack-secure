@@ -183,11 +183,14 @@ func Run(cmd *cobra.Command, args []string) error {
 
 		// start the data gatherers and wait for the cache sync
 		group.Go(func() error {
+			// Most implementations of `DataGatherer.Run` return immediately.
+			// Only the Dynamic DataGatherer starts an informer which runs and
+			// blocks until the supplied channel is closed.
+			// For this reason, we must allow these errgroup Go routines to exit
+			// without cancelling the other Go routines in the group.
 			if err := newDg.Run(gctx.Done()); err != nil {
 				return fmt.Errorf("failed to start %q data gatherer %q: %v", kind, dgConfig.Name, err)
 			}
-			// The agent must stop if any of the data gatherers stops
-			cancel()
 			return nil
 		})
 
