@@ -312,6 +312,21 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		assert.IsType(t, &client.VenafiCloudClient{}, cl)
 	})
 
+	t.Run("venafi-cloud-keypair-auth: authenticated if CLIENT_ID set", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		t.Setenv("CLIENT_ID", "test-client-id")
+		path := withFile(t, fakePrivKeyPEM)
+		_, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				cluster_id: foo
+				venafi-cloud:
+				  upload_path: /foo/bar
+			`)),
+			withCmdLineFlags("--venafi-cloud", "--period", "1m", "--private-key-path", path))
+		require.NoError(t, err)
+		assert.IsType(t, &client.VenafiCloudClient{}, cl)
+	})
+
 	t.Run("venafi-cloud-keypair-auth: valid 1: --client-id and --private-key-path", func(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
 		path := withFile(t, fakePrivKeyPEM)

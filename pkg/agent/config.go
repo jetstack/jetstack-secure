@@ -201,10 +201,10 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		&cfg.ClientID,
 		"client-id",
 		"",
-		"",
+		os.Getenv("CLIENT_ID"),
 		fmt.Sprintf("Turns on the %s mode. If you use this flag you don't need to use --venafi-cloud "+
 			"as it will assume you are authenticating with Venafi Cloud. Using this removes the need to use a "+
-			"credentials file.", VenafiCloudKeypair),
+			"credentials file. Defaults to the value of the env var CLIENT_ID", VenafiCloudKeypair),
 	)
 	c.PersistentFlags().StringVarP(
 		&cfg.PrivateKeyPath,
