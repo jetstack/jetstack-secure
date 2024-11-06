@@ -50,7 +50,7 @@ var Flags AgentCmdFlags
 const schemaVersion string = "v2.0.0"
 
 // Run starts the agent process
-func Run(cmd *cobra.Command, args []string) error {
+func Run(cmd *cobra.Command, args []string) (returnErr error) {
 	logs.Log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
 	ctx, cancel := context.WithCancel(
 		klog.NewContext(
@@ -85,8 +85,8 @@ func Run(cmd *cobra.Command, args []string) error {
 	defer func() {
 		cancel()
 		if groupErr := group.Wait(); groupErr != nil {
-			err = multierror.Append(
-				err,
+			returnErr = multierror.Append(
+				returnErr,
 				fmt.Errorf("failed to wait for controller-runtime component to stop: %v", groupErr),
 			)
 		}
