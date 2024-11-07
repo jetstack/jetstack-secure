@@ -23,10 +23,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	k8scache "k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
-	"github.com/jetstack/preflight/pkg/logs"
 )
 
 // ConfigDynamic contains the configuration for the data-gatherer.
@@ -161,6 +161,7 @@ func (c *ConfigDynamic) NewDataGatherer(ctx context.Context) (datagatherer.DataG
 }
 
 func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynamic.Interface, clientset kubernetes.Interface) (datagatherer.DataGatherer, error) {
+	log := klog.FromContext(ctx)
 	if err := c.validate(); err != nil {
 		return nil, err
 	}
@@ -216,13 +217,13 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 
 	registration, err := newDataGatherer.informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			onAdd(obj, dgCache)
+			onAdd(log, obj, dgCache)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			onUpdate(old, new, dgCache)
+			onUpdate(log, old, new, dgCache)
 		},
 		DeleteFunc: func(obj interface{}) {
-			onDelete(obj, dgCache)
+			onDelete(log, obj, dgCache)
 		},
 	})
 	if err != nil {
@@ -264,6 +265,7 @@ type DataGathererDynamic struct {
 // Returns error if the data gatherer informer wasn't initialized, Run blocks
 // until the stopCh is closed.
 func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
+	log := klog.FromContext(g.ctx)
 	if g.informer == nil {
 		return fmt.Errorf("informer was not initialized, impossible to start")
 	}
@@ -271,9 +273,9 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 	// attach WatchErrorHandler, it needs to be set before starting an informer
 	err := g.informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
 		if strings.Contains(fmt.Sprintf("%s", err), "the server could not find the requested resource") {
-			logs.Log.Printf("server missing resource for datagatherer of %q ", g.groupVersionResource)
+			log.Info("server missing resource for datagatherer", "groupVersionResource", g.groupVersionResource)
 		} else {
-			logs.Log.Printf("datagatherer informer for %q has failed and is backing off due to error: %s", g.groupVersionResource, err)
+			log.Info("datagatherer informer has failed and is backing off", "groupVersionResource", g.groupVersionResource, "reason", err)
 		}
 	})
 	if err != nil {

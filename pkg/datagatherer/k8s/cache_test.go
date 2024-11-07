@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/d4l3k/messagediff"
+	"github.com/go-logr/logr"
 	"github.com/pmylund/go-cache"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/api"
 )
@@ -23,7 +25,7 @@ func TestOnAddCache(t *testing.T) {
 	tcs := map[string]struct {
 		inputObjects []runtime.Object
 		eventObjects []runtime.Object
-		eventFunc    func(old, obj interface{}, dgCache *cache.Cache)
+		eventFunc    func(log logr.Logger, old, obj interface{}, dgCache *cache.Cache)
 		expected     []*api.GatheredResource
 	}{
 		"add all objects": {
@@ -50,7 +52,7 @@ func TestOnAddCache(t *testing.T) {
 				getObject("v1", "Service", "testservice", "testns", false),
 				getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
 			},
-			eventFunc: func(old, new interface{}, dgCache *cache.Cache) { onDelete(old, dgCache) },
+			eventFunc: func(log logr.Logger, old, new interface{}, dgCache *cache.Cache) { onDelete(log, old, dgCache) },
 			expected: []*api.GatheredResource{
 				makeGatheredResource(
 					getObject("foobar/v1", "Foo", "testfoo", "testns", false),
@@ -98,16 +100,17 @@ func TestOnAddCache(t *testing.T) {
 
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
+			log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.Verbosity(10)))
 			dgCache := cache.New(5*time.Minute, 30*time.Second)
 			// adding initial objetcs to the cache
 			for _, obj := range tc.inputObjects {
-				onAdd(obj, dgCache)
+				onAdd(log, obj, dgCache)
 			}
 
 			// Testing event founction on set of objects
 			for _, obj := range tc.eventObjects {
 				if tc.eventFunc != nil {
-					tc.eventFunc(obj, obj, dgCache)
+					tc.eventFunc(log, obj, obj, dgCache)
 				}
 			}
 
@@ -135,4 +138,15 @@ func TestOnAddCache(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestNoneCache demonstrates that the cache helpers do not crash if passed a
+// non-cachable object, but log an error with a reference to the object type.
+func TestNoneCache(t *testing.T) {
+	log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.Verbosity(10)))
+
+	type notCachable struct{}
+	onAdd(log, &notCachable{}, nil)
+	onUpdate(log, &notCachable{}, nil, nil)
+	onDelete(log, &notCachable{}, nil)
 }
