@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -45,8 +46,9 @@ func init() {
 // will be logged and the process will exit with status 1.
 func Execute() {
 	logs.AddFlags(rootCmd.PersistentFlags())
+	ctx := klog.NewContext(context.Background(), klog.Background())
 	var exitCode int
-	if err := rootCmd.Execute(); err != nil {
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		exitCode = 1
 		klog.ErrorS(err, "Exiting due to error", "exit-code", exitCode)
 	}

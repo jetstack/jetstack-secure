@@ -9,11 +9,13 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff"
+	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -33,10 +35,7 @@ import (
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
-	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
-
-	"net/http/pprof"
 )
 
 var Flags AgentCmdFlags
@@ -51,14 +50,11 @@ const schemaVersion string = "v2.0.0"
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) (returnErr error) {
-	logs.Log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
-	ctx, cancel := context.WithCancel(
-		klog.NewContext(
-			context.Background(),
-			klog.Background(),
-		),
-	)
+	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
+	log := klog.FromContext(ctx).WithName("Run")
+
+	log.Info("Starting", "version", version.PreflightVersion, "commit", version.Commit)
 
 	file, err := os.Open(Flags.ConfigFilePath)
 	if err != nil {
@@ -76,7 +72,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		return fmt.Errorf("Failed to parse config file: %s", err)
 	}
 
-	config, preflightClient, err := ValidateAndCombineConfig(logs.Log, cfg, Flags)
+	config, preflightClient, err := ValidateAndCombineConfig(log, cfg, Flags)
 	if err != nil {
 		return fmt.Errorf("While evaluating configuration: %v", err)
 	}
@@ -95,7 +91,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 	{
 		server := http.NewServeMux()
 		const serverAddress = ":8081"
-		log := klog.FromContext(ctx).WithName("APIServer").WithValues("addr", serverAddress)
+		log := log.WithName("APIServer").WithValues("addr", serverAddress)
 
 		if Flags.Profiling {
 			log.Info("Profiling endpoints enabled", "path", "/debug/pprof")
@@ -159,7 +155,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 
 	// To help users notice issues with the agent, we show the error messages in
 	// the agent pod's events.
-	eventf, err := newEventf(config.InstallNS)
+	eventf, err := newEventf(log, config.InstallNS)
 	if err != nil {
 		return fmt.Errorf("failed to create event recorder: %v", err)
 	}
@@ -179,7 +175,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 			return fmt.Errorf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
 		}
 
-		logs.Log.Printf("starting %q datagatherer", dgConfig.Name)
+		log.Info("Starting DataGatherer", "name", dgConfig.Name)
 
 		// start the data gatherers and wait for the cache sync
 		group.Go(func() error {
@@ -217,7 +213,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		// the run.
 		if err := dg.WaitForCacheSync(bootCtx.Done()); err != nil {
 			// log sync failure, this might recover in future
-			logs.Log.Printf("failed to complete initial sync of %q data gatherer %q: %v", dgConfig.Kind, dgConfig.Name, err)
+			log.Error(err, "Failed to complete initial sync of DataGatherer", "kind", dgConfig.Kind, "name", dgConfig.Name)
 		}
 	}
 
@@ -230,7 +226,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 	// TODO(wallrj): Pass a context to gatherAndOutputData, so that we don't
 	// have to wait for it to finish before exiting the process.
 	for {
-		if err := gatherAndOutputData(eventf, config, preflightClient, dataGatherers); err != nil {
+		if err := gatherAndOutputData(klog.NewContext(ctx, log), eventf, config, preflightClient, dataGatherers); err != nil {
 			return err
 		}
 
@@ -251,7 +247,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 // POD_NAME to contain the pod name. Note that the RBAC rule allowing sending
 // events is attached to the pod's service account, not the impersonated service
 // account (venafi-connection).
-func newEventf(installNS string) (Eventf, error) {
+func newEventf(log logr.Logger, installNS string) (Eventf, error) {
 	restcfg, err := kubeconfig.LoadRESTConfig("")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load kubeconfig: %v", err)
@@ -262,7 +258,7 @@ func newEventf(installNS string) (Eventf, error) {
 	var eventf Eventf
 	if os.Getenv("POD_NAME") == "" {
 		eventf = func(eventType, reason, msg string, args ...interface{}) {}
-		logs.Log.Printf("error messages will not show in the pod's events because the POD_NAME environment variable is empty")
+		log.Error(nil, "Error messages will not show in the pod's events because the POD_NAME environment variable is empty")
 	} else {
 		podName := os.Getenv("POD_NAME")
 
@@ -284,11 +280,12 @@ func newEventf(installNS string) (Eventf, error) {
 // Like Printf but for sending events to the agent's Pod object.
 type Eventf func(eventType, reason, msg string, args ...interface{})
 
-func gatherAndOutputData(eventf Eventf, config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) error {
+func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) error {
+	log := klog.FromContext(ctx).WithName("gatherAndOutputData")
 	var readings []*api.DataReading
 
 	if config.InputPath != "" {
-		logs.Log.Printf("Reading data from local file: %s", config.InputPath)
+		log.Info("Reading data from local file", "inputPath", config.InputPath)
 		data, err := os.ReadFile(config.InputPath)
 		if err != nil {
 			return fmt.Errorf("failed to read local data file: %s", err)
@@ -299,7 +296,7 @@ func gatherAndOutputData(eventf Eventf, config CombinedConfig, preflightClient c
 		}
 	} else {
 		var err error
-		readings, err = gatherData(config, dataGatherers)
+		readings, err = gatherData(klog.NewContext(ctx, log), config, dataGatherers)
 		if err != nil {
 			return err
 		}
@@ -314,18 +311,18 @@ func gatherAndOutputData(eventf Eventf, config CombinedConfig, preflightClient c
 		if err != nil {
 			return fmt.Errorf("failed to output to local file: %s", err)
 		}
-		logs.Log.Printf("Data saved to local file: %s", config.OutputPath)
+		log.Info("Data saved to local file", "outputPath", config.OutputPath)
 	} else {
 		backOff := backoff.NewExponentialBackOff()
 		backOff.InitialInterval = 30 * time.Second
 		backOff.MaxInterval = 3 * time.Minute
 		backOff.MaxElapsedTime = config.BackoffMaxTime
 		post := func() error {
-			return postData(config, preflightClient, readings)
+			return postData(klog.NewContext(ctx, log), config, preflightClient, readings)
 		}
 		err := backoff.RetryNotify(post, backOff, func(err error, t time.Duration) {
 			eventf("Warning", "PushingErr", "retrying in %v after error: %s", t, err)
-			logs.Log.Printf("retrying in %v after error: %s", t, err)
+			log.Info("Warning: PushingErr: retrying", "in", t, "reason", err)
 		})
 		if err != nil {
 			return fmt.Errorf("Exiting due to fatal error uploading: %v", err)
@@ -334,7 +331,9 @@ func gatherAndOutputData(eventf Eventf, config CombinedConfig, preflightClient c
 	return nil
 }
 
-func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.DataGatherer) ([]*api.DataReading, error) {
+func gatherData(ctx context.Context, config CombinedConfig, dataGatherers map[string]datagatherer.DataGatherer) ([]*api.DataReading, error) {
+	log := klog.FromContext(ctx).WithName("gatherData")
+
 	var readings []*api.DataReading
 
 	var dgError *multierror.Error
@@ -345,11 +344,14 @@ func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.Dat
 
 			continue
 		}
-
-		if count >= 0 {
-			logs.Log.Printf("successfully gathered %d items from %q datagatherer", count, k)
-		} else {
-			logs.Log.Printf("successfully gathered data from %q datagatherer", k)
+		{
+			// Not all datagatherers return a count.
+			// If `count == -1` it means that the datagatherer does not support returning a count.
+			log := log
+			if count >= 0 {
+				log = log.WithValues("count", count)
+			}
+			log.Info("Successfully gathered", "name", k)
 		}
 		readings = append(readings, &api.DataReading{
 			ClusterID:     config.ClusterID,
@@ -379,13 +381,16 @@ func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.Dat
 	return readings, nil
 }
 
-func postData(config CombinedConfig, preflightClient client.Client, readings []*api.DataReading) error {
+func postData(ctx context.Context, config CombinedConfig, preflightClient client.Client, readings []*api.DataReading) error {
+	log := klog.FromContext(ctx).WithName("postData")
 	baseURL := config.Server
 
-	logs.Log.Println("Posting data to:", baseURL)
+	log.Info("Posting data", "baseURL", baseURL)
 
 	if config.AuthMode == VenafiCloudKeypair || config.AuthMode == VenafiCloudVenafiConnection {
 		// orgID and clusterID are not required for Venafi Cloud auth
+		// TODO(wallrj): Pass the context to PostDataReadingsWithOptions, so
+		// that its network operations can be cancelled.
 		err := preflightClient.PostDataReadingsWithOptions(readings, client.Options{
 			ClusterName:        config.ClusterID,
 			ClusterDescription: config.ClusterDescription,
@@ -393,7 +398,7 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 		if err != nil {
 			return fmt.Errorf("post to server failed: %+v", err)
 		}
-		logs.Log.Println("Data sent successfully.")
+		log.Info("Data sent successfully")
 
 		return nil
 	}
@@ -409,11 +414,13 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 			prometheus.Labels{"organization": config.OrganizationID, "cluster": config.ClusterID},
 		)
 		metric.Set(float64(len(data)))
-		logs.Log.Printf("Data readings upload size: %d", len(data))
+		log.Info("Data readings", "uploadSize", len(data))
 		path := config.EndpointPath
 		if path == "" {
 			path = "/api/v1/datareadings"
 		}
+		// TODO(wallrj): Pass the context to Post, so that its network
+		// operations can be cancelled.
 		res, err := preflightClient.Post(path, bytes.NewBuffer(data))
 
 		if err != nil {
@@ -429,7 +436,8 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 
 			return fmt.Errorf("received response with status code %d. Body: [%s]", code, errorContent)
 		}
-		logs.Log.Println("Data sent successfully.")
+		log.Info("Data sent successfully")
+
 		return err
 	}
 
@@ -437,11 +445,13 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 		return fmt.Errorf("post to server failed: missing clusterID from agent configuration")
 	}
 
+	// TODO(wallrj): Pass the context to PostDataReadings, so
+	// that its network operations can be cancelled.
 	err := preflightClient.PostDataReadings(config.OrganizationID, config.ClusterID, readings)
 	if err != nil {
 		return fmt.Errorf("post to server failed: %+v", err)
 	}
-	logs.Log.Println("Data sent successfully.")
+	log.Info("Data sent successfully")
 
 	return nil
 }
