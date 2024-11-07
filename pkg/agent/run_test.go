@@ -44,8 +44,11 @@ func TestRunOneShot(t *testing.T) {
 		require.NoError(t, err)
 
 		logs.Initialize()
-		Run(c, nil)
-		klog.Flush()
+		defer klog.Flush()
+
+		runErr := Run(c, nil)
+		require.NoError(t, runErr, "Run returned an unexpected error")
+
 		return
 	}
 	t.Log("Running child process")
