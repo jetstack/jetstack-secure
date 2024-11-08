@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -260,6 +261,9 @@ type DataGathererDynamic struct {
 	// informer watches the events around the targeted resource and updates the cache
 	informer     k8scache.SharedIndexInformer
 	registration k8scache.ResourceEventHandlerRegistration
+
+	ExcludeAnnotKeys []*regexp.Regexp
+	ExcludeLabelKeys []*regexp.Regexp
 }
 
 // Run starts the dynamic data gatherer's informers for resource collection.
@@ -338,7 +342,7 @@ func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
 	}
 
 	// Redact Secret data
-	err := redactList(items)
+	err := redactList(items, g.ExcludeAnnotKeys, g.ExcludeLabelKeys)
 	if err != nil {
 		return nil, -1, errors.WithStack(err)
 	}
@@ -349,7 +353,7 @@ func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
 	return list, len(items), nil
 }
 
-func redactList(list []*api.GatheredResource) error {
+func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys []*regexp.Regexp) error {
 	for i := range list {
 		if item, ok := list[i].Resource.(*unstructured.Unstructured); ok {
 			// Determine the kind of items in case this is a generic 'mixed' list.
@@ -374,6 +378,43 @@ func redactList(list []*api.GatheredResource) error {
 
 			// remove managedFields from all resources
 			Redact(RedactFields, resource)
+
+			annotsRaw, ok, err := unstructured.NestedFieldNoCopy(resource.Object, "metadata", "annotations")
+			if err != nil {
+				return fmt.Errorf("wasn't able to find the metadata.annotations field: %w", err)
+			}
+			if ok {
+				annots, ok := annotsRaw.(map[string]interface{})
+				if !ok {
+					return fmt.Errorf("metadata.annotations isn't a map on the resource %s in namespace %s: %w", resource.GetName(), resource.GetNamespace(), err)
+				}
+				for key := range annots {
+					for _, excludeAnnotKey := range excludeAnnotKeys {
+						if excludeAnnotKey.MatchString(key) {
+							delete(annots, key)
+						}
+					}
+				}
+			}
+
+			labelsRaw, ok, err := unstructured.NestedFieldNoCopy(resource.Object, "metadata", "labels")
+			if err != nil {
+				return fmt.Errorf("wasn't able to find the metadata.labels field for the resource %s in namespace %s: %w", resource.GetName(), resource.GetNamespace(), err)
+			}
+			if ok {
+				labels, ok := labelsRaw.(map[string]interface{})
+				if !ok {
+					return fmt.Errorf("metadata.labels isn't a map on the resource %s in namespace %s: %w", resource.GetName(), resource.GetNamespace(), err)
+				}
+				for key := range labels {
+					for _, excludeLabelKey := range excludeLabelKeys {
+						if excludeLabelKey.MatchString(key) {
+							delete(labels, key)
+						}
+					}
+				}
+			}
+
 			continue
 		}
 
@@ -385,6 +426,24 @@ func redactList(list []*api.GatheredResource) error {
 		if item, ok := list[i].Resource.(objectMeta); ok {
 			item.GetObjectMeta().SetManagedFields(nil)
 			delete(item.GetObjectMeta().GetAnnotations(), "kubectl.kubernetes.io/last-applied-configuration")
+
+			annots := item.GetObjectMeta().GetAnnotations()
+			for key := range annots {
+				for _, excludeAnnotKey := range excludeAnnotKeys {
+					if excludeAnnotKey.MatchString(key) {
+						delete(annots, key)
+					}
+				}
+			}
+
+			labels := item.GetObjectMeta().GetLabels()
+			for key := range labels {
+				for _, excludeLabelKey := range excludeLabelKeys {
+					if excludeLabelKey.MatchString(key) {
+						delete(labels, key)
+					}
+				}
+			}
 
 			resource := item.(runtime.Object)
 			gvks, _, err := scheme.Scheme.ObjectKinds(resource)

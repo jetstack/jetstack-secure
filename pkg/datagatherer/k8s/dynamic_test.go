@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/d4l3k/messagediff"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +52,19 @@ func getObject(version, kind, name, namespace string, withManagedFields bool) *u
 	return &unstructured.Unstructured{
 		Object: object,
 	}
+}
+
+func getObjectAnnot(version, kind, name, namespace string, annotations, labels map[string]interface{}) *unstructured.Unstructured {
+	obj := getObject(version, kind, name, namespace, false)
+
+	metadata, _ := obj.Object["metadata"].(map[string]interface{})
+	if annotations == nil {
+		annotations = make(map[string]interface{})
+	}
+	metadata["annotations"] = annotations
+	metadata["labels"] = labels
+
+	return obj
 }
 
 func getSecret(name, namespace string, data map[string]interface{}, isTLS bool, withLastApplied bool) *unstructured.Unstructured {
@@ -367,12 +382,14 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 	// check the expected result
 	emptyScheme := runtime.NewScheme()
 	tests := map[string]struct {
-		config        ConfigDynamic
-		addObjects    []runtime.Object
-		deleteObjects map[string]string
-		updateObjects map[string]runtime.Object
-		expected      []*api.GatheredResource
-		err           bool
+		config            ConfigDynamic
+		excludeAnnotsKeys []string
+		excludeLabelKeys  []string
+		addObjects        []runtime.Object
+		deleteObjects     map[string]string
+		updateObjects     map[string]runtime.Object
+		expected          []*api.GatheredResource
+		err               bool
 	}{
 		"fetches the default namespace": {
 			addObjects: []runtime.Object{
@@ -582,6 +599,32 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				},
 			},
 		},
+		"excluded annotations are removed on secrets and CRDs": {
+			config:            ConfigDynamic{GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}},
+			excludeAnnotsKeys: []string{".*secret.*"},
+			addObjects: []runtime.Object{
+				getObjectAnnot("v1", "Secret", "s0", "n1", map[string]interface{}{"normal-annot": "value"}, nil),
+				getObjectAnnot("v1", "Secret", "s1", "n1", nil, map[string]interface{}{"normal-label": "value"}),
+				getObjectAnnot("v1", "Secret", "s2", "n1", map[string]interface{}{"super-secret-annot": "value"}, nil),
+				getObjectAnnot("v1", "Secret", "s3", "n1", nil, map[string]interface{}{"super-secret-label": "value"}),
+
+				getObjectAnnot("route.openshift.io/v1", "Route", "r0", "n1", map[string]interface{}{"normal-annot": "value"}, nil),
+				getObjectAnnot("route.openshift.io/v1", "Route", "r1", "n1", nil, map[string]interface{}{"normal-label": "value"}),
+				getObjectAnnot("route.openshift.io/v1", "Route", "r2", "n1", map[string]interface{}{"super-secret-annot": "value"}, nil),
+				getObjectAnnot("route.openshift.io/v1", "Route", "r3", "n1", nil, map[string]interface{}{"super-secret-label": "value"}),
+			},
+			expected: []*api.GatheredResource{
+				{Resource: getObjectAnnot("v1", "Secret", "s0", "n1", map[string]interface{}{"normal-annot": "value"}, nil)},
+				{Resource: getObjectAnnot("v1", "Secret", "s1", "n1", nil, map[string]interface{}{"normal-label": "value"})},
+				{Resource: getObjectAnnot("v1", "Secret", "s2", "n1", nil, nil)},
+				{Resource: getObjectAnnot("v1", "Secret", "s3", "n1", nil, nil)},
+
+				{Resource: getObjectAnnot("route.openshift.io/v1", "Route", "r0", "n1", map[string]interface{}{"normal-annot": "value"}, nil)},
+				{Resource: getObjectAnnot("route.openshift.io/v1", "Route", "r1", "n1", nil, map[string]interface{}{"normal-label": "value"})},
+				{Resource: getObjectAnnot("route.openshift.io/v1", "Route", "r2", "n1", nil, nil)},
+				{Resource: getObjectAnnot("route.openshift.io/v1", "Route", "r3", "n1", nil, nil)},
+			},
+		},
 	}
 
 	for name, tc := range tests {
@@ -621,6 +664,14 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			//start test Informer
 			factory.Start(ctx.Done())
 			k8scache.WaitForCacheSync(ctx.Done(), testInformer.HasSynced)
+
+			dgd := dg.(*DataGathererDynamic)
+			for _, key := range tc.excludeAnnotsKeys {
+				dgd.ExcludeAnnotKeys = append(dgd.ExcludeAnnotKeys, regexp.MustCompile(key))
+			}
+			for _, key := range tc.excludeLabelKeys {
+				dgd.ExcludeLabelKeys = append(dgd.ExcludeLabelKeys, regexp.MustCompile(key))
+			}
 
 			// start data gatherer informer
 			dynamiDg := dg
@@ -662,7 +713,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			if waitTimeout(&wg, 30*time.Second) {
 				t.Fatalf("unexpected timeout")
 			}
-			res, count, err := dynamiDg.Fetch()
+			res, expectCount, err := dynamiDg.Fetch()
 			if err != nil && !tc.err {
 				t.Errorf("expected no error but got: %v", err)
 			}
@@ -685,16 +736,8 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				// sorting list of expected results by name
 				sortGatheredResources(tc.expected)
 
-				if diff, equal := messagediff.PrettyDiff(tc.expected, list); !equal {
-					t.Errorf("\n%s", diff)
-					expectedJSON, _ := json.MarshalIndent(tc.expected, "", "  ")
-					gotJSON, _ := json.MarshalIndent(list, "", "  ")
-					t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
-				}
-
-				if len(list) != count {
-					t.Errorf("wrong count of resources reported: got %d, want %d", count, len(list))
-				}
+				assert.Equal(t, tc.expected, list)
+				assert.Len(t, list, expectCount, "unexpected number of resources returned")
 			}
 		})
 	}
@@ -707,12 +750,14 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 	// check the expected result
 	podGVR := schema.GroupVersionResource{Group: corev1.SchemeGroupVersion.Group, Version: corev1.SchemeGroupVersion.Version, Resource: "pods"}
 	tests := map[string]struct {
-		config        ConfigDynamic
-		addObjects    []runtime.Object
-		deleteObjects map[string]string
-		updateObjects map[string]runtime.Object
-		expected      []*api.GatheredResource
-		err           bool
+		config            ConfigDynamic
+		excludeAnnotsKeys []string
+		excludeLabelKeys  []string
+		addObjects        []runtime.Object
+		deleteObjects     map[string]string
+		updateObjects     map[string]runtime.Object
+		expected          []*api.GatheredResource
+		err               bool
 	}{
 		"only a Pod should be returned if GVR selects pods": {
 			addObjects: []runtime.Object{
@@ -878,6 +923,27 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 				},
 			},
 		},
+		// Pod is the only native resource that we test out of lack of time
+		// (would require a lot of changes to the testing func). Ideally we
+		// should test all native resources such as Service, Deployment,
+		// Ingress, Namespace, and so on.
+		"excluded annotations are removed native resources: pods, namespaces, etc": {
+			config:            ConfigDynamic{GroupVersionResource: podGVR},
+			excludeAnnotsKeys: []string{"secret"},
+			excludeLabelKeys:  []string{"secret"},
+			addObjects: []runtime.Object{
+				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p0", UID: "p0", Namespace: "n1", Annotations: map[string]string{"normal-annot": "bar"}}},
+				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", UID: "p1", Namespace: "n1", Labels: map[string]string{"normal-label": "bar"}}},
+				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p2", UID: "p2", Namespace: "n1", Annotations: map[string]string{"super-secret-annot": "bar"}}},
+				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p3", UID: "p3", Namespace: "n1", Labels: map[string]string{"super-secret-label": "bar"}}},
+			},
+			expected: []*api.GatheredResource{
+				{Resource: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p0", UID: "p0", Namespace: "n1", Annotations: map[string]string{"normal-annot": "bar"}}, TypeMeta: metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"}}},
+				{Resource: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", UID: "p1", Namespace: "n1", Labels: map[string]string{"normal-label": "bar"}}, TypeMeta: metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"}}},
+				{Resource: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p2", UID: "p2", Namespace: "n1", Annotations: map[string]string{}}, TypeMeta: metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"}}},
+				{Resource: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p3", UID: "p3", Namespace: "n1", Labels: map[string]string{}}, TypeMeta: metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"}}},
+			},
+		},
 	}
 
 	for name, tc := range tests {
@@ -916,6 +982,13 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			//start test Informer
 			factory.Start(ctx.Done())
 			k8scache.WaitForCacheSync(ctx.Done(), testInformer.HasSynced)
+			dgd := dg.(*DataGathererDynamic)
+			for _, key := range tc.excludeAnnotsKeys {
+				dgd.ExcludeAnnotKeys = append(dgd.ExcludeAnnotKeys, regexp.MustCompile(key))
+			}
+			for _, key := range tc.excludeLabelKeys {
+				dgd.ExcludeLabelKeys = append(dgd.ExcludeLabelKeys, regexp.MustCompile(key))
+			}
 
 			// start data gatherer informer
 			dynamiDg := dg
@@ -956,39 +1029,26 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			if waitTimeout(&wg, 5*time.Second) {
 				t.Fatalf("unexpected timeout")
 			}
-			res, count, err := dynamiDg.Fetch()
-			if err != nil && !tc.err {
-				t.Errorf("expected no error but got: %v", err)
-			}
-			if err == nil && tc.err {
-				t.Errorf("expected to get an error but didn't get one")
+			rawRes, count, err := dynamiDg.Fetch()
+			if tc.err {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 
 			if tc.expected != nil {
-				items, ok := res.(map[string]interface{})
-				if !ok {
-					t.Errorf("expected result be an map[string]interface{} but wasn't")
-				}
+				res, ok := rawRes.(map[string]interface{})
+				require.Truef(t, ok, "expected result be an map[string]interface{} but wasn't")
+				actual := res["items"].([]*api.GatheredResource)
+				require.Truef(t, ok, "expected result be an []*api.GatheredResource but wasn't")
 
-				list, ok := items["items"].([]*api.GatheredResource)
-				if !ok {
-					t.Errorf("expected result be an []*api.GatheredResource but wasn't")
-				}
 				// sorting list of results by name
-				sortGatheredResources(list)
+				sortGatheredResources(actual)
 				// sorting list of expected results by name
 				sortGatheredResources(tc.expected)
 
-				if diff, equal := messagediff.PrettyDiff(tc.expected, list); !equal {
-					t.Errorf("\n%s", diff)
-					expectedJSON, _ := json.MarshalIndent(tc.expected, "", "  ")
-					gotJSON, _ := json.MarshalIndent(list, "", "  ")
-					t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
-				}
-
-				if len(list) != count {
-					t.Errorf("wrong count of resources reported: got %d, want %d", count, len(list))
-				}
+				assert.Equal(t, tc.expected, actual)
+				assert.Len(t, actual, count)
 			}
 		})
 	}

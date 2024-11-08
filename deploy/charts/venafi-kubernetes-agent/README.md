@@ -423,6 +423,26 @@ Control Plane.
 > ```yaml
 > helm.sh/release.v1
 > ```
+#### **config.excludeAnnotationKeysRegex** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
+
+You can configure Venafi Kubernetes Agent to exclude some annotations or labels from being pushed to the Venafi Control Plane. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being sent to the Venafi Control Plane.  
+  
+If you would like to exclude annotations keys that contain the word  
+`secret`, use the regular expression `.*secret.*`. The leading and ending .*  
+are important if you want to filter out keys that contain `secret` anywhere in the key string.  
+  
+Note that the annotation `kubectl.kubernetes.io/last-applied-configuration` is already excluded by default, you don't need to exclude it explicitly.  
+  
+Example: excludeAnnotationKeysRegex: [".*secret.*"]
+#### **config.excludeLabelKeysRegex** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
 #### **config.configmap.name** ~ `unknown`
 > Default value:
 > ```yaml

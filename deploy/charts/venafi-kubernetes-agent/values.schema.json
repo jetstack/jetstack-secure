@@ -165,6 +165,12 @@
         "configmap": {
           "$ref": "#/$defs/helm-values.config.configmap"
         },
+        "excludeAnnotationKeysRegex": {
+          "$ref": "#/$defs/helm-values.config.excludeAnnotationKeysRegex"
+        },
+        "excludeLabelKeysRegex": {
+          "$ref": "#/$defs/helm-values.config.excludeLabelKeysRegex"
+        },
         "ignoredSecretTypes": {
           "$ref": "#/$defs/helm-values.config.ignoredSecretTypes"
         },
@@ -206,6 +212,17 @@
     },
     "helm-values.config.configmap.key": {},
     "helm-values.config.configmap.name": {},
+    "helm-values.config.excludeAnnotationKeysRegex": {
+      "default": [],
+      "description": "You can configure Venafi Kubernetes Agent to exclude some annotations or labels from being pushed to the Venafi Control Plane. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being sent to the Venafi Control Plane.\n\nIf you would like to exclude annotations keys that contain the word\n`secret`, use the regular expression `.*secret.*`. The leading and ending .*\nare important if you want to filter out keys that contain `secret` anywhere in the key string.\n\nNote that the annotation `kubectl.kubernetes.io/last-applied-configuration` is already excluded by default, you don't need to exclude it explicitly.\n\nExample: excludeAnnotationKeysRegex: [\".*secret.*\"]",
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.config.excludeLabelKeysRegex": {
+      "default": [],
+      "items": {},
+      "type": "array"
+    },
     "helm-values.config.ignoredSecretTypes": {
       "items": {
         "$ref": "#/$defs/helm-values.config.ignoredSecretTypes[0]"

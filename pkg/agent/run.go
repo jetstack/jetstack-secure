@@ -34,6 +34,7 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
@@ -174,6 +175,12 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		newDg, err := dgConfig.Config.NewDataGatherer(gctx)
 		if err != nil {
 			return fmt.Errorf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
+		}
+
+		dynDg, isDynamicGatherer := newDg.(*k8s.DataGathererDynamic)
+		if isDynamicGatherer {
+			dynDg.ExcludeAnnotKeys = config.ExcludeAnnotationKeysRegex
+			dynDg.ExcludeLabelKeys = config.ExcludeLabelKeysRegex
 		}
 
 		log.V(logs.Debug).Info("Starting DataGatherer", "name", dgConfig.Name)
