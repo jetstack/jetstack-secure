@@ -14,23 +14,23 @@ data-gatherers:
       version: v1
       resource: secrets
 - kind: "k8s-dynamic"
-  name: "k8s/certificates.v1alpha2.cert-manager.io"
+  name: "k8s/certificates.v1.cert-manager.io"
   config:
     resource-type:
       group: cert-manager.io
-      version: v1alpha2
+      version: v1
       resource: certificates
 - kind: "k8s-dynamic"
-  name: "k8s/ingresses.v1beta1.networking.k8s.io"
+  name: "k8s/ingresses.v1.networking.k8s.io"
   config:
     resource-type:
       group: networking.k8s.io
-      version: v1beta1
+      version: v1
       resource: ingresses
 - kind: "k8s-dynamic"
-  name: "k8s/certificaterequests.v1alpha2.cert-manager.io"
+  name: "k8s/certificaterequests.v1.cert-manager.io"
   config:
     resource-type:
       group: cert-manager.io
-      version: v1alpha2
+      version: v1
       resource: certificaterequests
