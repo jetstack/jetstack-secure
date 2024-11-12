@@ -14,9 +14,9 @@ data:
     server: {{ .Values.config.server | quote }}
     period: {{ .Values.config.period | quote }}
     exclude-annotation-keys-regex:
-      {{ .Values.config.excludeAnnotationKeysRegex | nindent 6 }}
+      {{ .Values.config.excludeAnnotationKeysRegex | toYaml | nindent 6 }}
     exclude-label-keys-regex:
-      {{ .Values.config.excludeLabelKeysRegex | nindent 6 }}
+      {{ .Values.config.excludeLabelKeysRegex | toYaml | nindent 6 }}
     venafi-cloud:
       uploader_id: "no"
       upload_path: "/v1/tlspk/upload/clusterdata"
