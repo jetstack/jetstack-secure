@@ -20,8 +20,8 @@ var rootCmd = &cobra.Command{
 configuration checks using Open Policy Agent (OPA).
 
 Preflight checks are bundled into Packages`,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		logs.Initialize()
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		return logs.Initialize()
 	},
 	// SilenceErrors and SilenceUsage prevents this command or any sub-command
 	// from printing arbitrary text to stderr.

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"os"
@@ -33,10 +35,25 @@ import (
 func TestLogs(t *testing.T) {
 	if flags, found := os.LookupEnv("GO_CHILD_FLAG"); found {
 		if _, found := os.LookupEnv("GO_CHILD_SKIP_INITIALIZE"); !found {
-			fs := pflag.NewFlagSet("test-logs", pflag.ExitOnError)
+			fs := pflag.NewFlagSet("test-logs", pflag.ContinueOnError)
+			fs.SetOutput(io.Discard)
 			logs.AddFlags(fs)
-			fs.Parse(strings.Split(flags, " "))
-			logs.Initialize()
+			if err := fs.Parse(strings.Split(flags, " ")); err != nil {
+				exitCode := 0
+				if errors.Is(err, pflag.ErrHelp) {
+					fmt.Fprint(os.Stdout, fs.FlagUsages())
+					os.Exit(exitCode)
+				} else {
+					exitCode := 1
+					klog.ErrorS(err, "Exiting due to error", "exit-code", exitCode)
+					klog.FlushAndExit(time.Second, exitCode)
+				}
+			}
+			if err := logs.Initialize(); err != nil {
+				exitCode := 1
+				klog.ErrorS(err, "Exiting due to error", "exit-code", exitCode)
+				klog.FlushAndExit(time.Second, exitCode)
+			}
 		}
 
 		log.Print("log Print")
@@ -63,14 +80,9 @@ func TestLogs(t *testing.T) {
 		expectStderr  string
 	}{
 		{
-			name:        "help",
-			flags:       "-h",
-			expectError: true,
+			name:  "help",
+			flags: "-h",
 			expectStdout: `
-pflag: help requested
-`,
-			expectStderr: `
-Usage of test-logs:
   -v, --log-level Level         number for the log level verbosity
       --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "text")
       --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
@@ -80,30 +92,16 @@ Usage of test-logs:
 			name:        "unrecognized-flag",
 			flags:       "--foo",
 			expectError: true,
-			expectStdout: `
-unknown flag: --foo
-`,
 			expectStderr: `
-unknown flag: --foo
-Usage of test-logs:
-  -v, --log-level Level         number for the log level verbosity
-      --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "text")
-      --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
+E0000 00:00:00.000000   00000 logs_test.go:000] "Exiting due to error" err="unknown flag: --foo" exit-code=1
 `,
 		},
 		{
 			name:        "v-long-form-not-available",
 			flags:       "--v=3",
 			expectError: true,
-			expectStdout: `
-unknown flag: --v
-`,
 			expectStderr: `
-unknown flag: --v
-Usage of test-logs:
-  -v, --log-level Level         number for the log level verbosity
-      --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "text")
-      --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
+E0000 00:00:00.000000   00000 logs_test.go:000] "Exiting due to error" err="unknown flag: --v" exit-code=1
 `,
 		},
 		{
@@ -111,7 +109,7 @@ Usage of test-logs:
 			flags:       "--logging-format=foo",
 			expectError: true,
 			expectStderr: `
-Error in logging configuration: format: Invalid value: "foo": Unsupported log format
+E0000 00:00:00.000000   00000 logs_test.go:000] "Exiting due to error" err="Error in logging configuration: format: Invalid value: \"foo\": Unsupported log format" exit-code=1
 `,
 		},
 		{
@@ -297,7 +295,7 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 			if test.expectError {
 				var target *exec.ExitError
 				require.ErrorAs(t, err, &target)
-				require.Equal(t, 2, target.ExitCode(), "Flag parsing failures should always result in exit code 2")
+				require.Equal(t, 1, target.ExitCode(), "Flag parsing failures should always result in exit code 1")
 				t.Logf("ERROR: %v", err)
 			} else {
 				require.NoError(t, err)

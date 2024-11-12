@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -108,13 +107,12 @@ func AddFlags(fs *pflag.FlagSet) {
 
 // Initialize uses k8s.io/component-base/logs, to configure the following global
 // loggers: log, slog, and klog. All are configured to write in the same format.
-func Initialize() {
+func Initialize() error {
 	// This configures the global logger in klog *and* slog, if compiled with Go
 	// >= 1.21.
 	logs.InitLogs()
 	if err := logsapi.ValidateAndApply(configuration, features); err != nil {
-		fmt.Fprintf(os.Stderr, "Error in logging configuration: %v\n", err)
-		os.Exit(2)
+		return fmt.Errorf("Error in logging configuration: %s", err)
 	}
 
 	// Thanks to logs.InitLogs, slog.Default now uses klog as its backend. Thus,
@@ -133,6 +131,7 @@ func Initialize() {
 	// to the global log logger. It can be removed when this is fixed upstream
 	// in vcert:  https://github.com/Venafi/vcert/pull/512
 	vcertLog.SetPrefix("")
+	return nil
 }
 
 type LogToSlogWriter struct {
