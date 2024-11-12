@@ -22,8 +22,8 @@ type AgentRBACManifests struct {
 	RoleBindings []rbac.RoleBinding
 }
 
-const agentNamespace = "jetstack-secure"
-const agentSubjectName = "agent"
+const agentNamespace = "venafi"
+const agentSubjectName = "venafi-kubernetes-agent"
 
 func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACManifests {
 	// create a new AgentRBACManifest struct
@@ -35,7 +35,7 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 		}
 
 		dyConfig := dg.Config.(*k8s.ConfigDynamic)
-		metadataName := fmt.Sprintf("%s-agent-%s-reader", agentNamespace, dyConfig.GroupVersionResource.Resource)
+		metadataName := fmt.Sprintf("%s-kubernetes-agent-%s-reader", agentNamespace, dyConfig.GroupVersionResource.Resource)
 
 		AgentRBACManifests.ClusterRoles = append(AgentRBACManifests.ClusterRoles, rbac.ClusterRole{
 			TypeMeta: metav1.TypeMeta{

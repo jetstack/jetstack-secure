@@ -53,3 +53,22 @@ shared_generate_targets += generate-crds-venconn
 ## @category Testing
 test-e2e-gke:
 	./hack/e2e/test.sh
+
+_bin/artifacts/preflight:  | $(NEEDS_GO)
+	$(GO) build -o $@ .
+
+examples/venafi-kubernetes-agent.yaml: $(helm_chart_archive) $(helm_chart_source_dir)/templates/configmap.yaml | $(NEEDS_HELM) $(NEEDS_YQ)
+	$(HELM) template --show-only templates/configmap.yaml $(helm_chart_archive) \
+	| $(YQ) '.data."config.yaml" | @yamld | .cluster_id |= "example-cluster-1" | .organization_id |= "example-organization-1"' > $@
+
+.PHONY: build
+build: _bin/artifacts/preflight
+
+.PHONY: generate-example-venafi-kubernetes-agent
+generate-example-venafi-kubernetes-agent: examples/venafi-kubernetes-agent.yaml
+
+.PHONY: generate-helm-rbac
+verify-helm-rbac: _bin/artifacts/preflight examples/venafi-kubernetes-agent.yaml | $(NEEDS_HELM)
+	diff -u \
+		<($(HELM) template deploy/charts/venafi-kubernetes-agent --show-only templates/rbac.yaml --namespace venafi --set fullnameOverride=venafi-kubernetes-agent | grep -v '# Source: ' | yq 'del(.metadata.labels)' | yq '[.]' | yq 'sort_by(.metadata.name)' -o yaml -P) \
+		<(_bin/artifacts/preflight agent rbac -c examples/venafi-kubernetes-agent.yaml | yq '[.]' | yq 'sort_by(.metadata.name)' -o yaml -P)
