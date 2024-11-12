@@ -1,4 +1,4 @@
-package agent
+package cmd
 
 import (
 	"bytes"
@@ -8,53 +8,40 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
-	"k8s.io/klog/v2"
-
-	"github.com/jetstack/preflight/pkg/logs"
 )
 
-// TestRunOneShot runs the agent in `--one-shot` mode and verifies that it exits
+// TestAgentRunOneShot runs the agent in `--one-shot` mode and verifies that it exits
 // after the first data gathering iteration.
-func TestRunOneShot(t *testing.T) {
+func TestAgentRunOneShot(t *testing.T) {
 	if _, found := os.LookupEnv("GO_CHILD"); found {
 		// Silence the warning about missing pod name for event generation
 		// TODO(wallrj): This should not be required when an `--input-file` has been supplied.
 		t.Setenv("POD_NAME", "venafi-kubernetes-e2e")
 		// Silence the error about missing kubeconfig.
 		// TODO(wallrj): This should not be required when an `--input-file` has been supplied.
-		t.Setenv("KUBECONFIG", "testdata/one-shot/success/kubeconfig.yaml")
+		t.Setenv("KUBECONFIG", "testdata/agent/one-shot/success/kubeconfig.yaml")
 
-		c := &cobra.Command{}
-		InitAgentCmdFlags(c, &Flags)
-		logs.AddFlags(c.Flags())
-
-		err := c.ParseFlags([]string{
+		os.Args = []string{
+			"preflight",
+			"agent",
 			"--one-shot",
 			// TODO(wallrj): This should not be required when an `--input-file` has been supplied.
 			"--api-token=should-not-be-required",
 			// TODO(wallrj): This should not be required when an `--input-file` has been supplied.
 			"--install-namespace=default",
-			"--agent-config-file=testdata/one-shot/success/config.yaml",
-			"--input-path=testdata/one-shot/success/input.json",
+			"--agent-config-file=testdata/agent/one-shot/success/config.yaml",
+			"--input-path=testdata/agent/one-shot/success/input.json",
 			"--output-path=/dev/null",
 			"-v=1",
-		})
-		require.NoError(t, err)
-
-		logs.Initialize()
-		defer klog.Flush()
-
-		runErr := Run(c, nil)
-		require.NoError(t, runErr, "Run returned an unexpected error")
-
+		}
+		Execute()
 		return
 	}
 	t.Log("Running child process")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestRunOneShot$")
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestAgentRunOneShot$")
 	var (
 		stdout bytes.Buffer
 		stderr bytes.Buffer
