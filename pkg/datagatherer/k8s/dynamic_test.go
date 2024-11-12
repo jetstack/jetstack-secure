@@ -380,7 +380,6 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 	// init the datagatherer's informer with the client
 	// add/delete resources watched by the data gatherer
 	// check the expected result
-	emptyScheme := runtime.NewScheme()
 	tests := map[string]struct {
 		config            ConfigDynamic
 		excludeAnnotsKeys []string
@@ -599,31 +598,41 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				},
 			},
 		},
-		"excluded annotations are removed on secrets and CRDs": {
-			config:            ConfigDynamic{GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}},
-			excludeAnnotsKeys: []string{".*secret.*"},
-			addObjects: []runtime.Object{
-				getObjectAnnot("v1", "Secret", "s0", "n1", map[string]interface{}{"normal-annot": "value"}, nil),
-				getObjectAnnot("v1", "Secret", "s1", "n1", nil, map[string]interface{}{"normal-label": "value"}),
-				getObjectAnnot("v1", "Secret", "s2", "n1", map[string]interface{}{"super-secret-annot": "value"}, nil),
-				getObjectAnnot("v1", "Secret", "s3", "n1", nil, map[string]interface{}{"super-secret-label": "value"}),
+		"excluded annotations are removed for unstructured-based gatherers such as secrets": {
+			config: ConfigDynamic{GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}},
 
-				getObjectAnnot("route.openshift.io/v1", "Route", "r0", "n1", map[string]interface{}{"normal-annot": "value"}, nil),
-				getObjectAnnot("route.openshift.io/v1", "Route", "r1", "n1", nil, map[string]interface{}{"normal-label": "value"}),
-				getObjectAnnot("route.openshift.io/v1", "Route", "r2", "n1", map[string]interface{}{"super-secret-annot": "value"}, nil),
-				getObjectAnnot("route.openshift.io/v1", "Route", "r3", "n1", nil, map[string]interface{}{"super-secret-label": "value"}),
-			},
-			expected: []*api.GatheredResource{
-				{Resource: getObjectAnnot("v1", "Secret", "s0", "n1", map[string]interface{}{"normal-annot": "value"}, nil)},
-				{Resource: getObjectAnnot("v1", "Secret", "s1", "n1", nil, map[string]interface{}{"normal-label": "value"})},
-				{Resource: getObjectAnnot("v1", "Secret", "s2", "n1", nil, nil)},
-				{Resource: getObjectAnnot("v1", "Secret", "s3", "n1", nil, nil)},
+			// To give a realistic regex in this test case, let's use the
+			// example of the Kapp project that uses four annotations that all
+			// start with `kapp.k14s.io/original*`. These annotations are
+			// similar to `kubectl.kubernetes.io/last-applied-configuration` in
+			// that they may contain sensitive information. From [1], they may
+			// look like this:
+			//
+			//  kapp.k14s.io/original: |
+			//    {"apiVersion":"v1","kind":"Secret","spec":{"data": {"password": "cGFzc3dvcmQ=","username": "bXl1c2VybmFtZQ=="}}}
+			//  kapp.k14s.io/original-diff: |
+			//    - type: test
+			//      path: /data
+			//      value:
+			//      password: cygpcGVyUzNjcmV0UEBhc3N3b3JkIQ==
+			//      username: bXl1c2VybmFtZQ==
+			//
+			//  [1]: https://github.com/carvel-dev/kapp/issues/90#issuecomment-602074356
+			excludeAnnotsKeys: []string{`kapp\.k14s\.io\/original.*`},
 
-				{Resource: getObjectAnnot("route.openshift.io/v1", "Route", "r0", "n1", map[string]interface{}{"normal-annot": "value"}, nil)},
-				{Resource: getObjectAnnot("route.openshift.io/v1", "Route", "r1", "n1", nil, map[string]interface{}{"normal-label": "value"})},
-				{Resource: getObjectAnnot("route.openshift.io/v1", "Route", "r2", "n1", nil, nil)},
-				{Resource: getObjectAnnot("route.openshift.io/v1", "Route", "r3", "n1", nil, nil)},
-			},
+			// We haven't found convincing examples of labels that may contain
+			// sensitive information in the wild, so let's go with a dumb
+			// example.
+			excludeLabelKeys: []string{`.*sensitive.*`},
+
+			addObjects: []runtime.Object{getObjectAnnot("v1", "Secret", "s0", "n1",
+				map[string]interface{}{"kapp.k14s.io/original": "foo", "kapp.k14s.io/original-diff": "bar", "normal": "true"},
+				map[string]interface{}{"is-sensitive-label": "true", "prod": "true"},
+			)},
+			expected: []*api.GatheredResource{{Resource: getObjectAnnot("v1", "Secret", "s0", "n1",
+				map[string]interface{}{"normal": "true"},
+				map[string]interface{}{"prod": "true"},
+			)}},
 		},
 	}
 
@@ -632,12 +641,12 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			var wg sync.WaitGroup
 			ctx := context.Background()
 			gvrToListKind := map[schema.GroupVersionResource]string{
-				schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"}:      "UnstructuredList",
-				schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}: "UnstructuredList",
-				schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}:         "UnstructuredList",
-				schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"}:      "UnstructuredList",
+				{Group: "foobar", Version: "v1", Resource: "foos"}:      "UnstructuredList",
+				{Group: "apps", Version: "v1", Resource: "deployments"}: "UnstructuredList",
+				{Group: "", Version: "v1", Resource: "secrets"}:         "UnstructuredList",
+				{Group: "", Version: "v1", Resource: "namespaces"}:      "UnstructuredList",
 			}
-			cl := fake.NewSimpleDynamicClientWithCustomListKinds(emptyScheme, gvrToListKind, tc.addObjects...)
+			cl := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, tc.addObjects...)
 			// init the datagatherer's informer with the client
 			dg, err := tc.config.newDataGathererWithClient(ctx, cl, nil)
 			if err != nil {
@@ -927,7 +936,7 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 		// (would require a lot of changes to the testing func). Ideally we
 		// should test all native resources such as Service, Deployment,
 		// Ingress, Namespace, and so on.
-		"excluded annotations are removed native resources: pods, namespaces, etc": {
+		"excluded annotations are removed for typed resources gatherers such as pods": {
 			config:            ConfigDynamic{GroupVersionResource: podGVR},
 			excludeAnnotsKeys: []string{"secret"},
 			excludeLabelKeys:  []string{"secret"},
