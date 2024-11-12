@@ -83,7 +83,7 @@ func TestLogs(t *testing.T) {
 			name:  "help",
 			flags: "-h",
 			expectStdout: `
-  -v, --log-level Level         number for the log level verbosity
+  -v, --log-level Level         number for the log level verbosity. 0=Info, 1=Debug, 2=Trace. Use 3-10 for even greater detail. (default: 0)
       --logging-format string   Sets the log format. Permitted formats: "json", "text". (default "text")
       --vmodule pattern=N,...   comma-separated list of pattern=N settings for file-filtered logging (only works for text log format)
 `,
