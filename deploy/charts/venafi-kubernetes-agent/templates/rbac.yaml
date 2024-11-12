@@ -1,46 +1,5 @@
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-event-emitted
-  labels:
-    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
-rules:
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["create"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-event-emitted
-  labels:
-    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-event-emitted
-subjects:
-  - kind: ServiceAccount
-    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-cluster-viewer
-  labels:
-    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: view
-subjects:
-  - kind: ServiceAccount
-    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "venafi-kubernetes-agent.fullname" . }}-node-reader
@@ -95,28 +54,79 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-cert-manager-reader
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-certificaterequests-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources:
+      - certificaterequests
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-certificaterequests-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-certificaterequests-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-certificates-reader
   labels:
     {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["cert-manager.io"]
     resources:
       - certificates
-      - certificaterequests
-      - issuers
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-certificates-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-certificates-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-clusterissuers-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources:
       - clusterissuers
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-cert-manager-reader
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-clusterissuers-reader
   labels:
     {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
 roleRef:
-  kind: ClusterRole
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-cert-manager-reader
   apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-clusterissuers-reader
 subjects:
   - kind: ServiceAccount
     name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
@@ -125,26 +135,52 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-googlecas-reader
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-issuers-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["cert-manager.io"]
+    resources:
+      - issuers
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-issuers-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-issuers-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-googlecasclusterissuers-reader
   labels:
     {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["cas-issuer.jetstack.io"]
     resources:
-      - googlecasissuers
       - googlecasclusterissuers
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-googlecas-reader
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-googlecasclusterissuers-reader
   labels:
     {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
 roleRef:
-  kind: ClusterRole
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-googlecas-reader
   apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-googlecasclusterissuers-reader
 subjects:
   - kind: ServiceAccount
     name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
@@ -153,26 +189,79 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-awspca-reader
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-googlecasissuers-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["cas-issuer.jetstack.io"]
+    resources:
+      - googlecasissuers
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-googlecasissuers-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-googlecasissuers-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-awspcaissuers-reader
   labels:
     {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["awspca.cert-manager.io"]
     resources:
       - awspcaissuers
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-awspcaissuers-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-awspcaissuers-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-awspcaclusterissuers-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["awspca.cert-manager.io"]
+    resources:
       - awspcaclusterissuers
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-awspca-reader
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-awspcaclusterissuers-reader
   labels:
     {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
 roleRef:
-  kind: ClusterRole
-  name: {{ include "venafi-kubernetes-agent.fullname" . }}-awspca-reader
   apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-awspcaclusterissuers-reader
 subjects:
   - kind: ServiceAccount
     name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
@@ -288,3 +377,166 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-cronjobs-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["batch"]
+    resources:
+      - cronjobs
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-cronjobs-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-cronjobs-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-jobs-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-jobs-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-jobs-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-daemonsets-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["apps"]
+    resources:
+      - daemonsets
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-daemonsets-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-daemonsets-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-deployments-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-deployments-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-deployments-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-gateways-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["networking.istio.io"]
+    resources:
+      - gateways
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-gateways-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-gateways-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-ingresses-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-ingresses-reader
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}-ingresses-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
