@@ -618,16 +618,24 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			//      username: bXl1c2VybmFtZQ==
 			//
 			//  [1]: https://github.com/carvel-dev/kapp/issues/90#issuecomment-602074356
-			excludeAnnotsKeys: []string{`kapp\.k14s\.io\/original.*`},
+			//
+			// The regular expression could be:
+			excludeAnnotsKeys: []string{`^kapp\.k14s\.io/original.*`},
 
-			// We haven't found convincing examples of labels that may contain
-			// sensitive information in the wild, so let's go with a dumb
-			// example.
-			excludeLabelKeys: []string{`.*sensitive.*`},
+			// A somewhat realistic example of labels that would need to be
+			// excluded would be when a company declares ownership using
+			// sensitive identifiers (e.g., employee IDs), and the company
+			// doesn't want these IDs to be exposed. Let's imagine these
+			// employee IDs look like this:
+			//
+			//  company.com/employee-id: 12345
+			//
+			// The regular expression would then be:
+			excludeLabelKeys: []string{`^company\.com/employee-id$`},
 
 			addObjects: []runtime.Object{getObjectAnnot("v1", "Secret", "s0", "n1",
 				map[string]interface{}{"kapp.k14s.io/original": "foo", "kapp.k14s.io/original-diff": "bar", "normal": "true"},
-				map[string]interface{}{"is-sensitive-label": "true", "prod": "true"},
+				map[string]interface{}{`company.com/employee-id`: "12345", "prod": "true"},
 			)},
 			expected: []*api.GatheredResource{{Resource: getObjectAnnot("v1", "Secret", "s0", "n1",
 				map[string]interface{}{"normal": "true"},

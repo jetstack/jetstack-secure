@@ -431,11 +431,9 @@ Control Plane.
 
 You can configure Venafi Kubernetes Agent to exclude some annotations or labels from being pushed to the Venafi Control Plane. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being sent to the Venafi Control Plane.  
   
-If you would like to exclude annotations keys that contain the word `word`, use the regular expression `.*word.*`. The leading and ending .* are important if you want to filter out keys that contain `word` anywhere in the key string.  
+Dots is the only character that needs to be escaped in the regex. Use either double quotes with escaped single quotes or unquoted strings for the regex to avoid YAML parsing issues with `\.`.  
   
-Note that the annotation `kubectl.kubernetes.io/last-applied-configuration` is already excluded by default, you don't need to exclude it explicitly.  
-  
-Example: excludeAnnotationKeysRegex: ["kapp\.k14s\.io\/original.*"]
+Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
 #### **config.excludeLabelKeysRegex** ~ `array`
 > Default value:
 > ```yaml
