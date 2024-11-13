@@ -1086,3 +1086,200 @@ func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
 		return true
 	}
 }
+
+func TestRemoveUnstructuredKeys(t *testing.T) {
+	t.Run("remove single key", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{"^key1$"},
+		givenObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name": "foo",
+				"annotations": map[string]interface{}{
+					"key1": "value1",
+					"key2": "value2",
+				},
+			},
+		},
+		expectObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name": "foo",
+			},
+		},
+	}))
+
+	t.Run("remove keys using multiple regexes", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{"^key1$", "^key2$"},
+		givenObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name": "foo",
+				"annotations": map[string]interface{}{
+					"key1": "value1",
+					"key2": "value2",
+				},
+			},
+		},
+		expectObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name": "foo",
+			},
+		},
+	}))
+
+	t.Run("remove multiple keys with a single regex", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{"key.*"},
+		givenObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name": "foo",
+				"annotations": map[string]interface{}{
+					"key1": "value1",
+					"key2": "value2",
+				},
+			},
+		},
+		expectObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name": "foo",
+			},
+		},
+	}))
+
+	t.Run("with no regex, the object is untouched", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{},
+		givenObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name": "foo",
+				"annotations": map[string]interface{}{
+					"key1": "value1",
+					"key2": "value2",
+				},
+			},
+		},
+		expectObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name": "foo",
+				"annotations": map[string]interface{}{
+					"key1": "value1",
+					"key2": "value2",
+				},
+			},
+		},
+	}))
+
+	// The "leaf" field is the field that is at the end of the path. For
+	// example, "annotations" is the leaf field in metadata.annotations.
+	t.Run("works when the leaf field is not found", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{},
+
+		givenObj:  map[string]interface{}{"metadata": map[string]interface{}{}},
+		expectObj: map[string]interface{}{"metadata": map[string]interface{}{}},
+	}))
+
+	t.Run("works when the leaf field is nil", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{},
+		givenObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"name":        "foo",
+				"annotations": nil,
+			},
+		},
+		expectObj: map[string]interface{}{"metadata": map[string]interface{}{"name": "foo"}},
+	}))
+
+	t.Run("works when leaf field is unexpectedly not nil and not a known map", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath: []string{"metadata", "annotations"},
+		givenObj:  map[string]interface{}{"metadata": map[string]interface{}{"annotations": 42}},
+		expectObj: map[string]interface{}{"metadata": map[string]interface{}{"annotations": 42}},
+	}))
+
+	// The "intermediate" field is the field that is not at the end of the path.
+	// For example, "metadata" is the intermediate field in
+	// metadata.annotations.
+	t.Run("works when the intermediate field doesn't exist", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath: []string{"metadata", "annotations"},
+		givenObj:  map[string]interface{}{},
+		expectObj: map[string]interface{}{},
+	}))
+
+	t.Run("works when the intermediate field is nil", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath: []string{"metadata", "annotations"},
+		givenObj:  map[string]interface{}{"metadata": nil},
+	}))
+
+	t.Run("works when the intermediate field is unexpectedly not nil and not a map", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath: []string{"metadata", "annotations"},
+		givenObj:  map[string]interface{}{"metadata": 42},
+		expectObj: map[string]interface{}{"metadata": 42},
+	}))
+}
+
+type tc_RemoveUnstructuredKeys struct {
+	givenExclude []string
+	givenObj     map[string]interface{}
+	givenPath    []string
+	expectObj    map[string]interface{}
+}
+
+func run_TestRemoveUnstructuredKeys(tc tc_RemoveUnstructuredKeys) func(*testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
+		RemoveUnstructuredKeys(toRegexps(tc.givenExclude), &unstructured.Unstructured{Object: tc.givenObj}, tc.givenPath...)
+	}
+}
+
+func TestRemoveTypedKeys(t *testing.T) {
+	t.Run("remove single key", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
+		givenExclude: []string{"^key1$"},
+		given:        map[string]string{"key1": "value1", "key2": "value2"},
+		expected:     map[string]string{"key2": "value2"},
+	}))
+
+	t.Run("remove keys using multiple regexes", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
+		givenExclude: []string{"^key1$", "^key2$"},
+		given:        map[string]string{"key1": "value1", "key2": "value2"},
+		expected:     map[string]string{},
+	}))
+
+	t.Run("remove multiple keys with a single regex", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
+		givenExclude: []string{"key.*"},
+		given:        map[string]string{"key1": "value1", "key2": "value2"},
+		expected:     map[string]string{},
+	}))
+
+	t.Run("with no regex, the object is untouched", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
+		givenExclude: []string{},
+		given:        map[string]string{"key1": "value1", "key2": "value2"},
+		expected:     map[string]string{"key1": "value1", "key2": "value2"},
+	}))
+
+	t.Run("works when the map is nil", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
+		givenExclude: []string{"^key1$"},
+		given:        nil,
+		expected:     nil,
+	}))
+}
+
+type tc_TestRemoveTypedKeys struct {
+	givenExclude []string
+	given        map[string]string
+	expected     map[string]string
+}
+
+func run_TestRemoveTypedKeys(tc tc_TestRemoveTypedKeys) func(t *testing.T) {
+	return func(t *testing.T) {
+		RemoveTypedKeys(toRegexps(tc.givenExclude), tc.given)
+		assert.Equal(t, tc.expected, tc.given)
+	}
+}
+
+func toRegexps(keys []string) []*regexp.Regexp {
+	var regexps []*regexp.Regexp
+	for _, key := range keys {
+		regexps = append(regexps, regexp.MustCompile(key))
+	}
+	return regexps
+}

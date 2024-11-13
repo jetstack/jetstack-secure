@@ -379,41 +379,8 @@ func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys
 			// remove managedFields from all resources
 			Redact(RedactFields, resource)
 
-			annotsRaw, ok, err := unstructured.NestedFieldNoCopy(resource.Object, "metadata", "annotations")
-			if err != nil {
-				return fmt.Errorf("wasn't able to find the metadata.annotations field: %w", err)
-			}
-			if ok {
-				annots, ok := annotsRaw.(map[string]interface{})
-				if !ok {
-					return fmt.Errorf("metadata.annotations isn't a map on the resource %s in namespace %s: %w", resource.GetName(), resource.GetNamespace(), err)
-				}
-				for key := range annots {
-					for _, excludeAnnotKey := range excludeAnnotKeys {
-						if excludeAnnotKey.MatchString(key) {
-							delete(annots, key)
-						}
-					}
-				}
-			}
-
-			labelsRaw, ok, err := unstructured.NestedFieldNoCopy(resource.Object, "metadata", "labels")
-			if err != nil {
-				return fmt.Errorf("wasn't able to find the metadata.labels field for the resource %s in namespace %s: %w", resource.GetName(), resource.GetNamespace(), err)
-			}
-			if ok {
-				labels, ok := labelsRaw.(map[string]interface{})
-				if !ok {
-					return fmt.Errorf("metadata.labels isn't a map on the resource %s in namespace %s: %w", resource.GetName(), resource.GetNamespace(), err)
-				}
-				for key := range labels {
-					for _, excludeLabelKey := range excludeLabelKeys {
-						if excludeLabelKey.MatchString(key) {
-							delete(labels, key)
-						}
-					}
-				}
-			}
+			RemoveUnstructuredKeys(excludeAnnotKeys, resource, "metadata", "annotations")
+			RemoveUnstructuredKeys(excludeLabelKeys, resource, "metadata", "labels")
 
 			continue
 		}
@@ -427,23 +394,8 @@ func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys
 			item.GetObjectMeta().SetManagedFields(nil)
 			delete(item.GetObjectMeta().GetAnnotations(), "kubectl.kubernetes.io/last-applied-configuration")
 
-			annots := item.GetObjectMeta().GetAnnotations()
-			for key := range annots {
-				for _, excludeAnnotKey := range excludeAnnotKeys {
-					if excludeAnnotKey.MatchString(key) {
-						delete(annots, key)
-					}
-				}
-			}
-
-			labels := item.GetObjectMeta().GetLabels()
-			for key := range labels {
-				for _, excludeLabelKey := range excludeLabelKeys {
-					if excludeLabelKey.MatchString(key) {
-						delete(labels, key)
-					}
-				}
-			}
+			RemoveTypedKeys(excludeAnnotKeys, item.GetObjectMeta().GetAnnotations())
+			RemoveTypedKeys(excludeLabelKeys, item.GetObjectMeta().GetLabels())
 
 			resource := item.(runtime.Object)
 			gvks, _, err := scheme.Scheme.ObjectKinds(resource)
@@ -468,6 +420,78 @@ func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys
 		}
 	}
 	return nil
+}
+
+// Meant for typed clientset objects.
+func RemoveTypedKeys(excludeAnnotKeys []*regexp.Regexp, m map[string]string) {
+	for key := range m {
+		for _, excludeAnnotKey := range excludeAnnotKeys {
+			if excludeAnnotKey.MatchString(key) {
+				delete(m, key)
+			}
+		}
+	}
+}
+
+// Meant for unstructured clientset objects. Removes the keys from the field
+// given as input. For example, let's say we have the following object:
+//
+//	{
+//	  "metadata": {
+//	    "annotations": {
+//	      "key1": "value1",
+//	      "key2": "value2"
+//	    }
+//	  }
+//	}
+//
+// Then, the following call:
+//
+//	RemoveUnstructuredKeys("^key1$", obj, "metadata", "annotations")
+//
+// Will result in:
+//
+//	{
+//	  "metadata": {
+//	    "annotations": {"key2": "value2"}
+//	  }
+//	}
+//
+// If the given path doesn't exist or leads to a non-map object, nothing
+// happens. The leaf object must either be a map[string]interface{} (that's
+// what's returned by the unstructured clientset) or a map[string]string (that's
+// what's returned by the typed clientset).
+func RemoveUnstructuredKeys(excludeKeys []*regexp.Regexp, obj *unstructured.Unstructured, path ...string) {
+	annotsRaw, ok, err := unstructured.NestedFieldNoCopy(obj.Object, path...)
+	if err != nil {
+		return
+	}
+	if !ok {
+		return
+	}
+
+	// The field may be nil since yaml.Unmarshal's omitempty might not be set on
+	// on this struct field.
+	if annotsRaw == nil {
+		return
+	}
+
+	// The only possible type in an unstructured.Unstructured object is
+	// map[string]interface{}. That's because the yaml.Unmarshal func is used
+	// with an empty map[string]interface{} object, which means all nested
+	// objects will be unmarshalled to a map[string]interface{}.
+	annots, ok := annotsRaw.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	for key := range annots {
+		for _, excludeAnnotKey := range excludeKeys {
+			if excludeAnnotKey.MatchString(key) {
+				delete(annots, key)
+			}
+		}
+	}
 }
 
 // generateExcludedNamespacesFieldSelector creates a field selector string from
