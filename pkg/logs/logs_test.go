@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +21,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/pkg/logs"
+	"github.com/jetstack/preflight/pkg/testutil"
 )
 
 // TestLogs demonstrates how the logging flags affect the logging output.
@@ -307,67 +307,8 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 			test.expectStdout = strings.TrimPrefix(test.expectStdout, "\n")
 			test.expectStderr = strings.TrimPrefix(test.expectStderr, "\n")
 
-			require.Equal(t, test.expectStdout, replaceWithStaticTimestamps(stdoutStr), "stdout doesn't match")
-			require.Equal(t, test.expectStderr, replaceWithStaticTimestamps(stderrStr), "stderr doesn't match")
-		})
-	}
-}
-
-var (
-	timestampRegexpStdLog = regexp.MustCompile(`\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}`)
-	timestampRegexpKlog   = regexp.MustCompile(`\d{4} \d{2}:\d{2}:\d{2}\.\d{6} +\d+`)
-	timestampRegexpJSON   = regexp.MustCompile(`"ts":\d+\.?\d*`)
-	fileAndLineRegexpJSON = regexp.MustCompile(`"caller":"([^"]+).go:\d+"`)
-	fileAndLineRegexpKlog = regexp.MustCompile(` ([^:]+).go:\d+`)
-)
-
-// Replaces the klog and JSON timestamps with a static timestamp to make it
-// easier to assert the logs. It also replaces the line number with 000 as it
-// often changes.
-//
-//	I1018 15:12:57.953433   22183 logs.go:000] log
-//	{"ts":1729258473588.828,"caller":"log/log.go:000","msg":"log Print","v":0}
-//	2024/10/18 15:40:50 log Print
-//
-// to the fixed:
-//
-//	I0000 00:00:00.000000   00000 logs.go:000] log
-//	{"ts":0000000000000.000,"caller":"log/log.go:000","msg":"log Print","v":0}
-//	0000/00/00 00:00:00 log Print
-func replaceWithStaticTimestamps(input string) string {
-	input = timestampRegexpKlog.ReplaceAllString(input, "0000 00:00:00.000000   00000")
-	input = timestampRegexpJSON.ReplaceAllString(input, `"ts":0000000000000.000`)
-	input = timestampRegexpStdLog.ReplaceAllString(input, "0000/00/00 00:00:00")
-	input = fileAndLineRegexpJSON.ReplaceAllString(input, `"caller":"$1.go:000"`)
-	input = fileAndLineRegexpKlog.ReplaceAllString(input, " $1.go:000")
-	return input
-}
-
-func Test_replaceWithStaticTimestamps(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "klog",
-			input:    `I1018 15:20:42.861239    2386 logs_test.go:13] "Contextual Info Level 3" logger="foo" key="value"`,
-			expected: `I0000 00:00:00.000000   00000 logs_test.go:000] "Contextual Info Level 3" logger="foo" key="value"`,
-		},
-		{
-			name:     "json-with-nanoseconds",
-			input:    `{"ts":1729270111728.125,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}`,
-			expected: `{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Warn","v":0}`,
-		},
-		{
-			name:     "json-might-not-have-nanoseconds",
-			input:    `{"ts":1729270111728,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}`,
-			expected: `{"ts":0000000000000.000,"caller":"logs/logs_test.go:000","msg":"slog Info","v":0}`,
-		},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expected, replaceWithStaticTimestamps(test.input))
+			require.Equal(t, test.expectStdout, testutil.ReplaceWithStaticTimestamps(stdoutStr), "stdout doesn't match")
+			require.Equal(t, test.expectStderr, testutil.ReplaceWithStaticTimestamps(stderrStr), "stderr doesn't match")
 		})
 	}
 }
