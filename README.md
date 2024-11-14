@@ -94,17 +94,21 @@ The release process is semi-automated.
 
 ### Step 1: Git Tag and GitHub Release
 
+> [!NOTE]
+>
+> Upon pushing the tag, a GitHub Action will do the following:
+> - Build and publish the container image at `quay.io/jetstack/venafi-agent`,
+> - Build and publish the Helm chart at `oci://quay.io/jetstack/charts/venafi-kubernetes-agent`,
+> - Create a draft GitHub release,
+> - Upload the Helm chart tarball to the GitHub release.
+
 1. Create a tag for the new release:
    ```sh
    export VERSION=v1.1.0
    git tag --annotate --message="Release ${VERSION}" "${VERSION}"
    git push origin "${VERSION}"
    ```
-2. A GitHub action will see the new tag and do the following:
-   - Build and publish the container image at `quay.io/jetstack/venafi-agent`,
-   - Build and publish the Helm chart at `oci://quay.io/jetstack/charts/venafi-kubernetes-agent`,
-   - Create a draft GitHub release,
-   - Upload the Helm chart tarball to the GitHub release.
+2. Wait until the GitHub Actions finishes.
 3. Navigate to the GitHub Releases page and select the draft release to edit.
    1. Click on “Generate release notes” to automatically compile the changelog.
    2. Review and refine the generated notes to ensure they’re clear and useful
