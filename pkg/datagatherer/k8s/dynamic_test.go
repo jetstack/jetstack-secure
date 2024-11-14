@@ -1090,57 +1090,57 @@ func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
 func TestRemoveUnstructuredKeys(t *testing.T) {
 	t.Run("remove single key", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath:    []string{"metadata", "annotations"},
-		givenExclude: []string{"^key1$"},
+		givenExclude: []string{"^toexclude$"},
 		givenObj: map[string]interface{}{
 			"metadata": map[string]interface{}{
-				"name": "foo",
 				"annotations": map[string]interface{}{
-					"key1": "value1",
-					"key2": "value2",
+					"toexclude": "foo",
+					"tokeep":    "bar",
 				},
 			},
 		},
 		expectObj: map[string]interface{}{
 			"metadata": map[string]interface{}{
-				"name": "foo",
+				"annotations": map[string]interface{}{
+					"tokeep": "bar",
+				},
 			},
 		},
 	}))
 
 	t.Run("remove keys using multiple regexes", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath:    []string{"metadata", "annotations"},
-		givenExclude: []string{"^key1$", "^key2$"},
+		givenExclude: []string{"^toexclude1$", "^toexclude2$"},
 		givenObj: map[string]interface{}{
 			"metadata": map[string]interface{}{
-				"name": "foo",
 				"annotations": map[string]interface{}{
-					"key1": "value1",
-					"key2": "value2",
+					"toexclude1": "foo",
+					"toexclude2": "bar",
 				},
 			},
 		},
 		expectObj: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"name": "foo",
-			},
+			"metadata": map[string]interface{}{"annotations": map[string]interface{}{}},
 		},
 	}))
 
 	t.Run("remove multiple keys with a single regex", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath:    []string{"metadata", "annotations"},
-		givenExclude: []string{"key.*"},
+		givenExclude: []string{"toexclude.*"},
 		givenObj: map[string]interface{}{
 			"metadata": map[string]interface{}{
-				"name": "foo",
 				"annotations": map[string]interface{}{
-					"key1": "value1",
-					"key2": "value2",
+					"toexclude1": "foo",
+					"toexclude2": "bar",
+					"tokeep":     "baz",
 				},
 			},
 		},
 		expectObj: map[string]interface{}{
 			"metadata": map[string]interface{}{
-				"name": "foo",
+				"annotations": map[string]interface{}{
+					"tokeep": "baz",
+				},
 			},
 		},
 	}))
@@ -1150,19 +1150,15 @@ func TestRemoveUnstructuredKeys(t *testing.T) {
 		givenExclude: []string{},
 		givenObj: map[string]interface{}{
 			"metadata": map[string]interface{}{
-				"name": "foo",
 				"annotations": map[string]interface{}{
-					"key1": "value1",
-					"key2": "value2",
+					"tokeep1": "foo",
 				},
 			},
 		},
 		expectObj: map[string]interface{}{
 			"metadata": map[string]interface{}{
-				"name": "foo",
 				"annotations": map[string]interface{}{
-					"key1": "value1",
-					"key2": "value2",
+					"tokeep1": "foo",
 				},
 			},
 		},
@@ -1181,13 +1177,8 @@ func TestRemoveUnstructuredKeys(t *testing.T) {
 	t.Run("works when the leaf field is nil", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath:    []string{"metadata", "annotations"},
 		givenExclude: []string{},
-		givenObj: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"name":        "foo",
-				"annotations": nil,
-			},
-		},
-		expectObj: map[string]interface{}{"metadata": map[string]interface{}{"name": "foo"}},
+		givenObj:     map[string]interface{}{"metadata": map[string]interface{}{"annotations": nil}},
+		expectObj:    map[string]interface{}{"metadata": map[string]interface{}{"annotations": nil}},
 	}))
 
 	t.Run("works when leaf field is unexpectedly not nil and not a known map", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
@@ -1208,6 +1199,7 @@ func TestRemoveUnstructuredKeys(t *testing.T) {
 	t.Run("works when the intermediate field is nil", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath: []string{"metadata", "annotations"},
 		givenObj:  map[string]interface{}{"metadata": nil},
+		expectObj: map[string]interface{}{"metadata": nil},
 	}))
 
 	t.Run("works when the intermediate field is unexpectedly not nil and not a map", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
@@ -1228,36 +1220,37 @@ func run_TestRemoveUnstructuredKeys(tc tc_RemoveUnstructuredKeys) func(*testing.
 	return func(t *testing.T) {
 		t.Helper()
 		RemoveUnstructuredKeys(toRegexps(tc.givenExclude), &unstructured.Unstructured{Object: tc.givenObj}, tc.givenPath...)
+		assert.Equal(t, tc.expectObj, tc.givenObj)
 	}
 }
 
 func TestRemoveTypedKeys(t *testing.T) {
 	t.Run("remove single key", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
-		givenExclude: []string{"^key1$"},
-		given:        map[string]string{"key1": "value1", "key2": "value2"},
-		expected:     map[string]string{"key2": "value2"},
+		givenExclude: []string{"^toexclude$"},
+		given:        map[string]string{"toexclude": "foo", "tokeep": "bar"},
+		expected:     map[string]string{"tokeep": "bar"},
 	}))
 
 	t.Run("remove keys using multiple regexes", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
-		givenExclude: []string{"^key1$", "^key2$"},
-		given:        map[string]string{"key1": "value1", "key2": "value2"},
-		expected:     map[string]string{},
+		givenExclude: []string{"^toexclude1$", "^toexclude2$"},
+		given:        map[string]string{"toexclude1": "foo", "toexclude2": "bar", "tokeep": "baz"},
+		expected:     map[string]string{"tokeep": "baz"},
 	}))
 
 	t.Run("remove multiple keys with a single regex", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
-		givenExclude: []string{"key.*"},
-		given:        map[string]string{"key1": "value1", "key2": "value2"},
-		expected:     map[string]string{},
+		givenExclude: []string{"^toexclude.*"},
+		given:        map[string]string{"toexclude1": "foo", "toexclude2": "bar", "tokeep": "baz"},
+		expected:     map[string]string{"tokeep": "baz"},
 	}))
 
 	t.Run("with no regex, the object is untouched", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
 		givenExclude: []string{},
-		given:        map[string]string{"key1": "value1", "key2": "value2"},
-		expected:     map[string]string{"key1": "value1", "key2": "value2"},
+		given:        map[string]string{"tokeep1": "foo", "tokeep2": "bar"},
+		expected:     map[string]string{"tokeep1": "foo", "tokeep2": "bar"},
 	}))
 
 	t.Run("works when the map is nil", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
-		givenExclude: []string{"^key1$"},
+		givenExclude: []string{"^toexclude$"},
 		given:        nil,
 		expected:     nil,
 	}))
@@ -1271,6 +1264,7 @@ type tc_TestRemoveTypedKeys struct {
 
 func run_TestRemoveTypedKeys(tc tc_TestRemoveTypedKeys) func(t *testing.T) {
 	return func(t *testing.T) {
+		t.Helper()
 		RemoveTypedKeys(toRegexps(tc.givenExclude), tc.given)
 		assert.Equal(t, tc.expected, tc.given)
 	}
