@@ -7,12 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff"
+	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -25,6 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgocorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/jetstack/preflight/api"
@@ -33,8 +37,6 @@ import (
 	"github.com/jetstack/preflight/pkg/kubeconfig"
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
-
-	_ "net/http/pprof"
 )
 
 var Flags AgentCmdFlags
@@ -48,47 +50,61 @@ var Flags AgentCmdFlags
 const schemaVersion string = "v2.0.0"
 
 // Run starts the agent process
-func Run(cmd *cobra.Command, args []string) {
-	logs.Log.Printf("Preflight agent version: %s (%s)", version.PreflightVersion, version.Commit)
-	ctx, cancel := context.WithCancel(context.Background())
+func Run(cmd *cobra.Command, args []string) (returnErr error) {
+	ctx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
+	log := klog.FromContext(ctx).WithName("Run")
+
+	log.Info("Starting", "version", version.PreflightVersion, "commit", version.Commit)
 
 	file, err := os.Open(Flags.ConfigFilePath)
 	if err != nil {
-		logs.Log.Fatalf("Failed to load config file for agent from: %s", Flags.ConfigFilePath)
+		return fmt.Errorf("Failed to load config file for agent from: %s", Flags.ConfigFilePath)
 	}
 	defer file.Close()
 
 	b, err := io.ReadAll(file)
 	if err != nil {
-		logs.Log.Fatalf("Failed to read config file: %s", err)
+		return fmt.Errorf("Failed to read config file: %s", err)
 	}
 
 	cfg, err := ParseConfig(b)
 	if err != nil {
-		logs.Log.Fatalf("Failed to parse config file: %s", err)
+		return fmt.Errorf("Failed to parse config file: %s", err)
 	}
 
-	config, preflightClient, err := ValidateAndCombineConfig(logs.Log, cfg, Flags)
+	config, preflightClient, err := ValidateAndCombineConfig(log, cfg, Flags)
 	if err != nil {
-		logs.Log.Fatalf("While evaluating configuration: %v", err)
+		return fmt.Errorf("While evaluating configuration: %v", err)
 	}
 
-	if Flags.Profiling {
-		logs.Log.Printf("pprof profiling was enabled.\nRunning profiling on port :6060")
-		go func() {
-			err := http.ListenAndServe(":6060", nil)
-			if err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logs.Log.Fatalf("failed to run pprof profiler: %s", err)
-			}
-		}()
-	}
+	group, gctx := errgroup.WithContext(ctx)
+	defer func() {
+		cancel()
+		if groupErr := group.Wait(); groupErr != nil {
+			returnErr = multierror.Append(
+				returnErr,
+				fmt.Errorf("failed to wait for controller-runtime component to stop: %v", groupErr),
+			)
+		}
+	}()
 
-	go func() {
+	{
 		server := http.NewServeMux()
+		const serverAddress = ":8081"
+		log := log.WithName("APIServer").WithValues("addr", serverAddress)
+
+		if Flags.Profiling {
+			log.Info("Profiling endpoints enabled", "path", "/debug/pprof")
+			server.HandleFunc("/debug/pprof/", pprof.Index)
+			server.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+			server.HandleFunc("/debug/pprof/profile", pprof.Profile)
+			server.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+			server.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		}
 
 		if Flags.Prometheus {
-			logs.Log.Printf("Prometheus was enabled.\nRunning prometheus on port :8081")
+			log.Info("Metrics endpoints enabled", "path", "/metrics")
 			prometheus.MustRegister(metricPayloadSize)
 			server.Handle("/metrics", promhttp.Handler())
 		}
@@ -97,67 +113,78 @@ func Run(cmd *cobra.Command, args []string) {
 		// what "ready" means for the agent, we just return 200 OK inconditionally.
 		// The goal is to satisfy some Kubernetes distributions, like OpenShift,
 		// that require a liveness and health probe to be present for each pod.
+		log.Info("Healthz endpoints enabled", "path", "/healthz")
 		server.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})
+		log.Info("Readyz endpoints enabled", "path", "/readyz")
 		server.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})
 
-		err := http.ListenAndServe(":8081", server)
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logs.Log.Fatalf("failed to run the health check server: %s", err)
-		}
-	}()
+		group.Go(func() error {
+			err := listenAndServe(
+				klog.NewContext(gctx, log),
+				&http.Server{
+					Addr:    serverAddress,
+					Handler: server,
+					BaseContext: func(_ net.Listener) context.Context {
+						return gctx
+					},
+				},
+			)
+			if err != nil {
+				return fmt.Errorf("APIServer: %s", err)
+			}
+			return nil
+		})
+	}
 
 	_, isVenConn := preflightClient.(*client.VenConnClient)
 	if isVenConn {
-		go func() {
-			err := preflightClient.(manager.Runnable).Start(ctx)
+		group.Go(func() error {
+			err := preflightClient.(manager.Runnable).Start(gctx)
 			if err != nil {
-				logs.Log.Fatalf("failed to start a controller-runtime component: %v", err)
+				return fmt.Errorf("failed to start a controller-runtime component: %v", err)
 			}
 
 			// The agent must stop if the controller-runtime component stops.
 			cancel()
-		}()
+			return nil
+		})
 	}
 
 	// To help users notice issues with the agent, we show the error messages in
 	// the agent pod's events.
-	eventf, err := newEventf(config.InstallNS)
+	eventf, err := newEventf(log, config.InstallNS)
 	if err != nil {
-		logs.Log.Fatalf("failed to create event recorder: %v", err)
+		return fmt.Errorf("failed to create event recorder: %v", err)
 	}
 
 	dataGatherers := map[string]datagatherer.DataGatherer{}
-	group, gctx := errgroup.WithContext(ctx)
-
-	defer func() {
-		// TODO: replace Fatalf log calls with Errorf and return the error
-		cancel()
-		if err := group.Wait(); err != nil {
-			logs.Log.Fatalf("failed to wait for controller-runtime component to stop: %v", err)
-		}
-	}()
 
 	// load datagatherer config and boot each one
 	for _, dgConfig := range config.DataGatherers {
 		kind := dgConfig.Kind
 		if dgConfig.DataPath != "" {
 			kind = "local"
-			logs.Log.Fatalf("running data gatherer %s of type %s as Local, data-path override present: %s", dgConfig.Name, dgConfig.Kind, dgConfig.DataPath)
+			return fmt.Errorf("running data gatherer %s of type %s as Local, data-path override present: %s", dgConfig.Name, dgConfig.Kind, dgConfig.DataPath)
 		}
 
 		newDg, err := dgConfig.Config.NewDataGatherer(gctx)
 		if err != nil {
-			logs.Log.Fatalf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
+			return fmt.Errorf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
 		}
 
-		logs.Log.Printf("starting %q datagatherer", dgConfig.Name)
+		log.V(logs.Debug).Info("Starting DataGatherer", "name", dgConfig.Name)
 
 		// start the data gatherers and wait for the cache sync
 		group.Go(func() error {
+			// Most implementations of `DataGatherer.Run` return immediately.
+			// Only the Dynamic DataGatherer starts an informer which runs and
+			// blocks until the supplied channel is closed.
+			// For this reason, we must allow these errgroup Go routines to exit
+			// without cancelling the other Go routines in the group.
 			if err := newDg.Run(gctx.Done()); err != nil {
 				return fmt.Errorf("failed to start %q data gatherer %q: %v", kind, dgConfig.Name, err)
 			}
@@ -187,32 +214,44 @@ func Run(cmd *cobra.Command, args []string) {
 		// the run.
 		if err := dg.WaitForCacheSync(bootCtx.Done()); err != nil {
 			// log sync failure, this might recover in future
-			logs.Log.Printf("failed to complete initial sync of %q data gatherer %q: %v", dgConfig.Kind, dgConfig.Name, err)
+			log.Error(err, "Failed to complete initial sync of DataGatherer", "kind", dgConfig.Kind, "name", dgConfig.Name)
 		}
 	}
 
 	// begin the datagathering loop, periodically sending data to the
 	// configured output using data in datagatherer caches or refreshing from
-	// APIs each cycle depending on datagatherer implementation
+	// APIs each cycle depending on datagatherer implementation.
+	// If any of the go routines exit (with nil or error) the main context will
+	// be cancelled, which will cause this blocking loop to exit
+	// instead of waiting for the time period.
+	// TODO(wallrj): Pass a context to gatherAndOutputData, so that we don't
+	// have to wait for it to finish before exiting the process.
 	for {
-		gatherAndOutputData(eventf, config, preflightClient, dataGatherers)
+		if err := gatherAndOutputData(klog.NewContext(ctx, log), eventf, config, preflightClient, dataGatherers); err != nil {
+			return err
+		}
 
 		if config.OneShot {
 			break
 		}
 
-		time.Sleep(config.Period)
+		select {
+		case <-gctx.Done():
+			return nil
+		case <-time.After(config.Period):
+		}
 	}
+	return nil
 }
 
 // Creates an event recorder for the agent's Pod object. Expects the env var
 // POD_NAME to contain the pod name. Note that the RBAC rule allowing sending
 // events is attached to the pod's service account, not the impersonated service
 // account (venafi-connection).
-func newEventf(installNS string) (Eventf, error) {
+func newEventf(log logr.Logger, installNS string) (Eventf, error) {
 	restcfg, err := kubeconfig.LoadRESTConfig("")
 	if err != nil {
-		logs.Log.Fatalf("failed to load kubeconfig: %v", err)
+		return nil, fmt.Errorf("failed to load kubeconfig: %v", err)
 	}
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
@@ -220,7 +259,7 @@ func newEventf(installNS string) (Eventf, error) {
 	var eventf Eventf
 	if os.Getenv("POD_NAME") == "" {
 		eventf = func(eventType, reason, msg string, args ...interface{}) {}
-		logs.Log.Printf("error messages will not show in the pod's events because the POD_NAME environment variable is empty")
+		log.Error(nil, "Error messages will not show in the pod's events because the POD_NAME environment variable is empty")
 	} else {
 		podName := os.Getenv("POD_NAME")
 
@@ -242,52 +281,60 @@ func newEventf(installNS string) (Eventf, error) {
 // Like Printf but for sending events to the agent's Pod object.
 type Eventf func(eventType, reason, msg string, args ...interface{})
 
-func gatherAndOutputData(eventf Eventf, config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) {
+func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) error {
+	log := klog.FromContext(ctx).WithName("gatherAndOutputData")
 	var readings []*api.DataReading
 
 	if config.InputPath != "" {
-		logs.Log.Printf("Reading data from local file: %s", config.InputPath)
+		log.V(logs.Debug).Info("Reading data from local file", "inputPath", config.InputPath)
 		data, err := os.ReadFile(config.InputPath)
 		if err != nil {
-			logs.Log.Fatalf("failed to read local data file: %s", err)
+			return fmt.Errorf("failed to read local data file: %s", err)
 		}
 		err = json.Unmarshal(data, &readings)
 		if err != nil {
-			logs.Log.Fatalf("failed to unmarshal local data file: %s", err)
+			return fmt.Errorf("failed to unmarshal local data file: %s", err)
 		}
 	} else {
-		readings = gatherData(config, dataGatherers)
+		var err error
+		readings, err = gatherData(klog.NewContext(ctx, log), config, dataGatherers)
+		if err != nil {
+			return err
+		}
 	}
 
 	if config.OutputPath != "" {
 		data, err := json.MarshalIndent(readings, "", "  ")
 		if err != nil {
-			logs.Log.Fatal("failed to marshal JSON")
+			return fmt.Errorf("failed to marshal JSON: %s", err)
 		}
 		err = os.WriteFile(config.OutputPath, data, 0644)
 		if err != nil {
-			logs.Log.Fatalf("failed to output to local file: %s", err)
+			return fmt.Errorf("failed to output to local file: %s", err)
 		}
-		logs.Log.Printf("Data saved to local file: %s", config.OutputPath)
+		log.Info("Data saved to local file", "outputPath", config.OutputPath)
 	} else {
 		backOff := backoff.NewExponentialBackOff()
 		backOff.InitialInterval = 30 * time.Second
 		backOff.MaxInterval = 3 * time.Minute
 		backOff.MaxElapsedTime = config.BackoffMaxTime
 		post := func() error {
-			return postData(config, preflightClient, readings)
+			return postData(klog.NewContext(ctx, log), config, preflightClient, readings)
 		}
 		err := backoff.RetryNotify(post, backOff, func(err error, t time.Duration) {
 			eventf("Warning", "PushingErr", "retrying in %v after error: %s", t, err)
-			logs.Log.Printf("retrying in %v after error: %s", t, err)
+			log.Info("Warning: PushingErr: retrying", "in", t, "reason", err)
 		})
 		if err != nil {
-			logs.Log.Fatalf("Exiting due to fatal error uploading: %v", err)
+			return fmt.Errorf("Exiting due to fatal error uploading: %v", err)
 		}
 	}
+	return nil
 }
 
-func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.DataGatherer) []*api.DataReading {
+func gatherData(ctx context.Context, config CombinedConfig, dataGatherers map[string]datagatherer.DataGatherer) ([]*api.DataReading, error) {
+	log := klog.FromContext(ctx).WithName("gatherData")
+
 	var readings []*api.DataReading
 
 	var dgError *multierror.Error
@@ -298,11 +345,14 @@ func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.Dat
 
 			continue
 		}
-
-		if count >= 0 {
-			logs.Log.Printf("successfully gathered %d items from %q datagatherer", count, k)
-		} else {
-			logs.Log.Printf("successfully gathered data from %q datagatherer", k)
+		{
+			// Not all datagatherers return a count.
+			// If `count == -1` it means that the datagatherer does not support returning a count.
+			log := log
+			if count >= 0 {
+				log = log.WithValues("count", count)
+			}
+			log.V(logs.Debug).Info("Successfully gathered", "name", k)
 		}
 		readings = append(readings, &api.DataReading{
 			ClusterID:     config.ClusterID,
@@ -326,19 +376,22 @@ func gatherData(config CombinedConfig, dataGatherers map[string]datagatherer.Dat
 	}
 
 	if config.StrictMode && dgError.ErrorOrNil() != nil {
-		logs.Log.Fatalf("halting datagathering in strict mode due to error: %s", dgError.ErrorOrNil())
+		return nil, fmt.Errorf("halting datagathering in strict mode due to error: %s", dgError.ErrorOrNil())
 	}
 
-	return readings
+	return readings, nil
 }
 
-func postData(config CombinedConfig, preflightClient client.Client, readings []*api.DataReading) error {
+func postData(ctx context.Context, config CombinedConfig, preflightClient client.Client, readings []*api.DataReading) error {
+	log := klog.FromContext(ctx).WithName("postData")
 	baseURL := config.Server
 
-	logs.Log.Println("Posting data to:", baseURL)
+	log.V(logs.Debug).Info("Posting data", "baseURL", baseURL)
 
 	if config.AuthMode == VenafiCloudKeypair || config.AuthMode == VenafiCloudVenafiConnection {
 		// orgID and clusterID are not required for Venafi Cloud auth
+		// TODO(wallrj): Pass the context to PostDataReadingsWithOptions, so
+		// that its network operations can be cancelled.
 		err := preflightClient.PostDataReadingsWithOptions(readings, client.Options{
 			ClusterName:        config.ClusterID,
 			ClusterDescription: config.ClusterDescription,
@@ -346,7 +399,7 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 		if err != nil {
 			return fmt.Errorf("post to server failed: %+v", err)
 		}
-		logs.Log.Println("Data sent successfully.")
+		log.Info("Data sent successfully")
 
 		return nil
 	}
@@ -354,7 +407,7 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 	if config.OrganizationID == "" {
 		data, err := json.Marshal(readings)
 		if err != nil {
-			logs.Log.Fatalf("Cannot marshal readings: %+v", err)
+			return fmt.Errorf("Cannot marshal readings: %+v", err)
 		}
 
 		// log and collect metrics about the upload size
@@ -362,11 +415,13 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 			prometheus.Labels{"organization": config.OrganizationID, "cluster": config.ClusterID},
 		)
 		metric.Set(float64(len(data)))
-		logs.Log.Printf("Data readings upload size: %d", len(data))
+		log.Info("Data readings", "uploadSize", len(data))
 		path := config.EndpointPath
 		if path == "" {
 			path = "/api/v1/datareadings"
 		}
+		// TODO(wallrj): Pass the context to Post, so that its network
+		// operations can be cancelled.
 		res, err := preflightClient.Post(path, bytes.NewBuffer(data))
 
 		if err != nil {
@@ -382,7 +437,8 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 
 			return fmt.Errorf("received response with status code %d. Body: [%s]", code, errorContent)
 		}
-		logs.Log.Println("Data sent successfully.")
+		log.Info("Data sent successfully")
+
 		return err
 	}
 
@@ -390,11 +446,58 @@ func postData(config CombinedConfig, preflightClient client.Client, readings []*
 		return fmt.Errorf("post to server failed: missing clusterID from agent configuration")
 	}
 
+	// TODO(wallrj): Pass the context to PostDataReadings, so
+	// that its network operations can be cancelled.
 	err := preflightClient.PostDataReadings(config.OrganizationID, config.ClusterID, readings)
 	if err != nil {
 		return fmt.Errorf("post to server failed: %+v", err)
 	}
-	logs.Log.Println("Data sent successfully.")
+	log.Info("Data sent successfully")
 
 	return nil
+}
+
+// listenAndServe starts the supplied HTTP server and stops it gracefully when
+// the supplied context is cancelled.
+// It returns when the graceful server shutdown is complete or when the server
+// exits with an error.
+// If the server fails to start, it returns the server error.
+// If the server fails to shutdown gracefully, it returns the shutdown error.
+// The server is given 3 seconds to shutdown gracefully before it is stopped
+// forcefully.
+func listenAndServe(ctx context.Context, server *http.Server) error {
+	log := klog.FromContext(ctx).WithName("ListenAndServe")
+
+	log.V(logs.Debug).Info("Starting")
+
+	listenCTX, listenCancelCause := context.WithCancelCause(context.WithoutCancel(ctx))
+	go func() {
+		err := server.ListenAndServe()
+		listenCancelCause(fmt.Errorf("ListenAndServe: %s", err))
+	}()
+
+	select {
+	case <-listenCTX.Done():
+		log.V(logs.Debug).Info("Shutdown skipped", "reason", "Server already stopped")
+		return context.Cause(listenCTX)
+
+	case <-ctx.Done():
+		log.V(logs.Debug).Info("Shutting down")
+	}
+
+	shutdownCTX, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second*3)
+	shutdownErr := server.Shutdown(shutdownCTX)
+	shutdownCancel()
+	if shutdownErr != nil {
+		shutdownErr = fmt.Errorf("Shutdown: %s", shutdownErr)
+	}
+
+	closeErr := server.Close()
+	if closeErr != nil {
+		closeErr = fmt.Errorf("Close: %s", closeErr)
+	}
+
+	log.V(logs.Debug).Info("Shutdown complete")
+
+	return errors.Join(shutdownErr, closeErr)
 }

@@ -6,3 +6,6 @@ config:
 authentication:
   venafiConnection:
     enabled: true
+
+extraArgs:
+- --logging-format=json

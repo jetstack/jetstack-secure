@@ -9,20 +9,16 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/jetstack/preflight/api"
-	"github.com/jetstack/preflight/pkg/logs"
 )
 
 var EchoListen string
 
 var Compact bool
 
-func Echo(cmd *cobra.Command, args []string) {
+func Echo(cmd *cobra.Command, args []string) error {
 	http.HandleFunc("/", echoHandler)
 	fmt.Println("Listening to requests at ", EchoListen)
-	err := http.ListenAndServe(EchoListen, nil)
-	if err != nil {
-		logs.Log.Fatal(err)
-	}
+	return http.ListenAndServe(EchoListen, nil)
 }
 
 func echoHandler(w http.ResponseWriter, r *http.Request) {
