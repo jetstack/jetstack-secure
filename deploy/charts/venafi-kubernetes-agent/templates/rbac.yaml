@@ -213,7 +213,7 @@ metadata:
   labels:
     {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
 rules:
-  - apiGroups: ["*.openshift.io"]
+  - apiGroups: ["route.openshift.io"]
     resources:
       - routes
     verbs: ["get", "list", "watch"]
