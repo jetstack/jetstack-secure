@@ -27,6 +27,7 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/logs"
 )
 
 // ConfigDynamic contains the configuration for the data-gatherer.
@@ -273,7 +274,7 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 	// attach WatchErrorHandler, it needs to be set before starting an informer
 	err := g.informer.SetWatchErrorHandler(func(r *k8scache.Reflector, err error) {
 		if strings.Contains(fmt.Sprintf("%s", err), "the server could not find the requested resource") {
-			log.Info("server missing resource for datagatherer", "groupVersionResource", g.groupVersionResource)
+			log.V(logs.Debug).Info("Server missing resource for datagatherer", "groupVersionResource", g.groupVersionResource)
 		} else {
 			log.Info("datagatherer informer has failed and is backing off", "groupVersionResource", g.groupVersionResource, "reason", err)
 		}

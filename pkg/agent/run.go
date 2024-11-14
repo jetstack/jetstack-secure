@@ -35,6 +35,7 @@ import (
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
+	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -175,7 +176,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 			return fmt.Errorf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
 		}
 
-		log.Info("Starting DataGatherer", "name", dgConfig.Name)
+		log.V(logs.Debug).Info("Starting DataGatherer", "name", dgConfig.Name)
 
 		// start the data gatherers and wait for the cache sync
 		group.Go(func() error {
@@ -285,7 +286,7 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 	var readings []*api.DataReading
 
 	if config.InputPath != "" {
-		log.Info("Reading data from local file", "inputPath", config.InputPath)
+		log.V(logs.Debug).Info("Reading data from local file", "inputPath", config.InputPath)
 		data, err := os.ReadFile(config.InputPath)
 		if err != nil {
 			return fmt.Errorf("failed to read local data file: %s", err)
@@ -351,7 +352,7 @@ func gatherData(ctx context.Context, config CombinedConfig, dataGatherers map[st
 			if count >= 0 {
 				log = log.WithValues("count", count)
 			}
-			log.Info("Successfully gathered", "name", k)
+			log.V(logs.Debug).Info("Successfully gathered", "name", k)
 		}
 		readings = append(readings, &api.DataReading{
 			ClusterID:     config.ClusterID,
@@ -385,7 +386,7 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 	log := klog.FromContext(ctx).WithName("postData")
 	baseURL := config.Server
 
-	log.Info("Posting data", "baseURL", baseURL)
+	log.V(logs.Debug).Info("Posting data", "baseURL", baseURL)
 
 	if config.AuthMode == VenafiCloudKeypair || config.AuthMode == VenafiCloudVenafiConnection {
 		// orgID and clusterID are not required for Venafi Cloud auth
@@ -467,7 +468,7 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 func listenAndServe(ctx context.Context, server *http.Server) error {
 	log := klog.FromContext(ctx).WithName("ListenAndServe")
 
-	log.V(1).Info("Starting")
+	log.V(logs.Debug).Info("Starting")
 
 	listenCTX, listenCancelCause := context.WithCancelCause(context.WithoutCancel(ctx))
 	go func() {
@@ -477,11 +478,11 @@ func listenAndServe(ctx context.Context, server *http.Server) error {
 
 	select {
 	case <-listenCTX.Done():
-		log.V(1).Info("Shutdown skipped", "reason", "Server already stopped")
+		log.V(logs.Debug).Info("Shutdown skipped", "reason", "Server already stopped")
 		return context.Cause(listenCTX)
 
 	case <-ctx.Done():
-		log.V(1).Info("Shutting down")
+		log.V(logs.Debug).Info("Shutting down")
 	}
 
 	shutdownCTX, shutdownCancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second*3)
@@ -496,7 +497,7 @@ func listenAndServe(ctx context.Context, server *http.Server) error {
 		closeErr = fmt.Errorf("Close: %s", closeErr)
 	}
 
-	log.V(1).Info("Shutdown complete")
+	log.V(logs.Debug).Info("Shutdown complete")
 
 	return errors.Join(shutdownErr, closeErr)
 }
