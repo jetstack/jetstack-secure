@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -260,6 +261,9 @@ type DataGathererDynamic struct {
 	// informer watches the events around the targeted resource and updates the cache
 	informer     k8scache.SharedIndexInformer
 	registration k8scache.ResourceEventHandlerRegistration
+
+	ExcludeAnnotKeys []*regexp.Regexp
+	ExcludeLabelKeys []*regexp.Regexp
 }
 
 // Run starts the dynamic data gatherer's informers for resource collection.
@@ -338,7 +342,7 @@ func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
 	}
 
 	// Redact Secret data
-	err := redactList(items)
+	err := redactList(items, g.ExcludeAnnotKeys, g.ExcludeLabelKeys)
 	if err != nil {
 		return nil, -1, errors.WithStack(err)
 	}
@@ -349,7 +353,7 @@ func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
 	return list, len(items), nil
 }
 
-func redactList(list []*api.GatheredResource) error {
+func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys []*regexp.Regexp) error {
 	for i := range list {
 		if item, ok := list[i].Resource.(*unstructured.Unstructured); ok {
 			// Determine the kind of items in case this is a generic 'mixed' list.
@@ -374,6 +378,10 @@ func redactList(list []*api.GatheredResource) error {
 
 			// remove managedFields from all resources
 			Redact(RedactFields, resource)
+
+			RemoveUnstructuredKeys(excludeAnnotKeys, resource, "metadata", "annotations")
+			RemoveUnstructuredKeys(excludeLabelKeys, resource, "metadata", "labels")
+
 			continue
 		}
 
@@ -385,6 +393,9 @@ func redactList(list []*api.GatheredResource) error {
 		if item, ok := list[i].Resource.(objectMeta); ok {
 			item.GetObjectMeta().SetManagedFields(nil)
 			delete(item.GetObjectMeta().GetAnnotations(), "kubectl.kubernetes.io/last-applied-configuration")
+
+			RemoveTypedKeys(excludeAnnotKeys, item.GetObjectMeta().GetAnnotations())
+			RemoveTypedKeys(excludeLabelKeys, item.GetObjectMeta().GetLabels())
 
 			resource := item.(runtime.Object)
 			gvks, _, err := scheme.Scheme.ObjectKinds(resource)
@@ -409,6 +420,78 @@ func redactList(list []*api.GatheredResource) error {
 		}
 	}
 	return nil
+}
+
+// Meant for typed clientset objects.
+func RemoveTypedKeys(excludeAnnotKeys []*regexp.Regexp, m map[string]string) {
+	for key := range m {
+		for _, excludeAnnotKey := range excludeAnnotKeys {
+			if excludeAnnotKey.MatchString(key) {
+				delete(m, key)
+			}
+		}
+	}
+}
+
+// Meant for unstructured clientset objects. Removes the keys from the field
+// given as input. For example, let's say we have the following object:
+//
+//	{
+//	  "metadata": {
+//	    "annotations": {
+//	      "key1": "value1",
+//	      "key2": "value2"
+//	    }
+//	  }
+//	}
+//
+// Then, the following call:
+//
+//	RemoveUnstructuredKeys("^key1$", obj, "metadata", "annotations")
+//
+// Will result in:
+//
+//	{
+//	  "metadata": {
+//	    "annotations": {"key2": "value2"}
+//	  }
+//	}
+//
+// If the given path doesn't exist or leads to a non-map object, nothing
+// happens. The leaf object must either be a map[string]interface{} (that's
+// what's returned by the unstructured clientset) or a map[string]string (that's
+// what's returned by the typed clientset).
+func RemoveUnstructuredKeys(excludeKeys []*regexp.Regexp, obj *unstructured.Unstructured, path ...string) {
+	annotsRaw, ok, err := unstructured.NestedFieldNoCopy(obj.Object, path...)
+	if err != nil {
+		return
+	}
+	if !ok {
+		return
+	}
+
+	// The field may be nil since yaml.Unmarshal's omitempty might not be set on
+	// on this struct field.
+	if annotsRaw == nil {
+		return
+	}
+
+	// The only possible type in an unstructured.Unstructured object is
+	// map[string]interface{}. That's because the yaml.Unmarshal func is used
+	// with an empty map[string]interface{} object, which means all nested
+	// objects will be unmarshalled to a map[string]interface{}.
+	annots, ok := annotsRaw.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	for key := range annots {
+		for _, excludeAnnotKey := range excludeKeys {
+			if excludeAnnotKey.MatchString(key) {
+				delete(annots, key)
+			}
+		}
+	}
 }
 
 // generateExcludedNamespacesFieldSelector creates a field selector string from

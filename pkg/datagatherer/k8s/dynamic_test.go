@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/d4l3k/messagediff"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +52,19 @@ func getObject(version, kind, name, namespace string, withManagedFields bool) *u
 	return &unstructured.Unstructured{
 		Object: object,
 	}
+}
+
+func getObjectAnnot(version, kind, name, namespace string, annotations, labels map[string]interface{}) *unstructured.Unstructured {
+	obj := getObject(version, kind, name, namespace, false)
+
+	metadata, _ := obj.Object["metadata"].(map[string]interface{})
+	if annotations == nil {
+		annotations = make(map[string]interface{})
+	}
+	metadata["annotations"] = annotations
+	metadata["labels"] = labels
+
+	return obj
 }
 
 func getSecret(name, namespace string, data map[string]interface{}, isTLS bool, withLastApplied bool) *unstructured.Unstructured {
@@ -365,14 +380,15 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 	// init the datagatherer's informer with the client
 	// add/delete resources watched by the data gatherer
 	// check the expected result
-	emptyScheme := runtime.NewScheme()
 	tests := map[string]struct {
-		config        ConfigDynamic
-		addObjects    []runtime.Object
-		deleteObjects map[string]string
-		updateObjects map[string]runtime.Object
-		expected      []*api.GatheredResource
-		err           bool
+		config            ConfigDynamic
+		excludeAnnotsKeys []string
+		excludeLabelKeys  []string
+		addObjects        []runtime.Object
+		deleteObjects     map[string]string
+		updateObjects     map[string]runtime.Object
+		expected          []*api.GatheredResource
+		err               bool
 	}{
 		"fetches the default namespace": {
 			addObjects: []runtime.Object{
@@ -582,6 +598,50 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				},
 			},
 		},
+		"excluded annotations are removed for unstructured-based gatherers such as secrets": {
+			config: ConfigDynamic{GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}},
+
+			// To give a realistic regex in this test case, let's use the
+			// example of the Kapp project that uses four annotations that all
+			// start with `kapp.k14s.io/original*`. These annotations are
+			// similar to `kubectl.kubernetes.io/last-applied-configuration` in
+			// that they may contain sensitive information. From [1], they may
+			// look like this:
+			//
+			//  kapp.k14s.io/original: |
+			//    {"apiVersion":"v1","kind":"Secret","spec":{"data": {"password": "cGFzc3dvcmQ=","username": "bXl1c2VybmFtZQ=="}}}
+			//  kapp.k14s.io/original-diff: |
+			//    - type: test
+			//      path: /data
+			//      value:
+			//      password: cygpcGVyUzNjcmV0UEBhc3N3b3JkIQ==
+			//      username: bXl1c2VybmFtZQ==
+			//
+			//  [1]: https://github.com/carvel-dev/kapp/issues/90#issuecomment-602074356
+			//
+			// The regular expression could be:
+			excludeAnnotsKeys: []string{`^kapp\.k14s\.io/original.*`},
+
+			// A somewhat realistic example of labels that would need to be
+			// excluded would be when a company declares ownership using
+			// sensitive identifiers (e.g., employee IDs), and the company
+			// doesn't want these IDs to be exposed. Let's imagine these
+			// employee IDs look like this:
+			//
+			//  company.com/employee-id: 12345
+			//
+			// The regular expression would then be:
+			excludeLabelKeys: []string{`^company\.com/employee-id$`},
+
+			addObjects: []runtime.Object{getObjectAnnot("v1", "Secret", "s0", "n1",
+				map[string]interface{}{"kapp.k14s.io/original": "foo", "kapp.k14s.io/original-diff": "bar", "normal": "true"},
+				map[string]interface{}{`company.com/employee-id`: "12345", "prod": "true"},
+			)},
+			expected: []*api.GatheredResource{{Resource: getObjectAnnot("v1", "Secret", "s0", "n1",
+				map[string]interface{}{"normal": "true"},
+				map[string]interface{}{"prod": "true"},
+			)}},
+		},
 	}
 
 	for name, tc := range tests {
@@ -589,12 +649,12 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			var wg sync.WaitGroup
 			ctx := context.Background()
 			gvrToListKind := map[schema.GroupVersionResource]string{
-				schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"}:      "UnstructuredList",
-				schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}: "UnstructuredList",
-				schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"}:         "UnstructuredList",
-				schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"}:      "UnstructuredList",
+				{Group: "foobar", Version: "v1", Resource: "foos"}:      "UnstructuredList",
+				{Group: "apps", Version: "v1", Resource: "deployments"}: "UnstructuredList",
+				{Group: "", Version: "v1", Resource: "secrets"}:         "UnstructuredList",
+				{Group: "", Version: "v1", Resource: "namespaces"}:      "UnstructuredList",
 			}
-			cl := fake.NewSimpleDynamicClientWithCustomListKinds(emptyScheme, gvrToListKind, tc.addObjects...)
+			cl := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, tc.addObjects...)
 			// init the datagatherer's informer with the client
 			dg, err := tc.config.newDataGathererWithClient(ctx, cl, nil)
 			if err != nil {
@@ -621,6 +681,14 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			//start test Informer
 			factory.Start(ctx.Done())
 			k8scache.WaitForCacheSync(ctx.Done(), testInformer.HasSynced)
+
+			dgd := dg.(*DataGathererDynamic)
+			for _, key := range tc.excludeAnnotsKeys {
+				dgd.ExcludeAnnotKeys = append(dgd.ExcludeAnnotKeys, regexp.MustCompile(key))
+			}
+			for _, key := range tc.excludeLabelKeys {
+				dgd.ExcludeLabelKeys = append(dgd.ExcludeLabelKeys, regexp.MustCompile(key))
+			}
 
 			// start data gatherer informer
 			dynamiDg := dg
@@ -662,7 +730,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			if waitTimeout(&wg, 30*time.Second) {
 				t.Fatalf("unexpected timeout")
 			}
-			res, count, err := dynamiDg.Fetch()
+			res, expectCount, err := dynamiDg.Fetch()
 			if err != nil && !tc.err {
 				t.Errorf("expected no error but got: %v", err)
 			}
@@ -685,16 +753,8 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				// sorting list of expected results by name
 				sortGatheredResources(tc.expected)
 
-				if diff, equal := messagediff.PrettyDiff(tc.expected, list); !equal {
-					t.Errorf("\n%s", diff)
-					expectedJSON, _ := json.MarshalIndent(tc.expected, "", "  ")
-					gotJSON, _ := json.MarshalIndent(list, "", "  ")
-					t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
-				}
-
-				if len(list) != count {
-					t.Errorf("wrong count of resources reported: got %d, want %d", count, len(list))
-				}
+				assert.Equal(t, tc.expected, list)
+				assert.Len(t, list, expectCount, "unexpected number of resources returned")
 			}
 		})
 	}
@@ -707,12 +767,14 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 	// check the expected result
 	podGVR := schema.GroupVersionResource{Group: corev1.SchemeGroupVersion.Group, Version: corev1.SchemeGroupVersion.Version, Resource: "pods"}
 	tests := map[string]struct {
-		config        ConfigDynamic
-		addObjects    []runtime.Object
-		deleteObjects map[string]string
-		updateObjects map[string]runtime.Object
-		expected      []*api.GatheredResource
-		err           bool
+		config            ConfigDynamic
+		excludeAnnotsKeys []string
+		excludeLabelKeys  []string
+		addObjects        []runtime.Object
+		deleteObjects     map[string]string
+		updateObjects     map[string]runtime.Object
+		expected          []*api.GatheredResource
+		err               bool
 	}{
 		"only a Pod should be returned if GVR selects pods": {
 			addObjects: []runtime.Object{
@@ -878,6 +940,27 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 				},
 			},
 		},
+		// Pod is the only native resource that we test out of lack of time
+		// (would require a lot of changes to the testing func). Ideally we
+		// should test all native resources such as Service, Deployment,
+		// Ingress, Namespace, and so on.
+		"excluded annotations are removed for typed resources gatherers such as pods": {
+			config:            ConfigDynamic{GroupVersionResource: podGVR},
+			excludeAnnotsKeys: []string{"secret"},
+			excludeLabelKeys:  []string{"secret"},
+			addObjects: []runtime.Object{
+				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p0", UID: "p0", Namespace: "n1", Annotations: map[string]string{"normal-annot": "bar"}}},
+				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", UID: "p1", Namespace: "n1", Labels: map[string]string{"normal-label": "bar"}}},
+				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p2", UID: "p2", Namespace: "n1", Annotations: map[string]string{"super-secret-annot": "bar"}}},
+				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p3", UID: "p3", Namespace: "n1", Labels: map[string]string{"super-secret-label": "bar"}}},
+			},
+			expected: []*api.GatheredResource{
+				{Resource: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p0", UID: "p0", Namespace: "n1", Annotations: map[string]string{"normal-annot": "bar"}}, TypeMeta: metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"}}},
+				{Resource: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p1", UID: "p1", Namespace: "n1", Labels: map[string]string{"normal-label": "bar"}}, TypeMeta: metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"}}},
+				{Resource: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p2", UID: "p2", Namespace: "n1", Annotations: map[string]string{}}, TypeMeta: metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"}}},
+				{Resource: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "p3", UID: "p3", Namespace: "n1", Labels: map[string]string{}}, TypeMeta: metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"}}},
+			},
+		},
 	}
 
 	for name, tc := range tests {
@@ -916,6 +999,13 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			//start test Informer
 			factory.Start(ctx.Done())
 			k8scache.WaitForCacheSync(ctx.Done(), testInformer.HasSynced)
+			dgd := dg.(*DataGathererDynamic)
+			for _, key := range tc.excludeAnnotsKeys {
+				dgd.ExcludeAnnotKeys = append(dgd.ExcludeAnnotKeys, regexp.MustCompile(key))
+			}
+			for _, key := range tc.excludeLabelKeys {
+				dgd.ExcludeLabelKeys = append(dgd.ExcludeLabelKeys, regexp.MustCompile(key))
+			}
 
 			// start data gatherer informer
 			dynamiDg := dg
@@ -956,39 +1046,26 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			if waitTimeout(&wg, 5*time.Second) {
 				t.Fatalf("unexpected timeout")
 			}
-			res, count, err := dynamiDg.Fetch()
-			if err != nil && !tc.err {
-				t.Errorf("expected no error but got: %v", err)
-			}
-			if err == nil && tc.err {
-				t.Errorf("expected to get an error but didn't get one")
+			rawRes, count, err := dynamiDg.Fetch()
+			if tc.err {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 
 			if tc.expected != nil {
-				items, ok := res.(map[string]interface{})
-				if !ok {
-					t.Errorf("expected result be an map[string]interface{} but wasn't")
-				}
+				res, ok := rawRes.(map[string]interface{})
+				require.Truef(t, ok, "expected result be an map[string]interface{} but wasn't")
+				actual := res["items"].([]*api.GatheredResource)
+				require.Truef(t, ok, "expected result be an []*api.GatheredResource but wasn't")
 
-				list, ok := items["items"].([]*api.GatheredResource)
-				if !ok {
-					t.Errorf("expected result be an []*api.GatheredResource but wasn't")
-				}
 				// sorting list of results by name
-				sortGatheredResources(list)
+				sortGatheredResources(actual)
 				// sorting list of expected results by name
 				sortGatheredResources(tc.expected)
 
-				if diff, equal := messagediff.PrettyDiff(tc.expected, list); !equal {
-					t.Errorf("\n%s", diff)
-					expectedJSON, _ := json.MarshalIndent(tc.expected, "", "  ")
-					gotJSON, _ := json.MarshalIndent(list, "", "  ")
-					t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
-				}
-
-				if len(list) != count {
-					t.Errorf("wrong count of resources reported: got %d, want %d", count, len(list))
-				}
+				assert.Equal(t, tc.expected, actual)
+				assert.Len(t, actual, count)
 			}
 		})
 	}
@@ -1008,4 +1085,195 @@ func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
 	case <-time.After(timeout):
 		return true
 	}
+}
+
+func TestRemoveUnstructuredKeys(t *testing.T) {
+	t.Run("remove single key", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{"^toexclude$"},
+		givenObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]interface{}{
+					"toexclude": "foo",
+					"tokeep":    "bar",
+				},
+			},
+		},
+		expectObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]interface{}{
+					"tokeep": "bar",
+				},
+			},
+		},
+	}))
+
+	t.Run("remove keys using multiple regexes", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{"^toexclude1$", "^toexclude2$"},
+		givenObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]interface{}{
+					"toexclude1": "foo",
+					"toexclude2": "bar",
+				},
+			},
+		},
+		expectObj: map[string]interface{}{
+			"metadata": map[string]interface{}{"annotations": map[string]interface{}{}},
+		},
+	}))
+
+	t.Run("remove multiple keys with a single regex", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{"toexclude.*"},
+		givenObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]interface{}{
+					"toexclude1": "foo",
+					"toexclude2": "bar",
+					"tokeep":     "baz",
+				},
+			},
+		},
+		expectObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]interface{}{
+					"tokeep": "baz",
+				},
+			},
+		},
+	}))
+
+	t.Run("with no regex, the object is untouched", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{},
+		givenObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]interface{}{
+					"tokeep1": "foo",
+				},
+			},
+		},
+		expectObj: map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"annotations": map[string]interface{}{
+					"tokeep1": "foo",
+				},
+			},
+		},
+	}))
+
+	// The "leaf" field is the field that is at the end of the path. For
+	// example, "annotations" is the leaf field in metadata.annotations.
+	t.Run("works when the leaf field is not found", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{},
+
+		givenObj:  map[string]interface{}{"metadata": map[string]interface{}{}},
+		expectObj: map[string]interface{}{"metadata": map[string]interface{}{}},
+	}))
+
+	t.Run("works when the leaf field is nil", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath:    []string{"metadata", "annotations"},
+		givenExclude: []string{},
+		givenObj:     map[string]interface{}{"metadata": map[string]interface{}{"annotations": nil}},
+		expectObj:    map[string]interface{}{"metadata": map[string]interface{}{"annotations": nil}},
+	}))
+
+	t.Run("works when leaf field is unexpectedly not nil and not a known map", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath: []string{"metadata", "annotations"},
+		givenObj:  map[string]interface{}{"metadata": map[string]interface{}{"annotations": 42}},
+		expectObj: map[string]interface{}{"metadata": map[string]interface{}{"annotations": 42}},
+	}))
+
+	// The "intermediate" field is the field that is not at the end of the path.
+	// For example, "metadata" is the intermediate field in
+	// metadata.annotations.
+	t.Run("works when the intermediate field doesn't exist", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath: []string{"metadata", "annotations"},
+		givenObj:  map[string]interface{}{},
+		expectObj: map[string]interface{}{},
+	}))
+
+	t.Run("works when the intermediate field is nil", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath: []string{"metadata", "annotations"},
+		givenObj:  map[string]interface{}{"metadata": nil},
+		expectObj: map[string]interface{}{"metadata": nil},
+	}))
+
+	t.Run("works when the intermediate field is unexpectedly not nil and not a map", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
+		givenPath: []string{"metadata", "annotations"},
+		givenObj:  map[string]interface{}{"metadata": 42},
+		expectObj: map[string]interface{}{"metadata": 42},
+	}))
+}
+
+type tc_RemoveUnstructuredKeys struct {
+	givenExclude []string
+	givenObj     map[string]interface{}
+	givenPath    []string
+	expectObj    map[string]interface{}
+}
+
+func run_TestRemoveUnstructuredKeys(tc tc_RemoveUnstructuredKeys) func(*testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
+		RemoveUnstructuredKeys(toRegexps(tc.givenExclude), &unstructured.Unstructured{Object: tc.givenObj}, tc.givenPath...)
+		assert.Equal(t, tc.expectObj, tc.givenObj)
+	}
+}
+
+func TestRemoveTypedKeys(t *testing.T) {
+	t.Run("remove single key", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
+		givenExclude: []string{"^toexclude$"},
+		given:        map[string]string{"toexclude": "foo", "tokeep": "bar"},
+		expected:     map[string]string{"tokeep": "bar"},
+	}))
+
+	t.Run("remove keys using multiple regexes", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
+		givenExclude: []string{"^toexclude1$", "^toexclude2$"},
+		given:        map[string]string{"toexclude1": "foo", "toexclude2": "bar", "tokeep": "baz"},
+		expected:     map[string]string{"tokeep": "baz"},
+	}))
+
+	t.Run("remove multiple keys with a single regex", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
+		givenExclude: []string{"^toexclude.*"},
+		given:        map[string]string{"toexclude1": "foo", "toexclude2": "bar", "tokeep": "baz"},
+		expected:     map[string]string{"tokeep": "baz"},
+	}))
+
+	t.Run("with no regex, the object is untouched", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
+		givenExclude: []string{},
+		given:        map[string]string{"tokeep1": "foo", "tokeep2": "bar"},
+		expected:     map[string]string{"tokeep1": "foo", "tokeep2": "bar"},
+	}))
+
+	t.Run("works when the map is nil", run_TestRemoveTypedKeys(tc_TestRemoveTypedKeys{
+		givenExclude: []string{"^toexclude$"},
+		given:        nil,
+		expected:     nil,
+	}))
+}
+
+type tc_TestRemoveTypedKeys struct {
+	givenExclude []string
+	given        map[string]string
+	expected     map[string]string
+}
+
+func run_TestRemoveTypedKeys(tc tc_TestRemoveTypedKeys) func(t *testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
+		RemoveTypedKeys(toRegexps(tc.givenExclude), tc.given)
+		assert.Equal(t, tc.expected, tc.given)
+	}
+}
+
+func toRegexps(keys []string) []*regexp.Regexp {
+	var regexps []*regexp.Regexp
+	for _, key := range keys {
+		regexps = append(regexps, regexp.MustCompile(key))
+	}
+	return regexps
 }

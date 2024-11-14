@@ -114,7 +114,7 @@ podSecurityContext: {}
 securityContext:
   capabilities:
     drop:
-    - ALL
+      - ALL
   readOnlyRootFilesystem: true
   runAsNonRoot: true
 
@@ -230,13 +230,26 @@ config:
   # * https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
   # * https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/#list-of-supported-fields
   ignoredSecretTypes:
-  - kubernetes.io/service-account-token
-  - kubernetes.io/dockercfg
-  - kubernetes.io/dockerconfigjson
-  - kubernetes.io/basic-auth
-  - kubernetes.io/ssh-auth
-  - bootstrap.kubernetes.io/token
-  - helm.sh/release.v1
+    - kubernetes.io/service-account-token
+    - kubernetes.io/dockercfg
+    - kubernetes.io/dockerconfigjson
+    - kubernetes.io/basic-auth
+    - kubernetes.io/ssh-auth
+    - bootstrap.kubernetes.io/token
+    - helm.sh/release.v1
+
+  # You can configure Venafi Kubernetes Agent to exclude some annotations or
+  # labels from being pushed to the Venafi Control Plane. All Kubernetes objects
+  # are affected. The objects are still pushed, but the specified annotations
+  # and labels are removed before being sent to the Venafi Control Plane.
+  #
+  # Dots is the only character that needs to be escaped in the regex. Use either
+  # double quotes with escaped single quotes or unquoted strings for the regex
+  # to avoid YAML parsing issues with `\.`.
+  #
+  # Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
+  excludeAnnotationKeysRegex: []
+  excludeLabelKeysRegex: []
 
   # Specify ConfigMap details to load config from an existing resource.
   # This should be blank by default unless you have you own config.

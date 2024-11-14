@@ -165,6 +165,12 @@
         "configmap": {
           "$ref": "#/$defs/helm-values.config.configmap"
         },
+        "excludeAnnotationKeysRegex": {
+          "$ref": "#/$defs/helm-values.config.excludeAnnotationKeysRegex"
+        },
+        "excludeLabelKeysRegex": {
+          "$ref": "#/$defs/helm-values.config.excludeLabelKeysRegex"
+        },
         "ignoredSecretTypes": {
           "$ref": "#/$defs/helm-values.config.ignoredSecretTypes"
         },
@@ -206,6 +212,17 @@
     },
     "helm-values.config.configmap.key": {},
     "helm-values.config.configmap.name": {},
+    "helm-values.config.excludeAnnotationKeysRegex": {
+      "default": [],
+      "description": "You can configure Venafi Kubernetes Agent to exclude some annotations or labels from being pushed to the Venafi Control Plane. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being sent to the Venafi Control Plane.\n\nDots is the only character that needs to be escaped in the regex. Use either double quotes with escaped single quotes or unquoted strings for the regex to avoid YAML parsing issues with `\\.`.\n\nExample: excludeAnnotationKeysRegex: ['^kapp\\.k14s\\.io/original.*']",
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.config.excludeLabelKeysRegex": {
+      "default": [],
+      "items": {},
+      "type": "array"
+    },
     "helm-values.config.ignoredSecretTypes": {
       "items": {
         "$ref": "#/$defs/helm-values.config.ignoredSecretTypes[0]"

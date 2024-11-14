@@ -423,6 +423,22 @@ Control Plane.
 > ```yaml
 > helm.sh/release.v1
 > ```
+#### **config.excludeAnnotationKeysRegex** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
+
+You can configure Venafi Kubernetes Agent to exclude some annotations or labels from being pushed to the Venafi Control Plane. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being sent to the Venafi Control Plane.  
+  
+Dots is the only character that needs to be escaped in the regex. Use either double quotes with escaped single quotes or unquoted strings for the regex to avoid YAML parsing issues with `\.`.  
+  
+Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
+#### **config.excludeLabelKeysRegex** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
 #### **config.configmap.name** ~ `unknown`
 > Default value:
 > ```yaml

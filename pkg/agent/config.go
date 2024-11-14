@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -54,6 +55,12 @@ type Config struct {
 	InputPath string `yaml:"input-path"`
 	// For testing purposes.
 	OutputPath string `yaml:"output-path"`
+
+	// Skips annotation keys that match the given set of regular expressions.
+	// Example: ".*someprivateannotation.*".
+	ExcludeAnnotationKeysRegex []string `yaml:"exclude-annotation-keys-regex"`
+	// Skips label keys that match the given set of regular expressions.
+	ExcludeLabelKeysRegex []string `yaml:"exclude-label-keys-regex"`
 }
 
 type Endpoint struct {
@@ -339,7 +346,9 @@ type CombinedConfig struct {
 	VenConnNS   string
 
 	// VenafiCloudKeypair and VenafiCloudVenafiConnection modes only.
-	DisableCompression bool
+	DisableCompression         bool
+	ExcludeAnnotationKeysRegex []*regexp.Regexp
+	ExcludeLabelKeysRegex      []*regexp.Regexp
 
 	// Only used for testing purposes.
 	OutputPath string
@@ -583,6 +592,27 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			errs = multierror.Append(errs, fmt.Errorf("--disable-compression can only be used with the %s and %s modes", VenafiCloudKeypair, VenafiCloudVenafiConnection))
 		}
 		res.DisableCompression = flags.DisableCompression
+	}
+
+	// Validation of the config fields exclude_annotation_keys_regex and
+	// exclude_label_keys_regex.
+	{
+		for i, regex := range cfg.ExcludeAnnotationKeysRegex {
+			r, err := regexp.Compile(regex)
+			if err != nil {
+				errs = multierror.Append(errs, fmt.Errorf("invalid exclude_annotation_keys_regex[%d]: %w", i, err))
+				continue
+			}
+			res.ExcludeAnnotationKeysRegex = append(res.ExcludeAnnotationKeysRegex, r)
+		}
+		for i, regex := range cfg.ExcludeLabelKeysRegex {
+			r, err := regexp.Compile(regex)
+			if err != nil {
+				errs = multierror.Append(errs, fmt.Errorf("invalid exclude_label_keys_regex[%d]: %w", i, err))
+				continue
+			}
+			res.ExcludeLabelKeysRegex = append(res.ExcludeLabelKeysRegex, r)
+		}
 	}
 
 	if errs != nil {
