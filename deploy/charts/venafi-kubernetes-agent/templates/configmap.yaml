@@ -13,10 +13,14 @@ data:
     cluster_description: {{ .Values.config.clusterDescription | quote }}
     server: {{ .Values.config.server | quote }}
     period: {{ .Values.config.period | quote }}
+    {{- with .Values.config.excludeAnnotationKeysRegex }}
     exclude-annotation-keys-regex:
-      {{ .Values.config.excludeAnnotationKeysRegex | toYaml | nindent 6 }}
+      {{- . | toYaml | nindent 6 }}
+    {{- end }}
+    {{- with .Values.config.excludeLabelKeysRegex }}
     exclude-label-keys-regex:
-      {{ .Values.config.excludeLabelKeysRegex | toYaml | nindent 6 }}
+      {{- . | toYaml | nindent 6 }}
+    {{- end }}
     venafi-cloud:
       uploader_id: "no"
       upload_path: "/v1/tlspk/upload/clusterdata"

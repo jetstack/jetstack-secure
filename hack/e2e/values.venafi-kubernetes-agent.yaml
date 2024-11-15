@@ -2,6 +2,7 @@ config:
   clusterName: venafi-kubernetes-agent-e2e
   clusterDescription: |
       A kind cluster used for testing the venafi-kubernetes-agent.
+  excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
 
 authentication:
   venafiConnection:
