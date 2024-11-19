@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/component-base/logs"
 	logsapi "k8s.io/component-base/logs/api/v1"
 	_ "k8s.io/component-base/logs/json/register"
+	"k8s.io/klog/v2"
 )
 
 // venafi-kubernetes-agent follows [Kubernetes Logging Conventions] and writes
@@ -55,6 +57,21 @@ const (
 	Info  = 0
 	Debug = 1
 	Trace = 2
+
+	// Suppress the following logged warning:
+	// > W1119 13:54:32.103779  119328 reflector.go:561] pkg/mod/k8s.io/client-go@v0.31.1/tools/cache/reflector.go:243: failed to list route.openshift.io/v1, Resource=routes: the server could not find the requested resource
+	//
+	// Why? Because venafi-kubernetes-agent is expected to run in environments
+	// where some of the DataGatherer resources are not yet installed.
+	// If the resource is installed after venafi-kubernetes-agent starts, it
+	// will begin collecting that resource.
+	// If the resource is uninstalled after venafi-kubernetes-agent starts, it
+	// will stop collecting that resource.
+	// But if an API resource is not installed, the client-go reflector will
+	// return an error **and** print a warning.
+	// The error is already handled and logged in `k8s/dynamic.go`, so the
+	// warning is redundant and causes unnecessary distraction to the user.
+	FilteredMessageReflectorFailedToList = "failed to list"
 )
 
 func init() {
@@ -131,6 +148,22 @@ func Initialize() error {
 	// to the global log logger. It can be removed when this is fixed upstream
 	// in vcert:  https://github.com/Venafi/vcert/pull/512
 	vcertLog.SetPrefix("")
+
+	// Set up filtering of distracting client-go logs.
+	l := klog.Background()
+	ls := &filteringLogSink{
+		LogSink: l.GetSink(),
+	}
+	// This CallDepth is chosen by trial and error so that the logged line
+	// numbers match the site of the `log.Info` in the code.
+	// TODO(wallrj): Figure out how to automatically set the right call depth.
+	// TODO(wallrj): This CallDepth is not correct for client-go logs, e.g.
+	// > I1119 13:54:14.395382  118425 once.go:65] "Feature gate default state" feature="WatchListClient" enabled=false
+	// ...should be...
+	// > I1119 13:54:32.069621  119328 envvar.go:172] "Feature gate default state" feature="WatchListClient" enabled=false
+	ls.Init(logr.RuntimeInfo{CallDepth: 6})
+	klog.SetLogger(l.WithSink(ls))
+
 	return nil
 }
 
@@ -152,4 +185,17 @@ func (w LogToSlogWriter) Write(p []byte) (n int, err error) {
 		w.Slog.With("source", w.Source).Info(message)
 	}
 	return len(p), nil
+}
+
+type filteringLogSink struct {
+	logr.LogSink
+}
+
+var _ logr.LogSink = &filteringLogSink{}
+
+func (o *filteringLogSink) Info(level int, msg string, keysAndValues ...any) {
+	if strings.Contains(msg, FilteredMessageReflectorFailedToList) {
+		return
+	}
+	o.LogSink.Info(level, msg, keysAndValues...)
 }
