@@ -98,7 +98,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--period", "99m", "--credentials-file", fakeCredsPath))
 		require.NoError(t, err)
 		assert.Equal(t, testutil.Undent(`
-			INFO Using the Jetstack Secure OAuth auth mode since --credentials-file was specified without --venafi-cloud.
+			INFO Authentication mode mode="Jetstack Secure OAuth" reason="--credentials-file was specified without --venafi-cloud"
 			INFO Both the 'period' field and --period are set. Using the value provided with --period.
 		`), gotLogs.String())
 		assert.Equal(t, 99*time.Minute, got.Period)
@@ -588,7 +588,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		)
 		require.NoError(t, err)
 		assert.Equal(t, testutil.Undent(`
-			INFO Using the Venafi Cloud VenafiConnection auth mode since --venafi-connection was specified.
+			INFO Authentication mode venConnName="venafi-components" mode="Venafi Cloud VenafiConnection" reason="--venafi-connection was specified"
 			INFO ignoring the server field specified in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
 			INFO ignoring the venafi-cloud.upload_path field in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
 			INFO ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in Venafi Cloud VenafiConnection mode.
