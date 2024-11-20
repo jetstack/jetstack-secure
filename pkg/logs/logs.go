@@ -14,6 +14,8 @@ import (
 	"k8s.io/component-base/logs"
 	logsapi "k8s.io/component-base/logs/api/v1"
 	_ "k8s.io/component-base/logs/json/register"
+	"k8s.io/klog/v2"
+	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // venafi-kubernetes-agent follows [Kubernetes Logging Conventions] and writes
@@ -131,6 +133,11 @@ func Initialize() error {
 	// to the global log logger. It can be removed when this is fixed upstream
 	// in vcert:  https://github.com/Venafi/vcert/pull/512
 	vcertLog.SetPrefix("")
+
+	// The venafi-connection-lib client uses various controller-runtime packages
+	// which emit log messages. Make sure those log messages are not discarded.
+	ctrlruntimelog.SetLogger(klog.Background().WithValues("source", "controller-runtime"))
+
 	return nil
 }
 

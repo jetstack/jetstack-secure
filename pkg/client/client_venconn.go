@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-logr/logr"
 	venapi "github.com/jetstack/venafi-connection-lib/api/v1alpha1"
 	"github.com/jetstack/venafi-connection-lib/venafi_client"
 	"github.com/jetstack/venafi-connection-lib/venafi_client/auth"
@@ -22,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/version"
@@ -57,11 +55,6 @@ type VenConnClient struct {
 // `restcfg` is not mutated. `trustedCAs` is only used for connecting to Venafi
 // Cloud and Vault and can be left nil.
 func NewVenConnClient(restcfg *rest.Config, agentMetadata *api.AgentMetadata, installNS, venConnName, venConnNS string, trustedCAs *x509.CertPool, disableCompression bool) (*VenConnClient, error) {
-	// TODO(mael): The rest of the codebase uses the standard "log" package,
-	// venafi-connection-lib uses "go-logr/logr", and client-go uses "klog". We
-	// should standardize on one of them, probably "slog".
-	ctrlruntimelog.SetLogger(logr.Logger{})
-
 	if installNS == "" {
 		return nil, errors.New("programmer mistake: installNS must be provided")
 	}
