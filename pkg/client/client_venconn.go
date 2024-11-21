@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/transport"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	"github.com/jetstack/preflight/api"
@@ -99,11 +100,11 @@ func NewVenConnClient(restcfg *rest.Config, agentMetadata *api.AgentMetadata, in
 	}
 
 	vcpClient := &http.Client{}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
 	if trustedCAs != nil {
-		tr := http.DefaultTransport.(*http.Transport).Clone()
 		tr.TLSClientConfig.RootCAs = trustedCAs
-		vcpClient.Transport = tr
 	}
+	vcpClient.Transport = transport.DebugWrappers(tr)
 
 	return &VenConnClient{
 		agentMetadata: agentMetadata,
@@ -123,12 +124,12 @@ func (c *VenConnClient) Start(ctx context.Context) error {
 
 // `opts.ClusterName` and `opts.ClusterDescription` are the only values used
 // from the Options struct. OrgID and ClusterID are not used in Venafi Cloud.
-func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading, opts Options) error {
+func (c *VenConnClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, opts Options) error {
 	if opts.ClusterName == "" {
 		return fmt.Errorf("programmer mistake: the cluster name (aka `cluster_id` in the config file) cannot be left empty")
 	}
 
-	_, token, err := c.connHandler.Get(context.Background(), c.installNS, auth.Scope{}, types.NamespacedName{Name: c.venConnName, Namespace: c.venConnNS})
+	_, token, err := c.connHandler.Get(ctx, c.installNS, auth.Scope{}, types.NamespacedName{Name: c.venConnName, Namespace: c.venConnNS})
 	if err != nil {
 		return fmt.Errorf("while loading the VenafiConnection %s/%s: %w", c.venConnNS, c.venConnName, err)
 	}
@@ -161,7 +162,7 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 	// The path parameter "no" is a dummy parameter to make the Venafi Cloud
 	// backend happy. This parameter, named `uploaderID` in the backend, is not
 	// actually used by the backend.
-	req, err := http.NewRequest(http.MethodPost, fullURL(token.BaseURL, "/v1/tlspk/upload/clusterdata/no"), encodedBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL(token.BaseURL, "/v1/tlspk/upload/clusterdata/no"), encodedBody)
 	if err != nil {
 		return err
 	}
@@ -206,13 +207,13 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 // Cloud needs a `clusterName` and `clusterDescription`, but this function can
 // only pass `orgID` and `clusterID` which are both useless in Venafi Cloud. Use
 // PostDataReadingsWithOptions instead.
-func (c *VenConnClient) PostDataReadings(_orgID, _clusterID string, readings []*api.DataReading) error {
+func (c *VenConnClient) PostDataReadings(_ context.Context, _orgID, _clusterID string, readings []*api.DataReading) error {
 	return fmt.Errorf("programmer mistake: PostDataReadings is not implemented for Venafi Cloud")
 }
 
 // Post isn't implemented for Venafi Cloud because /v1/tlspk/upload/clusterdata
 // requires using the query parameters `name` and `description` which can't be
 // set using Post. Use PostDataReadingsWithOptions instead.
-func (c *VenConnClient) Post(path string, body io.Reader) (*http.Response, error) {
+func (c *VenConnClient) Post(_ context.Context, path string, body io.Reader) (*http.Response, error) {
 	return nil, fmt.Errorf("programmer mistake: Post is not implemented for Venafi Cloud")
 }

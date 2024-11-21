@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jetstack/preflight/api"
+	"k8s.io/client-go/transport"
 )
 
 type (
@@ -34,19 +36,22 @@ func NewAPITokenClient(agentMetadata *api.AgentMetadata, apiToken, baseURL strin
 		apiToken:      apiToken,
 		agentMetadata: agentMetadata,
 		baseURL:       baseURL,
-		client:        &http.Client{Timeout: time.Minute},
+		client: &http.Client{
+			Timeout:   time.Minute,
+			Transport: transport.DebugWrappers(http.DefaultTransport),
+		},
 	}, nil
 }
 
 // PostDataReadingsWithOptions uploads the slice of api.DataReading to the Jetstack Secure backend to be processed for later
 // viewing in the user-interface.
-func (c *APITokenClient) PostDataReadingsWithOptions(readings []*api.DataReading, opts Options) error {
-	return c.PostDataReadings(opts.OrgID, opts.ClusterID, readings)
+func (c *APITokenClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, opts Options) error {
+	return c.PostDataReadings(ctx, opts.OrgID, opts.ClusterID, readings)
 }
 
 // PostDataReadings uploads the slice of api.DataReading to the Jetstack Secure backend to be processed for later
 // viewing in the user-interface.
-func (c *APITokenClient) PostDataReadings(orgID, clusterID string, readings []*api.DataReading) error {
+func (c *APITokenClient) PostDataReadings(ctx context.Context, orgID, clusterID string, readings []*api.DataReading) error {
 	payload := api.DataReadingsPost{
 		AgentMetadata:  c.agentMetadata,
 		DataGatherTime: time.Now().UTC(),
@@ -57,7 +62,7 @@ func (c *APITokenClient) PostDataReadings(orgID, clusterID string, readings []*a
 		return err
 	}
 
-	res, err := c.Post(filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
+	res, err := c.Post(ctx, filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -77,8 +82,8 @@ func (c *APITokenClient) PostDataReadings(orgID, clusterID string, readings []*a
 }
 
 // Post performs an HTTP POST request.
-func (c *APITokenClient) Post(path string, body io.Reader) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, path), body)
+func (c *APITokenClient) Post(ctx context.Context, path string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL(c.baseURL, path), body)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -26,6 +27,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/microcosm-cc/bluemonday"
+	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/api"
 )
@@ -111,7 +113,10 @@ func NewVenafiCloudClient(agentMetadata *api.AgentMetadata, credentials *VenafiS
 		credentials:   credentials,
 		baseURL:       baseURL,
 		accessToken:   &venafiCloudAccessToken{},
-		Client:        &http.Client{Timeout: time.Minute},
+		Client: &http.Client{
+			Timeout:   time.Minute,
+			Transport: transport.DebugWrappers(http.DefaultTransport),
+		},
 		uploaderID:    uploaderID,
 		uploadPath:    uploadPath,
 		privateKey:    privateKey,
@@ -168,7 +173,7 @@ func (c *VenafiSvcAccountCredentials) IsClientSet() (ok bool, why string) {
 
 // PostDataReadingsWithOptions uploads the slice of api.DataReading to the Venafi Cloud backend to be processed.
 // The Options are then passed as URL params in the request
-func (c *VenafiCloudClient) PostDataReadingsWithOptions(readings []*api.DataReading, opts Options) error {
+func (c *VenafiCloudClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, opts Options) error {
 	payload := api.DataReadingsPost{
 		AgentMetadata:  c.agentMetadata,
 		DataGatherTime: time.Now().UTC(),
@@ -199,7 +204,7 @@ func (c *VenafiCloudClient) PostDataReadingsWithOptions(readings []*api.DataRead
 	}
 	venafiCloudUploadURL.RawQuery = query.Encode()
 
-	res, err := c.Post(venafiCloudUploadURL.String(), bytes.NewBuffer(data))
+	res, err := c.Post(ctx, venafiCloudUploadURL.String(), bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -219,7 +224,7 @@ func (c *VenafiCloudClient) PostDataReadingsWithOptions(readings []*api.DataRead
 
 // PostDataReadings uploads the slice of api.DataReading to the Venafi Cloud backend to be processed for later
 // viewing in the user-interface.
-func (c *VenafiCloudClient) PostDataReadings(_ string, _ string, readings []*api.DataReading) error {
+func (c *VenafiCloudClient) PostDataReadings(ctx context.Context, _ string, _ string, readings []*api.DataReading) error {
 	// orgID and clusterID are ignored in Venafi Cloud auth
 
 	payload := api.DataReadingsPost{
@@ -235,7 +240,7 @@ func (c *VenafiCloudClient) PostDataReadings(_ string, _ string, readings []*api
 	if !strings.HasSuffix(c.uploadPath, "/") {
 		c.uploadPath = fmt.Sprintf("%s/", c.uploadPath)
 	}
-	res, err := c.Post(filepath.Join(c.uploadPath, c.uploaderID), bytes.NewBuffer(data))
+	res, err := c.Post(ctx, filepath.Join(c.uploadPath, c.uploaderID), bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -254,8 +259,8 @@ func (c *VenafiCloudClient) PostDataReadings(_ string, _ string, readings []*api
 }
 
 // Post performs an HTTP POST request.
-func (c *VenafiCloudClient) Post(path string, body io.Reader) (*http.Response, error) {
-	token, err := c.getValidAccessToken()
+func (c *VenafiCloudClient) Post(ctx context.Context, path string, body io.Reader) (*http.Response, error) {
+	token, err := c.getValidAccessToken(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -278,9 +283,9 @@ func (c *VenafiCloudClient) Post(path string, body io.Reader) (*http.Response, e
 // getValidAccessToken returns a valid access token. It will fetch a new access
 // token from the auth server in case the current access token does not exist
 // or it is expired.
-func (c *VenafiCloudClient) getValidAccessToken() (*venafiCloudAccessToken, error) {
+func (c *VenafiCloudClient) getValidAccessToken(ctx context.Context) (*venafiCloudAccessToken, error) {
 	if c.accessToken == nil || time.Now().Add(time.Minute).After(c.accessToken.expirationTime) {
-		err := c.updateAccessToken()
+		err := c.updateAccessToken(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -289,7 +294,7 @@ func (c *VenafiCloudClient) getValidAccessToken() (*venafiCloudAccessToken, erro
 	return c.accessToken, nil
 }
 
-func (c *VenafiCloudClient) updateAccessToken() error {
+func (c *VenafiCloudClient) updateAccessToken(ctx context.Context) error {
 	jwtToken, err := c.generateAndSignJwtToken()
 	if err != nil {
 		return err
@@ -302,7 +307,7 @@ func (c *VenafiCloudClient) updateAccessToken() error {
 	tokenURL := fullURL(c.baseURL, accessTokenEndpoint)
 
 	encoded := values.Encode()
-	request, err := http.NewRequest(http.MethodPost, tokenURL, strings.NewReader(encoded))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(encoded))
 	if err != nil {
 		return err
 	}
