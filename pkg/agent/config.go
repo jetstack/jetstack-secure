@@ -167,11 +167,6 @@ type AgentCmdFlags struct {
 
 	// Prometheus (--enable-metrics) enables the Prometheus metrics server.
 	Prometheus bool
-
-	// DisableCompression (--disable-compression) disables the GZIP compression
-	// when uploading the data. Useful for debugging purposes, or when an
-	// intermediate proxy doesn't like compressed data.
-	DisableCompression bool
 }
 
 func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
@@ -298,12 +293,15 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		"Enables Prometheus metrics server on the agent (port: 8081).",
 	)
 
+	var dummy bool
 	c.PersistentFlags().BoolVar(
-		&cfg.DisableCompression,
+		&dummy,
 		"disable-compression",
 		false,
-		"Disables GZIP compression when uploading the data. Useful for debugging purposes or when an intermediate proxy doesn't like compressed data.",
+		"Deprecated. No longer has an effect.",
 	)
+	c.PersistentFlags().MarkDeprecated("disable-compression", "no longer has an effect")
+
 }
 
 type AuthMode string
@@ -346,7 +344,6 @@ type CombinedConfig struct {
 	VenConnNS   string
 
 	// VenafiCloudKeypair and VenafiCloudVenafiConnection modes only.
-	DisableCompression         bool
 	ExcludeAnnotationKeysRegex []*regexp.Regexp
 	ExcludeLabelKeysRegex      []*regexp.Regexp
 
@@ -586,14 +583,6 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		}
 	}
 
-	// Validation of --disable-compression.
-	{
-		if flags.DisableCompression && res.AuthMode != VenafiCloudKeypair && res.AuthMode != VenafiCloudVenafiConnection {
-			errs = multierror.Append(errs, fmt.Errorf("--disable-compression can only be used with the %s and %s modes", VenafiCloudKeypair, VenafiCloudVenafiConnection))
-		}
-		res.DisableCompression = flags.DisableCompression
-	}
-
 	// Validation of the config fields exclude_annotation_keys_regex and
 	// exclude_label_keys_regex.
 	{
@@ -709,7 +698,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			break // Don't continue with the client if kubeconfig wasn't loaded.
 		}
 
-		preflightClient, err = client.NewVenConnClient(restCfg, metadata, cfg.InstallNS, cfg.VenConnName, cfg.VenConnNS, nil, cfg.DisableCompression)
+		preflightClient, err = client.NewVenConnClient(restCfg, metadata, cfg.InstallNS, cfg.VenConnName, cfg.VenConnNS, nil)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
@@ -767,7 +756,7 @@ func createCredentialClient(log logr.Logger, credentials client.Credentials, cfg
 			log.Info("Loading upload_path from \"venafi-cloud\" configuration.")
 			uploadPath = cfg.UploadPath
 		}
-		return client.NewVenafiCloudClient(agentMetadata, creds, cfg.Server, uploaderID, uploadPath, cfg.DisableCompression)
+		return client.NewVenafiCloudClient(agentMetadata, creds, cfg.Server, uploaderID, uploadPath)
 
 	case *client.OAuthCredentials:
 		return client.NewOAuthClient(agentMetadata, creds, cfg.Server)

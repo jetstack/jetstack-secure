@@ -1,11 +1,8 @@
 package agent
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -163,6 +160,26 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--strict", "--credentials-file", fakeCredsPath))
 		require.NoError(t, gotErr)
 		assert.Equal(t, true, got.StrictMode)
+	})
+
+	t.Run("--disable-compression is deprecated and doesn't do anything", func(t *testing.T) {
+		path := withFile(t, `{"user_id":"fpp2624799349@affectionate-hertz6.platform.jetstack.io","user_secret":"foo","client_id": "k3TrDbfLhCgnpAbOiiT2kIE1AbovKzjo","client_secret": "f39w_3KT9Vp0VhzcPzvh-uVbudzqCFmHER3Huj0dvHgJwVrjxsoOQPIw_1SDiCfa","auth_server_domain":"auth.jetstack.io"}`)
+		log, b := recordLogs(t)
+		_, _, err := ValidateAndCombineConfig(log,
+			withConfig(testutil.Undent(`
+				server: https://api.venafi.eu
+				period: 1h
+				organization_id: foo
+				cluster_id: bar
+				`)),
+			withCmdLineFlags("--disable-compression", "--credentials-file", path, "--install-namespace", "venafi"))
+		require.NoError(t, err)
+
+		// The log line printed by pflag is not captured by the log recorder.
+		assert.Equal(t, testutil.Undent(`
+			INFO Using the Jetstack Secure OAuth auth mode since --credentials-file was specified without --venafi-cloud.
+			INFO Using period from config period="1h0m0s"
+		`), b.String())
 	})
 
 	t.Run("error when no auth method specified", func(t *testing.T) {
@@ -373,19 +390,6 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, OrganizationID: "foo", ClusterID: "bar", AuthMode: JetstackSecureOAuth, BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
 		assert.IsType(t, &client.OAuthClient{}, cl)
-	})
-
-	t.Run("jetstack-secure-oauth-auth: can't use --disable-compression", func(t *testing.T) {
-		path := withFile(t, `{"user_id":"fpp2624799349@affectionate-hertz6.platform.jetstack.io","user_secret":"foo","client_id": "k3TrDbfLhCgnpAbOiiT2kIE1AbovKzjo","client_secret": "f39w_3KT9Vp0VhzcPzvh-uVbudzqCFmHER3Huj0dvHgJwVrjxsoOQPIw_1SDiCfa","auth_server_domain":"auth.jetstack.io"}`)
-		_, _, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(testutil.Undent(`
-				server: https://api.venafi.eu
-				period: 1h
-				organization_id: foo
-				cluster_id: bar
-				`)),
-			withCmdLineFlags("--disable-compression", "--credentials-file", path, "--install-namespace", "venafi"))
-		require.EqualError(t, err, "1 error occurred:\n\t* --disable-compression can only be used with the Venafi Cloud Key Pair Service Account and Venafi Cloud VenafiConnection modes\n\n")
 	})
 
 	t.Run("jetstack-secure-oauth-auth: --credential-file used but file is missing", func(t *testing.T) {
@@ -647,83 +651,6 @@ func Test_ValidateAndCombineConfig_VenafiCloudKeyPair(t *testing.T) {
 		err = cl.PostDataReadingsWithOptions(nil, client.Options{ClusterName: "test cluster name"})
 		require.NoError(t, err)
 	})
-
-	t.Run("the request body is compressed", func(t *testing.T) {
-		srv, cert, setVenafiCloudAssert := testutil.FakeVenafiCloud(t)
-		setVenafiCloudAssert(func(t testing.TB, gotReq *http.Request) {
-			if gotReq.URL.Path == "/v1/oauth/token/serviceaccount" {
-				return
-			}
-			assert.Equal(t, "/v1/tlspk/upload/clusterdata/no", gotReq.URL.Path)
-
-			// Let's check that the body is compressed as expected.
-			assert.Equal(t, "gzip", gotReq.Header.Get("Content-Encoding"))
-			uncompressR, err := gzip.NewReader(gotReq.Body)
-			require.NoError(t, err, "body might not be compressed")
-			defer uncompressR.Close()
-			uncompressed, err := io.ReadAll(uncompressR)
-			require.NoError(t, err)
-			assert.Contains(t, string(uncompressed), `{"agent_metadata":{"version":"development","cluster_id":"test cluster name"}`)
-		})
-		privKeyPath := withFile(t, fakePrivKeyPEM)
-		got, cl, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(testutil.Undent(`
-				server: `+srv.URL+`
-				period: 1h
-				cluster_id: "test cluster name"
-				venafi-cloud:
-				  uploader_id: no
-				  upload_path: /v1/tlspk/upload/clusterdata
-			`)),
-			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath, "--install-namespace", "venafi"),
-		)
-		require.NoError(t, err)
-		testutil.TrustCA(t, cl, cert)
-		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
-		require.NoError(t, err)
-
-		err = cl.PostDataReadingsWithOptions(nil, client.Options{ClusterName: "test cluster name"})
-		require.NoError(t, err)
-	})
-
-	t.Run("--disable-compression works", func(t *testing.T) {
-		srv, cert, setVenafiCloudAssert := testutil.FakeVenafiCloud(t)
-		setVenafiCloudAssert(func(t testing.TB, gotReq *http.Request) {
-			// Only care about /v1/tlspk/upload/clusterdata/:uploader_id?name=
-			if gotReq.URL.Path == "/v1/oauth/token/serviceaccount" {
-				return
-			}
-
-			assert.Equal(t, "/v1/tlspk/upload/clusterdata/no", gotReq.URL.Path)
-
-			// Let's check that the body isn't compressed.
-			assert.Equal(t, "", gotReq.Header.Get("Content-Encoding"))
-			b := new(bytes.Buffer)
-			_, err := b.ReadFrom(gotReq.Body)
-			require.NoError(t, err)
-			assert.Contains(t, b.String(), `{"agent_metadata":{"version":"development","cluster_id":"test cluster name"}`)
-		})
-
-		privKeyPath := withFile(t, fakePrivKeyPEM)
-		got, cl, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(testutil.Undent(`
-				server: `+srv.URL+`
-				period: 1h
-				cluster_id: "test cluster name"
-				venafi-cloud:
-				  uploader_id: no
-				  upload_path: /v1/tlspk/upload/clusterdata
-			`)),
-			withCmdLineFlags("--disable-compression", "--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath, "--install-namespace", "venafi"),
-		)
-		require.NoError(t, err)
-		testutil.TrustCA(t, cl, cert)
-		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
-		require.NoError(t, err)
-
-		err = cl.PostDataReadingsWithOptions(nil, client.Options{ClusterName: "test cluster name"})
-		require.NoError(t, err)
-	})
 }
 
 // Slower test cases due to envtest. That's why they are separated from the
@@ -817,53 +744,6 @@ func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 		// TODO(mael): the client should keep track of the cluster ID, we
 		// shouldn't need to pass it as an option to
 		// PostDataReadingsWithOptions.
-		err = cl.PostDataReadingsWithOptions(nil, client.Options{ClusterName: cfg.ClusterID})
-		require.NoError(t, err)
-	})
-
-	t.Run("the request is compressed by default", func(t *testing.T) {
-		setVenafiCloudAssert(func(t testing.TB, gotReq *http.Request) {
-			// Let's check that the body is compressed as expected.
-			assert.Equal(t, "gzip", gotReq.Header.Get("Content-Encoding"))
-			uncompressR, err := gzip.NewReader(gotReq.Body)
-			require.NoError(t, err, "body might not be compressed")
-			defer uncompressR.Close()
-			uncompressed, err := io.ReadAll(uncompressR)
-			require.NoError(t, err)
-			assert.Contains(t, string(uncompressed), `{"agent_metadata":{"version":"development","cluster_id":"test cluster name"}`)
-		})
-		cfg, cl, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(testutil.Undent(`
-				period: 1h
-				cluster_id: test cluster name
-			`)),
-			withCmdLineFlags("--venafi-connection", "venafi-components", "--install-namespace", "venafi"))
-		require.NoError(t, err)
-		testutil.VenConnStartWatching(t, cl)
-		testutil.TrustCA(t, cl, cert)
-		err = cl.PostDataReadingsWithOptions(nil, client.Options{ClusterName: cfg.ClusterID})
-		require.NoError(t, err)
-	})
-
-	t.Run("--disable-compression works", func(t *testing.T) {
-		setVenafiCloudAssert(func(t testing.TB, gotReq *http.Request) {
-			// Let's check that the body isn't compressed.
-			assert.Equal(t, "", gotReq.Header.Get("Content-Encoding"))
-			b := new(bytes.Buffer)
-			_, err := b.ReadFrom(gotReq.Body)
-			require.NoError(t, err)
-			assert.Contains(t, b.String(), `{"agent_metadata":{"version":"development","cluster_id":"test cluster name"}`)
-		})
-		cfg, cl, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(testutil.Undent(`
-				server: `+srv.URL+`
-				period: 1h
-				cluster_id: test cluster name
-			`)),
-			withCmdLineFlags("--disable-compression", "--venafi-connection", "venafi-components", "--install-namespace", "venafi"))
-		require.NoError(t, err)
-		testutil.VenConnStartWatching(t, cl)
-		testutil.TrustCA(t, cl, cert)
 		err = cl.PostDataReadingsWithOptions(nil, client.Options{ClusterName: cfg.ClusterID})
 		require.NoError(t, err)
 	})

@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
@@ -33,8 +32,6 @@ type VenConnClient struct {
 	venConnName   string // Name of the VenafiConnection resource to use.
 	venConnNS     string // Namespace of the VenafiConnection resource to use.
 
-	disableCompression bool
-
 	// Used to make HTTP requests to Venafi Cloud. This field is public for
 	// testing purposes so that we can configure trusted CAs; there should be a
 	// way to do that without messing with the client directly (e.g., a flag to
@@ -54,7 +51,7 @@ type VenConnClient struct {
 // empty. `venConnName` and `venConnNS` must not be empty either. The passed
 // `restcfg` is not mutated. `trustedCAs` is only used for connecting to Venafi
 // Cloud and Vault and can be left nil.
-func NewVenConnClient(restcfg *rest.Config, agentMetadata *api.AgentMetadata, installNS, venConnName, venConnNS string, trustedCAs *x509.CertPool, disableCompression bool) (*VenConnClient, error) {
+func NewVenConnClient(restcfg *rest.Config, agentMetadata *api.AgentMetadata, installNS, venConnName, venConnNS string, trustedCAs *x509.CertPool) (*VenConnClient, error) {
 	if installNS == "" {
 		return nil, errors.New("programmer mistake: installNS must be provided")
 	}
@@ -109,13 +106,12 @@ func NewVenConnClient(restcfg *rest.Config, agentMetadata *api.AgentMetadata, in
 	}
 
 	return &VenConnClient{
-		agentMetadata:      agentMetadata,
-		connHandler:        handler,
-		installNS:          installNS,
-		venConnName:        venConnName,
-		venConnNS:          venConnNS,
-		Client:             vcpClient,
-		disableCompression: disableCompression,
+		agentMetadata: agentMetadata,
+		connHandler:   handler,
+		installNS:     installNS,
+		venConnName:   venConnName,
+		venConnNS:     venConnNS,
+		Client:        vcpClient,
 	}, nil
 }
 
@@ -156,21 +152,10 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 	}
 
 	encodedBody := &bytes.Buffer{}
-	if c.disableCompression {
-		err = json.NewEncoder(encodedBody).Encode(payload)
-		if err != nil {
-			return err
-		}
-	} else {
-		gz := gzip.NewWriter(encodedBody)
-		err = json.NewEncoder(gz).Encode(payload)
-		if err != nil {
-			return err
-		}
-		err := gz.Close()
-		if err != nil {
-			return err
-		}
+
+	err = json.NewEncoder(encodedBody).Encode(payload)
+	if err != nil {
+		return err
 	}
 
 	// The path parameter "no" is a dummy parameter to make the Venafi Cloud
@@ -181,18 +166,6 @@ func (c *VenConnClient) PostDataReadingsWithOptions(readings []*api.DataReading,
 		return err
 	}
 
-	// We have noticed that NGINX, which is Venafi Control Plane's API gateway,
-	// has a limit on the request body size we can send (client_max_body_size).
-	// On large clusters, the agent may exceed this limit, triggering the error
-	// "413 Request Entity Too Large". Although this limit has been raised to
-	// 1GB, NGINX still buffers the requests that the agent sends because
-	// proxy_request_buffering isn't set to off. To reduce the strain on NGINX'
-	// memory and disk, to avoid further 413s, and to avoid reaching the maximum
-	// request body size of customer's proxies, we have decided to enable GZIP
-	// compression. Ref: https://venafi.atlassian.net/browse/VC-36434.
-	if !c.disableCompression {
-		req.Header.Set("Content-Encoding", "gzip")
-	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
 
