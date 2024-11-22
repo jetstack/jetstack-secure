@@ -168,9 +168,8 @@ type AgentCmdFlags struct {
 	// Prometheus (--enable-metrics) enables the Prometheus metrics server.
 	Prometheus bool
 
-	// DisableCompression (--disable-compression) disables the GZIP compression
-	// when uploading the data. Useful for debugging purposes, or when an
-	// intermediate proxy doesn't like compressed data.
+	// DisableCompression (--disable-compression) is deprecated and no longer
+	// has an effect.
 	DisableCompression bool
 }
 
@@ -304,6 +303,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		false,
 		"Deprecated. No longer has an effect.",
 	)
+	c.PersistentFlags().MarkHidden("disable-compression")
 }
 
 type AuthMode string
