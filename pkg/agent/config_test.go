@@ -174,10 +174,11 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				`)),
 			withCmdLineFlags("--disable-compression", "--credentials-file", path, "--install-namespace", "venafi"))
 		require.NoError(t, err)
+
+		// The log line printed by pflag is not captured by the log recorder.
 		assert.Equal(t, testutil.Undent(`
 			INFO Using the Jetstack Secure OAuth auth mode since --credentials-file was specified without --venafi-cloud.
 			INFO Using period from config period="1h0m0s"
-			INFO The flag --disable-compression has been deprecated an no longer has any effect.
 		`), b.String())
 	})
 
