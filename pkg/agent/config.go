@@ -167,10 +167,6 @@ type AgentCmdFlags struct {
 
 	// Prometheus (--enable-metrics) enables the Prometheus metrics server.
 	Prometheus bool
-
-	// DisableCompression (--disable-compression) is deprecated and no longer
-	// has an effect.
-	DisableCompression bool
 }
 
 func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
@@ -297,13 +293,15 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		"Enables Prometheus metrics server on the agent (port: 8081).",
 	)
 
+	var dummy bool
 	c.PersistentFlags().BoolVar(
-		&cfg.DisableCompression,
+		&dummy,
 		"disable-compression",
 		false,
 		"Deprecated. No longer has an effect.",
 	)
-	c.PersistentFlags().MarkHidden("disable-compression")
+	c.PersistentFlags().MarkDeprecated("disable-compression", "no longer has an effect")
+
 }
 
 type AuthMode string
@@ -582,13 +580,6 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		}
 		if flags.InputPath != "" {
 			res.InputPath = flags.InputPath
-		}
-	}
-
-	// Validation of --disable-compression.
-	{
-		if flags.DisableCompression {
-			log.Info("The flag --disable-compression has been deprecated an no longer has any effect.")
 		}
 	}
 
