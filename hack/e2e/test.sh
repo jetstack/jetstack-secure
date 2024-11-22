@@ -195,7 +195,40 @@ kubectl -n team-1 wait certificate app-0 --for=condition=Ready
 # Parse logs as JSON using jq to ensure logs are all JSON formatted.
 # Disable pipefail to prevent SIGPIPE (141) errors from tee
 # See https://unix.stackexchange.com/questions/274120/pipe-fail-141-when-piping-output-into-tee-why
+set +o pipefail
 kubectl logs deployments/venafi-kubernetes-agent \
         --follow \
         --namespace venafi \
     | timeout 60 jq 'if .msg | test("Data sent successfully") then . | halt_error(0) end'
+set -o pipefail
+
+# Create a unique TLS Secret and wait for it to appear in the Venafi certificate
+# inventory API. The case conversion is due to macOS' version of uuidgen which
+# prints UUIDs in upper case, but DNS labels need lower case characters.
+commonname="venafi-kubernetes-agent-e2e.$(uuidgen | tr '[:upper:]' '[:lower:]')"
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /tmp/tls.key -out /tmp/tls.crt -subj "/CN=$commonname"
+kubectl create secret tls "$commonname" --cert=/tmp/tls.crt --key=/tmp/tls.key -o yaml --dry-run=client | kubectl apply -f -
+
+getCertificate() {
+    jq -n '{
+        "expression": {
+            "field": "subjectCN",
+            "operator": "MATCH",
+            "value": $commonname
+        },
+        "ordering": {
+            "orders": [
+                { "direction": "DESC", "field": "certificatInstanceModificationDate" }
+            ]
+        },
+        "paging": { "pageNumber": 0, "pageSize": 10 }
+    }' --arg commonname "${commonname}" \
+    | curl "https://${VEN_API_HOST}/outagedetection/v1/certificatesearch?excludeSupersededInstances=true&ownershipTree=true" \
+         -fsSL \
+         -H "tppl-api-key: $VEN_API_KEY" \
+         --json @- \
+    | jq 'if .count == 0 then . | halt_error(1) end'
+}
+
+# Wait 5 minutes for the certificate to appear.
+for ((i=0;;i++)); do if getCertificate; then exit 0; fi; sleep 30; done | timeout -v -- 5m cat
