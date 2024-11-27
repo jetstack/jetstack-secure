@@ -104,7 +104,7 @@ func AddFlags(fs *pflag.FlagSet) {
 		if f.Name == "v" {
 			f.Name = "log-level"
 			f.Shorthand = "v"
-			f.Usage = fmt.Sprintf("%s. 0=Info, 1=Debug, 2=Trace. Use 3-10 for even greater detail. (default: 0)", f.Usage)
+			f.Usage = fmt.Sprintf("%s. 0=Info, 1=Debug, 2=Trace. Use 6-9 for increasingly verbose HTTP request logging. (default: 0)", f.Usage)
 		}
 	})
 	fs.AddFlagSet(&tfs)
