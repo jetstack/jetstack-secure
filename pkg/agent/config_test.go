@@ -750,7 +750,7 @@ func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 			withCmdLineFlags("--venafi-connection", "venafi-components", "--install-namespace", "venafi"))
 		require.NoError(t, err)
 
-		testutil.VenConnStartWatching(t, cl)
+		testutil.VenConnStartWatching(ctx, t, cl)
 		testutil.TrustCA(t, cl, cert)
 
 		// TODO(mael): the client should keep track of the cluster ID, we

@@ -256,7 +256,7 @@ func run_TestVenConnClient_PostDataReadingsWithOptions(ctx context.Context, rest
 		)
 		require.NoError(t, err)
 
-		testutil.VenConnStartWatching(t, cl)
+		testutil.VenConnStartWatching(ctx, t, cl)
 
 		test.given = strings.ReplaceAll(test.given, "FAKE_VENAFI_CLOUD_URL", fakeVenafiCloud.URL)
 		test.given = strings.ReplaceAll(test.given, "FAKE_TPP_URL", fakeTPP.URL)
