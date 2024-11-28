@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/pkg/client"
@@ -620,6 +621,12 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 func Test_ValidateAndCombineConfig_VenafiCloudKeyPair(t *testing.T) {
 	t.Run("server, uploader_id, and cluster name are correctly passed", func(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.Verbosity(10)))
+		ctx = klog.NewContext(ctx, log)
+
 		srv, cert, setVenafiCloudAssert := testutil.FakeVenafiCloud(t)
 		setVenafiCloudAssert(func(t testing.TB, gotReq *http.Request) {
 			// Only care about /v1/tlspk/upload/clusterdata/:uploader_id?name=
@@ -648,7 +655,7 @@ func Test_ValidateAndCombineConfig_VenafiCloudKeyPair(t *testing.T) {
 		testutil.TrustCA(t, cl, cert)
 		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
 
-		err = cl.PostDataReadingsWithOptions(nil, client.Options{ClusterName: "test cluster name"})
+		err = cl.PostDataReadingsWithOptions(ctx, nil, client.Options{ClusterName: "test cluster name"})
 		require.NoError(t, err)
 	})
 }
@@ -724,6 +731,11 @@ func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 	})
 
 	t.Run("the server field is ignored when VenafiConnection is used", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.Verbosity(10)))
+		ctx = klog.NewContext(ctx, log)
+
 		expected := srv.URL
 		setVenafiCloudAssert(func(t testing.TB, gotReq *http.Request) {
 			assert.Equal(t, expected, "https://"+gotReq.Host)
@@ -738,13 +750,13 @@ func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 			withCmdLineFlags("--venafi-connection", "venafi-components", "--install-namespace", "venafi"))
 		require.NoError(t, err)
 
-		testutil.VenConnStartWatching(t, cl)
+		testutil.VenConnStartWatching(ctx, t, cl)
 		testutil.TrustCA(t, cl, cert)
 
 		// TODO(mael): the client should keep track of the cluster ID, we
 		// shouldn't need to pass it as an option to
 		// PostDataReadingsWithOptions.
-		err = cl.PostDataReadingsWithOptions(nil, client.Options{ClusterName: cfg.ClusterID})
+		err = cl.PostDataReadingsWithOptions(ctx, nil, client.Options{ClusterName: cfg.ClusterID})
 		require.NoError(t, err)
 	})
 }

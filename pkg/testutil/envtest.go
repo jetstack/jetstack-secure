@@ -106,7 +106,7 @@ func WithKubeconfig(t testing.TB, restCfg *rest.Config) string {
 // Tests calling to VenConnClient.PostDataReadingsWithOptions must call this
 // function to start the VenafiConnection watcher. If you don't call this, the
 // test will stall.
-func VenConnStartWatching(t *testing.T, cl client.Client) {
+func VenConnStartWatching(ctx context.Context, t *testing.T, cl client.Client) {
 	t.Helper()
 
 	require.IsType(t, &client.VenConnClient{}, cl)
@@ -116,7 +116,7 @@ func VenConnStartWatching(t *testing.T, cl client.Client) {
 	// the message "timeout waiting for process kube-apiserver to stop". See:
 	// https://github.com/jetstack/venafi-connection-lib/pull/158#issuecomment-1949002322
 	// https://github.com/kubernetes-sigs/controller-runtime/issues/1571#issuecomment-945535598
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	go func() {
 		err := cl.(*client.VenConnClient).Start(ctx)
 		require.NoError(t, err)

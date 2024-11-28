@@ -265,8 +265,18 @@ Specify the command to run overriding default binary.
 > []
 > ```
 
-Specify additional arguments to pass to the agent binary.  
-Example: `["--strict", "--oneshot"]`
+Specify additional arguments to pass to the agent binary. For example, to enable JSON logging use `--logging-format`, or to increase the logging verbosity use `--log-level`.  
+The log levels are: 0=Info, 1=Debug, 2=Trace.  
+Use 6-9 for increasingly verbose HTTP request logging.  
+The default log level is 0.  
+  
+Example:
+
+```yaml
+extraArgs:
+- --logging-format=json
+- --log-level=6 # To enable HTTP request logging
+```
 #### **volumes** ~ `array`
 > Default value:
 > ```yaml

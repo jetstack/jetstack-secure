@@ -231,8 +231,6 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 	// If any of the go routines exit (with nil or error) the main context will
 	// be cancelled, which will cause this blocking loop to exit
 	// instead of waiting for the time period.
-	// TODO(wallrj): Pass a context to gatherAndOutputData, so that we don't
-	// have to wait for it to finish before exiting the process.
 	for {
 		if err := gatherAndOutputData(klog.NewContext(ctx, log), eventf, config, preflightClient, dataGatherers); err != nil {
 			return err
@@ -397,9 +395,7 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 
 	if config.AuthMode == VenafiCloudKeypair || config.AuthMode == VenafiCloudVenafiConnection {
 		// orgID and clusterID are not required for Venafi Cloud auth
-		// TODO(wallrj): Pass the context to PostDataReadingsWithOptions, so
-		// that its network operations can be cancelled.
-		err := preflightClient.PostDataReadingsWithOptions(readings, client.Options{
+		err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
 			ClusterName:        config.ClusterID,
 			ClusterDescription: config.ClusterDescription,
 		})
@@ -427,9 +423,7 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 		if path == "" {
 			path = "/api/v1/datareadings"
 		}
-		// TODO(wallrj): Pass the context to Post, so that its network
-		// operations can be cancelled.
-		res, err := preflightClient.Post(path, bytes.NewBuffer(data))
+		res, err := preflightClient.Post(ctx, path, bytes.NewBuffer(data))
 
 		if err != nil {
 			return fmt.Errorf("failed to post data: %+v", err)
@@ -453,9 +447,7 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 		return fmt.Errorf("post to server failed: missing clusterID from agent configuration")
 	}
 
-	// TODO(wallrj): Pass the context to PostDataReadings, so
-	// that its network operations can be cancelled.
-	err := preflightClient.PostDataReadings(config.OrganizationID, config.ClusterID, readings)
+	err := preflightClient.PostDataReadings(ctx, config.OrganizationID, config.ClusterID, readings)
 	if err != nil {
 		return fmt.Errorf("post to server failed: %+v", err)
 	}

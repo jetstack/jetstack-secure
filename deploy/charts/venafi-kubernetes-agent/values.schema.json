@@ -308,7 +308,7 @@
     },
     "helm-values.extraArgs": {
       "default": [],
-      "description": "Specify additional arguments to pass to the agent binary.\nExample: `[\"--strict\", \"--oneshot\"]`",
+      "description": "Specify additional arguments to pass to the agent binary. For example, to enable JSON logging use `--logging-format`, or to increase the logging verbosity use `--log-level`.\nThe log levels are: 0=Info, 1=Debug, 2=Trace.\nUse 6-9 for increasingly verbose HTTP request logging.\nThe default log level is 0.\n\nExample:\nextraArgs:\n- --logging-format=json\n- --log-level=6 # To enable HTTP request logging",
       "items": {},
       "type": "array"
     },

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -29,9 +30,9 @@ type (
 
 	// The Client interface describes types that perform requests against the Jetstack Secure backend.
 	Client interface {
-		PostDataReadings(orgID, clusterID string, readings []*api.DataReading) error
-		PostDataReadingsWithOptions(readings []*api.DataReading, options Options) error
-		Post(path string, body io.Reader) (*http.Response, error)
+		PostDataReadings(ctx context.Context, orgID, clusterID string, readings []*api.DataReading) error
+		PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, options Options) error
+		Post(ctx context.Context, path string, body io.Reader) (*http.Response, error)
 	}
 
 	// The Credentials interface describes methods for credential types to implement for verification.

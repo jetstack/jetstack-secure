@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
+	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/api"
 )
@@ -93,17 +95,20 @@ func NewOAuthClient(agentMetadata *api.AgentMetadata, credentials *OAuthCredenti
 		credentials:   credentials,
 		baseURL:       baseURL,
 		accessToken:   &accessToken{},
-		client:        &http.Client{Timeout: time.Minute},
+		client: &http.Client{
+			Timeout:   time.Minute,
+			Transport: transport.DebugWrappers(http.DefaultTransport),
+		},
 	}, nil
 }
 
-func (c *OAuthClient) PostDataReadingsWithOptions(readings []*api.DataReading, opts Options) error {
-	return c.PostDataReadings(opts.OrgID, opts.ClusterID, readings)
+func (c *OAuthClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, opts Options) error {
+	return c.PostDataReadings(ctx, opts.OrgID, opts.ClusterID, readings)
 }
 
 // PostDataReadings uploads the slice of api.DataReading to the Jetstack Secure backend to be processed for later
 // viewing in the user-interface.
-func (c *OAuthClient) PostDataReadings(orgID, clusterID string, readings []*api.DataReading) error {
+func (c *OAuthClient) PostDataReadings(ctx context.Context, orgID, clusterID string, readings []*api.DataReading) error {
 	payload := api.DataReadingsPost{
 		AgentMetadata:  c.agentMetadata,
 		DataGatherTime: time.Now().UTC(),
@@ -114,7 +119,7 @@ func (c *OAuthClient) PostDataReadings(orgID, clusterID string, readings []*api.
 		return err
 	}
 
-	res, err := c.Post(filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
+	res, err := c.Post(ctx, filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -134,13 +139,13 @@ func (c *OAuthClient) PostDataReadings(orgID, clusterID string, readings []*api.
 }
 
 // Post performs an HTTP POST request.
-func (c *OAuthClient) Post(path string, body io.Reader) (*http.Response, error) {
-	token, err := c.getValidAccessToken()
+func (c *OAuthClient) Post(ctx context.Context, path string, body io.Reader) (*http.Response, error) {
+	token, err := c.getValidAccessToken(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, path), body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL(c.baseURL, path), body)
 	if err != nil {
 		return nil, err
 	}
@@ -157,9 +162,9 @@ func (c *OAuthClient) Post(path string, body io.Reader) (*http.Response, error) 
 // getValidAccessToken returns a valid access token. It will fetch a new access
 // token from the auth server in case the current access token does not exist
 // or it is expired.
-func (c *OAuthClient) getValidAccessToken() (*accessToken, error) {
+func (c *OAuthClient) getValidAccessToken(ctx context.Context) (*accessToken, error) {
 	if c.accessToken.needsRenew() {
-		err := c.renewAccessToken()
+		err := c.renewAccessToken(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -168,7 +173,7 @@ func (c *OAuthClient) getValidAccessToken() (*accessToken, error) {
 	return c.accessToken, nil
 }
 
-func (c *OAuthClient) renewAccessToken() error {
+func (c *OAuthClient) renewAccessToken(ctx context.Context) error {
 	tokenURL := fmt.Sprintf("https://%s/oauth/token", c.credentials.AuthServerDomain)
 	audience := "https://preflight.jetstack.io/api/v1"
 	payload := url.Values{}
@@ -178,7 +183,7 @@ func (c *OAuthClient) renewAccessToken() error {
 	payload.Set("audience", audience)
 	payload.Set("username", c.credentials.UserID)
 	payload.Set("password", c.credentials.UserSecret)
-	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(payload.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", tokenURL, strings.NewReader(payload.Encode()))
 	if err != nil {
 		return errors.WithStack(err)
 	}

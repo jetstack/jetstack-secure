@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/ktesting"
 	ctrlruntime "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/jetstack/preflight/api"
@@ -34,13 +36,17 @@ import (
 //
 // [1] https://github.com/kubernetes-sigs/controller-runtime/issues/2341
 func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.Verbosity(10)))
+	ctx = klog.NewContext(ctx, log)
 	_, restconf, kclient := testutil.WithEnvtest(t)
 	for _, obj := range testutil.Parse(testutil.VenConnRBAC) {
-		require.NoError(t, kclient.Create(context.Background(), obj))
+		require.NoError(t, kclient.Create(ctx, obj))
 	}
 	t.Parallel()
 
-	t.Run("valid accessToken", run_TestVenConnClient_PostDataReadingsWithOptions(restconf, kclient, testcase{
+	t.Run("valid accessToken", run_TestVenConnClient_PostDataReadingsWithOptions(ctx, restconf, kclient, testcase{
 		given: testutil.Undent(`
 			apiVersion: jetstack.io/v1alpha1
 			kind: VenafiConnection
@@ -93,7 +99,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 		`),
 		expectReadyCondMsg: "ea744d098c2c1c6044e4c4e9d3bf7c2a68ef30553db00f1714886cedf73230f1",
 	}))
-	t.Run("error when the apiKey field is used", run_TestVenConnClient_PostDataReadingsWithOptions(restconf, kclient, testcase{
+	t.Run("error when the apiKey field is used", run_TestVenConnClient_PostDataReadingsWithOptions(ctx, restconf, kclient, testcase{
 		// Why isn't it possible to use the 'apiKey' field? Although the
 		// Kubernetes Discovery endpoint works with an API key, we have decided
 		// to not support it because it isn't recommended.
@@ -152,7 +158,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 		expectReadyCondMsg: "b099d634ccec56556da28028743475dab67f79d079b668bedc3ef544f7eed2f3",
 		expectErr:          "VenafiConnection error-when-the-apikey-field-is-used/venafi-components: the agent cannot be used with an API key",
 	}))
-	t.Run("error when the tpp field is used", run_TestVenConnClient_PostDataReadingsWithOptions(restconf, kclient, testcase{
+	t.Run("error when the tpp field is used", run_TestVenConnClient_PostDataReadingsWithOptions(ctx, restconf, kclient, testcase{
 		// IMPORTANT: The user may think they can use 'tpp', spend time
 		// debugging and making the venafi connection work, and then find out
 		// that it doesn't work. The reason is because as of now, we don't first
@@ -220,10 +226,11 @@ type testcase struct {
 
 // All tests share the same envtest (i.e., the same apiserver and etcd process),
 // so each test needs to be contained in its own Kubernetes namespace.
-func run_TestVenConnClient_PostDataReadingsWithOptions(restcfg *rest.Config, kclient ctrlruntime.WithWatch, test testcase) func(t *testing.T) {
+func run_TestVenConnClient_PostDataReadingsWithOptions(ctx context.Context, restcfg *rest.Config, kclient ctrlruntime.WithWatch, test testcase) func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
-
+		log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.Verbosity(10)))
+		ctx := klog.NewContext(ctx, log)
 		fakeVenafiCloud, certCloud, fakeVenafiAssert := testutil.FakeVenafiCloud(t)
 		fakeTPP, certTPP := testutil.FakeTPP(t)
 		fakeVenafiAssert(func(t testing.TB, r *http.Request) {
@@ -249,7 +256,7 @@ func run_TestVenConnClient_PostDataReadingsWithOptions(restcfg *rest.Config, kcl
 		)
 		require.NoError(t, err)
 
-		testutil.VenConnStartWatching(t, cl)
+		testutil.VenConnStartWatching(ctx, t, cl)
 
 		test.given = strings.ReplaceAll(test.given, "FAKE_VENAFI_CLOUD_URL", fakeVenafiCloud.URL)
 		test.given = strings.ReplaceAll(test.given, "FAKE_TPP_URL", fakeTPP.URL)
@@ -263,10 +270,9 @@ func run_TestVenConnClient_PostDataReadingsWithOptions(restcfg *rest.Config, kcl
 			  name: `+testNameToNamespace(t)))...)
 		givenObjs = append(givenObjs, testutil.Parse(test.given)...)
 		for _, obj := range givenObjs {
-			require.NoError(t, kclient.Create(context.Background(), obj))
+			require.NoError(t, kclient.Create(ctx, obj))
 		}
-
-		err = cl.PostDataReadingsWithOptions([]*api.DataReading{}, client.Options{ClusterName: "test cluster name"})
+		err = cl.PostDataReadingsWithOptions(ctx, []*api.DataReading{}, client.Options{ClusterName: "test cluster name"})
 		if test.expectErr != "" {
 			assert.EqualError(t, err, test.expectErr)
 		} else {
@@ -274,7 +280,7 @@ func run_TestVenConnClient_PostDataReadingsWithOptions(restcfg *rest.Config, kcl
 		}
 
 		got := v1alpha1.VenafiConnection{}
-		err = kclient.Get(context.Background(), types.NamespacedName{Name: "venafi-components", Namespace: testNameToNamespace(t)}, &got)
+		err = kclient.Get(ctx, types.NamespacedName{Name: "venafi-components", Namespace: testNameToNamespace(t)}, &got)
 		require.NoError(t, err)
 		require.Len(t, got.Status.Conditions, 1)
 		assert.Equal(t, test.expectReadyCondMsg, got.Status.Conditions[0].Message)
