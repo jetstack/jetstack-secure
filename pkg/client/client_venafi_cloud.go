@@ -265,7 +265,7 @@ func (c *VenafiCloudClient) Post(ctx context.Context, path string, body io.Reade
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, path), body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL(c.baseURL, path), body)
 	if err != nil {
 		return nil, err
 	}
