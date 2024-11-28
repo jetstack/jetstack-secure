@@ -21,6 +21,7 @@ import (
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/datagatherer/local"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
+	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -367,29 +368,33 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 
 	{
 		var (
-			mode   AuthMode
-			reason string
+			mode          AuthMode
+			reason        string
+			keysAndValues []any
 		)
 		switch {
 		case flags.VenafiCloudMode && flags.CredentialsPath != "":
 			mode = VenafiCloudKeypair
-			reason = fmt.Sprintf("Using the %s auth mode since --venafi-cloud and --credentials-path were specified.", mode)
+			reason = "--venafi-cloud and --credentials-path were specified"
+			keysAndValues = []any{"credentialsPath", flags.CredentialsPath}
 		case flags.ClientID != "" && flags.PrivateKeyPath != "":
 			mode = VenafiCloudKeypair
-			reason = fmt.Sprintf("Using the %s auth mode since --client-id and --private-key-path were specified.", mode)
+			reason = "--client-id and --private-key-path were specified"
+			keysAndValues = []any{"clientID", flags.ClientID, "privateKeyPath", flags.PrivateKeyPath}
 		case flags.ClientID != "":
 			return CombinedConfig{}, nil, fmt.Errorf("if --client-id is specified, --private-key-path must also be specified")
 		case flags.PrivateKeyPath != "":
 			return CombinedConfig{}, nil, fmt.Errorf("--private-key-path is specified, --client-id must also be specified")
 		case flags.VenConnName != "":
 			mode = VenafiCloudVenafiConnection
-			reason = fmt.Sprintf("Using the %s auth mode since --venafi-connection was specified.", mode)
+			reason = "--venafi-connection was specified"
+			keysAndValues = []any{"venConnName", flags.VenConnName}
 		case flags.APIToken != "":
 			mode = JetstackSecureAPIToken
-			reason = fmt.Sprintf("Using the %s auth mode since --api-token was specified.", mode)
+			reason = "--api-token was specified"
 		case !flags.VenafiCloudMode && flags.CredentialsPath != "":
 			mode = JetstackSecureOAuth
-			reason = fmt.Sprintf("Using the %s auth mode since --credentials-file was specified without --venafi-cloud.", mode)
+			reason = "--credentials-file was specified without --venafi-cloud"
 		default:
 			return CombinedConfig{}, nil, fmt.Errorf("no auth mode specified. You can use one of four auth modes:\n" +
 				" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
@@ -398,7 +403,8 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 				" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.\n")
 		}
 		res.AuthMode = mode
-		log.Info(reason)
+		keysAndValues = append(keysAndValues, "mode", mode, "reason", reason)
+		log.V(logs.Debug).Info("Authentication mode", keysAndValues...)
 	}
 
 	// Validation and defaulting of `server` and the deprecated `endpoint.path`.
