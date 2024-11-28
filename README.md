@@ -141,8 +141,8 @@ The release process is semi-automated.
 > | `oci://eu.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`          | Manually triggered, GitHub Actions workflow [release_venafi-agent_chart.yaml][]                                                                                                                          |
 > | `oci://us.gcr.io/jetstack-secure-enterprise/charts/jetstack-agent`          | Manually triggered, GitHub Actions workflow [release_venafi-agent_chart.yaml][]                                                                                                                          |
 > | `oci://quay.io/jetstack/charts/venafi-kubernetes-agent`                     | Automatically built by GitHub Actions [release-master](.github/workflows/release-master.yml) on Git tags[]                                                                                               |
-> | `oci://eu.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent` | Manually triggered, GitHub Actions workflow [release_js-agent_chart.yaml][]                                                                                                                              |
-> | `oci://us.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent` | Manually triggered, GitHub Actions workflow [release_js-agent_chart.yaml][]                                                                                                                              |
+> | `oci://eu.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent` | Automatically built by GitHub Actions [release_enterprise_builds.yaml][]                                                                                                                              |
+> | `oci://us.gcr.io/jetstack-secure-enterprise/charts/venafi-kubernetes-agent` | Automatically built by GitHub Actions [release_enterprise_builds.yaml][]                                                                                                                              |
 > | `oci://registry.venafi.cloud/charts/venafi-kubernetes-agent`                | Automatically mirrored by Harbor Replication rule [public-img-and-chart-replication.tf][] that runs every 30 minutes, all image tags containing `X.X.X` are replicated, including e.g. `v1.0.0-alpha.0`  |
 > | `oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent`        | Automatically mirrored by Harbor Replication rule [private-img-and-chart-replication.tf][] that runs every 10 minutes, all image tags containing `X.X.X` are replicated, including e.g. `v1.0.0-alpha.0` |
 > | `oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent`           | Automatically mirrored by Harbor Replication rule [private-img-and-chart-replication.tf][] that runs every 10 minutes, all image tags containing `X.X.X` are replicated, including e.g. `v1.0.0-alpha.0` |
@@ -174,7 +174,7 @@ The release process is semi-automated.
 [public-img-and-chart-replication.tf]: https://gitlab.com/venafi/vaas/delivery/harbor/-/blob/3d114f54092eb44a1deb0edc7c4e8a2d4f855aa2/public-registry/module/subsystems/tlspk/replication.tf
 [private-img-and-chart-replication.tf]: https://gitlab.com/venafi/vaas/delivery/harbor/-/blob/3d114f54092eb44a1deb0edc7c4e8a2d4f855aa2/private-registry/module/subsystems/tlspk/replication.tf
 [release_venafi-agent_chart.yaml]: https://github.com/jetstack/enterprise-builds/blob/main/.github/workflows/release_venafi-agent_chart.yaml
-[release_js-agent_chart.yaml]: https://github.com/jetstack/enterprise-builds/blob/main/.github/workflows/release_js-agent_chart.yaml
+[release_enterprise_builds.yaml]: https://github.com/jetstack/enterprise-builds/actions/workflows/release_enterprise_builds.yaml
 
 ### Step 2: Test the Helm chart "venafi-kubernetes-agent" with venctl connect
 
