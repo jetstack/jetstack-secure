@@ -178,7 +178,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 
 		// The log line printed by pflag is not captured by the log recorder.
 		assert.Equal(t, testutil.Undent(`
-			INFO Using the Jetstack Secure OAuth auth mode since --credentials-file was specified without --venafi-cloud.
+			INFO Authentication mode mode="Jetstack Secure OAuth" reason="--credentials-file was specified without --venafi-cloud"
 			INFO Using period from config period="1h0m0s"
 		`), b.String())
 	})
