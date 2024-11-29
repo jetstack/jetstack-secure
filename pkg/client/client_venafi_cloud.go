@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/version"
 )
 
 type (
@@ -265,13 +266,14 @@ func (c *VenafiCloudClient) Post(ctx context.Context, path string, body io.Reade
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, fullURL(c.baseURL, path), body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL(c.baseURL, path), body)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
 
 	if len(token.accessToken) > 0 {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.accessToken))
@@ -314,6 +316,7 @@ func (c *VenafiCloudClient) updateAccessToken(ctx context.Context) error {
 
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Add("Content-Length", strconv.Itoa(len(encoded)))
+	request.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
 
 	now := time.Now()
 	accessToken := accessTokenInformation{}

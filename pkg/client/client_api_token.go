@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/version"
 	"k8s.io/client-go/transport"
 )
 
@@ -90,6 +91,7 @@ func (c *APITokenClient) Post(ctx context.Context, path string, body io.Reader) 
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiToken))
+	req.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
 
 	return c.client.Do(req)
 }
