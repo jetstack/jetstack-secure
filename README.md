@@ -1,4 +1,4 @@
-[![tests](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml/badge.svg)](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml)
+[![tests](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml/badge.svg?branch=master&event=push)](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/jetstack/jetstack-secure.svg)](https://pkg.go.dev/github.com/jetstack/jetstack-secure)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jetstack/jetstack-secure)](https://goreportcard.com/report/github.com/jetstack/jetstack-secure)
 
