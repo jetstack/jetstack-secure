@@ -1,4 +1,4 @@
-[![tests](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml/badge.svg)](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml)
+[![tests](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml/badge.svg?branch=master&event=push)](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/jetstack/jetstack-secure.svg)](https://pkg.go.dev/github.com/jetstack/jetstack-secure)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jetstack/jetstack-secure)](https://goreportcard.com/report/github.com/jetstack/jetstack-secure)
 
@@ -102,25 +102,34 @@ The release process is semi-automated.
 > - Create a draft GitHub release,
 > - Upload the Helm chart tarball to the GitHub release.
 
-1. Create a tag for the new release:
+1. Open the [tests GitHub Actions workflow][tests-workflow]
+   and verify that it succeeds on the master branch.
+2. Run govulncheck:
+   ```bash
+   go install golang.org/x/vuln/cmd/govulncheck@latest
+   govulncheck -v ./...
+   ```
+3. Create a tag for the new release:
    ```sh
    export VERSION=v1.1.0
    git tag --annotate --message="Release ${VERSION}" "${VERSION}"
    git push origin "${VERSION}"
    ```
-2. Wait until the GitHub Actions finishes.
-3. Navigate to the GitHub Releases page and select the draft release to edit.
+4. Wait until the GitHub Actions finishes.
+5. Navigate to the GitHub Releases page and select the draft release to edit.
    1. Click on “Generate release notes” to automatically compile the changelog.
    2. Review and refine the generated notes to ensure they’re clear and useful
       for end users.
    3. Remove any irrelevant entries, such as “update deps,” “update CI,” “update
       docs,” or similar internal changes that do not impact user functionality.
-4. Publish the release.
-5. Inform the `#venctl` channel that a new version of Venafi Kubernetes Agent has been
+6. Publish the release.
+7. Inform the `#venctl` channel that a new version of Venafi Kubernetes Agent has been
    released. Make sure to share any breaking change that may affect `venctl connect`
    or `venctl generate`.
-7. Inform Michael McLoughlin of the new release so he can update the
+8. Inform Michael McLoughlin of the new release so he can update the
    documentation at <https://docs.venafi.cloud/>.
+
+[tests-workflow]: https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml?query=branch%3Amaster
 
 > [!NOTE]
 >
