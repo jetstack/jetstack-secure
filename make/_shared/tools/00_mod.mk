@@ -75,6 +75,8 @@ tools += trivy=v0.54.1
 tools += ytt=v0.50.0
 # https://github.com/rclone/rclone/releases
 tools += rclone=v1.67.0
+# https://github.com/istio/istio/releases
+tools += istioctl=1.24.0
 
 ### go packages
 # https://pkg.go.dev/sigs.k8s.io/controller-tools/cmd/controller-gen?tab=versions
@@ -93,8 +95,6 @@ tools += gojq=v0.12.16
 tools += crane=v0.20.2
 # https://pkg.go.dev/google.golang.org/protobuf/cmd/protoc-gen-go?tab=versions
 tools += protoc-gen-go=v1.34.2
-# https://pkg.go.dev/github.com/norwoodj/helm-docs/cmd/helm-docs?tab=versions
-tools += helm-docs=v1.14.2
 # https://pkg.go.dev/github.com/sigstore/cosign/v2/cmd/cosign?tab=versions
 tools += cosign=v2.4.0
 # https://pkg.go.dev/github.com/cert-manager/boilersuite?tab=versions
@@ -114,28 +114,30 @@ tools += ginkgo=$(detected_ginkgo_version)
 tools += klone=v0.1.0
 # https://pkg.go.dev/github.com/goreleaser/goreleaser?tab=versions
 tools += goreleaser=v1.26.2
-# https://pkg.go.dev/github.com/anchore/syft/cmd/syft?tab=versions
+# https://pkg.go.dev/github.com/anchore/syft/cmd/syft?tab=versions. We are still
+# using an old version (0.100.0, Jan 2024) because all of the latest versions
+# use a replace statement, and thus cannot be installed using `go build`.
 tools += syft=v0.100.0
 # https://github.com/cert-manager/helm-tool
 tools += helm-tool=v0.5.3
 # https://github.com/cert-manager/cmctl
-tools += cmctl=v2.1.0
+tools += cmctl=v2.1.1
 # https://pkg.go.dev/github.com/cert-manager/release/cmd/cmrel?tab=versions
-tools += cmrel=e4c3a4dc07df5c7c0379d334c5bb00e172462551
+tools += cmrel=e3cbe5171488deda000145003e22567bdce622ea
 # https://github.com/golangci/golangci-lint/releases
-tools += golangci-lint=v1.61.0
+tools += golangci-lint=v1.62.2
 # https://pkg.go.dev/golang.org/x/vuln?tab=versions
 tools += govulncheck=v1.1.3
 # https://pkg.go.dev/github.com/operator-framework/operator-sdk/cmd/operator-sdk?tab=versions
-tools += operator-sdk=v1.36.1
+tools += operator-sdk=v1.38.0
 # https://pkg.go.dev/github.com/cli/cli/v2?tab=versions
-tools += gh=v2.54.0
+tools += gh=v2.63.1
 # https:///github.com/redhat-openshift-ecosystem/openshift-preflight/releases
-tools += preflight=1.10.0
+tools += preflight=1.10.2
 # https://github.com/daixiang0/gci/releases
-tools += gci=v0.13.4
+tools += gci=v0.13.5
 # https://github.com/google/yamlfmt/releases
-tools += yamlfmt=v0.13.0
+tools += yamlfmt=v0.14.0
 
 # https://pkg.go.dev/k8s.io/code-generator/cmd?tab=versions
 K8S_CODEGEN_VERSION := v0.31.0
@@ -159,7 +161,7 @@ ADDITIONAL_TOOLS ?=
 tools += $(ADDITIONAL_TOOLS)
 
 # https://go.dev/dl/
-VENDORED_GO_VERSION := 1.23.3
+VENDORED_GO_VERSION := 1.23.4
 
 # Print the go version which can be used in GH actions
 .PHONY: print-go-version
@@ -320,7 +322,6 @@ go_dependencies += kustomize=sigs.k8s.io/kustomize/kustomize/v4
 go_dependencies += gojq=github.com/itchyny/gojq/cmd/gojq
 go_dependencies += crane=github.com/google/go-containerregistry/cmd/crane
 go_dependencies += protoc-gen-go=google.golang.org/protobuf/cmd/protoc-gen-go
-go_dependencies += helm-docs=github.com/norwoodj/helm-docs/cmd/helm-docs
 go_dependencies += cosign=github.com/sigstore/cosign/v2/cmd/cosign
 go_dependencies += boilersuite=github.com/cert-manager/boilersuite
 go_dependencies += gomarkdoc=github.com/princjef/gomarkdoc/cmd/gomarkdoc
@@ -378,10 +379,10 @@ $(call for_each_kv,go_dependency,$(go_dependencies))
 # File downloads #
 ##################
 
-go_linux_amd64_SHA256SUM=a0afb9744c00648bafb1b90b4aba5bdb86f424f02f9275399ce0c20b93a2c3a8
-go_linux_arm64_SHA256SUM=1f7cbd7f668ea32a107ecd41b6488aaee1f5d77a66efd885b175494439d4e1ce
-go_darwin_amd64_SHA256SUM=c7e024d5c0bc81845070f23598caf02f05b8ae88fd4ad2cd3e236ddbea833ad2
-go_darwin_arm64_SHA256SUM=31e119fe9bde6e105407a32558d5b5fa6ca11e2bd17f8b7b2f8a06aba16a0632
+go_linux_amd64_SHA256SUM=6924efde5de86fe277676e929dc9917d466efa02fb934197bc2eba35d5680971
+go_linux_arm64_SHA256SUM=16e5017863a7f6071363782b1b8042eb12c6ca4f4cd71528b2123f0a1275b13e
+go_darwin_amd64_SHA256SUM=6700067389a53a1607d30aa8d6e01d198230397029faa0b109e89bc871ab5a0e
+go_darwin_arm64_SHA256SUM=87d2bb0ad4fe24d2a0685a55df321e0efe4296419a9b3de03369dbe60b8acd3a
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz
 $(DOWNLOAD_DIR)/tools/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz: | $(DOWNLOAD_DIR)/tools
@@ -580,8 +581,24 @@ $(DOWNLOAD_DIR)/tools/rclone@$(RCLONE_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWN
 		chmod +x $(outfile); \
 		rm -f $(outfile).zip
 
-preflight_linux_amd64_SHA256SUM=97750df31f31200f073e3b2844628a0a3681a403648c76d12319f83c80666104
-preflight_linux_arm64_SHA256SUM=e12b2afe063c07ee75f69f285f8cc56be99b85e2abac99cbef5fb22b91ef0cb7
+istioctl_linux_amd64_SHA256SUM=b6a07dfb3112f24b174c92bb23b71ba2373114d04e70f079b45cf7c46943ca7e
+istioctl_linux_arm64_SHA256SUM=25b44d36f91337545cddd342e4ccc5686dd8f283916d4eaf0d9efdfe84bd057f
+istioctl_darwin_amd64_SHA256SUM=00b0f321c1e300465a10584e6f4ffa362ff4b11ee655e94dd8985d61c808a16f
+istioctl_darwin_arm64_SHA256SUM=21ece4d2882decccc2ed3f14df078f1fc9fccc3048a7e65371a84d7aabce1912
+
+.PRECIOUS: $(DOWNLOAD_DIR)/tools/istioctl@$(ISTIOCTL_VERSION)_$(HOST_OS)_$(HOST_ARCH)
+$(DOWNLOAD_DIR)/tools/istioctl@$(ISTIOCTL_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
+	$(eval OS := $(subst darwin,osx,$(HOST_OS)))
+
+	@source $(lock_script) $@; \
+		$(CURL) https://github.com/istio/istio/releases/download/$(ISTIOCTL_VERSION)/istio-$(ISTIOCTL_VERSION)-$(OS)-$(HOST_ARCH).tar.gz -o $(outfile).tar.gz; \
+		$(checkhash_script) $(outfile).tar.gz $(istioctl_$(HOST_OS)_$(HOST_ARCH)_SHA256SUM); \
+		tar xfO $(outfile).tar.gz istio-$(ISTIOCTL_VERSION)/bin/istioctl > $(outfile); \
+		chmod +x $(outfile); \
+		rm $(outfile).tar.gz
+
+preflight_linux_amd64_SHA256SUM=776d04669304d3185c40522bed9a6dc1aa9cd80014a203fe01552b98bfa9554b
+preflight_linux_arm64_SHA256SUM=dd7b0a144892ce6fc47d1bc44e344130fa9ff997bf2c39de3016873d8bd3fac5
 
 # Currently there are no official releases for darwin, you cannot submit results
 # on non-official binaries, but we can still run tests.

@@ -37,6 +37,9 @@ ifeq ($(HOST_OS),darwin)
 	sed_inplace := sed -i ''
 endif
 
+crds_dir ?= deploy/crds
+crds_dir_readme := $(dir $(lastword $(MAKEFILE_LIST)))/crds_dir.README.md
+
 .PHONY: generate-crds
 ## Generate CRD manifests.
 ## @category [shared] Generate/ Verify
@@ -51,7 +54,7 @@ generate-crds: | $(NEEDS_CONTROLLER-GEN) $(NEEDS_YQ)
 		$(directories:%=paths=./%...) \
 		output:crd:artifacts:config=$(crds_gen_temp)
 
-	echo "Updating CRDs with helm templating, writing to $(helm_chart_source_dir)/templates"
+	@echo "Updating CRDs with helm templating, writing to $(helm_chart_source_dir)/templates"
 
 	@for i in $$(ls $(crds_gen_temp)); do \
 		crd_name=$$($(YQ) eval '.metadata.name' $(crds_gen_temp)/$$i); \
@@ -62,5 +65,10 @@ generate-crds: | $(NEEDS_CONTROLLER-GEN) $(NEEDS_YQ)
 		$(YQ) -I2 '{"spec": .spec}' $(crds_gen_temp)/$$i >> $(helm_chart_source_dir)/templates/crd-$$i; \
 		cat $(crd_template_footer) >> $(helm_chart_source_dir)/templates/crd-$$i; \
 	done
+
+	@if [ -n "$$(ls $(crds_gen_temp) 2>/dev/null)" ]; then \
+		cp -Tr $(crds_gen_temp) $(crds_dir); \
+		cp $(crds_dir_readme) $(crds_dir)/README.md; \
+	fi
 
 shared_generate_targets += generate-crds

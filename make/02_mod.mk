@@ -4,15 +4,14 @@ GITHUB_OUTPUT ?= /dev/stderr
 .PHONY: release
 ## Publish all release artifacts (image + helm chart)
 ## @category [shared] Release
-release: $(helm_chart_archive)
+release:
 	$(MAKE) oci-push-preflight
-	$(HELM) push "$(helm_chart_archive)" "$(helm_chart_repo_base)"
+	$(MAKE) helm-chart-oci-push
 
-	@echo "RELEASE_OCI_preflight_IMAGE=$(oci_preflight_image_name)" >> "$(GITHUB_OUTPUT)"
-	@echo "RELEASE_OCI_preflight_TAG=$(oci_preflight_image_tag)" >> "$(GITHUB_OUTPUT)"
-	@echo "RELEASE_HELM_CHART_NAME=$(helm_chart_name)" >> "$(GITHUB_OUTPUT)"
+	@echo "RELEASE_OCI_PREFLIGHT_IMAGE=$(oci_preflight_image_name)" >> "$(GITHUB_OUTPUT)"
+	@echo "RELEASE_OCI_PREFLIGHT_TAG=$(oci_preflight_image_tag)" >> "$(GITHUB_OUTPUT)"
+	@echo "RELEASE_HELM_CHART_IMAGE=$(helm_chart_image_name)" >> "$(GITHUB_OUTPUT)"
 	@echo "RELEASE_HELM_CHART_VERSION=$(helm_chart_version)" >> "$(GITHUB_OUTPUT)"
-	@echo "RELEASE_HELM_CHART_TAR=$(helm_chart_archive)" >> "$(GITHUB_OUTPUT)"
 
 	@echo "Release complete!"
 

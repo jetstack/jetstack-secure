@@ -68,7 +68,7 @@ make release \
      OCI_SIGN_ON_PUSH=false \
      oci_platforms=linux/amd64 \
      oci_preflight_image_name=$OCI_BASE/images/venafi-agent \
-     helm_chart_repo_base=oci://$OCI_BASE/charts \
+     helm_chart_image_name=$OCI_BASE/charts/venafi-kubernetes-agent \
      GITHUB_OUTPUT=release.env
 source release.env
 popd
