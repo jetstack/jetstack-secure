@@ -8,10 +8,12 @@ import (
 	"github.com/d4l3k/messagediff"
 	"github.com/go-logr/logr"
 	"github.com/pmylund/go-cache"
+	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/testutil"
 )
 
 func makeGatheredResource(obj runtime.Object, deletedAt api.Time) *api.GatheredResource {
@@ -143,10 +145,17 @@ func TestOnAddCache(t *testing.T) {
 // TestNoneCache demonstrates that the cache helpers do not crash if passed a
 // non-cachable object, but log an error with a reference to the object type.
 func TestNoneCache(t *testing.T) {
-	log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.Verbosity(10)))
+	var buffer ktesting.BufferTL
+	log := ktesting.NewLogger(&buffer, ktesting.NewConfig(ktesting.Verbosity(10)))
 
 	type notCachable struct{}
 	onAdd(log, &notCachable{}, nil)
 	onUpdate(log, &notCachable{}, nil, nil)
 	onDelete(log, &notCachable{}, nil)
+
+	assert.Equal(t, testutil.Undent(`
+		E0000 00:00:00.000000] Cache update failure err="not a cacheResource type: *k8s.notCachable missing metadata/uid field" operation="add"
+		E0000 00:00:00.000000] Cache update failure err="not a cacheResource type: *k8s.notCachable missing metadata/uid field" operation="update"
+		E0000 00:00:00.000000] Cache update failure err="not a cacheResource type: *k8s.notCachable missing metadata/uid field" operation="delete"
+	`), testutil.ReplaceWithStaticTimestamps(buffer.String()))
 }
