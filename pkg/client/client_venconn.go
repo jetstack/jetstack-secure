@@ -12,8 +12,8 @@ import (
 	"time"
 
 	venapi "github.com/jetstack/venafi-connection-lib/api/v1alpha1"
+	"github.com/jetstack/venafi-connection-lib/chain/sources/venafi"
 	"github.com/jetstack/venafi-connection-lib/venafi_client"
-	"github.com/jetstack/venafi-connection-lib/venafi_client/auth"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -129,21 +129,21 @@ func (c *VenConnClient) PostDataReadingsWithOptions(ctx context.Context, reading
 		return fmt.Errorf("programmer mistake: the cluster name (aka `cluster_id` in the config file) cannot be left empty")
 	}
 
-	_, token, err := c.connHandler.Get(ctx, c.installNS, auth.Scope{}, types.NamespacedName{Name: c.venConnName, Namespace: c.venConnNS})
+	_, details, err := c.connHandler.Get(ctx, c.installNS, venafi.Scope{}, types.NamespacedName{Name: c.venConnName, Namespace: c.venConnNS})
 	if err != nil {
 		return fmt.Errorf("while loading the VenafiConnection %s/%s: %w", c.venConnNS, c.venConnName, err)
 	}
-	if token.TPPAccessToken != "" {
+	if details.TPP != nil {
 		return fmt.Errorf(`VenafiConnection %s/%s: the agent cannot be used with TPP`, c.venConnNS, c.venConnName)
 	}
-	if token.VCPAPIKey != "" {
+	if details.VCP != nil && details.VCP.APIKey != "" {
 		// Although it is technically possible to use an API key, we have
 		// decided to not allow it as it isn't recommended and will eventually
 		// be phased out.
 		return fmt.Errorf(`VenafiConnection %s/%s: the agent cannot be used with an API key`, c.venConnNS, c.venConnName)
 	}
-	if token.VCPAccessToken == "" {
-		return fmt.Errorf(`programmer mistake: VenafiConnection %s/%s: TPPAccessToken is empty in the token returned by connHandler.Get: %v`, c.venConnNS, c.venConnName, token)
+	if details.VCP == nil || details.VCP.AccessToken == "" {
+		return fmt.Errorf(`programmer mistake: VenafiConnection %s/%s: TPPAccessToken is empty in the token returned by connHandler.Get: %v`, c.venConnNS, c.venConnName, details)
 	}
 
 	payload := api.DataReadingsPost{
@@ -162,20 +162,14 @@ func (c *VenConnClient) PostDataReadingsWithOptions(ctx context.Context, reading
 	// The path parameter "no" is a dummy parameter to make the Venafi Cloud
 	// backend happy. This parameter, named `uploaderID` in the backend, is not
 	// actually used by the backend.
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL(token.BaseURL, "/v1/tlspk/upload/clusterdata/no"), encodedBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL(details.VCP.URL, "/v1/tlspk/upload/clusterdata/no"), encodedBody)
 	if err != nil {
 		return err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
-
-	if token.VCPAccessToken != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.VCPAccessToken))
-	}
-	if token.VCPAPIKey != "" {
-		req.Header.Set("tppl-api-key", token.VCPAPIKey)
-	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", details.VCP.AccessToken))
 
 	q := req.URL.Query()
 	q.Set("name", opts.ClusterName)
