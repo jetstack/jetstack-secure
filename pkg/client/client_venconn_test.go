@@ -97,7 +97,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			  name: venafi-connection
 			  namespace: venafi
 		`),
-		expectReadyCondMsg: "ea744d098c2c1c6044e4c4e9d3bf7c2a68ef30553db00f1714886cedf73230f1",
+		expectReadyCondMsg: "Generated a new token",
 	}))
 	t.Run("error when the apiKey field is used", run_TestVenConnClient_PostDataReadingsWithOptions(ctx, restconf, kclient, testcase{
 		// Why isn't it possible to use the 'apiKey' field? Although the
@@ -155,7 +155,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 		`),
 		// PostDataReadingsWithOptions failed, but Get succeeded; that's why the
 		// condition says the VenafiConnection is ready.
-		expectReadyCondMsg: "b099d634ccec56556da28028743475dab67f79d079b668bedc3ef544f7eed2f3",
+		expectReadyCondMsg: "Generated a new token",
 		expectErr:          "VenafiConnection error-when-the-apikey-field-is-used/venafi-components: the agent cannot be used with an API key",
 	}))
 	t.Run("error when the tpp field is used", run_TestVenConnClient_PostDataReadingsWithOptions(ctx, restconf, kclient, testcase{
@@ -213,7 +213,7 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 			  name: venafi-connection
 			  namespace: venafi
 		`),
-		expectReadyCondMsg: "ea744d098c2c1c6044e4c4e9d3bf7c2a68ef30553db00f1714886cedf73230f1",
+		expectReadyCondMsg: "Generated a new token",
 		expectErr:          "VenafiConnection error-when-the-tpp-field-is-used/venafi-components: the agent cannot be used with TPP",
 	}))
 }
