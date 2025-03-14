@@ -214,6 +214,8 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 	// will only be delayed by a max of 5 seconds.
 	bootCtx, bootCancel := context.WithTimeout(gctx, 5*time.Second)
 	defer bootCancel()
+
+	var timedoutDGs []string
 	for _, dgConfig := range config.DataGatherers {
 		dg := dataGatherers[dgConfig.Name]
 		// wait for the informer to complete an initial sync, we do this to
@@ -221,10 +223,16 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		// the run.
 		if err := dg.WaitForCacheSync(bootCtx.Done()); err != nil {
 			// log sync failure, this might recover in future
-			log.Error(err, "Failed to complete initial sync of DataGatherer", "kind", dgConfig.Kind, "name", dgConfig.Name)
+			if errors.Is(err, k8s.ErrCacheSyncTimeout) {
+				timedoutDGs = append(timedoutDGs, dgConfig.Name)
+			} else {
+				log.V(logs.Info).Info("Failed to sync cache for datagatherer", "kind", dgConfig.Kind, "name", dgConfig.Name, "error", err)
+			}
 		}
 	}
-
+	if len(timedoutDGs) > 0 {
+		log.V(logs.Info).Info("Skipping datagatherers for CRDs that can't be found in Kubernetes", "datagatherers", timedoutDGs)
+	}
 	// begin the datagathering loop, periodically sending data to the
 	// configured output using data in datagatherer caches or refreshing from
 	// APIs each cycle depending on datagatherer implementation.
