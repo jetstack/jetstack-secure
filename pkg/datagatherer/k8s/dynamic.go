@@ -293,11 +293,14 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-// WaitForCacheSync waits for the data gatherer's informers cache to sync
-// before collecting the resources.
+var ErrCacheSyncTimeout = fmt.Errorf("timed out waiting for Kubernetes cache to sync")
+
+// WaitForCacheSync waits for the data gatherer's informers cache to sync before
+// collecting the resources. Use errors.Is(err, ErrCacheSyncTimeout) to check if
+// the cache sync failed.
 func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
 	if !k8scache.WaitForCacheSync(stopCh, g.registration.HasSynced) {
-		return fmt.Errorf("timed out waiting for Kubernetes caches to sync")
+		return ErrCacheSyncTimeout
 	}
 
 	return nil
