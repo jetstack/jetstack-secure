@@ -45,9 +45,14 @@ helm_chart_name := $(notdir $(helm_chart_image_name))
 helm_chart_image_registry := $(dir $(helm_chart_image_name))
 helm_chart_image_tag := $(helm_chart_version)
 helm_chart_sources := $(shell find $(helm_chart_source_dir) -maxdepth 1 -type f) $(shell find $(helm_chart_source_dir)/templates -type f)
-helm_chart_archive := $(bin_dir)/scratch/image/$(helm_chart_name)-$(helm_chart_version).tgz
+helm_chart_archive := $(bin_dir)/scratch/helm/$(helm_chart_name)-$(helm_chart_version).tgz
+helm_digest_path := $(bin_dir)/scratch/helm/$(helm_chart_name)-$(helm_chart_version).digests
+helm_digest = $(shell head -1 $(helm_digest_path) 2> /dev/null)
 
-$(helm_chart_archive): $(helm_chart_sources) | $(NEEDS_HELM) $(NEEDS_YQ) $(bin_dir)/scratch/image
+$(bin_dir)/scratch/helm:
+	@mkdir -p $@
+
+$(helm_chart_archive): $(helm_chart_sources) | $(NEEDS_HELM) $(NEEDS_YQ) $(bin_dir)/scratch/helm
 	$(eval helm_chart_source_dir_versioned := $@.tmp)
 	rm -rf $(helm_chart_source_dir_versioned)
 	mkdir -p $(dir $(helm_chart_source_dir_versioned))
@@ -59,7 +64,7 @@ $(helm_chart_archive): $(helm_chart_sources) | $(NEEDS_HELM) $(NEEDS_YQ) $(bin_d
 		echo "Chart name does not match the name in the helm_chart_name variable"; \
 		exit 1; \
 	fi
-	
+
 	$(YQ) '.annotations."artifacthub.io/prerelease" = "$(IS_PRERELEASE)"' \
 		--inplace $(helm_chart_source_dir_versioned)/Chart.yaml
 
@@ -74,8 +79,13 @@ $(helm_chart_archive): $(helm_chart_sources) | $(NEEDS_HELM) $(NEEDS_YQ) $(bin_d
 ## Will also create a non-v-prefixed tag for the OCI image.
 ## @category [shared] Publish
 helm-chart-oci-push: $(helm_chart_archive) | $(NEEDS_HELM) $(NEEDS_CRANE)
-	$(HELM) push "$(helm_chart_archive)" "oci://$(helm_chart_image_registry)"
-	$(CRANE) copy "$(helm_chart_image_name):$(helm_chart_image_tag)" "$(helm_chart_image_name):$(helm_chart_image_tag:v%=%)"
+	$(HELM) push "$(helm_chart_archive)" "oci://$(helm_chart_image_registry)" 2>&1 \
+		| tee >(grep -o "sha256:.\+" | tee $(helm_digest_path))
+
+	@# $(helm_chart_image_tag:v%=%) removes the v prefix from the value stored in helm_chart_image_tag.
+	@# See https://www.gnu.org/software/make/manual/html_node/Substitution-Refs.html for the manual on the syntax.
+	helm_digest=$$(cat $(helm_digest_path)) && \
+	$(CRANE) copy "$(helm_chart_image_name)@$$helm_digest" "$(helm_chart_image_name):$(helm_chart_image_tag:v%=%)"
 
 .PHONY: helm-chart
 ## Create a helm chart
@@ -109,12 +119,34 @@ verify-helm-values: | $(NEEDS_HELM-TOOL) $(NEEDS_GOJQ)
 
 shared_verify_targets += verify-helm-values
 
+$(bin_dir)/scratch/kyverno:
+	@mkdir -p $@
+
+$(bin_dir)/scratch/kyverno/pod-security-policy.yaml: | $(NEEDS_KUSTOMIZE) $(bin_dir)/scratch/kyverno
+	@$(KUSTOMIZE) build https://github.com/kyverno/policies/pod-security/enforce > $@
+
+# Extra arguments for kyverno apply.
+kyverno_apply_extra_args :=
+# Allows known policy violations to be skipped by supplying Kyverno policy
+# exceptions.
+ifneq ("$(wildcard make/verify-pod-security-standards-exceptions.yaml)","")
+		kyverno_apply_extra_args += --exceptions make/verify-pod-security-standards-exceptions.yaml
+endif
+
 .PHONY: verify-pod-security-standards
 ## Verify that the Helm chart complies with the pod security standards.
+##
+## You can add Kyverno policy exceptions to
+## `make/verify-pod-security-standards-exceptions.yaml`, to skip some of the pod
+## security policy rules.
+##
 ## @category [shared] Generate/ Verify
-verify-pod-security-standards: $(helm_chart_archive) | $(NEEDS_KYVERNO) $(NEEDS_KUSTOMIZE) $(NEEDS_HELM)
-	$(KYVERNO) apply <($(KUSTOMIZE) build https://github.com/kyverno/policies/pod-security/enforce) \
-		--resource <($(HELM) template $(helm_chart_archive)) 2>/dev/null
+verify-pod-security-standards: $(helm_chart_archive) $(bin_dir)/scratch/kyverno/pod-security-policy.yaml | $(NEEDS_KYVERNO) $(NEEDS_HELM)
+	@$(HELM) template $(helm_chart_archive) $(INSTALL_OPTIONS) \
+	| $(KYVERNO) apply $(bin_dir)/scratch/kyverno/pod-security-policy.yaml \
+		$(kyverno_apply_extra_args) \
+		--resource - \
+		--table
 
 shared_verify_targets_dirty += verify-pod-security-standards
 
