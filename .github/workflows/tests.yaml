@@ -63,3 +63,18 @@ jobs:
           key: downloaded-${{ runner.os }}-${{ hashFiles('klone.yaml') }}-test-unit
 
       - run: make -j test-unit
+
+  test-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./hack/e2e/test.sh
+        env:
+          VEN_API_KEY: ${} # ven-tlspk.venafi.cloud
+          VEN_API_KEY_PULL: ${secrets.VEN_API_KEY_PULL}
+          OCI_BASE: ttl.sh/veanfi-kubernetes-agent
+          VEN_API_HOST: api.venafi.cloud
+          VEN_ZONE: tlspk-bench\Default
+          VEN_VCP_REGION: us
+          CLOUDSDK_CORE_PROJECT: jetstack-mael-valais
+          CLOUDSDK_COMPUTE_ZONE: europe-west1-b
+          CLUSTER_NAME: test-secretless
