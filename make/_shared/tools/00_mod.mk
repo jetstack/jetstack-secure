@@ -21,7 +21,7 @@ endif
 export DOWNLOAD_DIR ?= $(CURDIR)/$(bin_dir)/downloaded
 export GOVENDOR_DIR ?= $(CURDIR)/$(bin_dir)/go_vendor
 
-$(bin_dir)/scratch/image $(bin_dir)/tools $(DOWNLOAD_DIR)/tools:
+$(bin_dir)/tools $(DOWNLOAD_DIR)/tools:
 	@mkdir -p $@
 
 checkhash_script := $(dir $(lastword $(MAKEFILE_LIST)))/util/checkhash.sh
@@ -56,7 +56,7 @@ tools += helm=v3.15.4
 # https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
 tools += kubectl=v1.31.0
 # https://github.com/kubernetes-sigs/kind/releases
-tools += kind=v0.24.0
+tools += kind=v0.26.0
 # https://www.vaultproject.io/downloads
 tools += vault=1.17.3
 # https://github.com/Azure/azure-workload-identity/releases
@@ -66,7 +66,7 @@ tools += kyverno=v1.12.5
 # https://github.com/mikefarah/yq/releases
 tools += yq=v4.44.3
 # https://github.com/ko-build/ko/releases
-tools += ko=0.16.0
+tools += ko=0.17.1
 # https://github.com/protocolbuffers/protobuf/releases
 tools += protoc=27.3
 # https://github.com/aquasecurity/trivy/releases
@@ -111,7 +111,7 @@ tools += oras=v1.2.0
 detected_ginkgo_version := $(shell [[ -f go.mod ]] && awk '/ginkgo\/v2/ {print $$2}' go.mod || echo "v2.13.2")
 tools += ginkgo=$(detected_ginkgo_version)
 # https://pkg.go.dev/github.com/cert-manager/klone?tab=versions
-tools += klone=v0.1.0
+tools += klone=v0.2.0
 # https://pkg.go.dev/github.com/goreleaser/goreleaser?tab=versions
 tools += goreleaser=v1.26.2
 # https://pkg.go.dev/github.com/anchore/syft/cmd/syft?tab=versions. We are still
@@ -132,8 +132,8 @@ tools += govulncheck=v1.1.3
 tools += operator-sdk=v1.38.0
 # https://pkg.go.dev/github.com/cli/cli/v2?tab=versions
 tools += gh=v2.63.1
-# https:///github.com/redhat-openshift-ecosystem/openshift-preflight/releases
-tools += preflight=1.10.2
+# https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases
+tools += preflight=1.12.0
 # https://github.com/daixiang0/gci/releases
 tools += gci=v0.13.5
 # https://github.com/google/yamlfmt/releases
@@ -161,7 +161,7 @@ ADDITIONAL_TOOLS ?=
 tools += $(ADDITIONAL_TOOLS)
 
 # https://go.dev/dl/
-VENDORED_GO_VERSION := 1.23.4
+VENDORED_GO_VERSION := 1.23.7
 
 # Print the go version which can be used in GH actions
 .PHONY: print-go-version
@@ -231,8 +231,6 @@ $$(bin_dir)/tools/$1: $$(bin_dir)/scratch/$(call uc,$1)_VERSION | $$(DOWNLOAD_DI
 endef
 
 $(foreach tool,$(tools),$(eval $(call tool_defs,$(word 1,$(subst =, ,$(tool))),$(word 2,$(subst =, ,$(tool))))))
-
-tools_paths := $(tool_names:%=$(bin_dir)/tools/%)
 
 ######
 # Go #
@@ -365,7 +363,10 @@ $(call for_each_kv,go_tags_init,$(go_dependencies))
 go_tags_defs = go_tags_$1 += $2
 $(call for_each_kv,go_tags_defs,$(go_tags))
 
+go_tool_names :=
+
 define go_dependency
+go_tool_names += $1
 $$(DOWNLOAD_DIR)/tools/$1@$($(call uc,$1)_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $$(NEEDS_GO) $$(DOWNLOAD_DIR)/tools
 	@source $$(lock_script) $$@; \
 		mkdir -p $$(outfile).dir; \
@@ -379,10 +380,10 @@ $(call for_each_kv,go_dependency,$(go_dependencies))
 # File downloads #
 ##################
 
-go_linux_amd64_SHA256SUM=6924efde5de86fe277676e929dc9917d466efa02fb934197bc2eba35d5680971
-go_linux_arm64_SHA256SUM=16e5017863a7f6071363782b1b8042eb12c6ca4f4cd71528b2123f0a1275b13e
-go_darwin_amd64_SHA256SUM=6700067389a53a1607d30aa8d6e01d198230397029faa0b109e89bc871ab5a0e
-go_darwin_arm64_SHA256SUM=87d2bb0ad4fe24d2a0685a55df321e0efe4296419a9b3de03369dbe60b8acd3a
+go_linux_amd64_SHA256SUM=4741525e69841f2e22f9992af25df0c1112b07501f61f741c12c6389fcb119f3
+go_linux_arm64_SHA256SUM=597acbd0505250d4d98c4c83adf201562a8c812cbcd7b341689a07087a87a541
+go_darwin_amd64_SHA256SUM=3a3d6745286297cd011d2ab071998a85fe82714bf178dc3cd6ecd3d043a59270
+go_darwin_arm64_SHA256SUM=a08a77374a4a8ab25568cddd9dad5ba7bb6d21e04c650dc2af3def6c9115ebba
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz
 $(DOWNLOAD_DIR)/tools/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz: | $(DOWNLOAD_DIR)/tools
@@ -416,10 +417,10 @@ $(DOWNLOAD_DIR)/tools/kubectl@$(KUBECTL_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DO
 		$(checkhash_script) $(outfile) $(kubectl_$(HOST_OS)_$(HOST_ARCH)_SHA256SUM); \
 		chmod +x $(outfile)
 
-kind_linux_amd64_SHA256SUM=b89aada5a39d620da3fcd16435b7f28d858927dd53f92cbac77686b0588b600d
-kind_linux_arm64_SHA256SUM=2968808d916e12d0a25c56d07c9a1c987163f972513fa8a94a2125a69f9c50eb
-kind_darwin_amd64_SHA256SUM=6cf7ba50b37d3446153bbfb8990f03fb8102778898c84502cdb841710b499ed5
-kind_darwin_arm64_SHA256SUM=8e34f2edc7efc5c7c160487251848a954cd60ccd52b56a3fc360eaab33543fc0
+kind_linux_amd64_SHA256SUM=d445b44c28297bc23fd67e51cc24bb294ae7b977712be2d4d312883d0835829b
+kind_linux_arm64_SHA256SUM=53fffdc37bd7149ccea440b1bdde2464f517d2c462dc8913ad37e7939e7f422d
+kind_darwin_amd64_SHA256SUM=a2c30525db86a7807ad4bba0094437406518f41d8a2882e6ea659d94099adcc4
+kind_darwin_arm64_SHA256SUM=e5bf92d8d46017e23482bfe266929d4d82e6f8c754e216c105cb7fbea937bea2
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/kind@$(KIND_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/kind@$(KIND_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
@@ -502,10 +503,10 @@ $(DOWNLOAD_DIR)/tools/yq@$(YQ_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR
 		$(checkhash_script) $(outfile) $(yq_$(HOST_OS)_$(HOST_ARCH)_SHA256SUM); \
 		chmod +x $(outfile)
 
-ko_linux_amd64_SHA256SUM=aee2caeced511e60c6889a4cfaf9ebe28ec35acb49531b7a90b09e0a963bcff7
-ko_linux_arm64_SHA256SUM=45b6ba20084b2199c63dcc738c54f7f6c37ea4e9c7f79eefc286d9947b11d0d1
-ko_darwin_amd64_SHA256SUM=5c98d0229fd2a82cc69510705b74a7196fc184641693930b0f9282b6d1f79d95
-ko_darwin_arm64_SHA256SUM=9c75b97f26ba98c62a86f3b39e2c74ced6c97092f301cd73fe4e5b3e16261698
+ko_linux_amd64_SHA256SUM=4f0b979b59880b3232f47d79c940f2279165aaad15a11d7614e8a2c9e5c78c29
+ko_linux_arm64_SHA256SUM=9421ebe2a611bac846844bd34fed5c75fba7b36c8cb1d113ad8680c48f6106df
+ko_darwin_amd64_SHA256SUM=888656c3f0028d4211654a9df57b003fe26f874b092776c83acace7aca8a73a4
+ko_darwin_arm64_SHA256SUM=d0b6bcc4f86c8d775688d1c21d416985ee557a85ad557c4a7d0e2d82b7cdbd92
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/ko@$(KO_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/ko@$(KO_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
@@ -597,8 +598,8 @@ $(DOWNLOAD_DIR)/tools/istioctl@$(ISTIOCTL_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(
 		chmod +x $(outfile); \
 		rm $(outfile).tar.gz
 
-preflight_linux_amd64_SHA256SUM=776d04669304d3185c40522bed9a6dc1aa9cd80014a203fe01552b98bfa9554b
-preflight_linux_arm64_SHA256SUM=dd7b0a144892ce6fc47d1bc44e344130fa9ff997bf2c39de3016873d8bd3fac5
+preflight_linux_amd64_SHA256SUM=0cdad38aff54242f2dd531f520e9393485a5931cd8f9fc9ebd8a23a53c2bf199
+preflight_linux_arm64_SHA256SUM=9d814ff81b94b070c6ff6941fb124d4dab9efd2f37e083c10012540db4e6a60c
 
 # Currently there are no official releases for darwin, you cannot submit results
 # on non-official binaries, but we can still run tests.
@@ -642,7 +643,22 @@ ifneq ($(missing),)
 $(error Missing required tools: $(missing))
 endif
 
+non_go_tool_names := $(filter-out $(go_tool_names),$(tool_names))
+
+.PHONY: non-go-tools
+## Download and setup all Go tools
+## @category [shared] Tools
+non-go-tools: $(non_go_tool_names:%=$(bin_dir)/tools/%)
+
+.PHONY: go-tools
+## Download and setup all Non-Go tools
+## NOTE: this target is also used to learn the shas of
+## these tools (see scripts/learn_tools_shas.sh in the
+## Makefile modules repo)
+## @category [shared] Tools
+go-tools: $(go_tool_names:%=$(bin_dir)/tools/%)
+
 .PHONY: tools
 ## Download and setup all tools
 ## @category [shared] Tools
-tools: $(tools_paths)
+tools: non-go-tools go-tools

@@ -1,0 +1,21 @@
+apiVersion: kyverno.io/v2
+kind: PolicyException
+metadata:
+  name: pod-security-exceptions
+spec:
+  exceptions:
+  - policyName: disallow-privilege-escalation
+    ruleNames:
+    - autogen-privilege-escalation
+  - policyName: restrict-seccomp-strict
+    ruleNames:
+    - autogen-check-seccomp-strict
+  match:
+    any:
+    - resources:
+        kinds:
+        - Deployment
+        namespaces:
+        - default
+        names:
+        - venafi-kubernetes-agent-release-name

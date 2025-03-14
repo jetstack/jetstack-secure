@@ -22,7 +22,10 @@ IMAGE_TOOL := $(CURDIR)/$(bin_dir)/tools/image_tool
 NEEDS_IMAGE_TOOL := $(bin_dir)/tools/image_tool
 $(NEEDS_IMAGE_TOOL): $(wildcard $(image_tool_dir)/*.go) | $(NEEDS_GO)
 	cd $(image_tool_dir) && GOWORK=off GOBIN=$(CURDIR)/$(dir $@) $(GO) install .
-	
+
+$(bin_dir)/scratch/image:
+	@mkdir -p $@
+
 define ko_config_target
 .PHONY: $(ko_config_path_$1:$(CURDIR)/%=%)
 $(ko_config_path_$1:$(CURDIR)/%=%): | $(NEEDS_YQ) $(bin_dir)/scratch/image
@@ -31,11 +34,13 @@ $(ko_config_path_$1:$(CURDIR)/%=%): | $(NEEDS_YQ) $(bin_dir)/scratch/image
 		$(YQ) '.builds[0].id = "$1"' | \
 		$(YQ) '.builds[0].dir = "$(go_$1_mod_dir)"' | \
 		$(YQ) '.builds[0].main = "$(go_$1_main_dir)"' | \
-		$(YQ) '.builds[0].env[0] = "CGO_ENABLED=$(cgo_enabled_$1)"' | \
-		$(YQ) '.builds[0].env[1] = "GOEXPERIMENT=$(goexperiment_$1)"' | \
+		$(YQ) '.builds[0].env[0] = "CGO_ENABLED=$(go_$1_cgo_enabled)"' | \
+		$(YQ) '.builds[0].env[1] = "GOEXPERIMENT=$(go_$1_goexperiment)"' | \
 		$(YQ) '.builds[0].ldflags[0] = "-s"' | \
 		$(YQ) '.builds[0].ldflags[1] = "-w"' | \
-		$(YQ) '.builds[0].ldflags[2] = "{{.Env.LDFLAGS}}"' \
+		$(YQ) '.builds[0].ldflags[2] = "{{.Env.LDFLAGS}}"' | \
+		$(YQ) '.builds[0].flags[0] = "$(go_$1_flags)"' | \
+		$(YQ) '.builds[0].linux_capabilities = "$(oci_$1_linux_capabilities)"' \
 		> $(CURDIR)/$(oci_layout_path_$1).ko_config.yaml
 
 ko-config-$1: $(ko_config_path_$1:$(CURDIR)/%=%)
@@ -58,6 +63,8 @@ $(oci_build_targets): oci-build-%: ko-config-% | $(NEEDS_KO) $(NEEDS_GO) $(NEEDS
 	LDFLAGS="$(go_$*_ldflags)" \
 	$(KO) build $(go_$*_mod_dir)/$(go_$*_main_dir) \
 		--platform=$(oci_platforms) \
+		--image-annotation=$(oci_$*_image_annotation) \
+		--image-label=$(oci_$*_image_label) \
 		--oci-layout-path=$(oci_layout_path_$*) \
 		--sbom-dir=$(CURDIR)/$(oci_layout_path_$*).sbom \
 		--sbom=spdx \
@@ -66,7 +73,7 @@ $(oci_build_targets): oci-build-%: ko-config-% | $(NEEDS_KO) $(NEEDS_GO) $(NEEDS
 
 	$(IMAGE_TOOL) append-layers \
 		$(CURDIR)/$(oci_layout_path_$*) \
-		$(oci_additional_layers_$*)
+		$(oci_$*_additional_layers)
 
 	$(IMAGE_TOOL) list-digests \
 		$(CURDIR)/$(oci_layout_path_$*) \
