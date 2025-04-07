@@ -10,26 +10,22 @@ import (
 // empty, the kube config will be loaded from KUBECONFIG, and if KUBECONFIG
 // isn't set, the in-cluster config will be used.
 func LoadRESTConfig(path string) (*rest.Config, error) {
-	switch path {
+	loadingrules := clientcmd.NewDefaultClientConfigLoadingRules()
+
+	// If the kubeconfig path is provided, use that file and fail if it does
+	// not exist.
 	// If the kubeconfig path is not provided, use the default loading rules
 	// so we read the regular KUBECONFIG variable or create a non-interactive
 	// client for agents running in cluster
-	case "":
-		loadingrules := clientcmd.NewDefaultClientConfigLoadingRules()
-		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			loadingrules, &clientcmd.ConfigOverrides{}).ClientConfig()
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		return cfg, nil
-	// Otherwise use the explicitly named kubeconfig file.
-	default:
-		cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-			&clientcmd.ClientConfigLoadingRules{ExplicitPath: path},
-			&clientcmd.ConfigOverrides{}).ClientConfig()
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-		return cfg, nil
+	loadingrules.ExplicitPath = path
+
+	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		loadingrules,
+		&clientcmd.ConfigOverrides{},
+	).ClientConfig()
+	if err != nil {
+		return nil, errors.WithStack(err)
 	}
+
+	return cfg, nil
 }
