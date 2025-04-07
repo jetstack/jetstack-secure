@@ -284,10 +284,10 @@ spec:
                       type: object
                       x-kubernetes-validations:
                       - message: must have exactly one field set
-                        rule: '(has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken)
+                        rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken)
                           ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret)
                           ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth)
-                          ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0) == 1'
+                          ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
                     maxItems: 50
                     type: array
                     x-kubernetes-list-type: atomic
@@ -495,10 +495,10 @@ spec:
                       type: object
                       x-kubernetes-validations:
                       - message: must have exactly one field set
-                        rule: '(has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken)
+                        rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken)
                           ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret)
                           ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth)
-                          ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0) == 1'
+                          ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
                     maxItems: 50
                     type: array
                     x-kubernetes-list-type: atomic
@@ -692,10 +692,10 @@ spec:
                       type: object
                       x-kubernetes-validations:
                       - message: must have exactly one field set
-                        rule: '(has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken)
+                        rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken)
                           ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret)
                           ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth)
-                          ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0) == 1'
+                          ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
                     maxItems: 50
                     type: array
                     x-kubernetes-list-type: atomic
@@ -902,10 +902,10 @@ spec:
                       type: object
                       x-kubernetes-validations:
                       - message: must have exactly one field set
-                        rule: '(has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken)
+                        rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken)
                           ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret)
                           ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth)
-                          ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0) == 1'
+                          ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
                     maxItems: 50
                     type: array
                     x-kubernetes-list-type: atomic
@@ -1099,10 +1099,10 @@ spec:
                       type: object
                       x-kubernetes-validations:
                       - message: must have exactly one field set
-                        rule: '(has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken)
+                        rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken)
                           ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret)
                           ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth)
-                          ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0) == 1'
+                          ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
                     maxItems: 50
                     type: array
                     x-kubernetes-list-type: atomic
