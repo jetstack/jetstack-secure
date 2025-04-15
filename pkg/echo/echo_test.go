@@ -30,7 +30,7 @@ func TestEchoServerRequestResponse(t *testing.T) {
 				},
 				DataGatherTime: time.Now(),
 				DataReadings: []*api.DataReading{
-					&api.DataReading{
+					{
 						ClusterID:    "test_suite_cluster",
 						DataGatherer: "dummy",
 						Timestamp:    api.Time{Time: time.Now()},

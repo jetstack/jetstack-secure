@@ -43,7 +43,7 @@ func TestClusterSummaryUnmarshalJSON(t *testing.T) {
 			FailureCount: 4,
 			SuccessCount: 1,
 			Reports: []*ReportSummary{
-				&ReportSummary{
+				{
 					ID:           "exampleReport1",
 					Package:      "examplePackage.ID.1",
 					Cluster:      "exampleCluster",
@@ -51,7 +51,7 @@ func TestClusterSummaryUnmarshalJSON(t *testing.T) {
 					FailureCount: 2,
 					SuccessCount: 1,
 				},
-				&ReportSummary{
+				{
 					ID:           "exampleReport2",
 					Package:      "examplePackage.ID.2",
 					Cluster:      "exampleCluster",
