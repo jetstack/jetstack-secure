@@ -87,7 +87,7 @@ func NewVenConnClient(restcfg *rest.Config, agentMetadata *api.AgentMetadata, in
 	_ = corev1.AddToScheme(scheme)
 
 	handler, err := venafi_client.NewConnectionHandler(
-		"venafi-kubernetes-agent/"+version.PreflightVersion,
+		version.UserAgent(),
 		"venafi-kubernetes-agent.jetstack.io",
 		"VenafiKubernetesAgent",
 		restcfg,
@@ -168,8 +168,8 @@ func (c *VenConnClient) PostDataReadingsWithOptions(ctx context.Context, reading
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", details.VCP.AccessToken))
+	version.SetUserAgent(req)
 
 	q := req.URL.Query()
 	q.Set("name", opts.ClusterName)

@@ -152,7 +152,8 @@ func (c *OAuthClient) Post(ctx context.Context, path string, body io.Reader) (*h
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
+
+	version.SetUserAgent(req)
 
 	if len(token.bearer) > 0 {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.bearer))
@@ -190,7 +191,7 @@ func (c *OAuthClient) renewAccessToken(ctx context.Context) error {
 		return errors.WithStack(err)
 	}
 	req.Header.Add("content-type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
+	version.SetUserAgent(req)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {

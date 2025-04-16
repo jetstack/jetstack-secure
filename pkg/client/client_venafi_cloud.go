@@ -273,7 +273,7 @@ func (c *VenafiCloudClient) Post(ctx context.Context, path string, body io.Reade
 
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
+	version.SetUserAgent(req)
 
 	if len(token.accessToken) > 0 {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.accessToken))
@@ -316,7 +316,7 @@ func (c *VenafiCloudClient) updateAccessToken(ctx context.Context) error {
 
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Add("Content-Length", strconv.Itoa(len(encoded)))
-	request.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
+	version.SetUserAgent(request)
 
 	now := time.Now()
 	accessToken := accessTokenInformation{}
