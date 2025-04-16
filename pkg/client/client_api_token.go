@@ -91,7 +91,7 @@ func (c *APITokenClient) Post(ctx context.Context, path string, body io.Reader) 
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiToken))
-	req.Header.Set("User-Agent", fmt.Sprintf("venafi-kubernetes-agent/%s", version.PreflightVersion))
+	version.SetUserAgent(req)
 
 	return c.client.Do(req)
 }
