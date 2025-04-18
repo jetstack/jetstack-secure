@@ -111,18 +111,22 @@ podSecurityContext: {}
 # Add Container specific SecurityContext settings to the container. Takes
 # precedence over `podSecurityContext` when set. See
 # https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container
+# +docs:property
 securityContext:
   capabilities:
     drop:
       - ALL
   readOnlyRootFilesystem: true
   runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  seccompProfile: { type: RuntimeDefault }
 
 # Set resource requests and limits for the pod.
 #
 # Read [Venafi Kubernetes components deployment best
 # practices](https://docs.venafi.cloud/vaas/k8s-components/c-k8s-components-best-practice/#scaling)
 # to learn how to choose suitable CPU and memory resource requests and limits.
+# +docs:property
 resources:
   requests:
     memory: 200Mi

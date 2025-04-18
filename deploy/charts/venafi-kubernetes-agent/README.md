@@ -198,36 +198,35 @@ Configures the HTTPS_PROXY environment variable where a HTTP proxy is required.
 
 Configures the NO_PROXY environment variable where a HTTP proxy is required, but certain domains should be excluded.
 
-#### **securityContext.capabilities.drop[0]** ~ `string`
+#### **securityContext** ~ `object`
 > Default value:
 > ```yaml
-> ALL
+> allowPrivilegeEscalation: false
+> capabilities:
+>   drop:
+>     - ALL
+> readOnlyRootFilesystem: true
+> runAsNonRoot: true
+> seccompProfile:
+>   type: RuntimeDefault
 > ```
-#### **securityContext.readOnlyRootFilesystem** ~ `bool`
+
+Add Container specific SecurityContext settings to the container. Takes precedence over `podSecurityContext` when set. See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container
+
+#### **resources** ~ `object`
 > Default value:
 > ```yaml
-> true
+> limits:
+>   memory: 500Mi
+> requests:
+>   cpu: 200m
+>   memory: 200Mi
 > ```
-#### **securityContext.runAsNonRoot** ~ `bool`
-> Default value:
-> ```yaml
-> true
-> ```
-#### **resources.requests.memory** ~ `string`
-> Default value:
-> ```yaml
-> 200Mi
-> ```
-#### **resources.requests.cpu** ~ `string`
-> Default value:
-> ```yaml
-> 200m
-> ```
-#### **resources.limits.memory** ~ `string`
-> Default value:
-> ```yaml
-> 500Mi
-> ```
+
+Set resource requests and limits for the pod.  
+  
+Read [Venafi Kubernetes components deployment best practices](https://docs.venafi.cloud/vaas/k8s-components/c-k8s-components-best-practice/#scaling) to learn how to choose suitable CPU and memory resource requests and limits.
+
 #### **nodeSelector** ~ `object`
 > Default value:
 > ```yaml
