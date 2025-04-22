@@ -516,91 +516,34 @@
       "type": "number"
     },
     "helm-values.resources": {
-      "additionalProperties": false,
-      "properties": {
+      "default": {
         "limits": {
-          "$ref": "#/$defs/helm-values.resources.limits"
+          "memory": "500Mi"
         },
         "requests": {
-          "$ref": "#/$defs/helm-values.resources.requests"
+          "cpu": "200m",
+          "memory": "200Mi"
         }
       },
+      "description": "Set resource requests and limits for the pod.\n\nRead [Venafi Kubernetes components deployment best practices](https://docs.venafi.cloud/vaas/k8s-components/c-k8s-components-best-practice/#scaling) to learn how to choose suitable CPU and memory resource requests and limits.",
       "type": "object"
-    },
-    "helm-values.resources.limits": {
-      "additionalProperties": false,
-      "properties": {
-        "memory": {
-          "$ref": "#/$defs/helm-values.resources.limits.memory"
-        }
-      },
-      "type": "object"
-    },
-    "helm-values.resources.limits.memory": {
-      "default": "500Mi",
-      "type": "string"
-    },
-    "helm-values.resources.requests": {
-      "additionalProperties": false,
-      "properties": {
-        "cpu": {
-          "$ref": "#/$defs/helm-values.resources.requests.cpu"
-        },
-        "memory": {
-          "$ref": "#/$defs/helm-values.resources.requests.memory"
-        }
-      },
-      "type": "object"
-    },
-    "helm-values.resources.requests.cpu": {
-      "default": "200m",
-      "type": "string"
-    },
-    "helm-values.resources.requests.memory": {
-      "default": "200Mi",
-      "type": "string"
     },
     "helm-values.securityContext": {
-      "additionalProperties": false,
-      "properties": {
+      "default": {
+        "allowPrivilegeEscalation": false,
         "capabilities": {
-          "$ref": "#/$defs/helm-values.securityContext.capabilities"
+          "drop": [
+            "ALL"
+          ]
         },
-        "readOnlyRootFilesystem": {
-          "$ref": "#/$defs/helm-values.securityContext.readOnlyRootFilesystem"
-        },
-        "runAsNonRoot": {
-          "$ref": "#/$defs/helm-values.securityContext.runAsNonRoot"
+        "readOnlyRootFilesystem": true,
+        "runAsNonRoot": true,
+        "seccompProfile": {
+          "type": "RuntimeDefault"
         }
       },
+      "description": "Add Container specific SecurityContext settings to the container. Takes precedence over `podSecurityContext` when set. See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container",
       "type": "object"
-    },
-    "helm-values.securityContext.capabilities": {
-      "additionalProperties": false,
-      "properties": {
-        "drop": {
-          "$ref": "#/$defs/helm-values.securityContext.capabilities.drop"
-        }
-      },
-      "type": "object"
-    },
-    "helm-values.securityContext.capabilities.drop": {
-      "items": {
-        "$ref": "#/$defs/helm-values.securityContext.capabilities.drop[0]"
-      },
-      "type": "array"
-    },
-    "helm-values.securityContext.capabilities.drop[0]": {
-      "default": "ALL",
-      "type": "string"
-    },
-    "helm-values.securityContext.readOnlyRootFilesystem": {
-      "default": true,
-      "type": "boolean"
-    },
-    "helm-values.securityContext.runAsNonRoot": {
-      "default": true,
-      "type": "boolean"
     },
     "helm-values.serviceAccount": {
       "additionalProperties": false,
