@@ -327,19 +327,38 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 		}
 		log.Info("Data saved to local file", "outputPath", config.OutputPath)
 	} else {
-		backOff := backoff.NewExponentialBackOff()
-		backOff.InitialInterval = 30 * time.Second
-		backOff.MaxInterval = 3 * time.Minute
-		backOff.MaxElapsedTime = config.BackoffMaxTime
-		post := func() error {
-			return postData(klog.NewContext(ctx, log), config, preflightClient, readings)
-		}
-		err := backoff.RetryNotify(post, backOff, func(err error, t time.Duration) {
+		group, gctx := errgroup.WithContext(ctx)
+
+		backOffCfg := backoff.NewExponentialBackOff()
+		backOffCfg.InitialInterval = 30 * time.Second
+		backOffCfg.MaxInterval = 3 * time.Minute
+		backOffCfg.MaxElapsedTime = config.BackoffMaxTime
+
+		notifyFn := func(err error, t time.Duration) {
 			eventf("Warning", "PushingErr", "retrying in %v after error: %s", t, err)
 			log.Info("Warning: PushingErr: retrying", "in", t, "reason", err)
-		})
-		if err != nil {
-			return fmt.Errorf("Exiting due to fatal error uploading: %v", err)
+		}
+
+		if cfg.MachineHubMode {
+			post := func() error {
+				log.Info("machine hub mode not yet implemented")
+				return nil
+			}
+
+			group.Go(backoff.RetryNotify(post, backOffCfg, notifyFn))
+		}
+
+		if cfg.AuthMode != NoTLSPK {
+			post := func() error {
+				return postData(klog.NewContext(ctx, log), config, preflightClient, readings)
+			}
+
+			group.Go(backoff.RetryNotify(post, backOffCfg, notifyFn))
+		}
+
+		groupErr := group.Wait()
+		if groupErr != nil {
+			return fmt.Errorf("got a fatal error from one or more upload actions: %s", groupErr)
 		}
 	}
 	return nil
