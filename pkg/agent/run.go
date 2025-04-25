@@ -327,22 +327,43 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 		}
 		log.Info("Data saved to local file", "outputPath", config.OutputPath)
 	} else {
+		group, ctx := errgroup.WithContext(ctx)
+
 		backOff := backoff.NewExponentialBackOff()
 		backOff.InitialInterval = 30 * time.Second
 		backOff.MaxInterval = 3 * time.Minute
-
-		post := func() (any, error) {
-			return struct{}{}, postData(klog.NewContext(ctx, log), config, preflightClient, readings)
-		}
 
 		notificationFunc := backoff.Notify(func(err error, t time.Duration) {
 			eventf("Warning", "PushingErr", "retrying in %v after error: %s", t, err)
 			log.Info("Warning: PushingErr: retrying", "in", t, "reason", err)
 		})
 
-		_, err := backoff.Retry(ctx, post, backoff.WithBackOff(backOff), backoff.WithNotify(notificationFunc), backoff.WithMaxElapsedTime(config.BackoffMaxTime))
-		if err != nil {
-			return fmt.Errorf("Exiting due to fatal error uploading: %v", err)
+		if config.MachineHubMode {
+			post := func() (any, error) {
+				log.Info("machine hub mode not yet implemented")
+				return struct{}{}, nil
+			}
+
+			group.Go(func() error {
+				_, err := backoff.Retry(ctx, post, backoff.WithBackOff(backOff), backoff.WithNotify(notificationFunc), backoff.WithMaxElapsedTime(config.BackoffMaxTime))
+				return err
+			})
+		}
+
+		if config.TLSPKMode != Off {
+			post := func() (any, error) {
+				return struct{}{}, postData(klog.NewContext(ctx, log), config, preflightClient, readings)
+			}
+
+			group.Go(func() error {
+				_, err := backoff.Retry(ctx, post, backoff.WithBackOff(backOff), backoff.WithNotify(notificationFunc), backoff.WithMaxElapsedTime(config.BackoffMaxTime))
+				return err
+			})
+		}
+
+		groupErr := group.Wait()
+		if groupErr != nil {
+			return fmt.Errorf("got a fatal error from one or more upload actions: %s", groupErr)
 		}
 	}
 	return nil
@@ -404,7 +425,7 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 
 	log.V(logs.Debug).Info("Posting data", "baseURL", baseURL)
 
-	if config.AuthMode == VenafiCloudKeypair || config.AuthMode == VenafiCloudVenafiConnection {
+	if config.TLSPKMode == VenafiCloudKeypair || config.TLSPKMode == VenafiCloudVenafiConnection {
 		// orgID and clusterID are not required for Venafi Cloud auth
 		err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
 			ClusterName:        config.ClusterID,
