@@ -202,6 +202,13 @@ data:
           group: route.openshift.io
           resource: routes
     - kind: "k8s-dynamic"
+      name: "k8s/venaficonnections"
+      config:
+        resource-type:
+          group: jetstack.io
+          version: v1alpha1
+          resource: venaficonnections
+    - kind: "k8s-dynamic"
       name: "k8s/venaficlusterissuers"
       config:
         resource-type:
@@ -222,4 +229,60 @@ data:
           group: firefly.venafi.com
           version: v1
           resource: issuers
+    - kind: "k8s-dynamic"
+      name: "k8s/stepissuers"
+      config:
+        resource-type:
+          group: certmanager.step.sm
+          version: v1beta1
+          resource: stepissuers
+    - kind: "k8s-dynamic"
+      name: "k8s/stepclusterissuers"
+      config:
+        resource-type:
+          group: certmanager.step.sm
+          version: v1beta1
+          resource: stepclusterissuers
+    - kind: "k8s-dynamic"
+      name: "k8s/originissuers"
+      config:
+        resource-type:
+          group: cert-manager.k8s.cloudflare.com
+          version: v1
+          resource: originissuers
+    - kind: "k8s-dynamic"
+      name: "k8s/clusteroriginissuers"
+      config:
+        resource-type:
+          group: cert-manager.k8s.cloudflare.com
+          version: v1
+          resource: clusteroriginissuers
+    - kind: "k8s-dynamic"
+      name: "k8s/freeipaissuers"
+      config:
+        resource-type:
+          group: certmanager.freeipa.org
+          version: v1beta1
+          resource: issuers
+    - kind: "k8s-dynamic"
+      name: "k8s/freeipaclusterissuers"
+      config:
+        resource-type:
+          group: certmanager.freeipa.org
+          version: v1beta1
+          resource: clusterissuers
+    - kind: "k8s-dynamic"
+      name: "k8s/ejbcaissuers"
+      config:
+        resource-type:
+          group: ejbca-issuer.keyfactor.com
+          version: v1alpha1
+          resource: issuers
+    - kind: "k8s-dynamic"
+      name: "k8s/ejbcaclusterissuers"
+      config:
+        resource-type:
+          group: ejbca-issuer.keyfactor.com
+          version: v1alpha1
+          resource: clusterissuers
 {{- end }}
