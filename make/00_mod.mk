@@ -1,5 +1,7 @@
 repo_name := github.com/jetstack/preflight
 
+license_ignore := gitlab.com/venafi,github.com/jetstack
+
 kind_cluster_name := preflight
 kind_cluster_config := $(bin_dir)/scratch/kind_cluster.yaml
 
