@@ -13,9 +13,10 @@ import (
 	"k8s.io/component-base/featuregate"
 	"k8s.io/component-base/logs"
 	logsapi "k8s.io/component-base/logs/api/v1"
-	_ "k8s.io/component-base/logs/json/register"
 	"k8s.io/klog/v2"
 	ctrlruntimelog "sigs.k8s.io/controller-runtime/pkg/log"
+
+	_ "k8s.io/component-base/logs/json/register"
 )
 
 // venafi-kubernetes-agent follows [Kubernetes Logging Conventions] and writes

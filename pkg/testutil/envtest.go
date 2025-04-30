@@ -200,10 +200,10 @@ func FakeVenafiCloud(t *testing.T) (_ *httptest.Server, _ *x509.Certificate, set
 		}
 
 		accessToken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-		apiKey := r.Header.Get("tppl-api-key")
+		apiKey := r.Header.Get("Tppl-Api-Key")
 		if accessToken != "VALID_ACCESS_TOKEN" && apiKey != "VALID_API_KEY" {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"error":"expected header 'Authorization: Bearer VALID_ACCESS_TOKEN' or 'tppl-api-key: VALID_API_KEY', but got Authorization=` + r.Header.Get("Authorization") + ` and tppl-api-key=` + r.Header.Get("tppl-api-key")))
+			w.Write([]byte(`{"error":"expected header 'Authorization: Bearer VALID_ACCESS_TOKEN' or 'tppl-api-key: VALID_API_KEY', but got Authorization=` + r.Header.Get("Authorization") + ` and tppl-api-key=` + r.Header.Get("Tppl-Api-Key")))
 			return
 		}
 		if r.URL.Path == "/v1/tlspk/upload/clusterdata/no" {

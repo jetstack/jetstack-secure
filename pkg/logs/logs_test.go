@@ -15,13 +15,14 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/Venafi/vcert/v5"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/pkg/logs"
+
+	_ "github.com/Venafi/vcert/v5"
 )
 
 // TestLogs demonstrates how the logging flags affect the logging output.

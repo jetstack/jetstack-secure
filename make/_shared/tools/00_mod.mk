@@ -18,8 +18,17 @@ endif
 
 ##########################################
 
-export DOWNLOAD_DIR ?= $(CURDIR)/$(bin_dir)/downloaded
-export GOVENDOR_DIR ?= $(CURDIR)/$(bin_dir)/go_vendor
+default_shared_dir := $(CURDIR)/$(bin_dir)
+# If $(HOME) is set and $(CI) is not, use the $(HOME)/.cache
+# folder to store downloaded binaries.
+ifneq ($(shell printenv HOME),)
+ifeq ($(shell printenv CI),)
+default_shared_dir := $(HOME)/.cache/makefile-modules
+endif
+endif
+
+export DOWNLOAD_DIR ?= $(default_shared_dir)/downloaded
+export GOVENDOR_DIR ?= $(default_shared_dir)/go_vendor
 
 $(bin_dir)/tools $(DOWNLOAD_DIR)/tools:
 	@mkdir -p $@
@@ -118,12 +127,14 @@ tools += goreleaser=v1.26.2
 tools += syft=v1.22.0
 # https://github.com/cert-manager/helm-tool/releases
 tools += helm-tool=v0.5.3
+# https://github.com/cert-manager/image-tool/releases
+tools += image-tool=v0.0.2
 # https://github.com/cert-manager/cmctl/releases
 tools += cmctl=v2.1.1
 # https://pkg.go.dev/github.com/cert-manager/release/cmd/cmrel?tab=versions
 tools += cmrel=e3cbe5171488deda000145003e22567bdce622ea
-# https://pkg.go.dev/github.com/golangci/golangci-lint/cmd/golangci-lint?tab=versions
-tools += golangci-lint=v1.64.8
+# https://pkg.go.dev/github.com/golangci/golangci-lint/v2/cmd/golangci-lint?tab=versions
+tools += golangci-lint=v2.1.2
 # https://pkg.go.dev/golang.org/x/vuln?tab=versions
 tools += govulncheck=v1.1.4
 # https://pkg.go.dev/github.com/operator-framework/operator-sdk/cmd/operator-sdk?tab=versions
@@ -136,6 +147,8 @@ tools += preflight=1.12.1
 tools += gci=v0.13.6
 # https://github.com/google/yamlfmt/releases
 tools += yamlfmt=v0.16.0
+# https://github.com/yannh/kubeconform/releases
+tools += kubeconform=v0.6.7
 
 # https://pkg.go.dev/k8s.io/code-generator/cmd?tab=versions
 K8S_CODEGEN_VERSION := v0.32.3
@@ -334,14 +347,16 @@ go_dependencies += defaulter-gen=k8s.io/code-generator/cmd/defaulter-gen
 go_dependencies += conversion-gen=k8s.io/code-generator/cmd/conversion-gen
 go_dependencies += openapi-gen=k8s.io/kube-openapi/cmd/openapi-gen
 go_dependencies += helm-tool=github.com/cert-manager/helm-tool
+go_dependencies += image-tool=github.com/cert-manager/image-tool
 go_dependencies += cmctl=github.com/cert-manager/cmctl/v2
 go_dependencies += cmrel=github.com/cert-manager/release/cmd/cmrel
-go_dependencies += golangci-lint=github.com/golangci/golangci-lint/cmd/golangci-lint
+go_dependencies += golangci-lint=github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 go_dependencies += govulncheck=golang.org/x/vuln/cmd/govulncheck
 go_dependencies += operator-sdk=github.com/operator-framework/operator-sdk/cmd/operator-sdk
 go_dependencies += gh=github.com/cli/cli/v2/cmd/gh
 go_dependencies += gci=github.com/daixiang0/gci
 go_dependencies += yamlfmt=github.com/google/yamlfmt/cmd/yamlfmt
+go_dependencies += kubeconform=github.com/yannh/kubeconform/cmd/kubeconform
 
 #################
 # go build tags #

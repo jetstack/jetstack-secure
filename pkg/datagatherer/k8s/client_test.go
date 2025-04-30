@@ -54,7 +54,7 @@ func TestNewDiscoveryClient_InferredKubeconfig(t *testing.T) {
 }
 
 func writeConfigToFile(t *testing.T, cfg clientcmdapi.Config) string {
-	f, err := os.CreateTemp("", "testcase-*")
+	f, err := os.CreateTemp(t.TempDir(), "testcase-*")
 	if err != nil {
 		t.Fatal(err)
 	}

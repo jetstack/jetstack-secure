@@ -190,7 +190,7 @@ func (c *OAuthClient) renewAccessToken(ctx context.Context) error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	req.Header.Add("content-type", "application/x-www-form-urlencoded")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	version.SetUserAgent(req)
 
 	res, err := http.DefaultClient.Do(req)

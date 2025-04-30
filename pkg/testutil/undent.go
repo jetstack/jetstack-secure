@@ -68,7 +68,7 @@ func Undent(s string) string {
 	}
 
 	curLineIndent := 0 // Number of tabs or spaces in the current line.
-	for pos := 0; pos < len(s); pos++ {
+	for pos := range s {
 		if s[pos] == '\n' {
 			if pos+1 < len(s) {
 				lineOffsets = append(lineOffsets, pos+1)
@@ -102,7 +102,7 @@ func Undent(s string) string {
 	// Extract each line without indentation.
 	out := make([]byte, 0, len(s)-(indentsPerLine*indentedLinesCnt))
 
-	for line := 0; line < len(lineOffsets); line++ {
+	for line := range lineOffsets {
 		first := lineOffsets[line]
 
 		// Index of the last character of the line. It is often the '\n'

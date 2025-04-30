@@ -10,9 +10,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"k8s.io/client-go/transport"
+
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/version"
-	"k8s.io/client-go/transport"
 )
 
 type (
