@@ -1,0 +1,53 @@
+{
+  "success": true,
+  "Result": {
+    "ClientHints": {
+      "PersistDefault": false,
+      "AllowPersist": true,
+      "AllowForgotPassword": true,
+      "EndpointAuthenticationEnabled": false
+    },
+    "Version": "1.0",
+    "SessionId": "mysessionid101",
+    "EventDescription": null,
+    "RetryWaitingTime": 0,
+    "SecurityImageName": null,
+    "AllowLoginMfaCache": false,
+    "Challenges": [
+      {
+        "Mechanisms": [
+          {
+            "AnswerType": "StartOob",
+            "Name": "PF",
+            "PartialPhoneNumber": "0775",
+            "PromptMechChosen": "We will now attempt to call your phone (0000). Please follow the instructions to proceed with authentication.",
+            "PromptSelectMech": "Phone Call... XXX-0000",
+            "MechanismId": "bbbbbbb_BBBBBBBBBBBBBBBBBBBBBBBBBBBB-2222222",
+            "Enrolled": true
+          }
+        ]
+      },
+      {
+        "Mechanisms": [
+          {
+            "AnswerType": "Text",
+            "Name": "UP",
+            "PromptMechChosen": "Enter Password",
+            "PromptSelectMech": "Password",
+            "MechanismId": "aaaaaaa_AAAAAAAAAAAAAAAAAAAAAAAAAAAA-1111111",
+            "Enrolled": true
+          }
+        ]
+      }
+    ],
+    "Summary": "NewPackage",
+    "TenantId": "TENANTID"
+  },
+  "Message": null,
+  "MessageID": null,
+  "Exception": null,
+  "ErrorID": null,
+  "ErrorCode": null,
+  "IsSoftError": false,
+  "InnerExceptions": null
+}
