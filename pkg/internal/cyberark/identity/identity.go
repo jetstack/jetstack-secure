@@ -1,0 +1,440 @@
+package identity
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"sync"
+	"time"
+
+	"k8s.io/klog/v2"
+
+	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
+	"github.com/jetstack/preflight/pkg/logs"
+	"github.com/jetstack/preflight/pkg/version"
+)
+
+const (
+	// MechanismUsernamePassword is the string which identifies the username/password mechanism for completing
+	// a login attempt
+	MechanismUsernamePassword = "UP"
+
+	// ActionAnswer is the string which is sent to an AdvanceAuthentication request to indicate we're providing
+	// the credentials in band in text format (i.e., we're sending a password)
+	ActionAnswer = "Answer"
+
+	// SummaryLoginSuccess is returned by a StartAuthentication to indicate that login does not need
+	// to proceed to the AdvanceAuthentication step.
+	// We don't handle this because we don't expect it to happen.
+	SummaryLoginSuccess = "LoginSuccess"
+
+	// SummaryNewPackage is returned by a StartAuthentication call when the user must complete a challenge
+	// to complete the log in. This is expected on a first login.
+	SummaryNewPackage = "NewPackage"
+
+	// maxStartAuthenticationBodySize is the maximum allowed size for a response body from the CyberArk Identity
+	// StartAuthentication endpoint.
+	// As of 2025-04-30, a response from the integration environment is ~1kB
+	maxStartAuthenticationBodySize = 10 * 1024
+
+	// maxAdvanceAuthenticationBodySize is the maximum allowed size for a response body from the CyberArk Identity
+	// AdvanceAuthentication endpoint.
+	// As of 2025-04-30, a response from the integration environment is ~3kB
+	maxAdvanceAuthenticationBodySize = 30 * 1024
+)
+
+var (
+	errNoUPMechanism = fmt.Errorf("found no authentication mechanism with the username + password type (%s); unable to complete login using this identity", MechanismUsernamePassword)
+)
+
+// startAuthenticationRequestBody is the body sent to the StartAuthentication endpoint in CyberArk Identity;
+// see https://api-docs.cyberark.com/docs/identity-api-reference/authentication-and-authorization/operations/create-a-security-start-authentication
+type startAuthenticationRequestBody struct {
+	// TenantID is the internal ID of the tenant containing the user attempting to log in. In testing,
+	// it seems that the subdomain works in this field.
+	TenantID string `json:"TenantId"`
+
+	// Version is set to 1.0
+	Version string `json:"Version"`
+
+	// User is the username of the user trying to log in. For a human, this is likely to be an email address.
+	User string `json:"User"`
+}
+
+// identityResponseBody generically wraps a response from the Identity server; the Result will differ for
+// responses from different endpoint, but the other fields are similar.
+// Not all fields in the JSON returned from the server are replicated here, since we only need a subset.
+type identityResponseBody[T any] struct {
+	// Success is a simple boolean indicator from the server of success.
+	// NB: The JSON key is lowercase, in contrast to other JSON keys in the response.
+	Success bool `json:"success"`
+
+	// Result holds the information we need to parse from successful responses
+	Result T `json:"Result"`
+
+	// Message holds an information message such as an error message. Experimentally it seems to be null
+	// for successful attempts.
+	Message string `json:"Message"`
+
+	// ErrorID holds an error ID when something goes wrong with the call.
+	// Not to be confused with ErrorCode; for failure messages, we see ErrorID set and ErrorCode null.
+	ErrorID string `json:"ErrorID"`
+
+	// NB: Other fields omitted since we don't need them
+}
+
+// startAuthenticationResponseBody is the response returned by the server from a request to StartAuthentication.
+type startAuthenticationResponseBody identityResponseBody[startAuthenticationResponseResult]
+
+// advanceAuthenticationResponseBody is the response from the AdvanceAuthentication endpoint.
+type advanceAuthenticationResponseBody identityResponseBody[advanceAuthenticationResponseResult]
+
+// startAuthenticationResponseResult holds the important data we need to pass to AdvanceAuthentication
+type startAuthenticationResponseResult struct {
+	// SessionID identifies this login attempt, and must be passed with the
+	// follow-up AdvanceAuthentication request.
+	SessionID string `json:"SessionId"`
+
+	// Challenges provides a list of methods for logging in. We need to look
+	// for the correct login method we want to use, and then find the MechanismId
+	// for that login method to pass to the AdvanceAuthentication request.
+	Challenges []startAuthenticationChallenge `json:"Challenges"`
+
+	// Summary indicates whether a StartAuthentication calls needs to be followed up with an AdvanceAuthentication
+	// call. From the docs:
+	// > If the user exists, the response contains a Summary of either LoginSuccess or NewPackage.
+	// > You receive LoginSuccess when the request includes an .ASPXAUTH cookie from prior successful authentication.
+	Summary string `json:"Summary"`
+}
+
+// startAuthenticationChallenge is an entry in the array of MFA mechanisms;
+// at least one MFA mechanism should be satisfied by the user.
+type startAuthenticationChallenge struct {
+	Mechanisms []startAuthenticationMechanism `json:"Mechanisms"`
+}
+
+// startAuthenticationMechanism holds details of a given mechanism for authenticating.
+// This corresponds to "how" the user authenticates, e.g. via password or email, etc
+type startAuthenticationMechanism struct {
+	// Name represents the name of the challenge mechanism. This is usually an upper-case
+	// string, such as "UP" for "username / password"
+	Name string `json:"Name"`
+
+	// Enrolled is true if the given mechanism is available for the user attempting
+	// to authenticate.
+	Enrolled bool `json:"Enrolled"`
+
+	// MechanismID uniquely identifies a particular mechanism, and must be passed
+	// to the AdvanceAuthentication request when authenticating.
+	MechanismID string `json:"MechanismId"`
+}
+
+// advanceAuthenticationRequestBody is a request body for the AdvanceAuthentication call to CyberArk Identity,
+// which should usually be obtained by making requests to StartAuthentication first.
+// WARNING: This struct can hold secret data (a user's password)
+type advanceAuthenticationRequestBody struct {
+	// Action is a string identifying how we're intending to log in; for username/password, this is
+	// set to "Answer" to indicate that the password is held in the Answer field
+	Action string `json:"Action"`
+
+	// Answer holds the user's password to send to the server
+	// WARNING: THIS IS SECRET DATA.
+	Answer string `json:"Answer"`
+
+	// MechanismID identifies the login mechanism and must be retrieved from a call to StartAuthentication
+	MechanismID string `json:"MechanismId"`
+
+	// SessionID identifies the login session and must be retrieved from a call to StartAuthentication
+	SessionID string `json:"SessionId"`
+
+	// TenantID identifies the tenant; this can be inferred from the URL if we used service discovery to
+	// get the Identity API URL, but we set it anyway to be explicit.
+	TenantID string `json:"TenantId"`
+
+	// PersistantLogin is documented to "[indicate] whether the session should persist after the user
+	// closes the browser"; for service-to-service auth which we're trying to do, we set this to true.
+	PersistantLogin bool `json:"PersistantLogin"`
+}
+
+// advanceAuthenticationResponseResult is the specific information returned for a successful AdvanceAuthentication call
+type advanceAuthenticationResponseResult struct {
+	// Summary holds a "brief summary of the authentication outcome"
+	Summary string `json:"Summary"`
+
+	// Token is the auth token we need to save; this is the result of the login
+	// process which can be sent as a bearer token to other services.
+	Token string `json:"Token"`
+
+	// Other fields omitted as they're not needed
+}
+
+// Client is an client for interacting with the CyberArk Identity API and performing a login
+type Client struct {
+	client *http.Client
+
+	endpoint  string
+	subdomain string
+
+	tokenCache      map[string]token
+	tokenCacheMutex sync.Mutex
+}
+
+// token is a wrapper type for holding auth tokens we want to cache.
+type token string
+
+// New returns an initialized CyberArk Identity client using a default service discovery client.
+// NB: This function performs service discovery when called, in order to ensure that all Identity
+// clients are created with a valid Identity API URL. This function blocks on the network call to
+// the discovery service.
+func New(ctx context.Context, subdomain string) (*Client, error) {
+	return NewWithDiscoveryClient(ctx, servicediscovery.New(), subdomain)
+}
+
+// NewWithDiscoveryClient returns an initialized CyberArk Identity client using the given service discovery client.
+// NB: This function performs service discovery when called, in order to ensure that all Identity
+// clients are created with a valid Identity API URL. This function blocks on the network call to
+// the discovery service.
+func NewWithDiscoveryClient(ctx context.Context, discoveryClient *servicediscovery.Client, subdomain string) (*Client, error) {
+	if discoveryClient == nil {
+		return nil, fmt.Errorf("must provide a non-nil discovery client to the Identity Client")
+	}
+
+	endpoint, err := discoveryClient.DiscoverIdentityAPIURL(ctx, subdomain)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+
+		endpoint:  endpoint,
+		subdomain: subdomain,
+
+		tokenCache:      make(map[string]token),
+		tokenCacheMutex: sync.Mutex{},
+	}, nil
+}
+
+// LoginUsernamePassword performs a blocking call to fetch an auth token from CyberArk Identity using the given username and password.
+// The password is zeroed after use.
+// Tokens are cached internally and are not directly accessible to code; use Client.AuthenticatedHTTPClient to add credentials
+// to an *http.Client.
+func (c *Client) LoginUsernamePassword(ctx context.Context, username string, password []byte) error {
+	defer func() {
+		for i := range password {
+			password[i] = 0x00
+		}
+	}()
+
+	c.tokenCacheMutex.Lock()
+	defer c.tokenCacheMutex.Unlock()
+
+	advanceRequestBody, err := c.doStartAuthentication(ctx, username)
+	if err != nil {
+		return err
+	}
+
+	// We can't skip AdvanceAuthentication so we need to add the password to the body
+	// and send it off to complete the login process
+	advanceRequestBody.Answer = string(password)
+
+	err = c.doAdvanceAuthentication(ctx, username, &advanceRequestBody)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// doStartAuthentication performs the initial request to start the login process using a username and password.
+// It returns a partially initialized advanceAuthenticationRequestBody ready to send to the server to complete
+// the login. To avoid copying passwords, this function doesn't set the password in the Answer field, and
+// callers must set that field before making the request to AdvanceAuthentication.
+// See https://api-docs.cyberark.com/docs/identity-api-reference/authentication-and-authorization/operations/create-a-security-start-authentication
+// This function assumes that tokenCacheMutex has already been acquired by the caller.
+func (c *Client) doStartAuthentication(ctx context.Context, username string) (advanceAuthenticationRequestBody, error) {
+	response := advanceAuthenticationRequestBody{}
+
+	logger := klog.FromContext(ctx).WithValues("source", "Identity.doStartAuthentication")
+
+	body := startAuthenticationRequestBody{
+		Version: "1.0", // this is the only value in the docs
+
+		TenantID: c.subdomain,
+
+		User: username,
+	}
+
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		return response, fmt.Errorf("failed to marshal JSON for request to StartAuthentication endpoint: %s", err)
+	}
+
+	endpoint, err := url.JoinPath(c.endpoint, "Security", "StartAuthentication")
+	if err != nil {
+		return response, fmt.Errorf("failed to create URL for request to CyberArk Identity StartAuthentication: %s", err)
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(bodyJSON))
+	if err != nil {
+		return response, fmt.Errorf("failed to initialise request to Identity endpoint %s: %s", endpoint, err)
+	}
+
+	// From the docs:
+	// Your request header must contain X-IDAP-NATIVE-CLIENT:true to indicate that an application is invoking
+	// the CyberArk Identity endpoint, and
+	// Content-Type: application/json to indicate that the body is in JSON format.
+	// Experimentally, it seems the X-IDAP-NATIVE-CLIENT is not required but we'll follow the docs.
+	// The "canonicalheader" warns us that the IDAP-NATIVE-CLIENT header isn't canonical, but we silence it here
+	// since we want to exactly match the docs.
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-IDAP-NATIVE-CLIENT", "true") //nolint: canonicalheader
+	version.SetUserAgent(request)
+
+	httpResponse, err := c.client.Do(request)
+	if err != nil {
+		return response, fmt.Errorf("failed to perform HTTP request to start authentication: %s", err)
+	}
+
+	defer httpResponse.Body.Close()
+
+	if httpResponse.StatusCode != 200 {
+		return response, fmt.Errorf("got unexpected status code %s from request to start authentication in CyberArk Identity API", httpResponse.Status)
+	}
+
+	startAuthResponse := startAuthenticationResponseBody{}
+
+	err = json.NewDecoder(io.LimitReader(httpResponse.Body, maxStartAuthenticationBodySize)).Decode(&startAuthResponse)
+	if err != nil {
+		if err == io.ErrUnexpectedEOF {
+			return response, fmt.Errorf("rejecting JSON response from server as it was too large or was truncated")
+		}
+
+		return response, fmt.Errorf("failed to parse JSON from otherwise successful request to start authentication: %s", err)
+	}
+
+	if !startAuthResponse.Success {
+		return response, fmt.Errorf("got a failure response from request to start authentication: message=%q, error=%q", startAuthResponse.Message, startAuthResponse.ErrorID)
+	}
+
+	logger.V(logs.Debug).Info("made successful request to StartAuthentication", "summary", startAuthResponse.Result.Summary)
+
+	if startAuthResponse.Result.Summary != SummaryNewPackage {
+		// This means we can't respond to whatever summary the server sent.
+		// The best thing to do is try and find a challenge we can solve anyway.
+		klog.FromContext(ctx).Info("got an unexpected Summary from StartAuthentication response; will attempt to complete a login challenge anyway", "summary", startAuthResponse.Result.Summary)
+	}
+
+	if len(startAuthResponse.Result.Challenges) == 0 {
+		return response, fmt.Errorf("got no valid challenges in response to start authentication; unable to log in")
+	}
+
+	mechanismID := ""
+
+	for i, challenge := range startAuthResponse.Result.Challenges {
+		logger.V(logs.Debug).Info("found a challenge", "idx", i, "mechanismCount", len(challenge.Mechanisms))
+
+		if len(challenge.Mechanisms) == 0 {
+			// presumably this shouldn't happen, but handle the case anyway
+			logger.Info("got no mechanisms for challenge from Identity server; skipping this challenge")
+			continue
+		}
+
+		for j, mechanism := range challenge.Mechanisms {
+			logger.V(logs.Debug).Info("found a mechanism in challenge", "idx", j, "enrolled", mechanism.Enrolled, "name", mechanism.Name)
+
+			if !mechanism.Enrolled || mechanism.Name != MechanismUsernamePassword {
+				continue
+			}
+
+			// got a username/password mechanism, so use it
+			mechanismID = mechanism.MechanismID
+			break
+		}
+	}
+
+	if mechanismID == "" {
+		klog.FromContext(ctx).Info("ctx", "response", startAuthResponse)
+		return response, errNoUPMechanism
+	}
+
+	response.Action = ActionAnswer
+	response.MechanismID = mechanismID
+	response.SessionID = startAuthResponse.Result.SessionID
+	response.TenantID = c.subdomain
+	response.PersistantLogin = true
+
+	return response, nil
+}
+
+func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, requestBody *advanceAuthenticationRequestBody) error {
+	bodyJSON, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON for request to AdvanceAuthentication endpoint: %s", err)
+	}
+
+	endpoint, err := url.JoinPath(c.endpoint, "Security", "AdvanceAuthentication")
+	if err != nil {
+		return fmt.Errorf("failed to create URL for request to CyberArk Identity AdvanceAuthentication: %s", err)
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(bodyJSON))
+	if err != nil {
+		return fmt.Errorf("failed to initialise request to Identity endpoint %s: %s", endpoint, err)
+	}
+
+	// From the docs:
+	// Your request header must contain X-IDAP-NATIVE-CLIENT:true to indicate that an application is invoking
+	// the CyberArk Identity endpoint, and
+	// Content-Type: application/json to indicate that the body is in JSON format.
+	// Experimentally, it seems the X-IDAP-NATIVE-CLIENT is not required but we'll follow the docs.
+	// The "canonicalheader" warns us that the IDAP-NATIVE-CLIENT header isn't canonical, but we silence it here
+	// since we want to exactly match the docs.
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-IDAP-NATIVE-CLIENT", "true") //nolint: canonicalheader
+	version.SetUserAgent(request)
+
+	httpResponse, err := c.client.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to perform HTTP request to advance authentication: %s", err)
+	}
+
+	defer httpResponse.Body.Close()
+
+	// Important: Even login failures can produce a 200 status code, so this
+	// check won't catch all failures
+	if httpResponse.StatusCode != 200 {
+		return fmt.Errorf("got unexpected status code %s from request to advance authentication in CyberArk Identity API", httpResponse.Status)
+	}
+
+	advanceAuthResponse := advanceAuthenticationResponseBody{}
+
+	err = json.NewDecoder(io.LimitReader(httpResponse.Body, maxAdvanceAuthenticationBodySize)).Decode(&advanceAuthResponse)
+	if err != nil {
+		if err == io.ErrUnexpectedEOF {
+			return fmt.Errorf("rejecting JSON response from server as it was too large or was truncated")
+		}
+
+		return fmt.Errorf("failed to parse JSON from otherwise successful request to advance authentication: %s", err)
+	}
+
+	if !advanceAuthResponse.Success {
+		return fmt.Errorf("got a failure response from request to advance authentication: message=%q, error=%q", advanceAuthResponse.Message, advanceAuthResponse.ErrorID)
+	}
+
+	if advanceAuthResponse.Result.Summary != SummaryLoginSuccess {
+		return fmt.Errorf("got a %s response from AdvanceAuthentication; this implies that the user account %s requires MFA, which is not supported. Try unlocking MFA for this user", advanceAuthResponse.Result.Summary, username)
+	}
+
+	klog.FromContext(ctx).Info("successfully completed AdvanceAuthentication request to CyberArk Identity; login complete", "username", username)
+
+	c.tokenCache[username] = token(advanceAuthResponse.Result.Token)
+
+	return nil
+}
