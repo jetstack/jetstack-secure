@@ -3,7 +3,6 @@ package servicediscovery
 import (
 	"context"
 	"crypto/rand"
-	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -13,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/jetstack/preflight/pkg/version"
+
+	_ "embed"
 )
 
 //go:embed testdata/discovery_success.json
