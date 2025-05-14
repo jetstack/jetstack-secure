@@ -327,7 +327,7 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 		}
 		log.Info("Data saved to local file", "outputPath", config.OutputPath)
 	} else {
-		group, gctx := errgroup.WithContext(ctx)
+		group, ctx := errgroup.WithContext(ctx)
 
 		backOffCfg := backoff.NewExponentialBackOff()
 		backOffCfg.InitialInterval = 30 * time.Second
@@ -339,21 +339,21 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 			log.Info("Warning: PushingErr: retrying", "in", t, "reason", err)
 		}
 
-		if cfg.MachineHubMode {
+		if config.MachineHubMode {
 			post := func() error {
 				log.Info("machine hub mode not yet implemented")
 				return nil
 			}
 
-			group.Go(backoff.RetryNotify(post, backOffCfg, notifyFn))
+			group.Go(func() error { return backoff.RetryNotify(post, backOffCfg, notifyFn) })
 		}
 
-		if cfg.AuthMode != NoTLSPK {
+		if config.TLSPKMode != Off {
 			post := func() error {
 				return postData(klog.NewContext(ctx, log), config, preflightClient, readings)
 			}
 
-			group.Go(backoff.RetryNotify(post, backOffCfg, notifyFn))
+			group.Go(func() error { return backoff.RetryNotify(post, backOffCfg, notifyFn) })
 		}
 
 		groupErr := group.Wait()
@@ -420,7 +420,7 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 
 	log.V(logs.Debug).Info("Posting data", "baseURL", baseURL)
 
-	if config.AuthMode == VenafiCloudKeypair || config.AuthMode == VenafiCloudVenafiConnection {
+	if config.TLSPKMode == VenafiCloudKeypair || config.TLSPKMode == VenafiCloudVenafiConnection {
 		// orgID and clusterID are not required for Venafi Cloud auth
 		err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
 			ClusterName:        config.ClusterID,

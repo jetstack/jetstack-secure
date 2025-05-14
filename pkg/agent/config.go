@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"k8s.io/client-go/rest"
@@ -63,7 +63,7 @@ type Config struct {
 	// Skips label keys that match the given set of regular expressions.
 	ExcludeLabelKeysRegex []string `yaml:"exclude-label-keys-regex"`
 
-	// MachineHub holds config specific to MachineHub mode
+	// MachineHub holds config specific to MachineHub mode.
 	MachineHub MachineHubConfig `yaml:"machineHub"`
 }
 
@@ -94,13 +94,14 @@ type VenafiCloudConfig struct {
 
 // MachineHubConfig holds configuration values specific to the CyberArk Machine Hub integration
 type MachineHubConfig struct {
-	// Subdomain is the subdomain indicating where data should be pushed. Used for
-	// querying the Service Discovery Service to discover the Identity API URL
+	// Subdomain is the subdomain indicating where data should be pushed. Used
+	// for querying the Service Discovery Service to discover the Identity API
+	// URL.
 	Subdomain string `yaml:"subdomain"`
 
-	// CredentialsSecretName is the name of a Kubernetes Secret in the same namespace as
-	// the agent, which will be watched for a username and password to send to CyberArk
-	// Identity for authentication.
+	// CredentialsSecretName is the name of a Kubernetes Secret in the same
+	// namespace as the agent, which will be watched for a username and password
+	// to send to CyberArk Identity for authentication.
 	CredentialsSecretName string `yaml:"credentialsSecretName"`
 }
 
@@ -132,7 +133,7 @@ type AgentCmdFlags struct {
 	// --credentials-file.
 	VenafiCloudMode bool
 
-	// MachineHubMode configures the agent to send data to CyberArk Machine Hub
+	// MachineHubMode configures the agent to send data to CyberArk Machine Hub.
 	MachineHubMode bool
 
 	// ClientID (--client-id) is the clientID in case of Venafi Cloud Key Pair
@@ -335,34 +336,44 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 	)
 	c.PersistentFlags().MarkDeprecated("disable-compression", "no longer has an effect")
 
+	c.PersistentFlags().BoolVar(
+		&cfg.MachineHubMode,
+		"machine-hub",
+		false,
+		"Enables MachineHub mode. The agent will push data to CyberArk MachineHub. Can be used in conjunction with --venafi-cloud.",
+	)
+
 }
 
-// AuthMode controls how to authenticate to TLSPK / Jetstack Secure. Only one AuthMode
-// may be provided if using using those backends.
-type AuthMode string
+// TLSPKMode controls how to authenticate to TLSPK / Jetstack Secure. Only one
+// TLSPKMode may be provided if using using those backends.
+type TLSPKMode string
 
 const (
-	JetstackSecureOAuth         AuthMode = "Jetstack Secure OAuth"
-	JetstackSecureAPIToken      AuthMode = "Jetstack Secure API Token"
-	VenafiCloudKeypair          AuthMode = "Venafi Cloud Key Pair Service Account"
-	VenafiCloudVenafiConnection AuthMode = "Venafi Cloud VenafiConnection"
+	JetstackSecureOAuth         TLSPKMode = "Jetstack Secure OAuth"
+	JetstackSecureAPIToken      TLSPKMode = "Jetstack Secure API Token"
+	VenafiCloudKeypair          TLSPKMode = "Venafi Cloud Key Pair Service Account"
+	VenafiCloudVenafiConnection TLSPKMode = "Venafi Cloud VenafiConnection"
 
-	NoTLSPK AuthMode = "MachineHub only"
+	// It is possible to push to both MachineHub and TLSPK. With this mode, the
+	// agent will only push to MachineHub and not to TLSPK.
+	Off TLSPKMode = "MachineHub only"
 )
 
 // The command-line flags and the config file are combined into this struct by
 // ValidateAndCombineConfig.
 type CombinedConfig struct {
-	AuthMode AuthMode
-
-	// Used by all modes.
-	ClusterID      string
 	DataGatherers  []DataGatherer
 	Period         time.Duration
 	BackoffMaxTime time.Duration
+	InstallNS      string
 	StrictMode     bool
 	OneShot        bool
-	InstallNS      string
+
+	TLSPKMode TLSPKMode
+
+	// Used by all TLSPK modes.
+	ClusterID string
 
 	// Used by JetstackSecureOAuth, JetstackSecureAPIToken, and
 	// VenafiCloudKeypair. Ignored in VenafiCloudVenafiConnection mode.
@@ -388,10 +399,10 @@ type CombinedConfig struct {
 	OutputPath string
 	InputPath  string
 
-	// MachineHub-related settings
-	MachineHubMode bool
-
-	MachineHub MachineHubConfig
+	// MachineHub-related settings.
+	MachineHubMode                  bool
+	MachineHubSubdomain             string
+	MachineHubCredentialsSecretName string
 }
 
 // ValidateAndCombineConfig combines and validates the input configuration with
@@ -414,12 +425,16 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		}
 
 		res.MachineHubMode = true
-		res.MachineHubConfig = cfg.MachineHubConfig
+		res.MachineHubSubdomain = cfg.MachineHub.Subdomain
+		res.MachineHubCredentialsSecretName = cfg.MachineHub.CredentialsSecretName
+
+		keysAndValues := []any{"credentialsSecretName", res.MachineHubCredentialsSecretName}
+		log.V(logs.Info).Info("Will push to CyberArk MachineHub using a username and password loaded from a Kubernetes Secret", keysAndValues...)
 	}
 
 	{
 		var (
-			mode          AuthMode
+			mode          TLSPKMode
 			reason        string
 			keysAndValues []any
 		)
@@ -448,24 +463,28 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			reason = "--credentials-file was specified without --venafi-cloud"
 		default:
 			if !flags.MachineHubMode {
-				return CombinedConfig{}, nil, fmt.Errorf("no auth mode specified and MachineHub mode is disabled. You can use one of four auth modes:\n" +
+				return CombinedConfig{}, nil, fmt.Errorf("no TLSPK mode specified and MachineHub mode is disabled. You must either enable the MachineHub mode (using --machine-hub), or enable one of the TLSPK modes.\n" +
+					"To enable one of the TLSPK modes, you can:\n" +
 					" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
 					" - Use --venafi-connection for the " + string(VenafiCloudVenafiConnection) + " mode.\n" +
 					" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
-					" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.\n")
+					" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.\n" +
+					"Note that it is possible to use one of the TLSPK modes along with the MachineHub mode (--machine-hub).")
 			}
 
-			mode = NoTLSPK
-			reason = "only MachineHub has been configured as a backend"
+			mode = Off
 		}
 
-		res.AuthMode = mode
 		keysAndValues = append(keysAndValues, "mode", mode, "reason", reason)
-		log.V(logs.Debug).Info("Authentication mode", keysAndValues...)
+		if mode != Off {
+			log.V(logs.Debug).Info("Configured to push to Venafi", keysAndValues...)
+		}
+
+		res.TLSPKMode = mode
 	}
 
 	// Validation and defaulting of `server` and the deprecated `endpoint.path`.
-	if res.AuthMode != NoTLSPK {
+	if res.TLSPKMode != Off {
 		// Only relevant if using TLSPK backends
 		hasEndpointField := cfg.Endpoint.Host != "" && cfg.Endpoint.Path != ""
 		hasServerField := cfg.Server != ""
@@ -488,7 +507,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			endpointPath = cfg.Endpoint.Path
 		case !hasServerField && !hasEndpointField:
 			server = "https://preflight.jetstack.io"
-			if res.AuthMode == VenafiCloudKeypair {
+			if res.TLSPKMode == VenafiCloudKeypair {
 				// The VenafiCloudVenafiConnection mode doesn't need a server.
 				server = client.VenafiCloudProdURL
 			}
@@ -497,7 +516,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		if urlErr != nil || url.Hostname() == "" {
 			errs = multierror.Append(errs, fmt.Errorf("server %q is not a valid URL", server))
 		}
-		if res.AuthMode == VenafiCloudVenafiConnection && server != "" {
+		if res.TLSPKMode == VenafiCloudVenafiConnection && server != "" {
 			log.Info(fmt.Sprintf("ignoring the server field specified in the config file. In %s mode, this field is not needed.", VenafiCloudVenafiConnection))
 			server = ""
 		}
@@ -509,9 +528,9 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	{
 		var uploadPath string
 		switch {
-		case res.AuthMode == VenafiCloudKeypair:
+		case res.TLSPKMode == VenafiCloudKeypair:
 			if cfg.VenafiCloud == nil || cfg.VenafiCloud.UploadPath == "" {
-				errs = multierror.Append(errs, fmt.Errorf("the venafi-cloud.upload_path field is required when using the %s mode", res.AuthMode))
+				errs = multierror.Append(errs, fmt.Errorf("the venafi-cloud.upload_path field is required when using the %s mode", res.TLSPKMode))
 				break // Skip to the end of the switch statement.
 			}
 			_, urlErr := url.Parse(cfg.VenafiCloud.UploadPath)
@@ -521,14 +540,14 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			}
 
 			uploadPath = cfg.VenafiCloud.UploadPath
-		case res.AuthMode == VenafiCloudVenafiConnection:
+		case res.TLSPKMode == VenafiCloudVenafiConnection:
 			// The venafi-cloud.upload_path was initially meant to let users
 			// configure HTTP proxies, but it has never been used since HTTP
 			// proxies don't rewrite paths. Thus, we've disabled the ability to
 			// change this value with the new --venafi-connection flag, and this
 			// field is simply ignored.
 			if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploadPath != "" {
-				log.Info(fmt.Sprintf(`ignoring the venafi-cloud.upload_path field in the config file. In %s mode, this field is not needed.`, res.AuthMode))
+				log.Info(fmt.Sprintf(`ignoring the venafi-cloud.upload_path field in the config file. In %s mode, this field is not needed.`, res.TLSPKMode))
 			}
 			uploadPath = ""
 		}
@@ -546,26 +565,26 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	// https://venafi.atlassian.net/browse/VC-35385 is done.
 	{
 		if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploaderID != "" {
-			log.Info(fmt.Sprintf(`ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in %s mode.`, res.AuthMode))
+			log.Info(fmt.Sprintf(`ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in %s mode.`, res.TLSPKMode))
 		}
 	}
 
 	// Validation of `cluster_id` and `organization_id`.
-	if res.AuthMode != NoTLSPK {
+	if res.TLSPKMode != Off {
 		var clusterID string
 		var organizationID string // Only used by the old jetstack-secure mode.
 		switch {
-		case res.AuthMode == VenafiCloudKeypair:
+		case res.TLSPKMode == VenafiCloudKeypair:
 			if cfg.ClusterID == "" {
-				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.AuthMode))
+				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.TLSPKMode))
 			}
 			clusterID = cfg.ClusterID
-		case res.AuthMode == VenafiCloudVenafiConnection:
+		case res.TLSPKMode == VenafiCloudVenafiConnection:
 			if cfg.ClusterID == "" {
-				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.AuthMode))
+				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.TLSPKMode))
 			}
 			clusterID = cfg.ClusterID
-		case res.AuthMode == JetstackSecureOAuth || res.AuthMode == JetstackSecureAPIToken:
+		case res.TLSPKMode == JetstackSecureOAuth || res.TLSPKMode == JetstackSecureAPIToken:
 			if cfg.OrganizationID == "" {
 				errs = multierror.Append(errs, fmt.Errorf("organization_id is required"))
 			}
@@ -625,7 +644,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	res.InstallNS = installNS
 
 	// Validation of --venafi-connection and --venafi-connection-namespace.
-	if res.AuthMode == VenafiCloudVenafiConnection {
+	if res.TLSPKMode == VenafiCloudVenafiConnection {
 		res.VenConnName = flags.VenConnName
 		var venConnNS string = flags.VenConnNS
 		if flags.VenConnNS == "" {
@@ -692,7 +711,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 	var preflightClient client.Client
 	metadata := &api.AgentMetadata{Version: version.PreflightVersion, ClusterID: cfg.ClusterID}
 	switch {
-	case cfg.AuthMode == JetstackSecureOAuth:
+	case cfg.TLSPKMode == JetstackSecureOAuth:
 		// Note that there are no command line flags to configure the
 		// JetstackSecureOAuth mode.
 		credsBytes, err := readCredentialsFile(flagCredentialsPath)
@@ -711,7 +730,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-	case cfg.AuthMode == VenafiCloudKeypair:
+	case cfg.TLSPKMode == VenafiCloudKeypair:
 		var creds client.Credentials
 
 		if flagClientID != "" && flagCredentialsPath != "" {
@@ -754,7 +773,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-	case cfg.AuthMode == VenafiCloudVenafiConnection:
+	case cfg.TLSPKMode == VenafiCloudVenafiConnection:
 		var restCfg *rest.Config
 		restCfg, err := kubeconfig.LoadRESTConfig("")
 		if err != nil {
@@ -766,18 +785,20 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-	case cfg.AuthMode == JetstackSecureAPIToken:
+	case cfg.TLSPKMode == JetstackSecureAPIToken:
 		var err error
 		preflightClient, err = client.NewAPITokenClient(metadata, flagAPIToken, cfg.Server)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
+	case cfg.TLSPKMode == Off:
+		// No client needed in this mode.
 	default:
-		panic(fmt.Errorf("programmer mistake: auth mode not implemented: %s", cfg.AuthMode))
+		panic(fmt.Errorf("programmer mistake: auth mode not implemented: %s", cfg.TLSPKMode))
 	}
 
 	if errs != nil {
-		return nil, fmt.Errorf("failed loading config using the %s mode: %w", cfg.AuthMode, errs)
+		return nil, fmt.Errorf("failed loading config using the %s mode: %w", cfg.TLSPKMode, errs)
 	}
 
 	return preflightClient, nil
@@ -814,7 +835,7 @@ func createCredentialClient(log logr.Logger, credentials client.Credentials, cfg
 		uploaderID := "no"
 
 		var uploadPath string
-		if cfg.AuthMode == VenafiCloudKeypair {
+		if cfg.TLSPKMode == VenafiCloudKeypair {
 			// We don't do this for the VenafiCloudVenafiConnection mode because
 			// the upload_path field is ignored in that mode.
 			log.Info("Loading upload_path from \"venafi-cloud\" configuration.")
@@ -904,7 +925,7 @@ func (c *Config) Dump() (string, error) {
 	d, err := yaml.Marshal(&c)
 
 	if err != nil {
-		return "", errors.Wrap(err, "failed to generate YAML dump of config")
+		return "", fmt.Errorf("failed to generate YAML dump of config: %w", err)
 	}
 
 	return string(d), nil
