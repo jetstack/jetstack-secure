@@ -23,6 +23,51 @@ The released container images are cryptographically signed by
 verify those signatures and attachments, refer to
 [this guide](docs/guides/cosign).
 
+## Troubleshooting
+
+### Venafi Workloads
+
+Dump the state of all the workloads in the Venafi namespace:
+
+```
+kubectl cluster-info dump  --namespace venafi -o yaml --output-directory venafi.dump
+```
+
+### Agent logs, current and previous
+
+Dump the logs from the agent:
+
+```bash
+kubectl logs -n venafi deployments/venafi-kubernetes-agent
+kubectl logs -n venafi deployments/venafi-kubernetes-agent --previous
+```
+
+### API Object Count by Kind
+
+It is possible that your cluster has a large number of API objects which are being downloaded and cached by the agent,
+causing excessive memory usage.
+You can solve this by creating a custom agent configuration, which excludes certain API object kinds or excludes some namespaces.
+
+This command will give the object counts from the [metrics endpoint of the API server](https://kubernetes.io/docs/reference/instrumentation/metrics/):
+
+```bash
+kubectl get --raw "/metrics" | grep apiserver_storage_objects
+```
+
+### Secret Count by Type
+
+It is possible that your cluster contains a large number of large Secrets which are being downloaded and cached by the agent,
+causing excessive memory usage.
+By default the agent will ignore various common Secret types, but your cluster
+may contain other Secret types which are not in the default list and which can
+be excluded.
+
+This command will give a list of all the Secrets and their types, [without downloading any of the data in the Secrets](https://kubernetes.io/docs/reference/using-api/api-concepts/#receiving-resources-as-tables):
+
+```bash
+kubectl get secret --all-namespaces
+```
+
 ## Local Execution
 
 To build and run a version from master:
