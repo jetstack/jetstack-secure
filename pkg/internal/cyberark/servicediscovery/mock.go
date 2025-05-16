@@ -3,7 +3,6 @@ package servicediscovery
 import (
 	"bytes"
 	"crypto/rand"
-	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"text/template"
 
 	"github.com/jetstack/preflight/pkg/version"
+
+	_ "embed"
 )
 
 const (
