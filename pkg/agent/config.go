@@ -336,12 +336,16 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 	)
 	c.PersistentFlags().MarkDeprecated("disable-compression", "no longer has an effect")
 
+	// This is a hidden feature flag we use to build the "Machine Hub" feature
+	// gradually without impacting customers. Once the feature is GA, we will
+	// turn this flag "on" by default.
 	c.PersistentFlags().BoolVar(
 		&cfg.MachineHubMode,
 		"machine-hub",
 		false,
-		"Enables MachineHub mode. The agent will push data to CyberArk MachineHub. Can be used in conjunction with --venafi-cloud.",
+		"Enables the MachineHub mode. The agent will push data to CyberArk MachineHub.",
 	)
+	c.PersistentFlags().MarkHidden("machine-hub")
 
 }
 
