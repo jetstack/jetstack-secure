@@ -57,13 +57,6 @@ data:
           resource: deployments
           group: apps
     - kind: "k8s-dynamic"
-      name: "k8s/replicasets"
-      config:
-        resource-type:
-          version: v1
-          resource: replicasets
-          group: apps
-    - kind: "k8s-dynamic"
       name: "k8s/statefulsets"
       config:
         resource-type:
