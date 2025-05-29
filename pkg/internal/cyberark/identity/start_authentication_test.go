@@ -18,9 +18,13 @@ func Test_IdentityStartAuthentication(t *testing.T) {
 			username:      successUser,
 			expectedError: nil,
 		},
-		"successful request, challenges switched": {
-			username:      successUserChallengesSwitched,
-			expectedError: nil,
+		"successful request, multiple challenges": {
+			username:      successUserMultipleChallenges,
+			expectedError: fmt.Errorf("got 2 challenges in response to start authentication, which means MFA may be enabled; unable to log in"),
+		},
+		"successful request, multiple mechanisms": {
+			username:      successUserMultipleMechanisms,
+			expectedError: fmt.Errorf("got 2 mechanisms in response to start authentication, which means MFA may be enabled; unable to log in"),
 		},
 		"successful request, no username / password (UP) mechanism available": {
 			username:      noUPMechanism,

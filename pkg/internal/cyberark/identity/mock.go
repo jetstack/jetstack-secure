@@ -14,7 +14,8 @@ import (
 
 const (
 	successUser                   = "test@example.com"
-	successUserChallengesSwitched = "test-switched@example.com"
+	successUserMultipleChallenges = "test-multiple-challenges@example.com"
+	successUserMultipleMechanisms = "test-multiple-mechanisms@example.com"
 	noUPMechanism                 = "noup@example.com"
 
 	successMechanismID = "aaaaaaa_AAAAAAAAAAAAAAAAAAAAAAAAAAAA-1111111"
@@ -31,8 +32,11 @@ var (
 	//go:embed testdata/start_authentication_success.json
 	startAuthenticationSuccessResponse string
 
-	//go:embed testdata/start_authentication_success_challenges_switched.json
-	startAuthenticationSuccessChallengesSwitchedResponse string
+	//go:embed testdata/start_authentication_success_multiple_challenges.json
+	startAuthenticationSuccessMultipleChallengesResponse string
+
+	//go:embed testdata/start_authentication_success_multiple_mechanisms.json
+	startAuthenticationSuccessMultipleMechanismsResponse string
 
 	//go:embed testdata/start_authentication_success_no_up_mechanism.json
 	startAuthenticationNoUPMechanismResponse string
@@ -136,9 +140,13 @@ func (mis *mockIdentityServer) handleStartAuthentication(w http.ResponseWriter, 
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(startAuthenticationSuccessResponse))
 
-	case successUserChallengesSwitched:
+	case successUserMultipleChallenges:
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(startAuthenticationSuccessChallengesSwitchedResponse))
+		_, _ = w.Write([]byte(startAuthenticationSuccessMultipleChallengesResponse))
+
+	case successUserMultipleMechanisms:
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(startAuthenticationSuccessMultipleMechanismsResponse))
 
 	case noUPMechanism:
 		w.WriteHeader(http.StatusOK)

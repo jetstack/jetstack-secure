@@ -172,7 +172,8 @@ type advanceAuthenticationResponseResult struct {
 	// Other fields omitted as they're not needed
 }
 
-// Client is an client for interacting with the CyberArk Identity API and performing a login
+// Client is an client for interacting with the CyberArk Identity API and performing a login using a username and password.
+// For context on the behaviour of this client, see the Pytho SDK: https://github.com/cyberark/ark-sdk-python/blob/3be12c3f2d3a2d0407025028943e584b6edc5996/ark_sdk_python/auth/identity/ark_identity.py
 type Client struct {
 	client *http.Client
 
@@ -331,41 +332,41 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 		klog.FromContext(ctx).Info("got an unexpected Summary from StartAuthentication response; will attempt to complete a login challenge anyway", "summary", startAuthResponse.Result.Summary)
 	}
 
-	if len(startAuthResponse.Result.Challenges) == 0 {
+	// We can only handle a UP type challenge, and if there are any other challenges, we'll have to fail because we can't handle them.
+	// https://github.com/cyberark/ark-sdk-python/blob/3be12c3f2d3a2d0407025028943e584b6edc5996/ark_sdk_python/auth/identity/ark_identity.py#L405
+	switch len(startAuthResponse.Result.Challenges) {
+	case 0:
 		return response, fmt.Errorf("got no valid challenges in response to start authentication; unable to log in")
+
+	case 1:
+		// do nothing, this is ideal
+
+	default:
+		return response, fmt.Errorf("got %d challenges in response to start authentication, which means MFA may be enabled; unable to log in", len(startAuthResponse.Result.Challenges))
 	}
 
-	mechanismID := ""
+	challenge := startAuthResponse.Result.Challenges[0]
 
-	for i, challenge := range startAuthResponse.Result.Challenges {
-		logger.V(logs.Debug).Info("found a challenge", "idx", i, "mechanismCount", len(challenge.Mechanisms))
+	switch len(challenge.Mechanisms) {
+	case 0:
+		// presumably this shouldn't happen, but handle the case anyway
+		return response, fmt.Errorf("got no mechanisms for challenge from Identity server")
 
-		if len(challenge.Mechanisms) == 0 {
-			// presumably this shouldn't happen, but handle the case anyway
-			logger.Info("got no mechanisms for challenge from Identity server; skipping this challenge")
-			continue
-		}
+	case 1:
+		// do nothing, this is ideal
 
-		for j, mechanism := range challenge.Mechanisms {
-			logger.V(logs.Debug).Info("found a mechanism in challenge", "idx", j, "enrolled", mechanism.Enrolled, "name", mechanism.Name)
-
-			if !mechanism.Enrolled || mechanism.Name != MechanismUsernamePassword {
-				continue
-			}
-
-			// got a username/password mechanism, so use it
-			mechanismID = mechanism.MechanismID
-			break
-		}
+	default:
+		return response, fmt.Errorf("got %d mechanisms in response to start authentication, which means MFA may be enabled; unable to log in", len(challenge.Mechanisms))
 	}
 
-	if mechanismID == "" {
-		klog.FromContext(ctx).Info("ctx", "response", startAuthResponse)
+	mechanism := challenge.Mechanisms[0]
+
+	if !mechanism.Enrolled || mechanism.Name != MechanismUsernamePassword {
 		return response, errNoUPMechanism
 	}
 
 	response.Action = ActionAnswer
-	response.MechanismID = mechanismID
+	response.MechanismID = mechanism.MechanismID
 	response.SessionID = startAuthResponse.Result.SessionID
 	response.TenantID = c.subdomain
 	response.PersistantLogin = true
