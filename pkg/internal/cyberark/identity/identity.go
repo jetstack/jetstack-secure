@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v5"
 	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
@@ -233,32 +234,34 @@ func (c *Client) LoginUsernamePassword(ctx context.Context, username string, pas
 		}
 	}()
 
-	c.tokenCacheMutex.Lock()
-	defer c.tokenCacheMutex.Unlock()
+	operation := func() (any, error) {
+		advanceRequestBody, err := c.doStartAuthentication(ctx, username)
+		if err != nil {
+			return struct{}{}, err
+		}
 
-	advanceRequestBody, err := c.doStartAuthentication(ctx, username)
-	if err != nil {
-		return err
+		// NB: We explicitly pass advanceRequestBody by value here so that when we add the password
+		// in doAdvanceAuthentication we don't create a copy of the password slice elsewhere.
+		err = c.doAdvanceAuthentication(ctx, username, &password, advanceRequestBody)
+		if err != nil {
+			return struct{}{}, err
+		}
+
+		return struct{}{}, nil
 	}
 
-	// We can't skip AdvanceAuthentication so we need to add the password to the body
-	// and send it off to complete the login process
-	advanceRequestBody.Answer = string(password)
+	backoffPolicy := backoff.NewConstantBackOff(10 * time.Second)
 
-	err = c.doAdvanceAuthentication(ctx, username, &advanceRequestBody)
-	if err != nil {
-		return err
-	}
+	_, err := backoff.Retry(ctx, operation, backoff.WithBackOff(backoffPolicy))
 
-	return nil
+	return err
 }
 
 // doStartAuthentication performs the initial request to start the login process using a username and password.
 // It returns a partially initialized advanceAuthenticationRequestBody ready to send to the server to complete
-// the login. To avoid copying passwords, this function doesn't set the password in the Answer field, and
-// callers must set that field before making the request to AdvanceAuthentication.
+// the login. As this function doesn't have access to the password, it must be added to the returned request body
+// by the caller before being used as a request to AdvanceAuthentication.
 // See https://api-docs.cyberark.com/docs/identity-api-reference/authentication-and-authorization/operations/create-a-security-start-authentication
-// This function assumes that tokenCacheMutex has already been acquired by the caller.
 func (c *Client) doStartAuthentication(ctx context.Context, username string) (advanceAuthenticationRequestBody, error) {
 	response := advanceAuthenticationRequestBody{}
 
@@ -287,16 +290,7 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 		return response, fmt.Errorf("failed to initialise request to Identity endpoint %s: %s", endpoint, err)
 	}
 
-	// From the docs:
-	// Your request header must contain X-IDAP-NATIVE-CLIENT:true to indicate that an application is invoking
-	// the CyberArk Identity endpoint, and
-	// Content-Type: application/json to indicate that the body is in JSON format.
-	// Experimentally, it seems the X-IDAP-NATIVE-CLIENT is not required but we'll follow the docs.
-	// The "canonicalheader" warns us that the IDAP-NATIVE-CLIENT header isn't canonical, but we silence it here
-	// since we want to exactly match the docs.
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-IDAP-NATIVE-CLIENT", "true") //nolint: canonicalheader
-	version.SetUserAgent(request)
+	setIdentityHeaders(request)
 
 	httpResponse, err := c.client.Do(request)
 	if err != nil {
@@ -306,7 +300,14 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 	defer httpResponse.Body.Close()
 
 	if httpResponse.StatusCode != 200 {
-		return response, fmt.Errorf("got unexpected status code %s from request to start authentication in CyberArk Identity API", httpResponse.Status)
+		err := fmt.Errorf("got unexpected status code %s from request to start authentication in CyberArk Identity API", httpResponse.Status)
+		if httpResponse.StatusCode >= 500 || httpResponse.StatusCode < 400 {
+			return response, err
+		}
+
+		// If we got a 4xx error, we shouldn't retry
+		return response, backoff.Permanent(err)
+
 	}
 
 	startAuthResponse := startAuthenticationResponseBody{}
@@ -374,15 +375,23 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 	return response, nil
 }
 
-func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, requestBody *advanceAuthenticationRequestBody) error {
+// doAdvanceAuthentication performs the second step of the login process, sending the password to the server
+// and receiving a token in response.
+func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, password *[]byte, requestBody advanceAuthenticationRequestBody) error {
+	if password == nil {
+		return backoff.Permanent(fmt.Errorf("password must not be nil; this is a programming error"))
+	}
+
+	requestBody.Answer = string(*password)
+
 	bodyJSON, err := json.Marshal(requestBody)
 	if err != nil {
-		return fmt.Errorf("failed to marshal JSON for request to AdvanceAuthentication endpoint: %s", err)
+		return backoff.Permanent(fmt.Errorf("failed to marshal JSON for request to AdvanceAuthentication endpoint: %s", err))
 	}
 
 	endpoint, err := url.JoinPath(c.endpoint, "Security", "AdvanceAuthentication")
 	if err != nil {
-		return fmt.Errorf("failed to create URL for request to CyberArk Identity AdvanceAuthentication: %s", err)
+		return backoff.Permanent(fmt.Errorf("failed to create URL for request to CyberArk Identity AdvanceAuthentication: %s", err))
 	}
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(bodyJSON))
@@ -390,16 +399,7 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, r
 		return fmt.Errorf("failed to initialise request to Identity endpoint %s: %s", endpoint, err)
 	}
 
-	// From the docs:
-	// Your request header must contain X-IDAP-NATIVE-CLIENT:true to indicate that an application is invoking
-	// the CyberArk Identity endpoint, and
-	// Content-Type: application/json to indicate that the body is in JSON format.
-	// Experimentally, it seems the X-IDAP-NATIVE-CLIENT is not required but we'll follow the docs.
-	// The "canonicalheader" warns us that the IDAP-NATIVE-CLIENT header isn't canonical, but we silence it here
-	// since we want to exactly match the docs.
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-IDAP-NATIVE-CLIENT", "true") //nolint: canonicalheader
-	version.SetUserAgent(request)
+	setIdentityHeaders(request)
 
 	httpResponse, err := c.client.Do(request)
 	if err != nil {
@@ -411,7 +411,13 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, r
 	// Important: Even login failures can produce a 200 status code, so this
 	// check won't catch all failures
 	if httpResponse.StatusCode != 200 {
-		return fmt.Errorf("got unexpected status code %s from request to advance authentication in CyberArk Identity API", httpResponse.Status)
+		err := fmt.Errorf("got unexpected status code %s from request to advance authentication in CyberArk Identity API", httpResponse.Status)
+		if httpResponse.StatusCode >= 500 || httpResponse.StatusCode < 400 {
+			return err
+		}
+
+		// If we got a 4xx error, we shouldn't retry
+		return backoff.Permanent(err)
 	}
 
 	advanceAuthResponse := advanceAuthenticationResponseBody{}
@@ -430,12 +436,32 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, r
 	}
 
 	if advanceAuthResponse.Result.Summary != SummaryLoginSuccess {
-		return fmt.Errorf("got a %s response from AdvanceAuthentication; this implies that the user account %s requires MFA, which is not supported. Try unlocking MFA for this user", advanceAuthResponse.Result.Summary, username)
+		// IF MFA was enabled and we got here, there's probably nothing to be gained from a retry
+		// and the best thing to do is fail now so the user can fix MFA settings.
+		return backoff.Permanent(fmt.Errorf("got a %s response from AdvanceAuthentication; this implies that the user account %s requires MFA, which is not supported. Try unlocking MFA for this user", advanceAuthResponse.Result.Summary, username))
 	}
 
 	klog.FromContext(ctx).Info("successfully completed AdvanceAuthentication request to CyberArk Identity; login complete", "username", username)
 
+	c.tokenCacheMutex.Lock()
+
 	c.tokenCache[username] = token(advanceAuthResponse.Result.Token)
 
+	c.tokenCacheMutex.Unlock()
+
 	return nil
+}
+
+// setIdentityHeaders sets the headers required for requests to the CyberArk Identity API.
+// From the docs:
+// Your request header must contain X-IDAP-NATIVE-CLIENT:true to indicate that an application is invoking
+// the CyberArk Identity endpoint, and
+// Content-Type: application/json to indicate that the body is in JSON format.
+// Experimentally, it seems the X-IDAP-NATIVE-CLIENT is not required but we'll follow the docs.
+func setIdentityHeaders(r *http.Request) {
+	// The "canonicalheader" linter warns us that the IDAP-NATIVE-CLIENT header isn't canonical, but we silence it here
+	// since we want to exactly match the docs.
+	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("X-IDAP-NATIVE-CLIENT", "true") //nolint: canonicalheader
+	version.SetUserAgent(r)
 }

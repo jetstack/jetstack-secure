@@ -11,15 +11,16 @@ import (
 func Test_IdentityAdvanceAuthentication(t *testing.T) {
 	tests := map[string]struct {
 		username    string
-		advanceBody *advanceAuthenticationRequestBody
+		password    []byte
+		advanceBody advanceAuthenticationRequestBody
 
 		expectedError error
 	}{
 		"success": {
 			username: successUser,
-			advanceBody: &advanceAuthenticationRequestBody{
+			password: []byte(successPassword),
+			advanceBody: advanceAuthenticationRequestBody{
 				Action:          ActionAnswer,
-				Answer:          successPassword,
 				MechanismID:     successMechanismID,
 				SessionID:       successSessionID,
 				TenantID:        "foo",
@@ -30,9 +31,9 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 		},
 		"incorrect password": {
 			username: successUser,
-			advanceBody: &advanceAuthenticationRequestBody{
+			password: []byte("foo"),
+			advanceBody: advanceAuthenticationRequestBody{
 				Action:          ActionAnswer,
-				Answer:          "foo",
 				MechanismID:     successMechanismID,
 				SessionID:       successSessionID,
 				TenantID:        "foo",
@@ -43,9 +44,9 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 		},
 		"bad action": {
 			username: successUser,
-			advanceBody: &advanceAuthenticationRequestBody{
+			password: []byte(successPassword),
+			advanceBody: advanceAuthenticationRequestBody{
 				Action:          "foo",
-				Answer:          successPassword,
 				MechanismID:     successMechanismID,
 				SessionID:       successSessionID,
 				TenantID:        "foo",
@@ -56,9 +57,9 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 		},
 		"bad mechanism id": {
 			username: successUser,
-			advanceBody: &advanceAuthenticationRequestBody{
+			password: []byte(successPassword),
+			advanceBody: advanceAuthenticationRequestBody{
 				Action:          ActionAnswer,
-				Answer:          successPassword,
 				MechanismID:     "foo",
 				SessionID:       successSessionID,
 				TenantID:        "foo",
@@ -69,9 +70,9 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 		},
 		"bad session id": {
 			username: successUser,
-			advanceBody: &advanceAuthenticationRequestBody{
+			password: []byte(successPassword),
+			advanceBody: advanceAuthenticationRequestBody{
 				Action:          ActionAnswer,
-				Answer:          successPassword,
 				MechanismID:     successMechanismID,
 				SessionID:       "foo",
 				TenantID:        "foo",
@@ -82,9 +83,9 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 		},
 		"persistant login not set": {
 			username: successUser,
-			advanceBody: &advanceAuthenticationRequestBody{
+			password: []byte(successPassword),
+			advanceBody: advanceAuthenticationRequestBody{
 				Action:          ActionAnswer,
-				Answer:          successPassword,
 				MechanismID:     successMechanismID,
 				SessionID:       successSessionID,
 				TenantID:        "foo",
@@ -113,7 +114,7 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 				return
 			}
 
-			err = client.doAdvanceAuthentication(ctx, testSpec.username, testSpec.advanceBody)
+			err = client.doAdvanceAuthentication(ctx, testSpec.username, &testSpec.password, testSpec.advanceBody)
 			if testSpec.expectedError != err {
 				if testSpec.expectedError == nil {
 					t.Errorf("didn't expect an error but got %v", err)
