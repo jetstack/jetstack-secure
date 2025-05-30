@@ -6,7 +6,7 @@ github.com/asaskevich/govalidator,https://github.com/asaskevich/govalidator/blob
 github.com/aymerick/douceur,https://github.com/aymerick/douceur/blob/v0.2.0/LICENSE,MIT
 github.com/beorn7/perks/quantile,https://github.com/beorn7/perks/blob/v1.0.1/LICENSE,MIT
 github.com/blang/semver/v4,https://github.com/blang/semver/blob/v4.0.0/v4/LICENSE,MIT
-github.com/cenkalti/backoff,https://github.com/cenkalti/backoff/blob/v2.2.1/LICENSE,MIT
+github.com/cenkalti/backoff/v5,https://github.com/cenkalti/backoff/blob/v5.0.2/LICENSE,MIT
 github.com/cespare/xxhash/v2,https://github.com/cespare/xxhash/blob/v2.3.0/LICENSE.txt,MIT
 github.com/davecgh/go-spew/spew,https://github.com/davecgh/go-spew/blob/d8f796af33cc/LICENSE,ISC
 github.com/emicklei/go-restful/v3,https://github.com/emicklei/go-restful/blob/v3.11.2/LICENSE,MIT
