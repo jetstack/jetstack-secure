@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
 	"github.com/prometheus/client_golang/prometheus"
@@ -330,14 +330,17 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 		backOff := backoff.NewExponentialBackOff()
 		backOff.InitialInterval = 30 * time.Second
 		backOff.MaxInterval = 3 * time.Minute
-		backOff.MaxElapsedTime = config.BackoffMaxTime
-		post := func() error {
-			return postData(klog.NewContext(ctx, log), config, preflightClient, readings)
+
+		post := func() (any, error) {
+			return struct{}{}, postData(klog.NewContext(ctx, log), config, preflightClient, readings)
 		}
-		err := backoff.RetryNotify(post, backOff, func(err error, t time.Duration) {
+
+		notificationFunc := backoff.Notify(func(err error, t time.Duration) {
 			eventf("Warning", "PushingErr", "retrying in %v after error: %s", t, err)
 			log.Info("Warning: PushingErr: retrying", "in", t, "reason", err)
 		})
+
+		_, err := backoff.Retry(ctx, post, backoff.WithBackOff(backOff), backoff.WithNotify(notificationFunc), backoff.WithMaxElapsedTime(config.BackoffMaxTime))
 		if err != nil {
 			return fmt.Errorf("Exiting due to fatal error uploading: %v", err)
 		}
