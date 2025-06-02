@@ -4,7 +4,7 @@ go 1.23.4
 
 require (
 	github.com/Venafi/vcert/v5 v5.8.1
-	github.com/cenkalti/backoff v2.2.1+incompatible
+	github.com/cenkalti/backoff/v5 v5.0.2
 	github.com/d4l3k/messagediff v1.2.1
 	github.com/fatih/color v1.17.0
 	github.com/google/uuid v1.6.0
