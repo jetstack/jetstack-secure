@@ -96,7 +96,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--period", "99m", "--credentials-file", fakeCredsPath))
 		require.NoError(t, err)
 		assert.Equal(t, testutil.Undent(`
-			INFO Authentication mode mode="Jetstack Secure OAuth" reason="--credentials-file was specified without --venafi-cloud"
+			INFO Configured to push to Venafi mode="Jetstack Secure OAuth" reason="--credentials-file was specified without --venafi-cloud"
 			INFO Both the 'period' field and --period are set. Using the value provided with --period.
 		`), gotLogs.String())
 		assert.Equal(t, 99*time.Minute, got.Period)
@@ -178,7 +178,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 
 		// The log line printed by pflag is not captured by the log recorder.
 		assert.Equal(t, testutil.Undent(`
-			INFO Authentication mode mode="Jetstack Secure OAuth" reason="--credentials-file was specified without --venafi-cloud"
+			INFO Configured to push to Venafi mode="Jetstack Secure OAuth" reason="--credentials-file was specified without --venafi-cloud"
 			INFO Using period from config period="1h0m0s"
 		`), b.String())
 	})
@@ -194,12 +194,13 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withoutCmdLineFlags(),
 		)
 		assert.EqualError(t, err, testutil.Undent(`
-			no auth mode specified. You can use one of four auth modes:
+			no TLSPK mode specified and MachineHub mode is disabled. You must either enable the MachineHub mode (using --machine-hub), or enable one of the TLSPK modes.
+			To enable one of the TLSPK modes, you can:
 			 - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the Venafi Cloud Key Pair Service Account mode.
 			 - Use --venafi-connection for the Venafi Cloud VenafiConnection mode.
 			 - Use --credentials-file alone if you want to use the Jetstack Secure OAuth mode.
 			 - Use --api-token if you want to use the Jetstack Secure API Token mode.
-		`))
+			Note that it is possible to use one of the TLSPK modes along with the MachineHub mode (--machine-hub).`))
 		assert.Nil(t, cl)
 	})
 
@@ -227,7 +228,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--credentials-file", credsPath),
 		)
 		expect := CombinedConfig{
-			AuthMode:  "Jetstack Secure OAuth",
+			TLSPKMode: "Jetstack Secure OAuth",
 			ClusterID: "example-cluster",
 			DataGatherers: []DataGatherer{{Kind: "dummy",
 				Name:   "d1",
@@ -276,7 +277,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			InputPath:      "/home",
 			OutputPath:     "/nothome",
 			UploadPath:     "/testing/path",
-			AuthMode:       VenafiCloudKeypair,
+			TLSPKMode:      VenafiCloudKeypair,
 			ClusterID:      "the cluster name",
 			BackoffMaxTime: 99 * time.Minute,
 			InstallNS:      "venafi",
@@ -300,7 +301,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath),
 		)
 		require.NoError(t, err)
-		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
+		assert.Equal(t, VenafiCloudKeypair, got.TLSPKMode)
 		assert.IsType(t, &client.VenafiCloudClient{}, cl)
 	})
 
@@ -389,7 +390,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				`)),
 			withCmdLineFlags("--credentials-file", path))
 		require.NoError(t, err)
-		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, OrganizationID: "foo", ClusterID: "bar", AuthMode: JetstackSecureOAuth, BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
+		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, OrganizationID: "foo", ClusterID: "bar", TLSPKMode: JetstackSecureOAuth, BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
 		assert.IsType(t, &client.OAuthClient{}, cl)
 	})
 
@@ -468,7 +469,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			`)),
 			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", path))
 		require.NoError(t, err)
-		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, AuthMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
+		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, TLSPKMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
 		assert.IsType(t, &client.VenafiCloudClient{}, cl)
 	})
 
@@ -490,7 +491,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			`)),
 			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath))
 		require.NoError(t, err)
-		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, AuthMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
+		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, TLSPKMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
 	})
 
 	t.Run("venafi-cloud-keypair-auth: venafi-cloud.upload_path field is required", func(t *testing.T) {
@@ -567,7 +568,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		assert.Equal(t, CombinedConfig{
 			Period:         1 * time.Hour,
 			ClusterID:      "the cluster name",
-			AuthMode:       VenafiCloudVenafiConnection,
+			TLSPKMode:      VenafiCloudVenafiConnection,
 			VenConnName:    "venafi-components",
 			VenConnNS:      "venafi",
 			InstallNS:      "venafi",
@@ -593,13 +594,13 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		)
 		require.NoError(t, err)
 		assert.Equal(t, testutil.Undent(`
-			INFO Authentication mode venConnName="venafi-components" mode="Venafi Cloud VenafiConnection" reason="--venafi-connection was specified"
+			INFO Configured to push to Venafi venConnName="venafi-components" mode="Venafi Cloud VenafiConnection" reason="--venafi-connection was specified"
 			INFO ignoring the server field specified in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
 			INFO ignoring the venafi-cloud.upload_path field in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
 			INFO ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in Venafi Cloud VenafiConnection mode.
 			INFO Using period from config period="1h0m0s"
 		`), gotLogs.String())
-		assert.Equal(t, VenafiCloudVenafiConnection, got.AuthMode)
+		assert.Equal(t, VenafiCloudVenafiConnection, got.TLSPKMode)
 		assert.IsType(t, &client.VenConnClient{}, gotCl)
 	})
 
@@ -614,7 +615,43 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			`)),
 			withCmdLineFlags("--venafi-connection", "venafi-components"))
 		require.NoError(t, err)
-		assert.Equal(t, VenafiCloudVenafiConnection, got.AuthMode)
+		assert.Equal(t, VenafiCloudVenafiConnection, got.TLSPKMode)
+	})
+
+	t.Run("machinehub only: username and password", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
+		got, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				machineHub:
+				  subdomain: foo
+				  credentialsSecretName: secret-1
+				period: 1h
+			`)),
+			withCmdLineFlags("--machine-hub"))
+		require.NoError(t, err)
+		assert.Equal(t, Off, got.TLSPKMode)
+		assert.Equal(t, true, got.MachineHubMode)
+	})
+
+	t.Run("machinehub + venafi-cloud-keypair-auth should work simultanously", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		got, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				machineHub:
+				  subdomain: foo
+				  credentialsSecretName: secret-1
+				period: 1h
+				venafi-cloud:
+				  upload_path: /v1/tlspk/upload/clusterdata
+				cluster_id: foo
+			`)),
+			withCmdLineFlags("--machine-hub", "--venafi-cloud", "--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath))
+		require.NoError(t, err)
+		assert.Equal(t, VenafiCloudKeypair, got.TLSPKMode)
+		assert.Equal(t, true, got.MachineHubMode)
 	})
 }
 
@@ -653,7 +690,7 @@ func Test_ValidateAndCombineConfig_VenafiCloudKeyPair(t *testing.T) {
 		)
 		require.NoError(t, err)
 		testutil.TrustCA(t, cl, cert)
-		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
+		assert.Equal(t, VenafiCloudKeypair, got.TLSPKMode)
 
 		err = cl.PostDataReadingsWithOptions(ctx, nil, client.Options{ClusterName: "test cluster name"})
 		require.NoError(t, err)
