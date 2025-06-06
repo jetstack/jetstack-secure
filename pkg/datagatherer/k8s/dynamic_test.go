@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 
@@ -968,8 +967,7 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			var wg sync.WaitGroup
 			ctx := context.Background()
 
-			var clientset kubernetes.Interface
-			clientset = fakeclientset.NewSimpleClientset(tc.addObjects...)
+			clientset := fakeclientset.NewSimpleClientset(tc.addObjects...)
 
 			// init the datagatherer's informer with the client
 			dg, err := tc.config.newDataGathererWithClient(ctx, nil, clientset)

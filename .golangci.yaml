@@ -17,7 +17,6 @@ linters:
           - nilerr
           - noctx
           - predeclared
-          - staticcheck
           - unconvert
           - unparam
           - usestdlibvars

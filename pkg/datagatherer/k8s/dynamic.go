@@ -76,27 +76,27 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // validate validates the configuration.
 func (c *ConfigDynamic) validate() error {
-	var errors []string
+	var errs []string
 	if len(c.ExcludeNamespaces) > 0 && len(c.IncludeNamespaces) > 0 {
-		errors = append(errors, "cannot set excluded and included namespaces")
+		errs = append(errs, "cannot set excluded and included namespaces")
 	}
 
 	if c.GroupVersionResource.Resource == "" {
-		errors = append(errors, "invalid configuration: GroupVersionResource.Resource cannot be empty")
+		errs = append(errs, "invalid configuration: GroupVersionResource.Resource cannot be empty")
 	}
 
 	for i, selectorString := range c.FieldSelectors {
 		if selectorString == "" {
-			errors = append(errors, fmt.Sprintf("invalid field selector %d: must not be empty", i))
+			errs = append(errs, fmt.Sprintf("invalid field selector %d: must not be empty", i))
 		}
 		_, err := fields.ParseSelector(selectorString)
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("invalid field selector %d: %s", i, err))
+			errs = append(errs, fmt.Sprintf("invalid field selector %d: %s", i, err))
 		}
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, ", "))
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, ", "))
 	}
 
 	return nil

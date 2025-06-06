@@ -115,7 +115,7 @@ func (mis *mockIdentityServer) handleStartAuthentication(w http.ResponseWriter, 
 
 	if err := checkRequestHeaders(r); err != nil {
 		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"message":"issues with headers sent to mock server: %s"}`, err.Error())))
+		fmt.Fprintf(w, `{"message":"issues with headers sent to mock server: %s"}`, err.Error())
 		return
 	}
 
@@ -126,7 +126,7 @@ func (mis *mockIdentityServer) handleStartAuthentication(w http.ResponseWriter, 
 
 	if err := decoder.Decode(&reqBody); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"message":"failed to unmarshal request body: %s"}`, err)))
+		fmt.Fprintf(w, `{"message":"failed to unmarshal request body: %s"}`, err)
 		return
 	}
 
@@ -172,7 +172,7 @@ func (mis *mockIdentityServer) handleAdvanceAuthentication(w http.ResponseWriter
 
 	if err := checkRequestHeaders(r); err != nil {
 		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"message":"issues with headers sent to mock server: %s"}`, err.Error())))
+		fmt.Fprintf(w, `{"message":"issues with headers sent to mock server: %s"}`, err.Error())
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -182,7 +182,7 @@ func (mis *mockIdentityServer) handleAdvanceAuthentication(w http.ResponseWriter
 
 	if err := decoder.Decode(&advanceBody); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"message":"failed to unmarshal request body: %s"}`, err)))
+		fmt.Fprintf(w, `{"message":"failed to unmarshal request body: %s"}`, err)
 		return
 	}
 
