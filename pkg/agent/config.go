@@ -350,7 +350,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 }
 
 // TLSPKMode controls how to authenticate to TLSPK / Jetstack Secure. Only one
-// TLSPKMode may be provided if using using those backends.
+// TLSPKMode may be provided if using those backends.
 type TLSPKMode string
 
 const (
@@ -738,11 +738,11 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		var creds client.Credentials
 
 		if flagClientID != "" && flagCredentialsPath != "" {
-			errs = multierror.Append(errs, fmt.Errorf("--client-id and --credentials-file cannot be used simultanously"))
+			errs = multierror.Append(errs, fmt.Errorf("--client-id and --credentials-file cannot be used simultaneously"))
 			break
 		}
 		if flagPrivateKeyPath != "" && flagCredentialsPath != "" {
-			errs = multierror.Append(errs, fmt.Errorf("--private-key-path and --credentials-file cannot be used simultanously"))
+			errs = multierror.Append(errs, fmt.Errorf("--private-key-path and --credentials-file cannot be used simultaneously"))
 			break
 		}
 		if flagClientID == "" && flagPrivateKeyPath == "" && flagCredentialsPath == "" {

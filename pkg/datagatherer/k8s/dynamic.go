@@ -473,7 +473,7 @@ func RemoveUnstructuredKeys(excludeKeys []*regexp.Regexp, obj *unstructured.Unst
 		return
 	}
 
-	// The field may be nil since yaml.Unmarshal's omitempty might not be set on
+	// The field may be nil since yaml.Unmarshal's omitempty might not be set
 	// on this struct field.
 	if annotsRaw == nil {
 		return

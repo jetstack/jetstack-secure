@@ -24,7 +24,7 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 				MechanismID:     successMechanismID,
 				SessionID:       successSessionID,
 				TenantID:        "foo",
-				PersistantLogin: true,
+				PersistentLogin: true,
 			},
 
 			expectedError: nil,
@@ -37,7 +37,7 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 				MechanismID:     successMechanismID,
 				SessionID:       successSessionID,
 				TenantID:        "foo",
-				PersistantLogin: true,
+				PersistentLogin: true,
 			},
 
 			expectedError: fmt.Errorf(`got a failure response from request to advance authentication: message="Authentication (login or challenge) has failed. Please try again or contact your system administrator.", error="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:55555555555555555555555555555555"`),
@@ -50,7 +50,7 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 				MechanismID:     successMechanismID,
 				SessionID:       successSessionID,
 				TenantID:        "foo",
-				PersistantLogin: true,
+				PersistentLogin: true,
 			},
 
 			expectedError: fmt.Errorf(`got a failure response from request to advance authentication: message="Authentication (login or challenge) has failed. Please try again or contact your system administrator.", error="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:55555555555555555555555555555555"`),
@@ -63,7 +63,7 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 				MechanismID:     "foo",
 				SessionID:       successSessionID,
 				TenantID:        "foo",
-				PersistantLogin: true,
+				PersistentLogin: true,
 			},
 
 			expectedError: fmt.Errorf(`got a failure response from request to advance authentication: message="Authentication (login or challenge) has failed. Please try again or contact your system administrator.", error="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:55555555555555555555555555555555"`),
@@ -76,12 +76,12 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 				MechanismID:     successMechanismID,
 				SessionID:       "foo",
 				TenantID:        "foo",
-				PersistantLogin: true,
+				PersistentLogin: true,
 			},
 
 			expectedError: fmt.Errorf(`got a failure response from request to advance authentication: message="Authentication (login or challenge) has failed. Please try again or contact your system administrator.", error="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:55555555555555555555555555555555"`),
 		},
-		"persistant login not set": {
+		"persistent login not set": {
 			username: successUser,
 			password: []byte(successPassword),
 			advanceBody: advanceAuthenticationRequestBody{
@@ -89,7 +89,7 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 				MechanismID:     successMechanismID,
 				SessionID:       successSessionID,
 				TenantID:        "foo",
-				PersistantLogin: false,
+				PersistentLogin: false,
 			},
 
 			expectedError: fmt.Errorf("got unexpected status code 403 Forbidden from request to advance authentication in CyberArk Identity API"),

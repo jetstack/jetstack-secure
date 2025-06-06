@@ -111,7 +111,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		}
 
 		// Health check endpoint. Since we haven't figured a good way of knowning
-		// what "ready" means for the agent, we just return 200 OK inconditionally.
+		// what "ready" means for the agent, we just return 200 OK unconditionally.
 		// The goal is to satisfy some Kubernetes distributions, like OpenShift,
 		// that require a liveness and health probe to be present for each pod.
 		log.Info("Healthz endpoints enabled", "path", "/healthz")

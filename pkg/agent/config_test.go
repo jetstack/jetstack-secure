@@ -634,7 +634,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		assert.Equal(t, true, got.MachineHubMode)
 	})
 
-	t.Run("machinehub + venafi-cloud-keypair-auth should work simultanously", func(t *testing.T) {
+	t.Run("machinehub + venafi-cloud-keypair-auth should work simultaneously", func(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
 		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
 		privKeyPath := withFile(t, fakePrivKeyPEM)

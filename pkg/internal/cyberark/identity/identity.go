@@ -156,9 +156,9 @@ type advanceAuthenticationRequestBody struct {
 	// get the Identity API URL, but we set it anyway to be explicit.
 	TenantID string `json:"TenantId"`
 
-	// PersistantLogin is documented to "[indicate] whether the session should persist after the user
+	// PersistentLogin is documented to "[indicate] whether the session should persist after the user
 	// closes the browser"; for service-to-service auth which we're trying to do, we set this to true.
-	PersistantLogin bool `json:"PersistantLogin"`
+	PersistentLogin bool `json:"PersistentLogin"`
 }
 
 // advanceAuthenticationResponseResult is the specific information returned for a successful AdvanceAuthentication call
@@ -370,7 +370,7 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 	response.MechanismID = mechanism.MechanismID
 	response.SessionID = startAuthResponse.Result.SessionID
 	response.TenantID = c.subdomain
-	response.PersistantLogin = true
+	response.PersistentLogin = true
 
 	return response, nil
 }

@@ -7,14 +7,12 @@ linters:
     rules:
       - linters:
           - bodyclose
-          - dupword
           - errcheck
           - errchkjson
           - forbidigo
           - gocritic
           - gosec
           - govet
-          - misspell
           - musttag
           - nilerr
           - noctx

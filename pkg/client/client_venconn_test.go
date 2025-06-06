@@ -300,6 +300,8 @@ func run_TestVenConnClient_PostDataReadingsWithOptions(ctx context.Context, rest
 //	sub-test-has-special-chars-and-is-also-super-super-super-super-
 //
 // Only the last part of the test name is used.
+//
+// nolint:dupword
 func testNameToNamespace(t testing.TB) string {
 	regex := regexp.MustCompile("[^a-zA-Z0-9-]")
 
