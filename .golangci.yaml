@@ -9,7 +9,6 @@ linters:
           - errchkjson
           - forbidigo
           - gosec
-          - govet
           - musttag
           - nilerr
           - unparam
