@@ -667,7 +667,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(cl, 10*time.Minute, metav1.NamespaceAll, nil)
 			resourceInformer := factory.ForResource(tc.config.GroupVersionResource)
 			testInformer := resourceInformer.Informer()
-			testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
+			_, err = testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 				DeleteFunc: func(obj interface{}) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
@@ -677,6 +677,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 					time.Sleep(100 * time.Millisecond)
 				},
 			})
+			require.NoError(t, err)
 			//start test Informer
 			factory.Start(ctx.Done())
 			k8scache.WaitForCacheSync(ctx.Done(), testInformer.HasSynced)
@@ -983,7 +984,7 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 				informers.WithNamespace(metav1.NamespaceAll),
 				informers.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 			testInformer := factory.Core().V1().Pods().Informer()
-			testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
+			_, err = testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 				DeleteFunc: func(obj interface{}) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
@@ -993,6 +994,7 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 					time.Sleep(100 * time.Millisecond)
 				},
 			})
+			require.NoError(t, err)
 
 			//start test Informer
 			factory.Start(ctx.Done())

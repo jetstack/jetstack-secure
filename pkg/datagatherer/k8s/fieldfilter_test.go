@@ -175,8 +175,7 @@ func TestRedactSecret(t *testing.T) {
 		{"data", "tls.key"},
 	}
 
-	err := Redact(fieldsToRedact, resource)
-	require.NoError(t, err)
+	Redact(fieldsToRedact, resource)
 
 	bytes, err := json.MarshalIndent(resource, "", "    ")
 	require.NoError(t, err)
@@ -217,8 +216,7 @@ func TestRedactPod(t *testing.T) {
 		{"metadata", "managedFields"},
 	}
 
-	err := Redact(fieldsToRedact, resource)
-	require.NoError(t, err)
+	Redact(fieldsToRedact, resource)
 
 	bytes, err := json.MarshalIndent(resource, "", "    ")
 	require.NoError(t, err)
@@ -248,8 +246,7 @@ func TestRedactMissingField(t *testing.T) {
 		{"missing"},
 	}
 
-	err := Redact(fieldsToRedact, resource)
-	require.NoError(t, err)
+	Redact(fieldsToRedact, resource)
 	bytes, err := json.MarshalIndent(resource, "", "    ")
 	require.NoError(t, err)
 

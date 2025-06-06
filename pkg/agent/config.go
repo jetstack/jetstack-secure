@@ -232,7 +232,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		false,
 		fmt.Sprintf("Turns on the %s mode. The flag --credentials-file must also be passed.", JetstackSecureOAuth),
 	)
-	c.PersistentFlags().MarkHidden("venafi-cloud")
+	_ = c.PersistentFlags().MarkHidden("venafi-cloud")
 	c.PersistentFlags().StringVarP(
 		&cfg.ClientID,
 		"client-id",
@@ -334,7 +334,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		false,
 		"Deprecated. No longer has an effect.",
 	)
-	c.PersistentFlags().MarkDeprecated("disable-compression", "no longer has an effect")
+	_ = c.PersistentFlags().MarkDeprecated("disable-compression", "no longer has an effect")
 
 	// This is a hidden feature flag we use to build the "Machine Hub" feature
 	// gradually without impacting customers. Once the feature is GA, we will
@@ -345,7 +345,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		false,
 		"Enables the MachineHub mode. The agent will push data to CyberArk MachineHub.",
 	)
-	c.PersistentFlags().MarkHidden("machine-hub")
+	_ = c.PersistentFlags().MarkHidden("machine-hub")
 
 }
 

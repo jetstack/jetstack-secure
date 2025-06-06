@@ -371,11 +371,15 @@ func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys
 			for _, gvk := range gvks {
 				// secret object
 				if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
-					Select(SecretSelectedFields, resource)
+					if err := Select(SecretSelectedFields, resource); err != nil {
+						return err
+					}
 
 					// route object
 				} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io" {
-					Select(RouteSelectedFields, resource)
+					if err := Select(RouteSelectedFields, resource); err != nil {
+						return err
+					}
 				}
 			}
 
