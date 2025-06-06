@@ -71,7 +71,7 @@ type (
 	}
 
 	accessTokenInformation struct {
-		AccessToken string `json:"access_token"` //base 64 encoded token
+		AccessToken string `json:"access_token"` // base 64 encoded token
 		Type        string `json:"token_type"`   // always be “bearer” for now
 		ExpiresIn   int64  `json:"expires_in"`   // number of seconds after which the access token will expire
 	}

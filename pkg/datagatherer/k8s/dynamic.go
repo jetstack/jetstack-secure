@@ -329,7 +329,7 @@ func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
 		fetchNamespaces = []string{metav1.NamespaceAll}
 	}
 
-	//delete expired items from the cache
+	// delete expired items from the cache
 	g.cache.DeleteExpired()
 	for _, item := range g.cache.Items() {
 		// filter cache items by namespace

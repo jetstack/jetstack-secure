@@ -750,14 +750,15 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			break
 		}
 
-		if flagClientID != "" && flagPrivateKeyPath != "" {
+		switch {
+		case flagClientID != "" && flagPrivateKeyPath != "":
 			// If --client-id and --private-key-path are passed, then
 			// --credentials-file is ignored.
 			creds = &client.VenafiSvcAccountCredentials{
 				ClientID:       flagClientID,
 				PrivateKeyFile: flagPrivateKeyPath,
 			}
-		} else if flagCredentialsPath != "" {
+		case flagCredentialsPath != "":
 			credsBytes, err := readCredentialsFile(flagCredentialsPath)
 			if err != nil {
 				errs = multierror.Append(errs, multierror.Prefix(err, "credentials file:"))
@@ -768,7 +769,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 				errs = multierror.Append(errs, multierror.Prefix(err, "credentials file:"))
 				break // Don't continue with the client since creds is invalid.
 			}
-		} else {
+		default:
 			return nil, fmt.Errorf("programmer mistake: --client-id and --private-key-path or --credentials-file must have been provided")
 		}
 

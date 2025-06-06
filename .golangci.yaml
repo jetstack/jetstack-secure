@@ -8,7 +8,6 @@ linters:
       - linters:
           - errchkjson
           - forbidigo
-          - gocritic
           - gosec
           - govet
           - musttag

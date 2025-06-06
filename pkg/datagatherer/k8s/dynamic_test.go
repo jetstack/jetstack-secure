@@ -678,7 +678,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				},
 			})
 			require.NoError(t, err)
-			//start test Informer
+			// start test Informer
 			factory.Start(ctx.Done())
 			k8scache.WaitForCacheSync(ctx.Done(), testInformer.HasSynced)
 
@@ -996,7 +996,7 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			//start test Informer
+			// start test Informer
 			factory.Start(ctx.Done())
 			k8scache.WaitForCacheSync(ctx.Done(), testInformer.HasSynced)
 			dgd := dg.(*DataGathererDynamic)
