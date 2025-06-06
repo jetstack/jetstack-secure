@@ -15,7 +15,6 @@ linters:
           - musttag
           - nilerr
           - noctx
-          - predeclared
           - unparam
         text: .*
     paths: [third_party$, builtin$, examples$]

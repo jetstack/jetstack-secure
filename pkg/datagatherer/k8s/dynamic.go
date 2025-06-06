@@ -221,8 +221,8 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		AddFunc: func(obj interface{}) {
 			onAdd(log, obj, dgCache)
 		},
-		UpdateFunc: func(old, new interface{}) {
-			onUpdate(log, old, new, dgCache)
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			onUpdate(log, oldObj, newObj, dgCache)
 		},
 		DeleteFunc: func(obj interface{}) {
 			onDelete(log, obj, dgCache)

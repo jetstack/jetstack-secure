@@ -56,14 +56,14 @@ func onAdd(log logr.Logger, obj interface{}, dgCache *cache.Cache) {
 // onUpdate handles the informer update events, replacing the old object with the new one
 // if it's present in the data gatherer's cache, (if the object isn't present, it gets added).
 // The cache key is the uid of the object
-func onUpdate(log logr.Logger, old, new interface{}, dgCache *cache.Cache) {
-	item, ok := old.(cacheResource)
+func onUpdate(log logr.Logger, oldObj, newObj interface{}, dgCache *cache.Cache) {
+	item, ok := oldObj.(cacheResource)
 	if ok {
-		cacheObject := updateCacheGatheredResource(string(item.GetUID()), new, dgCache)
+		cacheObject := updateCacheGatheredResource(string(item.GetUID()), newObj, dgCache)
 		dgCache.Set(string(item.GetUID()), cacheObject, cache.DefaultExpiration)
 		return
 	}
-	logCacheUpdateFailure(log, old, "update")
+	logCacheUpdateFailure(log, oldObj, "update")
 }
 
 // onDelete handles the informer deletion events, updating the object's properties with the deletion

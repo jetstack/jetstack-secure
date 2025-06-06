@@ -672,7 +672,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
-				UpdateFunc: func(old, new interface{}) {
+				UpdateFunc: func(oldObj, newObj interface{}) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
@@ -718,8 +718,8 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 
 			for ns, update := range tc.updateObjects {
 				wg.Add(1)
-				new := update.(*unstructured.Unstructured)
-				_, err := cl.Resource(tc.config.GroupVersionResource).Namespace(ns).Update(ctx, new, metav1.UpdateOptions{})
+				newObj := update.(*unstructured.Unstructured)
+				_, err := cl.Resource(tc.config.GroupVersionResource).Namespace(ns).Update(ctx, newObj, metav1.UpdateOptions{})
 				if err != nil {
 					t.Fatalf("unexpected client update error: %+v", err)
 				}
@@ -988,7 +988,7 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
-				UpdateFunc: func(old, new interface{}) {
+				UpdateFunc: func(oldObj, newObj interface{}) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
@@ -1033,8 +1033,8 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 
 			for ns, update := range tc.updateObjects {
 				wg.Add(1)
-				new := update.(*corev1.Pod)
-				_, err := clientset.CoreV1().Pods(ns).Update(ctx, new, metav1.UpdateOptions{})
+				newObj := update.(*corev1.Pod)
+				_, err := clientset.CoreV1().Pods(ns).Update(ctx, newObj, metav1.UpdateOptions{})
 				if err != nil {
 					t.Fatalf("unexpected client update error: %+v", err)
 				}
