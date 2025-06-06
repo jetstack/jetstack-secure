@@ -186,7 +186,7 @@ func (c *OAuthClient) renewAccessToken(ctx context.Context) error {
 	payload.Set("audience", audience)
 	payload.Set("username", c.credentials.UserID)
 	payload.Set("password", c.credentials.UserSecret)
-	req, err := http.NewRequestWithContext(ctx, "POST", tokenURL, strings.NewReader(payload.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(payload.Encode()))
 	if err != nil {
 		return errors.WithStack(err)
 	}

@@ -299,7 +299,7 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 
 	defer httpResponse.Body.Close()
 
-	if httpResponse.StatusCode != 200 {
+	if httpResponse.StatusCode != http.StatusOK {
 		err := fmt.Errorf("got unexpected status code %s from request to start authentication in CyberArk Identity API", httpResponse.Status)
 		if httpResponse.StatusCode >= 500 || httpResponse.StatusCode < 400 {
 			return response, err
@@ -410,7 +410,7 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 
 	// Important: Even login failures can produce a 200 status code, so this
 	// check won't catch all failures
-	if httpResponse.StatusCode != 200 {
+	if httpResponse.StatusCode != http.StatusOK {
 		err := fmt.Errorf("got unexpected status code %s from request to advance authentication in CyberArk Identity API", httpResponse.Status)
 		if httpResponse.StatusCode >= 500 || httpResponse.StatusCode < 400 {
 			return err

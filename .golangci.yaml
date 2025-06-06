@@ -18,7 +18,6 @@ linters:
           - noctx
           - predeclared
           - unparam
-          - usestdlibvars
         text: .*
     paths: [third_party$, builtin$, examples$]
     warn-unused: true
