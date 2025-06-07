@@ -426,11 +426,9 @@ type CombinedConfig struct {
 // error.
 func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) (CombinedConfig, client.Client, error) {
 	res := CombinedConfig{}
-	var errs error
 
 	if flags.MachineHubMode {
-		err := cfg.MachineHub.Validate()
-		if err != nil {
+		if err := cfg.MachineHub.Validate(); err != nil {
 			return CombinedConfig{}, nil, fmt.Errorf("invalid MachineHub config provided: %w", err)
 		}
 
@@ -453,14 +451,17 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			mode = VenafiCloudKeypair
 			reason = "--venafi-cloud and --credentials-path were specified"
 			keysAndValues = []any{"credentialsPath", flags.CredentialsPath}
-		case flags.ClientID != "" && flags.PrivateKeyPath != "":
+		case flags.ClientID != "" || flags.PrivateKeyPath != "":
+			if flags.PrivateKeyPath == "" {
+				return CombinedConfig{}, nil, fmt.Errorf("if --client-id is specified, --private-key-path must also be specified")
+			}
+			if flags.ClientID == "" {
+				return CombinedConfig{}, nil, fmt.Errorf("--private-key-path is specified, --client-id must also be specified")
+			}
+
 			mode = VenafiCloudKeypair
 			reason = "--client-id and --private-key-path were specified"
 			keysAndValues = []any{"clientID", flags.ClientID, "privateKeyPath", flags.PrivateKeyPath}
-		case flags.ClientID != "":
-			return CombinedConfig{}, nil, fmt.Errorf("if --client-id is specified, --private-key-path must also be specified")
-		case flags.PrivateKeyPath != "":
-			return CombinedConfig{}, nil, fmt.Errorf("--private-key-path is specified, --client-id must also be specified")
 		case flags.VenConnName != "":
 			mode = VenafiCloudVenafiConnection
 			reason = "--venafi-connection was specified"
@@ -492,6 +493,8 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 
 		res.TLSPKMode = mode
 	}
+
+	var errs error
 
 	// Validation and defaulting of `server` and the deprecated `endpoint.path`.
 	if res.TLSPKMode != Off {
@@ -584,12 +587,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		var clusterID string
 		var organizationID string // Only used by the old jetstack-secure mode.
 		switch res.TLSPKMode {    // nolint:exhaustive
-		case VenafiCloudKeypair:
-			if cfg.ClusterID == "" {
-				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.TLSPKMode))
-			}
-			clusterID = cfg.ClusterID
-		case VenafiCloudVenafiConnection:
+		case VenafiCloudKeypair, VenafiCloudVenafiConnection:
 			if cfg.ClusterID == "" {
 				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.TLSPKMode))
 			}
@@ -609,8 +607,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		res.ClusterDescription = cfg.ClusterDescription
 
 		// Validation of `data-gatherers`.
-		dgErr := ValidateDataGatherers(cfg.DataGatherers)
-		if dgErr != nil {
+		if dgErr := ValidateDataGatherers(cfg.DataGatherers); dgErr != nil {
 			errs = multierror.Append(errs, dgErr)
 		}
 		res.DataGatherers = cfg.DataGatherers
@@ -736,12 +733,12 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			break // Don't continue with the client if credentials file invalid.
 		}
 
-		preflightClient, err = createCredentialClient(log, creds, cfg, metadata)
+		preflightClient, err = client.NewOAuthClient(metadata, creds, cfg.Server)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
 	case VenafiCloudKeypair:
-		var creds client.Credentials
+		var creds *client.VenafiSvcAccountCredentials
 
 		if flagClientID != "" && flagCredentialsPath != "" {
 			errs = multierror.Append(errs, fmt.Errorf("--client-id and --credentials-file cannot be used simultaneously"))
@@ -779,8 +776,16 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			return nil, fmt.Errorf("programmer mistake: --client-id and --private-key-path or --credentials-file must have been provided")
 		}
 
+		// The uploader ID isn't actually used in the backend, let's use an
+		// arbitrary value.
+		uploaderID := "no"
+
+		// We don't do this for the VenafiCloudVenafiConnection mode because
+		// the upload_path field is ignored in that mode.
+		log.Info("Loading upload_path from \"venafi-cloud\" configuration.")
+
 		var err error
-		preflightClient, err = createCredentialClient(log, creds, cfg, metadata)
+		preflightClient, err = client.NewVenafiCloudClient(metadata, creds, cfg.Server, uploaderID, cfg.UploadPath)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
@@ -834,31 +839,6 @@ func ValidateDataGatherers(dataGatherers []DataGatherer) error {
 	}
 
 	return err
-}
-
-// The error returned may be a multierror.Error. Instead of adding context to
-// the error with fmt.Errorf("%w", err), use multierror.Prefix(err, "context").
-func createCredentialClient(log logr.Logger, credentials client.Credentials, cfg CombinedConfig, agentMetadata *api.AgentMetadata) (client.Client, error) {
-	switch creds := credentials.(type) {
-	case *client.VenafiSvcAccountCredentials:
-		// The uploader ID isn't actually used in the backend, let's use an
-		// arbitrary value.
-		uploaderID := "no"
-
-		var uploadPath string
-		if cfg.TLSPKMode == VenafiCloudKeypair {
-			// We don't do this for the VenafiCloudVenafiConnection mode because
-			// the upload_path field is ignored in that mode.
-			log.Info("Loading upload_path from \"venafi-cloud\" configuration.")
-			uploadPath = cfg.UploadPath
-		}
-		return client.NewVenafiCloudClient(agentMetadata, creds, cfg.Server, uploaderID, uploadPath)
-
-	case *client.OAuthCredentials:
-		return client.NewOAuthClient(agentMetadata, creds, cfg.Server)
-	default:
-		return nil, errors.New("credentials file is in unknown format")
-	}
 }
 
 // Inspired by the controller-runtime project.
