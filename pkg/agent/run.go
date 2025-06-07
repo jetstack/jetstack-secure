@@ -191,7 +191,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 			// blocks until the supplied channel is closed.
 			// For this reason, we must allow these errgroup Go routines to exit
 			// without cancelling the other Go routines in the group.
-			if err := newDg.Run(gctx.Done()); err != nil {
+			if err := newDg.Run(gctx); err != nil {
 				return fmt.Errorf("failed to start %q data gatherer %q: %v", kind, dgConfig.Name, err)
 			}
 			return nil
@@ -220,7 +220,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		// wait for the informer to complete an initial sync, we do this to
 		// attempt to have an initial set of data for the first upload of
 		// the run.
-		if err := dg.WaitForCacheSync(bootCtx.Done()); err != nil {
+		if err := dg.WaitForCacheSync(bootCtx); err != nil {
 			// log sync failure, this might recover in future
 			if errors.Is(err, k8s.ErrCacheSyncTimeout) {
 				timedoutDGs = append(timedoutDGs, dgConfig.Name)

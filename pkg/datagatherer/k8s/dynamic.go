@@ -181,7 +181,6 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	dgCache := cache.New(5*time.Minute, 30*time.Second)
 
 	newDataGatherer := &DataGathererDynamic{
-		ctx:                  ctx,
 		groupVersionResource: c.GroupVersionResource,
 		fieldSelector:        fieldSelector.String(),
 		namespaces:           c.IncludeNamespaces,
@@ -217,7 +216,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		newDataGatherer.informer = factory.ForResource(c.GroupVersionResource).Informer()
 	}
 
-	registration, err := newDataGatherer.informer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
+	registration, err := newDataGatherer.informer.AddEventHandlerWithOptions(k8scache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			onAdd(log, obj, dgCache)
 		},
@@ -227,6 +226,8 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		DeleteFunc: func(obj interface{}) {
 			onDelete(log, obj, dgCache)
 		},
+	}, k8scache.HandlerOptions{
+		Logger: &log,
 	})
 	if err != nil {
 		return nil, err
@@ -243,7 +244,6 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 // This is to allow us to support arbitrary CRDs and resources that Preflight
 // does not have registered as part of its `runtime.Scheme`.
 type DataGathererDynamic struct {
-	ctx context.Context
 	// groupVersionResource is the name of the API group, version and resource
 	// that should be fetched by this data gatherer.
 	groupVersionResource schema.GroupVersionResource
@@ -269,8 +269,8 @@ type DataGathererDynamic struct {
 // Run starts the dynamic data gatherer's informers for resource collection.
 // Returns error if the data gatherer informer wasn't initialized, Run blocks
 // until the stopCh is closed.
-func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
-	log := klog.FromContext(g.ctx)
+func (g *DataGathererDynamic) Run(ctx context.Context) error {
+	log := klog.FromContext(ctx)
 	if g.informer == nil {
 		return fmt.Errorf("informer was not initialized, impossible to start")
 	}
@@ -288,7 +288,7 @@ func (g *DataGathererDynamic) Run(stopCh <-chan struct{}) error {
 	}
 
 	// start shared informer
-	g.informer.Run(stopCh)
+	g.informer.RunWithContext(ctx)
 
 	return nil
 }
@@ -298,8 +298,9 @@ var ErrCacheSyncTimeout = fmt.Errorf("timed out waiting for Kubernetes cache to 
 // WaitForCacheSync waits for the data gatherer's informers cache to sync before
 // collecting the resources. Use errors.Is(err, ErrCacheSyncTimeout) to check if
 // the cache sync failed.
-func (g *DataGathererDynamic) WaitForCacheSync(stopCh <-chan struct{}) error {
-	if !k8scache.WaitForCacheSync(stopCh, g.registration.HasSynced) {
+func (g *DataGathererDynamic) WaitForCacheSync(ctx context.Context) error {
+	// Don't use WaitForNamedCacheSync, since we don't want to log extra messages.
+	if !k8scache.WaitForCacheSync(ctx.Done(), g.registration.HasSynced) {
 		return ErrCacheSyncTimeout
 	}
 

@@ -47,12 +47,12 @@ type DataGathererDiscovery struct {
 	cl *discovery.DiscoveryClient
 }
 
-func (g *DataGathererDiscovery) Run(stopCh <-chan struct{}) error {
+func (g *DataGathererDiscovery) Run(ctx context.Context) error {
 	// no async functionality, see Fetch
 	return nil
 }
 
-func (g *DataGathererDiscovery) WaitForCacheSync(stopCh <-chan struct{}) error {
+func (g *DataGathererDiscovery) WaitForCacheSync(ctx context.Context) error {
 	// no async functionality, see Fetch
 	return nil
 }
