@@ -196,18 +196,3 @@ func (c *VenConnClient) PostDataReadingsWithOptions(ctx context.Context, reading
 
 	return nil
 }
-
-// PostDataReadings isn't implemented for Venafi Cloud. This is because Venafi
-// Cloud needs a `clusterName` and `clusterDescription`, but this function can
-// only pass `orgID` and `clusterID` which are both useless in Venafi Cloud. Use
-// PostDataReadingsWithOptions instead.
-func (c *VenConnClient) PostDataReadings(_ context.Context, _orgID, _clusterID string, readings []*api.DataReading) error {
-	return fmt.Errorf("programmer mistake: PostDataReadings is not implemented for Venafi Cloud")
-}
-
-// Post isn't implemented for Venafi Cloud because /v1/tlspk/upload/clusterdata
-// requires using the query parameters `name` and `description` which can't be
-// set using Post. Use PostDataReadingsWithOptions instead.
-func (c *VenConnClient) Post(_ context.Context, path string, body io.Reader) (*http.Response, error) {
-	return nil, fmt.Errorf("programmer mistake: Post is not implemented for Venafi Cloud")
-}

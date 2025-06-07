@@ -104,12 +104,12 @@ func NewOAuthClient(agentMetadata *api.AgentMetadata, credentials *OAuthCredenti
 }
 
 func (c *OAuthClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, opts Options) error {
-	return c.PostDataReadings(ctx, opts.OrgID, opts.ClusterID, readings)
+	return c.postDataReadings(ctx, opts.OrgID, opts.ClusterID, readings)
 }
 
 // PostDataReadings uploads the slice of api.DataReading to the Jetstack Secure backend to be processed for later
 // viewing in the user-interface.
-func (c *OAuthClient) PostDataReadings(ctx context.Context, orgID, clusterID string, readings []*api.DataReading) error {
+func (c *OAuthClient) postDataReadings(ctx context.Context, orgID, clusterID string, readings []*api.DataReading) error {
 	payload := api.DataReadingsPost{
 		AgentMetadata:  c.agentMetadata,
 		DataGatherTime: time.Now().UTC(),
@@ -120,7 +120,7 @@ func (c *OAuthClient) PostDataReadings(ctx context.Context, orgID, clusterID str
 		return err
 	}
 
-	res, err := c.Post(ctx, filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
+	res, err := c.post(ctx, filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func (c *OAuthClient) PostDataReadings(ctx context.Context, orgID, clusterID str
 }
 
 // Post performs an HTTP POST request.
-func (c *OAuthClient) Post(ctx context.Context, path string, body io.Reader) (*http.Response, error) {
+func (c *OAuthClient) post(ctx context.Context, path string, body io.Reader) (*http.Response, error) {
 	token, err := c.getValidAccessToken(ctx)
 	if err != nil {
 		return nil, err

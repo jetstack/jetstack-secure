@@ -197,25 +197,10 @@ func (mis *mockIdentityServer) handleAdvanceAuthentication(w http.ResponseWriter
 		return
 	}
 
-	if advanceBody.SessionID != successSessionID {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(advanceAuthenticationFailureResponse))
-		return
-	}
-
-	if advanceBody.MechanismID != successMechanismID {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(advanceAuthenticationFailureResponse))
-		return
-	}
-
-	if advanceBody.Action != ActionAnswer {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(advanceAuthenticationFailureResponse))
-		return
-	}
-
-	if advanceBody.Answer != successPassword {
+	if advanceBody.SessionID != successSessionID ||
+		advanceBody.MechanismID != successMechanismID ||
+		advanceBody.Action != ActionAnswer ||
+		advanceBody.Answer != successPassword {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(advanceAuthenticationFailureResponse))
 		return
