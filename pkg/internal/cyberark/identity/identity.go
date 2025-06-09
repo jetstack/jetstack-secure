@@ -174,15 +174,15 @@ type advanceAuthenticationResponseResult struct {
 }
 
 // Client is an client for interacting with the CyberArk Identity API and performing a login using a username and password.
-// For context on the behaviour of this client, see the Pytho SDK: https://github.com/cyberark/ark-sdk-python/blob/3be12c3f2d3a2d0407025028943e584b6edc5996/ark_sdk_python/auth/identity/ark_identity.py
+// For context on the behaviour of this client, see the Python SDK: https://github.com/cyberark/ark-sdk-python/blob/3be12c3f2d3a2d0407025028943e584b6edc5996/ark_sdk_python/auth/identity/ark_identity.py
 type Client struct {
 	client *http.Client
 
 	endpoint  string
 	subdomain string
 
-	tokenCache      map[string]token
-	tokenCacheMutex sync.Mutex
+	tokenCached      token
+	tokenCachedMutex sync.Mutex
 }
 
 // token is a wrapper type for holding auth tokens we want to cache.
@@ -218,15 +218,15 @@ func NewWithDiscoveryClient(ctx context.Context, discoveryClient *servicediscove
 		endpoint:  endpoint,
 		subdomain: subdomain,
 
-		tokenCache:      make(map[string]token),
-		tokenCacheMutex: sync.Mutex{},
+		tokenCached:      "",
+		tokenCachedMutex: sync.Mutex{},
 	}, nil
 }
 
 // LoginUsernamePassword performs a blocking call to fetch an auth token from CyberArk Identity using the given username and password.
 // The password is zeroed after use.
-// Tokens are cached internally and are not directly accessible to code; use Client.AuthenticatedHTTPClient to add credentials
-// to an *http.Client.
+// Tokens are cached internally and are not directly accessible to code; use Client.AuthenticateRequest to add credentials
+// to an *http.Request.
 func (c *Client) LoginUsernamePassword(ctx context.Context, username string, password []byte) error {
 	defer func() {
 		for i := range password {
@@ -443,11 +443,11 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 
 	klog.FromContext(ctx).Info("successfully completed AdvanceAuthentication request to CyberArk Identity; login complete", "username", username)
 
-	c.tokenCacheMutex.Lock()
+	c.tokenCachedMutex.Lock()
 
-	c.tokenCache[username] = token(advanceAuthResponse.Result.Token)
+	c.tokenCached = token(advanceAuthResponse.Result.Token)
 
-	c.tokenCacheMutex.Unlock()
+	c.tokenCachedMutex.Unlock()
 
 	return nil
 }
