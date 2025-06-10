@@ -26,5 +26,5 @@ func (t Time) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []byte(jsonStr), nil
+	return jsonStr, nil
 }

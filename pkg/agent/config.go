@@ -232,7 +232,9 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		false,
 		fmt.Sprintf("Turns on the %s mode. The flag --credentials-file must also be passed.", JetstackSecureOAuth),
 	)
-	c.PersistentFlags().MarkHidden("venafi-cloud")
+	if err := c.PersistentFlags().MarkHidden("venafi-cloud"); err != nil {
+		panic(err)
+	}
 	c.PersistentFlags().StringVarP(
 		&cfg.ClientID,
 		"client-id",
@@ -247,7 +249,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		"private-key-path",
 		"",
 		"",
-		fmt.Sprintf("To be used in conjunction with --client-id. The path to the private key file for the service account."),
+		"To be used in conjunction with --client-id. The path to the private key file for the service account.",
 	)
 	c.PersistentFlags().BoolVarP(
 		&cfg.OneShot,
@@ -334,7 +336,9 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		false,
 		"Deprecated. No longer has an effect.",
 	)
-	c.PersistentFlags().MarkDeprecated("disable-compression", "no longer has an effect")
+	if err := c.PersistentFlags().MarkDeprecated("disable-compression", "no longer has an effect"); err != nil {
+		panic(err)
+	}
 
 	// This is a hidden feature flag we use to build the "Machine Hub" feature
 	// gradually without impacting customers. Once the feature is GA, we will
@@ -345,7 +349,9 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		false,
 		"Enables the MachineHub mode. The agent will push data to CyberArk MachineHub.",
 	)
-	c.PersistentFlags().MarkHidden("machine-hub")
+	if err := c.PersistentFlags().MarkHidden("machine-hub"); err != nil {
+		panic(err)
+	}
 
 }
 
@@ -531,8 +537,8 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	// Validation of `venafi-cloud.upload_path`.
 	{
 		var uploadPath string
-		switch {
-		case res.TLSPKMode == VenafiCloudKeypair:
+		switch res.TLSPKMode { // nolint:exhaustive
+		case VenafiCloudKeypair:
 			if cfg.VenafiCloud == nil || cfg.VenafiCloud.UploadPath == "" {
 				errs = multierror.Append(errs, fmt.Errorf("the venafi-cloud.upload_path field is required when using the %s mode", res.TLSPKMode))
 				break // Skip to the end of the switch statement.
@@ -544,7 +550,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			}
 
 			uploadPath = cfg.VenafiCloud.UploadPath
-		case res.TLSPKMode == VenafiCloudVenafiConnection:
+		case VenafiCloudVenafiConnection:
 			// The venafi-cloud.upload_path was initially meant to let users
 			// configure HTTP proxies, but it has never been used since HTTP
 			// proxies don't rewrite paths. Thus, we've disabled the ability to
@@ -577,18 +583,18 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	if res.TLSPKMode != Off {
 		var clusterID string
 		var organizationID string // Only used by the old jetstack-secure mode.
-		switch {
-		case res.TLSPKMode == VenafiCloudKeypair:
+		switch res.TLSPKMode {    // nolint:exhaustive
+		case VenafiCloudKeypair:
 			if cfg.ClusterID == "" {
 				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.TLSPKMode))
 			}
 			clusterID = cfg.ClusterID
-		case res.TLSPKMode == VenafiCloudVenafiConnection:
+		case VenafiCloudVenafiConnection:
 			if cfg.ClusterID == "" {
 				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.TLSPKMode))
 			}
 			clusterID = cfg.ClusterID
-		case res.TLSPKMode == JetstackSecureOAuth || res.TLSPKMode == JetstackSecureAPIToken:
+		case JetstackSecureOAuth, JetstackSecureAPIToken:
 			if cfg.OrganizationID == "" {
 				errs = multierror.Append(errs, fmt.Errorf("organization_id is required"))
 			}
@@ -637,7 +643,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	}
 
 	// Validation of --install-namespace.
-	var installNS string = flags.InstallNS
+	installNS := flags.InstallNS
 	if flags.InstallNS == "" {
 		var err error
 		installNS, err = getInClusterNamespace()
@@ -650,7 +656,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	// Validation of --venafi-connection and --venafi-connection-namespace.
 	if res.TLSPKMode == VenafiCloudVenafiConnection {
 		res.VenConnName = flags.VenConnName
-		var venConnNS string = flags.VenConnNS
+		venConnNS := flags.VenConnNS
 		if flags.VenConnNS == "" {
 			venConnNS = installNS
 		}
@@ -714,8 +720,8 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 
 	var preflightClient client.Client
 	metadata := &api.AgentMetadata{Version: version.PreflightVersion, ClusterID: cfg.ClusterID}
-	switch {
-	case cfg.TLSPKMode == JetstackSecureOAuth:
+	switch cfg.TLSPKMode {
+	case JetstackSecureOAuth:
 		// Note that there are no command line flags to configure the
 		// JetstackSecureOAuth mode.
 		credsBytes, err := readCredentialsFile(flagCredentialsPath)
@@ -734,7 +740,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-	case cfg.TLSPKMode == VenafiCloudKeypair:
+	case VenafiCloudKeypair:
 		var creds client.Credentials
 
 		if flagClientID != "" && flagCredentialsPath != "" {
@@ -750,14 +756,15 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			break
 		}
 
-		if flagClientID != "" && flagPrivateKeyPath != "" {
+		switch {
+		case flagClientID != "" && flagPrivateKeyPath != "":
 			// If --client-id and --private-key-path are passed, then
 			// --credentials-file is ignored.
 			creds = &client.VenafiSvcAccountCredentials{
 				ClientID:       flagClientID,
 				PrivateKeyFile: flagPrivateKeyPath,
 			}
-		} else if flagCredentialsPath != "" {
+		case flagCredentialsPath != "":
 			credsBytes, err := readCredentialsFile(flagCredentialsPath)
 			if err != nil {
 				errs = multierror.Append(errs, multierror.Prefix(err, "credentials file:"))
@@ -768,7 +775,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 				errs = multierror.Append(errs, multierror.Prefix(err, "credentials file:"))
 				break // Don't continue with the client since creds is invalid.
 			}
-		} else {
+		default:
 			return nil, fmt.Errorf("programmer mistake: --client-id and --private-key-path or --credentials-file must have been provided")
 		}
 
@@ -777,7 +784,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-	case cfg.TLSPKMode == VenafiCloudVenafiConnection:
+	case VenafiCloudVenafiConnection:
 		var restCfg *rest.Config
 		restCfg, err := kubeconfig.LoadRESTConfig("")
 		if err != nil {
@@ -789,13 +796,13 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-	case cfg.TLSPKMode == JetstackSecureAPIToken:
+	case JetstackSecureAPIToken:
 		var err error
 		preflightClient, err = client.NewAPITokenClient(metadata, flagAPIToken, cfg.Server)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-	case cfg.TLSPKMode == Off:
+	case Off:
 		// No client needed in this mode.
 	default:
 		panic(fmt.Errorf("programmer mistake: auth mode not implemented: %s", cfg.TLSPKMode))

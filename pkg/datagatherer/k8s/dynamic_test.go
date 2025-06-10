@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 
@@ -668,17 +667,18 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(cl, 10*time.Minute, metav1.NamespaceAll, nil)
 			resourceInformer := factory.ForResource(tc.config.GroupVersionResource)
 			testInformer := resourceInformer.Informer()
-			testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
+			_, err = testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 				DeleteFunc: func(obj interface{}) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
-				UpdateFunc: func(old, new interface{}) {
+				UpdateFunc: func(oldObj, newObj interface{}) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
 			})
-			//start test Informer
+			require.NoError(t, err)
+			// start test Informer
 			factory.Start(ctx.Done())
 			k8scache.WaitForCacheSync(ctx.Done(), testInformer.HasSynced)
 
@@ -719,8 +719,8 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 
 			for ns, update := range tc.updateObjects {
 				wg.Add(1)
-				new := update.(*unstructured.Unstructured)
-				_, err := cl.Resource(tc.config.GroupVersionResource).Namespace(ns).Update(ctx, new, metav1.UpdateOptions{})
+				newObj := update.(*unstructured.Unstructured)
+				_, err := cl.Resource(tc.config.GroupVersionResource).Namespace(ns).Update(ctx, newObj, metav1.UpdateOptions{})
 				if err != nil {
 					t.Fatalf("unexpected client update error: %+v", err)
 				}
@@ -968,8 +968,7 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			var wg sync.WaitGroup
 			ctx := context.Background()
 
-			var clientset kubernetes.Interface
-			clientset = fakeclientset.NewSimpleClientset(tc.addObjects...)
+			clientset := fakeclientset.NewSimpleClientset(tc.addObjects...)
 
 			// init the datagatherer's informer with the client
 			dg, err := tc.config.newDataGathererWithClient(ctx, nil, clientset)
@@ -985,18 +984,19 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 				informers.WithNamespace(metav1.NamespaceAll),
 				informers.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 			testInformer := factory.Core().V1().Pods().Informer()
-			testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
+			_, err = testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 				DeleteFunc: func(obj interface{}) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
-				UpdateFunc: func(old, new interface{}) {
+				UpdateFunc: func(oldObj, newObj interface{}) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
 			})
+			require.NoError(t, err)
 
-			//start test Informer
+			// start test Informer
 			factory.Start(ctx.Done())
 			k8scache.WaitForCacheSync(ctx.Done(), testInformer.HasSynced)
 			dgd := dg.(*DataGathererDynamic)
@@ -1035,8 +1035,8 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 
 			for ns, update := range tc.updateObjects {
 				wg.Add(1)
-				new := update.(*corev1.Pod)
-				_, err := clientset.CoreV1().Pods(ns).Update(ctx, new, metav1.UpdateOptions{})
+				newObj := update.(*corev1.Pod)
+				_, err := clientset.CoreV1().Pods(ns).Update(ctx, newObj, metav1.UpdateOptions{})
 				if err != nil {
 					t.Fatalf("unexpected client update error: %+v", err)
 				}

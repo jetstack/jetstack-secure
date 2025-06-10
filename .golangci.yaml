@@ -6,21 +6,12 @@ linters:
     presets: [comments, common-false-positives, legacy, std-error-handling]
     rules:
       - linters:
-          - bodyclose
-          - errcheck
           - errchkjson
           - forbidigo
-          - gocritic
           - gosec
-          - govet
           - musttag
           - nilerr
-          - noctx
-          - predeclared
-          - staticcheck
-          - unconvert
           - unparam
-          - usestdlibvars
         text: .*
     paths: [third_party$, builtin$, examples$]
     warn-unused: true

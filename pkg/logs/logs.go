@@ -77,7 +77,7 @@ func AddFlags(fs *pflag.FlagSet) {
 	features.AddFlag(&tfs)
 	tfs.VisitAll(func(f *pflag.Flag) {
 		if !visibleFlagNames.Has(f.Name) {
-			tfs.MarkHidden(f.Name)
+			_ = tfs.MarkHidden(f.Name)
 		}
 
 		// The original usage string includes details about how

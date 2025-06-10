@@ -410,7 +410,7 @@ level=INFO msg="this is a happy log that should show as INFO" source=agent
 
 	for _, line := range strings.Split(given, "\n") {
 		// Simulate the current agent's logs.
-		logger.Printf(line)
+		logger.Printf(line) // nolint:staticcheck
 	}
 
 	assert.Equal(t, expect, gotBuf.String())

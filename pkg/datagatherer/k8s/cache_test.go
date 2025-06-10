@@ -52,7 +52,9 @@ func TestOnAddCache(t *testing.T) {
 				getObject("v1", "Service", "testservice", "testns", false),
 				getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
 			},
-			eventFunc: func(log logr.Logger, old, new interface{}, dgCache *cache.Cache) { onDelete(log, old, dgCache) },
+			eventFunc: func(log logr.Logger, oldObj, newObj interface{}, dgCache *cache.Cache) {
+				onDelete(log, oldObj, dgCache)
+			},
 			expected: []*api.GatheredResource{
 				makeGatheredResource(
 					getObject("foobar/v1", "Foo", "testfoo", "testns", false),

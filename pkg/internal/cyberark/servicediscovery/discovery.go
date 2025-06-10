@@ -97,10 +97,10 @@ func (c *Client) DiscoverIdentityAPIURL(ctx context.Context, subdomain string) (
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		// a 404 error is returned with an empty JSON body "{}" if the subdomain is unknown; at the time of writing, we haven't observed
 		// any other errors and so we can't special case them
-		if resp.StatusCode == 404 {
+		if resp.StatusCode == http.StatusNotFound {
 			return "", fmt.Errorf("got an HTTP 404 response from service discovery; maybe the subdomain %q is incorrect or does not exist?", subdomain)
 		}
 

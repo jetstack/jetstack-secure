@@ -203,19 +203,20 @@ func FakeVenafiCloud(t *testing.T) (_ *httptest.Server, _ *x509.Certificate, set
 		apiKey := r.Header.Get("Tppl-Api-Key")
 		if accessToken != "VALID_ACCESS_TOKEN" && apiKey != "VALID_API_KEY" {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"error":"expected header 'Authorization: Bearer VALID_ACCESS_TOKEN' or 'tppl-api-key: VALID_API_KEY', but got Authorization=` + r.Header.Get("Authorization") + ` and tppl-api-key=` + r.Header.Get("Tppl-Api-Key")))
+			_, _ = w.Write([]byte(`{"error":"expected header 'Authorization: Bearer VALID_ACCESS_TOKEN' or 'tppl-api-key: VALID_API_KEY', but got Authorization=` + r.Header.Get("Authorization") + ` and tppl-api-key=` + r.Header.Get("Tppl-Api-Key")))
 			return
 		}
-		if r.URL.Path == "/v1/tlspk/upload/clusterdata/no" {
+		switch r.URL.Path {
+		case "/v1/tlspk/upload/clusterdata/no":
 			if r.URL.Query().Get("name") != "test cluster name" {
 				w.WriteHeader(http.StatusBadRequest)
 				_, _ = w.Write([]byte(`{"error":"unexpected name query param in the test server: ` + r.URL.Query().Get("name") + `, expected: 'test cluster name'"}`))
 				return
 			}
 			_, _ = w.Write([]byte(`{"status":"ok","organization":"756db001-280e-11ee-84fb-991f3177e2d0"}`))
-		} else if r.URL.Path == "/v1/useraccounts" {
+		case "/v1/useraccounts":
 			_, _ = w.Write([]byte(`{"user": {"username": "user","id": "76a126f0-280e-11ee-84fb-991f3177e2d0"}}`))
-		} else {
+		default:
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"error":"unexpected path in the test server","path":"` + r.URL.Path + `"}`))
 		}
@@ -236,15 +237,16 @@ func FakeTPP(t testing.TB) (*httptest.Server, *x509.Certificate) {
 
 		accessToken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 
-		if r.URL.Path == "/vedsdk/Identity/Self" {
+		switch r.URL.Path {
+		case "/vedsdk/Identity/Self":
 			if accessToken != "VALID_ACCESS_TOKEN" {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 			_, _ = w.Write([]byte(`{"Identities":[{"Name":"TEST"}]}`))
-		} else if r.URL.Path == "/vedsdk/certificates/checkpolicy" {
+		case "/vedsdk/certificates/checkpolicy":
 			_, _ = w.Write([]byte(`{"Policy":{"Subject":{"Organization":{"Value": "test-org"}}}}`))
-		} else {
+		default:
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`{"error":"unexpected path in the test server","path":"` + r.URL.Path + `"}`))
 		}

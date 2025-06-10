@@ -67,7 +67,7 @@ func setFlagsFromEnv(prefix string, fs *pflag.FlagSet) {
 		}
 		// remove trailing _ to reduce common errors with the prefix, i.e. people setting it to MY_PROG_
 		cleanPrefix := strings.TrimSuffix(prefix, "_")
-		name := fmt.Sprintf("%s_%s", cleanPrefix, strings.Replace(strings.ToUpper(f.Name), "-", "_", -1))
+		name := fmt.Sprintf("%s_%s", cleanPrefix, strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_"))
 		if e, ok := os.LookupEnv(name); ok {
 			_ = f.Value.Set(e)
 		}

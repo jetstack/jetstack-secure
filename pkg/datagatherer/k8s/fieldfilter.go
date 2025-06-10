@@ -80,10 +80,8 @@ func Select(fields []FieldPath, resource *unstructured.Unstructured) error {
 }
 
 // Redact removes the supplied fields from the resource
-func Redact(fields []FieldPath, resource *unstructured.Unstructured) error {
+func Redact(fields []FieldPath, resource *unstructured.Unstructured) {
 	for _, field := range fields {
 		unstructured.RemoveNestedField(resource.Object, field...)
 	}
-
-	return nil
 }
