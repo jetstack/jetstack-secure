@@ -88,8 +88,8 @@ func Test_IdentityStartAuthentication(t *testing.T) {
 				t.Errorf("expected advanceAuthenticationRequestBody.Action to be %s but got %s", ActionAnswer, advanceBody.Action)
 			}
 
-			if !advanceBody.PersistantLogin {
-				t.Error("expected advanceAuthenticationRequestBody.PersistantLogin to be true but it wasn't")
+			if !advanceBody.PersistentLogin {
+				t.Error("expected advanceAuthenticationRequestBody.PersistentLogin to be true but it wasn't")
 			}
 
 		})

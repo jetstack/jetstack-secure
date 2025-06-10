@@ -15,7 +15,7 @@ type DataReadingsPost struct {
 
 // DataReading is the output of a DataGatherer.
 type DataReading struct {
-	// ClusterID is optional as it can be infered from the agent
+	// ClusterID is optional as it can be inferred from the agent
 	// token when using basic authentication.
 	ClusterID     string      `json:"cluster_id,omitempty"`
 	DataGatherer  string      `json:"data-gatherer"`

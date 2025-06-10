@@ -43,7 +43,7 @@ func init() {
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 // If the root command or sub-command returns an error, the error message will
-// will be logged and the process will exit with status 1.
+// be logged and the process will exit with status 1.
 func Execute() {
 	logs.AddFlags(rootCmd.PersistentFlags())
 	ctx := klog.NewContext(context.Background(), klog.Background())

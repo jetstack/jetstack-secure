@@ -189,11 +189,11 @@ func (mis *mockIdentityServer) handleAdvanceAuthentication(w http.ResponseWriter
 	// Important: The actual server will return 200 OK even if the login fails.
 	// Most failure responses should copy that.
 
-	if !advanceBody.PersistantLogin {
+	if !advanceBody.PersistentLogin {
 		// this is something we enforce but wouldn't actually be an error from
 		// a real server, so we return a different error here
 		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`expected PersistantLogin to be true`))
+		_, _ = w.Write([]byte(`expected PersistentLogin to be true`))
 		return
 	}
 
