@@ -451,7 +451,7 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 		return err
 
 	default:
-		return fmt.Errorf("not implemented")
+		return fmt.Errorf("not implemented for mode %s", config.TLSPKMode)
 	}
 }
 
