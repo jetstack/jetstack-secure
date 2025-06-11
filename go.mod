@@ -12,7 +12,6 @@ require (
 	github.com/jetstack/venafi-connection-lib v0.3.2-0.20250305134451-ec1757b9e01b
 	github.com/maxatome/go-testdeep v1.14.0
 	github.com/microcosm-cc/bluemonday v1.0.27
-	github.com/pkg/errors v0.9.1
 	github.com/pmylund/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.21.0
 	github.com/spf13/cobra v1.8.1
@@ -49,6 +48,7 @@ require (
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/sosodev/duration v1.2.0 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
