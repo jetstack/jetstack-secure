@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -425,7 +424,8 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 
 	log.V(logs.Debug).Info("Posting data", "baseURL", baseURL)
 
-	if config.TLSPKMode == VenafiCloudKeypair || config.TLSPKMode == VenafiCloudVenafiConnection {
+	switch config.TLSPKMode { // nolint:exhaustive
+	case VenafiCloudKeypair, VenafiCloudVenafiConnection:
 		// orgID and clusterID are not required for Venafi Cloud auth
 		err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
 			ClusterName:        config.ClusterID,
@@ -437,55 +437,22 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 		log.Info("Data sent successfully")
 
 		return nil
-	}
 
-	if config.OrganizationID == "" {
-		data, err := json.Marshal(readings)
+	case JetstackSecureOAuth, JetstackSecureAPIToken:
+		err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
+			OrgID:     config.OrganizationID,
+			ClusterID: config.ClusterID,
+		})
 		if err != nil {
-			return fmt.Errorf("Cannot marshal readings: %+v", err)
-		}
-
-		// log and collect metrics about the upload size
-		metric := metricPayloadSize.With(
-			prometheus.Labels{"organization": config.OrganizationID, "cluster": config.ClusterID},
-		)
-		metric.Set(float64(len(data)))
-		log.Info("Data readings", "uploadSize", len(data))
-		path := config.EndpointPath
-		if path == "" {
-			path = "/api/v1/datareadings"
-		}
-		res, err := preflightClient.Post(ctx, path, bytes.NewBuffer(data))
-
-		if err != nil {
-			return fmt.Errorf("failed to post data: %+v", err)
-		}
-		if code := res.StatusCode; code < 200 || code >= 300 {
-			errorContent := ""
-			body, _ := io.ReadAll(res.Body)
-			if err == nil {
-				errorContent = string(body)
-			}
-			defer res.Body.Close()
-
-			return fmt.Errorf("received response with status code %d. Body: [%s]", code, errorContent)
+			return fmt.Errorf("post to server failed: %+v", err)
 		}
 		log.Info("Data sent successfully")
 
 		return err
-	}
 
-	if config.ClusterID == "" {
-		return fmt.Errorf("post to server failed: missing clusterID from agent configuration")
+	default:
+		return fmt.Errorf("not implemented for mode %s", config.TLSPKMode)
 	}
-
-	err := preflightClient.PostDataReadings(ctx, config.OrganizationID, config.ClusterID, readings)
-	if err != nil {
-		return fmt.Errorf("post to server failed: %+v", err)
-	}
-	log.Info("Data sent successfully")
-
-	return nil
 }
 
 // listenAndServe starts the supplied HTTP server and stops it gracefully when

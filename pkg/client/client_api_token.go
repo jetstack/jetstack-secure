@@ -48,12 +48,12 @@ func NewAPITokenClient(agentMetadata *api.AgentMetadata, apiToken, baseURL strin
 // PostDataReadingsWithOptions uploads the slice of api.DataReading to the Jetstack Secure backend to be processed for later
 // viewing in the user-interface.
 func (c *APITokenClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, opts Options) error {
-	return c.PostDataReadings(ctx, opts.OrgID, opts.ClusterID, readings)
+	return c.postDataReadings(ctx, opts.OrgID, opts.ClusterID, readings)
 }
 
 // PostDataReadings uploads the slice of api.DataReading to the Jetstack Secure backend to be processed for later
 // viewing in the user-interface.
-func (c *APITokenClient) PostDataReadings(ctx context.Context, orgID, clusterID string, readings []*api.DataReading) error {
+func (c *APITokenClient) postDataReadings(ctx context.Context, orgID, clusterID string, readings []*api.DataReading) error {
 	payload := api.DataReadingsPost{
 		AgentMetadata:  c.agentMetadata,
 		DataGatherTime: time.Now().UTC(),
@@ -64,7 +64,7 @@ func (c *APITokenClient) PostDataReadings(ctx context.Context, orgID, clusterID 
 		return err
 	}
 
-	res, err := c.Post(ctx, filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
+	res, err := c.post(ctx, filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (c *APITokenClient) PostDataReadings(ctx context.Context, orgID, clusterID 
 }
 
 // Post performs an HTTP POST request.
-func (c *APITokenClient) Post(ctx context.Context, path string, body io.Reader) (*http.Response, error) {
+func (c *APITokenClient) post(ctx context.Context, path string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL(c.baseURL, path), body)
 	if err != nil {
 		return nil, err

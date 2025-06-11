@@ -205,43 +205,7 @@ func (c *VenafiCloudClient) PostDataReadingsWithOptions(ctx context.Context, rea
 	}
 	venafiCloudUploadURL.RawQuery = query.Encode()
 
-	res, err := c.Post(ctx, venafiCloudUploadURL.String(), bytes.NewBuffer(data))
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-
-	if code := res.StatusCode; code < 200 || code >= 300 {
-		errorContent := ""
-		body, err := io.ReadAll(res.Body)
-		if err == nil {
-			errorContent = string(body)
-		}
-		return fmt.Errorf("received response with status code %d. Body: [%s]", code, errorContent)
-	}
-
-	return nil
-}
-
-// PostDataReadings uploads the slice of api.DataReading to the Venafi Cloud backend to be processed for later
-// viewing in the user-interface.
-func (c *VenafiCloudClient) PostDataReadings(ctx context.Context, _ string, _ string, readings []*api.DataReading) error {
-	// orgID and clusterID are ignored in Venafi Cloud auth
-
-	payload := api.DataReadingsPost{
-		AgentMetadata:  c.agentMetadata,
-		DataGatherTime: time.Now().UTC(),
-		DataReadings:   readings,
-	}
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	if !strings.HasSuffix(c.uploadPath, "/") {
-		c.uploadPath = fmt.Sprintf("%s/", c.uploadPath)
-	}
-	res, err := c.Post(ctx, filepath.Join(c.uploadPath, c.uploaderID), bytes.NewBuffer(data))
+	res, err := c.post(ctx, venafiCloudUploadURL.String(), bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -260,7 +224,7 @@ func (c *VenafiCloudClient) PostDataReadings(ctx context.Context, _ string, _ st
 }
 
 // Post performs an HTTP POST request.
-func (c *VenafiCloudClient) Post(ctx context.Context, path string, body io.Reader) (*http.Response, error) {
+func (c *VenafiCloudClient) post(ctx context.Context, path string, body io.Reader) (*http.Response, error) {
 	token, err := c.getValidAccessToken(ctx)
 	if err != nil {
 		return nil, err
