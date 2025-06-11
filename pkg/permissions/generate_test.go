@@ -3,7 +3,7 @@ package permissions
 import (
 	"testing"
 
-	"github.com/maxatome/go-testdeep/td"
+	"github.com/stretchr/testify/require"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -344,6 +344,6 @@ func TestGenerateAgentRBACManifests(t *testing.T) {
 	for _, input := range testCases {
 		got := GenerateAgentRBACManifests(input.dataGatherers)
 
-		td.Cmp(t, input.expectedAgentRBACManifests, got)
+		require.Equal(t, input.expectedAgentRBACManifests, got)
 	}
 }

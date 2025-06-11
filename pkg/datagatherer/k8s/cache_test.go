@@ -1,13 +1,12 @@
 package k8s
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 
-	"github.com/d4l3k/messagediff"
 	"github.com/go-logr/logr"
 	"github.com/pmylund/go-cache"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2/ktesting"
 
@@ -132,12 +131,7 @@ func TestOnAddCache(t *testing.T) {
 				t.Errorf("unexpected number of return items found. exp:%+v act:%+v", tc.expected, list)
 			}
 
-			if diff, equal := messagediff.PrettyDiff(tc.expected, list); !equal {
-				t.Errorf("\n%s", diff)
-				expectedJSON, _ := json.MarshalIndent(tc.expected, "", "  ")
-				gotJSON, _ := json.MarshalIndent(list, "", "  ")
-				t.Fatalf("unexpected JSON: \ngot \n%s\nwant\n%s", string(gotJSON), expectedJSON)
-			}
+			require.Equal(t, tc.expected, list)
 		})
 	}
 }
