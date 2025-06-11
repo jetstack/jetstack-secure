@@ -43,11 +43,6 @@ func (g *DataGatherer) Run(ctx context.Context) error {
 	return nil
 }
 
-func (g *DataGatherer) Delete() error {
-	// no async functionality, see Fetch
-	return nil
-}
-
 func (g *DataGatherer) WaitForCacheSync(ctx context.Context) error {
 	// no async functionality, see Fetch
 	return nil

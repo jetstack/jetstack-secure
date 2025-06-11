@@ -307,13 +307,6 @@ func (g *DataGathererDynamic) WaitForCacheSync(ctx context.Context) error {
 	return nil
 }
 
-// Delete will flush the cache being used to stored resources gathered by the
-// informer
-func (g *DataGathererDynamic) Delete() error {
-	g.cache.Flush()
-	return nil
-}
-
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
 func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {

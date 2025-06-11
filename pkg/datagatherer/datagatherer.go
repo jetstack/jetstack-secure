@@ -20,6 +20,4 @@ type DataGatherer interface {
 	Run(ctx context.Context) error
 	// WaitForCacheSync waits for the data gatherer's informers cache to sync.
 	WaitForCacheSync(ctx context.Context) error
-	// Delete, clear the cache of the DataGatherer if one is being used
-	Delete() error
 }

@@ -39,11 +39,6 @@ func (g *dummyDataGatherer) WaitForCacheSync(ctx context.Context) error {
 	return nil
 }
 
-func (g *dummyDataGatherer) Delete() error {
-	// no async functionality, see Fetch
-	return nil
-}
-
 func (c *dummyDataGatherer) Fetch() (interface{}, int, error) {
 	var err error
 	if c.attemptNumber < c.FailedAttempts {
