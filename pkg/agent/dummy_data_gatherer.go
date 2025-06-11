@@ -29,12 +29,12 @@ type dummyDataGatherer struct {
 	FailedAttempts int
 }
 
-func (g *dummyDataGatherer) Run(stopCh <-chan struct{}) error {
+func (g *dummyDataGatherer) Run(ctx context.Context) error {
 	// no async functionality, see Fetch
 	return nil
 }
 
-func (g *dummyDataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+func (g *dummyDataGatherer) WaitForCacheSync(ctx context.Context) error {
 	// no async functionality, see Fetch
 	return nil
 }

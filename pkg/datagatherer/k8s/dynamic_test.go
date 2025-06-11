@@ -134,7 +134,6 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 	}
 
 	expected := &DataGathererDynamic{
-		ctx:                  ctx,
 		groupVersionResource: config.GroupVersionResource,
 		// it's important that the namespaces are set as the IncludeNamespaces
 		// during initialization
@@ -144,9 +143,6 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 
 	gatherer := dg.(*DataGathererDynamic)
 	// test gatherer's fields
-	if !reflect.DeepEqual(gatherer.ctx, expected.ctx) {
-		t.Errorf("expected %v, got %v", expected, dg)
-	}
 	if !reflect.DeepEqual(gatherer.groupVersionResource, expected.groupVersionResource) {
 		t.Errorf("expected %v, got %v", expected, dg)
 	}
@@ -180,7 +176,6 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 	}
 
 	expected := &DataGathererDynamic{
-		ctx:                  ctx,
 		groupVersionResource: config.GroupVersionResource,
 		// it's important that the namespaces are set as the IncludeNamespaces
 		// during initialization
@@ -189,9 +184,6 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 
 	gatherer := dg.(*DataGathererDynamic)
 	// test gatherer's fields
-	if !reflect.DeepEqual(gatherer.ctx, expected.ctx) {
-		t.Errorf("expected %v, got %v", expected, dg)
-	}
 	if !reflect.DeepEqual(gatherer.groupVersionResource, expected.groupVersionResource) {
 		t.Errorf("expected %v, got %v", expected, dg)
 	}
@@ -693,11 +685,11 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			// start data gatherer informer
 			dynamiDg := dg
 			go func() {
-				if err = dynamiDg.Run(ctx.Done()); err != nil {
+				if err = dynamiDg.Run(ctx); err != nil {
 					t.Errorf("unexpected client error: %+v", err)
 				}
 			}()
-			err = dynamiDg.WaitForCacheSync(ctx.Done())
+			err = dynamiDg.WaitForCacheSync(ctx)
 			if err != nil {
 				t.Fatalf("unexpected client error: %+v", err)
 			}
@@ -1010,11 +1002,11 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			// start data gatherer informer
 			dynamiDg := dg
 			go func() {
-				if err = dynamiDg.Run(ctx.Done()); err != nil {
+				if err = dynamiDg.Run(ctx); err != nil {
 					t.Errorf("unexpected client error: %+v", err)
 				}
 			}()
-			err = dynamiDg.WaitForCacheSync(ctx.Done())
+			err = dynamiDg.WaitForCacheSync(ctx)
 			if err != nil {
 				t.Fatalf("unexpected client error: %+v", err)
 			}

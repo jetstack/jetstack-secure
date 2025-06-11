@@ -17,9 +17,9 @@ type DataGatherer interface {
 	Fetch() (data interface{}, count int, err error)
 	// Run starts the data gatherer's informers for resource collection.
 	// Returns error if the data gatherer informer wasn't initialized
-	Run(stopCh <-chan struct{}) error
+	Run(ctx context.Context) error
 	// WaitForCacheSync waits for the data gatherer's informers cache to sync.
-	WaitForCacheSync(stopCh <-chan struct{}) error
+	WaitForCacheSync(ctx context.Context) error
 	// Delete, clear the cache of the DataGatherer if one is being used
 	Delete() error
 }

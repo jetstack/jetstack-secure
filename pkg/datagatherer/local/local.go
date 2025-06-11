@@ -38,7 +38,7 @@ func (c *Config) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer
 	}, nil
 }
 
-func (g *DataGatherer) Run(stopCh <-chan struct{}) error {
+func (g *DataGatherer) Run(ctx context.Context) error {
 	// no async functionality, see Fetch
 	return nil
 }
@@ -48,7 +48,7 @@ func (g *DataGatherer) Delete() error {
 	return nil
 }
 
-func (g *DataGatherer) WaitForCacheSync(stopCh <-chan struct{}) error {
+func (g *DataGatherer) WaitForCacheSync(ctx context.Context) error {
 	// no async functionality, see Fetch
 	return nil
 }
