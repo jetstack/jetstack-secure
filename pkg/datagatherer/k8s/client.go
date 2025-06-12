@@ -2,7 +2,6 @@
 package k8s
 
 import (
-	"github.com/pkg/errors"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -16,12 +15,12 @@ import (
 func NewDynamicClient(kubeconfigPath string) (dynamic.Interface, error) {
 	cfg, err := kubeconfig.LoadRESTConfig(kubeconfigPath)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	cl, err := dynamic.NewForConfig(cfg)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	return cl, nil
@@ -33,12 +32,12 @@ func NewDynamicClient(kubeconfigPath string) (dynamic.Interface, error) {
 func NewDiscoveryClient(kubeconfigPath string) (*discovery.DiscoveryClient, error) {
 	cfg, err := kubeconfig.LoadRESTConfig(kubeconfigPath)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(cfg)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	return discoveryClient, nil
@@ -50,12 +49,12 @@ func NewDiscoveryClient(kubeconfigPath string) (*discovery.DiscoveryClient, erro
 func NewClientSet(kubeconfigPath string) (kubernetes.Interface, error) {
 	cfg, err := kubeconfig.LoadRESTConfig(kubeconfigPath)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	return clientset, nil

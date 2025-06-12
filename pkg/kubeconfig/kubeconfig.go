@@ -1,7 +1,6 @@
 package kubeconfig
 
 import (
-	"github.com/pkg/errors"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -24,7 +23,7 @@ func LoadRESTConfig(path string) (*rest.Config, error) {
 		&clientcmd.ConfigOverrides{},
 	).ClientConfig()
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	return cfg, nil

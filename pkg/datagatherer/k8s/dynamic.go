@@ -2,12 +2,12 @@ package k8s
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/pmylund/go-cache"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -148,7 +148,7 @@ func (c *ConfigDynamic) NewDataGatherer(ctx context.Context) (datagatherer.DataG
 	if isNativeResource(c.GroupVersionResource) {
 		clientset, err := NewClientSet(c.KubeConfigPath)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, err
 		}
 
 		return c.newDataGathererWithClient(ctx, nil, clientset)
@@ -341,7 +341,7 @@ func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
 	// Redact Secret data
 	err := redactList(items, g.ExcludeAnnotKeys, g.ExcludeLabelKeys)
 	if err != nil {
-		return nil, -1, errors.WithStack(err)
+		return nil, -1, err
 	}
 
 	// add gathered resources to items
@@ -356,7 +356,7 @@ func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys
 			// Determine the kind of items in case this is a generic 'mixed' list.
 			gvks, _, err := scheme.Scheme.ObjectKinds(item)
 			if err != nil {
-				return errors.WithStack(err)
+				return err
 			}
 
 			resource := item
@@ -401,7 +401,7 @@ func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys
 			resource := item.(runtime.Object)
 			gvks, _, err := scheme.Scheme.ObjectKinds(resource)
 			if err != nil {
-				return errors.WithStack(err)
+				return err
 			}
 
 			// During the internal marshal/unmarshal the runtime.Object the metav1.TypeMeta seems to be lost

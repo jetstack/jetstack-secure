@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
 	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/api"
@@ -188,25 +187,25 @@ func (c *OAuthClient) renewAccessToken(ctx context.Context) error {
 	payload.Set("password", c.credentials.UserSecret)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(payload.Encode()))
 	if err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	version.SetUserAgent(req)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 
 	defer res.Body.Close()
 
 	if status := res.StatusCode; status < 200 || status >= 300 {
-		return errors.Errorf("auth server did not provide an access token: (status %d) %s.", status, string(body))
+		return fmt.Errorf("auth server did not provide an access token: (status %d) %s.", status, string(body))
 	}
 
 	response := struct {
@@ -216,11 +215,11 @@ func (c *OAuthClient) renewAccessToken(ctx context.Context) error {
 
 	err = json.Unmarshal(body, &response)
 	if err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 
 	if response.ExpiresIn == 0 {
-		return errors.Errorf("got wrong expiration for access token")
+		return fmt.Errorf("got wrong expiration for access token")
 	}
 
 	c.accessToken.bearer = response.Bearer
