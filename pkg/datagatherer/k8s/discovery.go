@@ -57,11 +57,6 @@ func (g *DataGathererDiscovery) WaitForCacheSync(ctx context.Context) error {
 	return nil
 }
 
-func (g *DataGathererDiscovery) Delete() error {
-	// no async functionality, see Fetch
-	return nil
-}
-
 // Fetch will fetch discovery data from the apiserver, or return an error
 func (g *DataGathererDiscovery) Fetch() (interface{}, int, error) {
 	data, err := g.cl.ServerVersion()
