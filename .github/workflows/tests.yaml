@@ -32,7 +32,7 @@ jobs:
 
       - run: make -j verify
 
-  test-unit:
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -62,4 +62,4 @@ jobs:
           path: _bin/downloaded
           key: downloaded-${{ runner.os }}-${{ hashFiles('klone.yaml') }}-test-unit
 
-      - run: make -j test-unit
+      - run: make -j test-unit test-helm

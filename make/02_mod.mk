@@ -52,3 +52,15 @@ shared_generate_targets += generate-crds-venconn
 ## @category Testing
 test-e2e-gke:
 	./hack/e2e/test.sh
+
+.PHONY: test-helm
+## Run `helm unittest`.
+## @category Testing
+test-helm: | $(NEEDS_HELM-UNITTEST)
+	$(HELM-UNITTEST) ./deploy/charts/venafi-kubernetes-agent/
+
+.PHONY: test-helm-snapshot
+## Update the `helm unittest` snapshots.
+## @category Testing
+test-helm-snapshot: | $(NEEDS_HELM-UNITTEST)
+	$(HELM-UNITTEST) ./deploy/charts/venafi-kubernetes-agent/ -u
