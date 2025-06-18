@@ -65,7 +65,7 @@ tools += helm=v3.17.2
 # https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
 tools += kubectl=v1.32.3
 # https://github.com/kubernetes-sigs/kind/releases
-tools += kind=v0.27.0
+tools += kind=v0.29.0
 # https://www.vaultproject.io/downloads
 tools += vault=1.19.1
 # https://github.com/Azure/azure-workload-identity/releases
@@ -172,7 +172,7 @@ ADDITIONAL_TOOLS ?=
 tools += $(ADDITIONAL_TOOLS)
 
 # https://go.dev/dl/
-VENDORED_GO_VERSION := 1.24.3
+VENDORED_GO_VERSION := 1.24.4
 
 # Print the go version which can be used in GH actions
 .PHONY: print-go-version
@@ -395,10 +395,10 @@ $(call for_each_kv,go_dependency,$(go_dependencies))
 # File downloads #
 ##################
 
-go_linux_amd64_SHA256SUM=3333f6ea53afa971e9078895eaa4ac7204a8c6b5c68c10e6bc9a33e8e391bdd8
-go_linux_arm64_SHA256SUM=a463cb59382bd7ae7d8f4c68846e73c4d589f223c589ac76871b66811ded7836
-go_darwin_amd64_SHA256SUM=13e6fe3fcf65689d77d40e633de1e31c6febbdbcb846eb05fc2434ed2213e92b
-go_darwin_arm64_SHA256SUM=64a3fa22142f627e78fac3018ce3d4aeace68b743eff0afda8aae0411df5e4fb
+go_linux_amd64_SHA256SUM=77e5da33bb72aeaef1ba4418b6fe511bc4d041873cbf82e5aa6318740df98717
+go_linux_arm64_SHA256SUM=d5501ee5aca0f258d5fe9bfaed401958445014495dc115f202d43d5210b45241
+go_darwin_amd64_SHA256SUM=69bef555e114b4a2252452b6e7049afc31fbdf2d39790b669165e89525cd3f5c
+go_darwin_arm64_SHA256SUM=27973684b515eaf461065054e6b572d9390c05e69ba4a423076c160165336470
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz
 $(DOWNLOAD_DIR)/tools/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz: | $(DOWNLOAD_DIR)/tools
@@ -432,10 +432,10 @@ $(DOWNLOAD_DIR)/tools/kubectl@$(KUBECTL_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DO
 		$(checkhash_script) $(outfile) $(kubectl_$(HOST_OS)_$(HOST_ARCH)_SHA256SUM); \
 		chmod +x $(outfile)
 
-kind_linux_amd64_SHA256SUM=a6875aaea358acf0ac07786b1a6755d08fd640f4c79b7a2e46681cc13f49a04b
-kind_linux_arm64_SHA256SUM=5e4507a41c69679562610b1be82ba4f80693a7826f4e9c6e39236169a3e4f9d0
-kind_darwin_amd64_SHA256SUM=3435134325b6b9406ccfec417b13bb46a808fc74e9a2ebb0ca31b379c8293863
-kind_darwin_arm64_SHA256SUM=5240ca1acb587e1d0386532dd8c3373d81f5173b5af322919fc56f0cdd646596
+kind_linux_amd64_SHA256SUM=c72eda46430f065fb45c5f70e7c957cc9209402ef309294821978677c8fb3284
+kind_linux_arm64_SHA256SUM=03d45095dbd9cc1689f179a3e5e5da24b77c2d1b257d7645abf1b4174bebcf2a
+kind_darwin_amd64_SHA256SUM=3eb0d4de25b854f34ea8ce8a3cbe15054fc03bc962b03e96fd10664b829fb6ed
+kind_darwin_arm64_SHA256SUM=314d8f1428842fd1ba2110fd0052a0f0b3ab5773ab1bdcdad1ff036e913310c9
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/kind@$(KIND_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/kind@$(KIND_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
