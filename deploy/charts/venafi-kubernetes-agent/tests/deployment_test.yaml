@@ -75,11 +75,11 @@ tests:
           path: spec.template.spec.containers[0].command
           content: notpreflight
 
-  # Check the volumes and volumeMounts works correctly
+  # Check the volumes and volumeMounts works correctly - FAILING
   - it: Volumes and VolumeMounts added correctly
     set:
-      config.organisation: test_org
-      config.cluster: test_cluster
+      # config.organisation: test_org -> Should be removed?
+      # config.cluster: test_cluster -> Should be config.clusterName?
     values:
       - ./values/custom-volumes.yaml
     asserts:
@@ -102,3 +102,26 @@ tests:
             items:
               - key: cabundle
                 path: ca-certificates.crt
+
+  # Check proxy settings are additive not overriding
+  - it: All environment variables present when all proxy settings are supplied
+    set:
+      http_proxy: "http://testing.proxy"
+      no_proxy: "127.0.0.1,localhost"
+      https_proxy: "https://testing.proxy"
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - lengthEqual :
+          path: spec.template.spec.containers[0].env
+          count: 7
+
+  - it: Only default environment variables are set when no proxy settings are provided
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - lengthEqual :
+          path: spec.template.spec.containers[0].env
+          count: 4
