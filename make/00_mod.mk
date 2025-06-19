@@ -53,3 +53,5 @@ endef
 
 golangci_lint_config := .golangci.yaml
 go_header_file := /dev/null
+
+include make/extra_tools.mk

@@ -77,9 +77,6 @@ tests:
 
   # Check the volumes and volumeMounts works correctly
   - it: Volumes and VolumeMounts added correctly
-    set:
-      config.organisation: test_org
-      config.cluster: test_cluster
     values:
       - ./values/custom-volumes.yaml
     asserts:
@@ -102,3 +99,37 @@ tests:
             items:
               - key: cabundle
                 path: ca-certificates.crt
+
+  # Check proxy settings are additive not overriding and set to correct values.
+  # Values from our documentation: https://docs.venafi.cloud/vaas/k8s-components/c-vcp-network-requirements/#modifying-network-settings-for-kubernetes
+  - it: All environment variables present when all proxy settings are supplied
+    set:
+      http_proxy: "http://<proxy server>:<port>"
+      https_proxy: "https://<proxy server>:<port>"
+      no_proxy: "127.0.0.1,localhost,kubernetes.default.svc,kubernetes.default.svc.cluster.local"
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - lengthEqual :
+          path: spec.template.spec.containers[0].env
+          count: 7
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "NO_PROXY")].value
+          value: "127.0.0.1,localhost,kubernetes.default.svc,kubernetes.default.svc.cluster.local"
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "HTTPS_PROXY")].value
+          value: "https://<proxy server>:<port>"
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "HTTP_PROXY")].value
+          value: "http://<proxy server>:<port>"
+
+  # Check no proxy settings are set when no proxy settings are provided
+  - it: Only default environment variables are set when no proxy settings are provided
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - lengthEqual :
+          path: spec.template.spec.containers[0].env
+          count: 4
