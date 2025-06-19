@@ -77,9 +77,6 @@ tests:
 
   # Check the volumes and volumeMounts works correctly - FAILING
   - it: Volumes and VolumeMounts added correctly
-    set:
-      # config.organisation: test_org -> Should be removed?
-      # config.cluster: test_cluster -> Should be config.clusterName?
     values:
       - ./values/custom-volumes.yaml
     asserts:
