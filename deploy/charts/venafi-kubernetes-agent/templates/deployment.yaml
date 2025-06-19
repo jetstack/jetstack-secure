@@ -49,7 +49,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
-          {{- if or .Values.http_proxy .Values.https_proxy .Values.no_proxy }}
           {{- with .Values.http_proxy }}
           - name: HTTP_PROXY
             value: {{ . }}
@@ -61,7 +60,6 @@ spec:
           {{- with .Values.no_proxy }}
           - name: NO_PROXY
             value: {{ . }}
-          {{- end }}
           {{- end }}
           {{- if not (empty .Values.command) }}
           command:
