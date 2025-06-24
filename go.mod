@@ -1,6 +1,6 @@
 module github.com/jetstack/preflight
 
-go 1.23.4
+go 1.24.4
 
 require (
 	github.com/Venafi/vcert/v5 v5.8.1
