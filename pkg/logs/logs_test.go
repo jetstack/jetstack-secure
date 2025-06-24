@@ -385,10 +385,10 @@ retrying in %v after error: %s
 datagatherer informer for %q has failed and is backing off due to error: %s
 this is a happy log that should show as INFO`, "\n")
 	expect := strings.TrimPrefix(`
-level=ERROR msg="failed to complete initial sync of %!q(MISSING) data gatherer %!q(MISSING): %!v(MISSING)" source=agent
+level=ERROR msg="failed to complete initial sync of %q data gatherer %q: %v" source=agent
 level=ERROR msg="error messages will not show in the pod's events because the POD_NAME environment variable is empty" source=agent
-level=ERROR msg="retrying in %!v(MISSING) after error: %!s(MISSING)" source=agent
-level=ERROR msg="datagatherer informer for %!q(MISSING) has failed and is backing off due to error: %!s(MISSING)" source=agent
+level=ERROR msg="retrying in %v after error: %s" source=agent
+level=ERROR msg="datagatherer informer for %q has failed and is backing off due to error: %s" source=agent
 level=INFO msg="this is a happy log that should show as INFO" source=agent
 `, "\n")
 
@@ -409,7 +409,7 @@ level=INFO msg="this is a happy log that should show as INFO" source=agent
 
 	for _, line := range strings.Split(given, "\n") {
 		// Simulate the current agent's logs.
-		logger.Printf(line) // nolint:staticcheck
+		logger.Print(line)
 	}
 
 	assert.Equal(t, expect, gotBuf.String())

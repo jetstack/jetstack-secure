@@ -704,7 +704,7 @@ func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 	t.Setenv("KUBECONFIG", testutil.WithKubeconfig(t, cfg))
 	srv, cert, setVenafiCloudAssert := testutil.FakeVenafiCloud(t)
 	for _, obj := range testutil.Parse(
-		testutil.VenConnRBAC + testutil.Undent(fmt.Sprintf(`
+		testutil.VenConnRBAC + testutil.Undent(`
 			---
 			apiVersion: jetstack.io/v1alpha1
 			kind: VenafiConnection
@@ -751,7 +751,7 @@ func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 			- kind: ServiceAccount
 			  name: venafi-connection
 			  namespace: venafi
-		`))) {
+		`)) {
 		require.NoError(t, kcl.Create(t.Context(), obj))
 	}
 
