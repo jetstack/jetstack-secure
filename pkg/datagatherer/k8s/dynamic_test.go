@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -117,7 +116,7 @@ func sortGatheredResources(list []*api.GatheredResource) {
 }
 
 func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	config := ConfigDynamic{
 		ExcludeNamespaces:    []string{"kube-system"},
 		GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
@@ -164,7 +163,7 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 }
 
 func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	config := ConfigDynamic{
 		IncludeNamespaces:    []string{"a"},
 		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
@@ -638,7 +637,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			var wg sync.WaitGroup
-			ctx := context.Background()
+			ctx := t.Context()
 			gvrToListKind := map[schema.GroupVersionResource]string{
 				{Group: "foobar", Version: "v1", Resource: "foos"}:      "UnstructuredList",
 				{Group: "apps", Version: "v1", Resource: "deployments"}: "UnstructuredList",
@@ -958,7 +957,7 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			var wg sync.WaitGroup
-			ctx := context.Background()
+			ctx := t.Context()
 
 			clientset := fakeclientset.NewSimpleClientset(tc.addObjects...)
 

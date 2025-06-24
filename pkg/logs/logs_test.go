@@ -2,7 +2,6 @@ package logs_test
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -65,7 +64,7 @@ func TestLogs(t *testing.T) {
 		klog.Warning("klog Warning")
 		klog.ErrorS(errors.New("fake-error"), "klog Error")
 		klog.InfoS("klog InfoS", "key", "value")
-		logger := klog.FromContext(context.Background()).WithName("foo")
+		logger := klog.FromContext(t.Context()).WithName("foo")
 		logger.V(3).Info("Contextual Info Level 3", "key", "value")
 		logger.Error(errors.New("fake-error"), "Contextual error", "key", "value")
 

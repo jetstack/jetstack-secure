@@ -36,7 +36,7 @@ import (
 //
 // [1] https://github.com/kubernetes-sigs/controller-runtime/issues/2341
 func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.Verbosity(10)))
 	ctx = klog.NewContext(ctx, log)

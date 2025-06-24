@@ -659,7 +659,7 @@ func Test_ValidateAndCombineConfig_VenafiCloudKeyPair(t *testing.T) {
 	t.Run("server, uploader_id, and cluster name are correctly passed", func(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.Verbosity(10)))
 		ctx = klog.NewContext(ctx, log)
@@ -752,7 +752,7 @@ func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 			  name: venafi-connection
 			  namespace: venafi
 		`))) {
-		require.NoError(t, kcl.Create(context.Background(), obj))
+		require.NoError(t, kcl.Create(t.Context(), obj))
 	}
 
 	t.Run("err when cluster_id field is empty", func(t *testing.T) {
@@ -768,7 +768,7 @@ func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 	})
 
 	t.Run("the server field is ignored when VenafiConnection is used", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.Verbosity(10)))
 		ctx = klog.NewContext(ctx, log)

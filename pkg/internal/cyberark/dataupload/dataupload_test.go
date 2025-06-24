@@ -1,7 +1,6 @@
 package dataupload_test
 
 import (
-	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -113,7 +112,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 			cyberArkClient, err := dataupload.NewCyberArkClient(certPool, server.Server.URL, tc.authenticate)
 			require.NoError(t, err)
 
-			err = cyberArkClient.PostDataReadingsWithOptions(context.TODO(), tc.payload, tc.opts)
+			err = cyberArkClient.PostDataReadingsWithOptions(t.Context(), tc.payload, tc.opts)
 			tc.requireFn(t, err)
 		})
 	}
