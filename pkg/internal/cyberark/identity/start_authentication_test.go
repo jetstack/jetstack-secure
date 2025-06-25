@@ -1,7 +1,6 @@
 package identity
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -39,7 +38,7 @@ func Test_IdentityStartAuthentication(t *testing.T) {
 
 	for name, testSpec := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			identityServer := MockIdentityServer()
 			defer identityServer.Close()

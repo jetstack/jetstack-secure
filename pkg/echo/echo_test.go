@@ -2,7 +2,6 @@ package echo
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -61,7 +60,7 @@ func TestEchoServerRequestResponse(t *testing.T) {
 		}
 
 		// generate a request to test the handler containing the JSON data as a body
-		req, err := http.NewRequestWithContext(context.TODO(), sampleUpload.method, "http://example.com/api/v1/datareadings", bytes.NewBuffer(requestBodyJSON))
+		req, err := http.NewRequestWithContext(t.Context(), sampleUpload.method, "http://example.com/api/v1/datareadings", bytes.NewBuffer(requestBodyJSON))
 		if err != nil {
 			t.Fatalf("[%s]\nfailed to generate request to test echo server: %s", sampleUpload.description, err)
 		}

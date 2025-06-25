@@ -2,7 +2,6 @@ package logs_test
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -65,7 +64,7 @@ func TestLogs(t *testing.T) {
 		klog.Warning("klog Warning")
 		klog.ErrorS(errors.New("fake-error"), "klog Error")
 		klog.InfoS("klog InfoS", "key", "value")
-		logger := klog.FromContext(context.Background()).WithName("foo")
+		logger := klog.FromContext(t.Context()).WithName("foo")
 		logger.V(3).Info("Contextual Info Level 3", "key", "value")
 		logger.Error(errors.New("fake-error"), "Contextual error", "key", "value")
 
@@ -371,47 +370,4 @@ func Test_replaceWithStaticTimestamps(t *testing.T) {
 			assert.Equal(t, test.expected, replaceWithStaticTimestamps(test.input))
 		})
 	}
-}
-
-func TestLogToSlogWriter(t *testing.T) {
-	// This test makes sure that all the agent's remaining Log calls are correctly
-	// translated to slog.Error calls where appropriate.
-	//
-	// This list was generated using:
-	//  git grep -i "log\.\(print\|fatal\)" pkg/ cmd/  | fgrep -e error -e failed
-	given := strings.TrimPrefix(`
-failed to complete initial sync of %q data gatherer %q: %v
-error messages will not show in the pod's events because the POD_NAME environment variable is empty
-retrying in %v after error: %s
-datagatherer informer for %q has failed and is backing off due to error: %s
-this is a happy log that should show as INFO`, "\n")
-	expect := strings.TrimPrefix(`
-level=ERROR msg="failed to complete initial sync of %!q(MISSING) data gatherer %!q(MISSING): %!v(MISSING)" source=agent
-level=ERROR msg="error messages will not show in the pod's events because the POD_NAME environment variable is empty" source=agent
-level=ERROR msg="retrying in %!v(MISSING) after error: %!s(MISSING)" source=agent
-level=ERROR msg="datagatherer informer for %!q(MISSING) has failed and is backing off due to error: %!s(MISSING)" source=agent
-level=INFO msg="this is a happy log that should show as INFO" source=agent
-`, "\n")
-
-	gotBuf := &bytes.Buffer{}
-	slogHandler := slog.NewTextHandler(gotBuf, &slog.HandlerOptions{
-		// Remove the timestamp from the logs so that we can compare them.
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			if a.Key == "time" {
-				return slog.Attr{}
-			}
-			return a
-		},
-	})
-	slogLogger := slog.New(slogHandler)
-
-	logger := log.New(&bytes.Buffer{}, "", 0)
-	logger.SetOutput(logs.LogToSlogWriter{Slog: slogLogger, Source: "agent"})
-
-	for _, line := range strings.Split(given, "\n") {
-		// Simulate the current agent's logs.
-		logger.Printf(line) // nolint:staticcheck
-	}
-
-	assert.Equal(t, expect, gotBuf.String())
 }

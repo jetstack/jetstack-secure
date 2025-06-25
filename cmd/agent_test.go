@@ -39,7 +39,7 @@ func TestAgentRunOneShot(t *testing.T) {
 		return
 	}
 	t.Log("Running child process")
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second*3)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestAgentRunOneShot$")
 	var (

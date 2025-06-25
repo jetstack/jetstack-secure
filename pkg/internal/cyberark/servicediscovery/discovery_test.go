@@ -1,7 +1,6 @@
 package servicediscovery
 
 import (
-	"context"
 	"fmt"
 	"testing"
 )
@@ -46,7 +45,7 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 
 	for name, testSpec := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx := context.Background()
+			ctx := t.Context()
 
 			ts := MockDiscoveryServer()
 			defer ts.Close()
