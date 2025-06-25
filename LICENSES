@@ -40,7 +40,6 @@ cel.dev/expr,Apache-2.0
 github.com/Khan/genqlient/graphql,MIT
 github.com/Venafi/vcert/v5,Apache-2.0
 github.com/antlr4-go/antlr/v4,BSD-3-Clause
-github.com/asaskevich/govalidator,MIT
 github.com/aymerick/douceur,MIT
 github.com/beorn7/perks/quantile,MIT
 github.com/blang/semver/v4,MIT
