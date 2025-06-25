@@ -5,7 +5,7 @@ go 1.24.4
 require (
 	github.com/Venafi/vcert/v5 v5.10.2
 	github.com/cenkalti/backoff/v5 v5.0.2
-	github.com/fatih/color v1.17.0
+	github.com/fatih/color v1.18.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jetstack/venafi-connection-lib v0.3.2-0.20250305134451-ec1757b9e01b
