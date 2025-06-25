@@ -11,4 +11,5 @@ test-unit: | $(NEEDS_GO) $(NEEDS_GOTESTSUM) $(ARTIFACTS) $(NEEDS_ETCD) $(NEEDS_K
 		-- \
 		-ldflags $(go_preflight_ldflags)
 
+	$(GO) tool cover -func=$(ARTIFACTS)/filtered.cov
 	$(GO) tool cover -html=$(ARTIFACTS)/filtered.cov -o=$(ARTIFACTS)/filtered.html
