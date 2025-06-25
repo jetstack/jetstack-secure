@@ -1,8 +1,0 @@
-1. Please make sure you have the credentials secret: "{{ .Values.authentication.secretName }}" available
-> kubectl get secret -n {{ .Release.Namespace }} {{ .Values.authentication.secretName }}
-
-2. Check the application is running with the following:
-> kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
-
-3. Check the application logs for successful connection to the platform:
-> kubectl logs -n {{ .Release.Namespace }} $(kubectl get pod -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }} -o jsonpath='{.items[0].metadata.name}')
