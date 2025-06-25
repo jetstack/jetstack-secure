@@ -130,10 +130,6 @@ func Initialize() error {
 	// be using the global log.Default, also uses the common slog logger.
 	vcertLog := log.Default()
 	vcertLog.SetOutput(LogToSlogWriter{Slog: slog, Source: "vcert"})
-	// This is a work around for a bug in vcert where it adds a `vCert: ` prefix
-	// to the global log logger. It can be removed when this is fixed upstream
-	// in vcert:  https://github.com/Venafi/vcert/pull/512
-	vcertLog.SetPrefix("")
 
 	// The venafi-connection-lib client uses various controller-runtime packages
 	// which emit log messages. Make sure those log messages are not discarded.

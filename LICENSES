@@ -40,7 +40,6 @@ cel.dev/expr,Apache-2.0
 github.com/Khan/genqlient/graphql,MIT
 github.com/Venafi/vcert/v5,Apache-2.0
 github.com/antlr4-go/antlr/v4,BSD-3-Clause
-github.com/asaskevich/govalidator,MIT
 github.com/aymerick/douceur,MIT
 github.com/beorn7/perks/quantile,MIT
 github.com/blang/semver/v4,MIT
@@ -67,19 +66,13 @@ github.com/google/cel-go,Apache-2.0
 github.com/google/cel-go,BSD-3-Clause
 github.com/google/gnostic-models,Apache-2.0
 github.com/google/go-cmp/cmp,BSD-3-Clause
-github.com/google/gofuzz,Apache-2.0
 github.com/google/uuid,BSD-3-Clause
 github.com/gorilla/css/scanner,BSD-3-Clause
-github.com/gorilla/websocket,BSD-3-Clause
+github.com/gorilla/websocket,BSD-2-Clause
 github.com/hashicorp/errwrap,MPL-2.0
 github.com/hashicorp/go-multierror,MPL-2.0
 github.com/josharian/intern,MIT
 github.com/json-iterator/go,MIT
-github.com/klauspost/compress,MIT
-github.com/klauspost/compress,Apache-2.0
-github.com/klauspost/compress,BSD-3-Clause
-github.com/klauspost/compress/internal/snapref,BSD-3-Clause
-github.com/klauspost/compress/zstd/internal/xxhash,MIT
 github.com/mailru/easyjson,MIT
 github.com/mattn/go-colorable,MIT
 github.com/mattn/go-isatty,MIT
@@ -145,6 +138,7 @@ k8s.io/utils/internal/third_party/forked/golang,BSD-3-Clause
 sigs.k8s.io/controller-runtime/pkg,Apache-2.0
 sigs.k8s.io/json,Apache-2.0
 sigs.k8s.io/json,BSD-3-Clause
+sigs.k8s.io/randfill,Apache-2.0
 sigs.k8s.io/structured-merge-diff/v4,Apache-2.0
 sigs.k8s.io/yaml,MIT
 sigs.k8s.io/yaml,Apache-2.0

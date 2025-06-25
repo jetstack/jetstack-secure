@@ -86,10 +86,13 @@ func NewVenConnClient(restcfg *rest.Config, agentMetadata *api.AgentMetadata, in
 	_ = venapi.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
 
+	var unusedTPPDefaultClientID string
+
 	handler, err := venafi_client.NewConnectionHandler(
 		version.UserAgent(),
 		"venafi-kubernetes-agent.jetstack.io",
 		"VenafiKubernetesAgent",
+		unusedTPPDefaultClientID,
 		restcfg,
 		scheme,
 		restMapper,

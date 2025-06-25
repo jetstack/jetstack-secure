@@ -117,10 +117,10 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Exiting due to error" err="Erro
 			flags:         "",
 			skipIntialize: true,
 			expectStderr: `
-vCert: 0000/00/00 00:00:00 log Print
-vCert: 0000/00/00 00:00:00 INFO slog Info
-vCert: 0000/00/00 00:00:00 WARN slog Warn
-vCert: 0000/00/00 00:00:00 ERROR slog Error
+0000/00/00 00:00:00 log Print
+0000/00/00 00:00:00 INFO slog Info
+0000/00/00 00:00:00 WARN slog Warn
+0000/00/00 00:00:00 ERROR slog Error
 I0000 00:00:00.000000   00000 logs_test.go:000] klog Info
 W0000 00:00:00.000000   00000 logs_test.go:000] klog Warning
 E0000 00:00:00.000000   00000 logs_test.go:000] "klog Error" err="fake-error"

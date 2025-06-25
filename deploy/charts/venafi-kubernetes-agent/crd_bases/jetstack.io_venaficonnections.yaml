@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.17.3
   name: venaficonnections.jetstack.io
 spec:
   group: jetstack.io
@@ -254,7 +254,6 @@ spec:
                               - JWT
                               type: string
                             clientId:
-                              default: cert-manager.io
                               description: ClientID is the clientId used to authenticate
                                 with TPP.
                               type: string
@@ -465,7 +464,6 @@ spec:
                               - JWT
                               type: string
                             clientId:
-                              default: cert-manager.io
                               description: ClientID is the clientId used to authenticate
                                 with TPP.
                               type: string
@@ -662,7 +660,6 @@ spec:
                               - JWT
                               type: string
                             clientId:
-                              default: cert-manager.io
                               description: ClientID is the clientId used to authenticate
                                 with TPP.
                               type: string
@@ -872,7 +869,6 @@ spec:
                               - JWT
                               type: string
                             clientId:
-                              default: cert-manager.io
                               description: ClientID is the clientId used to authenticate
                                 with TPP.
                               type: string
@@ -1069,7 +1065,6 @@ spec:
                               - JWT
                               type: string
                             clientId:
-                              default: cert-manager.io
                               description: ClientID is the clientId used to authenticate
                                 with TPP.
                               type: string
