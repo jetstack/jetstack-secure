@@ -3,7 +3,7 @@ module github.com/jetstack/preflight
 go 1.24.4
 
 require (
-	github.com/Venafi/vcert/v5 v5.8.1
+	github.com/Venafi/vcert/v5 v5.10.2
 	github.com/cenkalti/backoff/v5 v5.0.2
 	github.com/fatih/color v1.17.0
 	github.com/google/uuid v1.6.0
@@ -48,7 +48,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/sosodev/duration v1.2.0 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
-	github.com/vektah/gqlparser/v2 v2.5.15 // indirect
+	github.com/vektah/gqlparser/v2 v2.5.24 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	go.opentelemetry.io/otel v1.33.0 // indirect
