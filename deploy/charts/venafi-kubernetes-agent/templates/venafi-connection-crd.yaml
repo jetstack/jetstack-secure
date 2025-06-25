@@ -255,7 +255,6 @@ spec:
                                   - JWT
                                 type: string
                               clientId:
-                                default: cert-manager.io
                                 description: ClientID is the clientId used to authenticate with TPP.
                                 type: string
                               url:
@@ -456,7 +455,6 @@ spec:
                                   - JWT
                                 type: string
                               clientId:
-                                default: cert-manager.io
                                 description: ClientID is the clientId used to authenticate with TPP.
                                 type: string
                               url:
@@ -644,7 +642,6 @@ spec:
                                   - JWT
                                 type: string
                               clientId:
-                                default: cert-manager.io
                                 description: ClientID is the clientId used to authenticate with TPP.
                                 type: string
                               url:
@@ -843,7 +840,6 @@ spec:
                                   - JWT
                                 type: string
                               clientId:
-                                default: cert-manager.io
                                 description: ClientID is the clientId used to authenticate with TPP.
                                 type: string
                               url:
@@ -1031,7 +1027,6 @@ spec:
                                   - JWT
                                 type: string
                               clientId:
-                                default: cert-manager.io
                                 description: ClientID is the clientId used to authenticate with TPP.
                                 type: string
                               url:
