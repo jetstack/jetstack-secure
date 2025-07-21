@@ -7,11 +7,11 @@ replicaCount: 1
 
 image:
   # -- Default to Open Source image repository
-  repository: quay.io/jetstack/preflight
+  repository: "registry.venafi.cloud/venafi-agent/venafi-agent"
   # -- Defaults to only pull if not already present
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion
-  tag: "v0.1.43"
+  tag: "v1.6.0"
 
 # -- Specify image pull credentials if using a prviate registry
 imagePullSecrets: []
