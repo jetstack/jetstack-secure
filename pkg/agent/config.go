@@ -606,12 +606,12 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		res.ClusterID = clusterID
 		res.ClusterDescription = cfg.ClusterDescription
 
-		// Validation of `data-gatherers`.
-		if dgErr := ValidateDataGatherers(cfg.DataGatherers); dgErr != nil {
-			errs = multierror.Append(errs, dgErr)
-		}
-		res.DataGatherers = cfg.DataGatherers
 	}
+	// Validation of `data-gatherers`.
+	if dgErr := ValidateDataGatherers(cfg.DataGatherers); dgErr != nil {
+		errs = multierror.Append(errs, dgErr)
+	}
+	res.DataGatherers = cfg.DataGatherers
 
 	// Validation of --period, -p, and the `period` field, as well as
 	// --backoff-max-time, --one-shot, and --strict. The flag --period/-p takes
@@ -702,7 +702,6 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	if err != nil {
 		return CombinedConfig{}, nil, multierror.Prefix(err, "validating creds:")
 	}
-
 	return res, preflightClient, nil
 }
 

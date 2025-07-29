@@ -40,6 +40,107 @@ type Options struct {
 	ClusterName string
 }
 
+type CyberarkPayload struct {
+	AgentVersion    string        `json:"agent_version"`
+	K8sVersion      string        `json:"k8s_version"`
+	ClusterID       string        `json:"cluster_id"`
+	Secrets         []interface{} `json:"secrets"`          // kubectl output, sanitized
+	ServiceAccounts []interface{} `json:"service_accounts"` // kubectl output
+	Roles           []interface{} `json:"roles"`            // k8s native format
+	RoleBindings    []interface{} `json:"role_bindings"`    // k8s native format
+}
+
+// You may want to define these constants based on your data-gatherer names
+const (
+	Discovery                   = "k8s-discovery"
+	SecretsGatherer             = "k8s/secrets"
+	ServiceAccountsGatherer     = "k8s/serviceaccounts"
+	RolesGatherer               = "k8s/roles"
+	RoleBindingsGatherer        = "k8s/rolebindings"
+	ClusterRolesGatherer        = "k8s/clusterroles"
+	ClusterRoleBindingsGatherer = "k8s/clusterrolebindings"
+)
+
+// ConvertDataReadingsToCyberarkPayload converts jetstack-secure DataReadings into CyberarkPayload
+func ConvertDataReadingsToCyberarkPayload(
+	input api.DataReadingsPost,
+) CyberarkPayload {
+	var (
+		k8sVersion                                    string
+		secrets, serviceAccounts, roles, roleBindings []interface{}
+	)
+
+	for _, reading := range input.DataReadings {
+		switch reading.DataGatherer {
+		case Discovery:
+			data, ok := reading.Data.(map[string]interface{})
+			if !ok {
+				panic("failed to parse server version")
+			}
+			serverVersion := data["server_version"]
+			serverVersionBytes, err := json.Marshal(serverVersion)
+			if err != nil {
+				panic(err)
+			}
+			var serverVersionInfo map[string]string
+			if err := json.Unmarshal(serverVersionBytes, &serverVersionInfo); err != nil {
+				panic(err)
+			}
+			k8sVersion = serverVersionInfo["gitVersion"]
+		case SecretsGatherer:
+			if data, ok := reading.Data.(map[string]interface{}); ok {
+				if items, ok := data["items"].([]*api.GatheredResource); ok {
+					resources := make([]interface{}, len(items))
+					for i, resource := range items {
+						resources[i] = resource.Resource
+					}
+					secrets = append(secrets, resources...)
+				}
+			}
+		case ServiceAccountsGatherer:
+			if data, ok := reading.Data.(map[string]interface{}); ok {
+				if items, ok := data["items"].([]*api.GatheredResource); ok {
+					resources := make([]interface{}, len(items))
+					for i, resource := range items {
+						resources[i] = resource.Resource
+					}
+					serviceAccounts = append(serviceAccounts, resources...)
+				}
+			}
+		case RolesGatherer, ClusterRoleBindingsGatherer:
+			if data, ok := reading.Data.(map[string]interface{}); ok {
+				if items, ok := data["items"].([]*api.GatheredResource); ok {
+					resources := make([]interface{}, len(items))
+					for i, resource := range items {
+						resources[i] = resource.Resource
+					}
+					roles = append(roles, resources...)
+				}
+			}
+		case RoleBindingsGatherer, ClusterRolesGatherer:
+			if data, ok := reading.Data.(map[string]interface{}); ok {
+				if items, ok := data["items"].([]*api.GatheredResource); ok {
+					resources := make([]interface{}, len(items))
+					for i, resource := range items {
+						resources[i] = resource.Resource
+					}
+					roleBindings = append(roleBindings, resources...)
+				}
+			}
+		}
+	}
+
+	return CyberarkPayload{
+		AgentVersion:    input.AgentMetadata.Version,
+		K8sVersion:      k8sVersion,
+		ClusterID:       input.AgentMetadata.ClusterID,
+		Secrets:         secrets,
+		ServiceAccounts: serviceAccounts,
+		Roles:           roles,
+		RoleBindings:    roleBindings,
+	}
+}
+
 func NewCyberArkClient(trustedCAs *x509.CertPool, baseURL string, authenticateRequest func(req *http.Request) error) (*CyberArkClient, error) {
 	cyberClient := &http.Client{}
 	tr := http.DefaultTransport.(*http.Transport).Clone()
@@ -65,16 +166,15 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payloa
 
 	encodedBody := &bytes.Buffer{}
 	checksum := sha256.New()
-	if err := json.NewEncoder(io.MultiWriter(encodedBody, checksum)).Encode(payload); err != nil {
+	if err := json.NewEncoder(io.MultiWriter(encodedBody, checksum)).Encode(ConvertDataReadingsToCyberarkPayload(payload)); err != nil {
 		return err
 	}
 
 	presignedUploadURL, err := c.retrievePresignedUploadURL(ctx, hex.EncodeToString(checksum.Sum(nil)), opts)
 	if err != nil {
-		return fmt.Errorf("while retrieving snapshot upload URL: %s", err)
+		return fmt.Errorf("while retrieving presigned upload URL: %v", err)
 	}
 
-	// The snapshot-links endpoint returns an AWS presigned URL which only supports the PUT verb.
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, presignedUploadURL, encodedBody)
 	if err != nil {
 		return err

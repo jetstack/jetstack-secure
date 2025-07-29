@@ -14,3 +14,5 @@ predicate.json
 *.tgz
 
 _bin
+.envrc
+.env

@@ -49,6 +49,26 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+          - name: ARK_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.authentication.secretName }}
+                key: ARK_USERNAME
+          - name: ARK_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.authentication.secretName }}
+                key: ARK_SECRET
+          - name: ARK_PLATFORM_DOMAIN
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.authentication.secretName }}
+                key: ARK_PLATFORM_DOMAIN
+          - name: ARK_SUBDOMAIN
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.authentication.secretName }}
+                key: ARK_SUBDOMAIN
           {{- with .Values.http_proxy }}
           - name: HTTP_PROXY
             value: {{ . }}
@@ -71,18 +91,8 @@ spec:
             - "agent"
             - "-c"
             - "/etc/venafi/agent/config/{{ default "config.yaml" .Values.config.configmap.key }}"
-            {{- if .Values.authentication.venafiConnection.enabled }}
-            - --venafi-connection
-            - {{ .Values.authentication.venafiConnection.name | quote }}
-            - --venafi-connection-namespace
-            - {{ .Values.authentication.venafiConnection.namespace | quote }}
-            {{- else }}
-            - "--client-id"
-            - {{ .Values.config.clientId | quote }}
-            - "--private-key-path"
-            - "/etc/venafi/agent/key/{{ .Values.authentication.secretKey }}"
-            {{- end }}
-            - --venafi-cloud
+            - --log-level=6
+            - --machine-hub
             {{- if .Values.metrics.enabled }}
             - --enable-metrics
             {{- end }}
@@ -95,11 +105,6 @@ spec:
             - name: config
               mountPath: "/etc/venafi/agent/config"
               readOnly: true
-            {{- if not .Values.authentication.venafiConnection.enabled }}
-            - name: credentials
-              mountPath: "/etc/venafi/agent/key"
-              readOnly: true
-            {{- end }}
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -137,12 +142,6 @@ spec:
           configMap:
             name: {{ default "agent-config" .Values.config.configmap.name }}
             optional: false
-        {{- if not .Values.authentication.venafiConnection.enabled }}
-        - name: credentials
-          secret:
-            secretName: {{ .Values.authentication.secretName }}
-            optional: false
-        {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

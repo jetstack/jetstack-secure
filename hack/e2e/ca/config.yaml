@@ -1,0 +1,3 @@
+machineHub:
+  subdomain: tlskp-test
+  credentialsSecretName: todo-unused
