@@ -21,8 +21,10 @@ var GoVersion string
 
 // UserAgent return a standard user agent for use with all HTTP requests. This is implemented in one place so
 // it's uniform across the Kubernetes Agent.
+//
+// TODO(wallrj): The prefix "Mozilla/5.0" is currently required by the CyberArk inventory API. Remove the prefix when CyberArk relax the API security settings.
 func UserAgent() string {
-	return fmt.Sprintf("venafi-kubernetes-agent/%s", PreflightVersion)
+	return fmt.Sprintf("Mozilla/5.0 venafi-kubernetes-agent/%s", PreflightVersion)
 }
 
 // SetUserAgent augments an http.Request with a standard user agent.

@@ -22,6 +22,11 @@ const (
 	// maxRetrievePresignedUploadURLBodySize is the maximum allowed size for a response body from the
 	// Retrieve Presigned Upload URL service.
 	maxRetrievePresignedUploadURLBodySize = 10 * 1024
+
+	// apiPathSnapshotLinks is the URL path of the snapshot-links endpoint of the inventory API.
+	// This endpoint returns an AWS presigned URL.
+	// TODO(wallrj): Link to CyberArk API documentation when it is published.
+	apiPathSnapshotLinks = "/api/ingestions/kubernetes/snapshot-links"
 )
 
 type CyberArkClient struct {
@@ -32,8 +37,7 @@ type CyberArkClient struct {
 }
 
 type Options struct {
-	ClusterName        string
-	ClusterDescription string
+	ClusterName string
 }
 
 func NewCyberArkClient(trustedCAs *x509.CertPool, baseURL string, authenticateRequest func(req *http.Request) error) (*CyberArkClient, error) {
@@ -51,6 +55,9 @@ func NewCyberArkClient(trustedCAs *x509.CertPool, baseURL string, authenticateRe
 	}, nil
 }
 
+// PostDataReadingsWithOptions PUTs the supplied payload to an [AWS presigned URL] which it obtains via the CyberArk inventory API.
+//
+// [AWS presigned URL]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
 func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payload api.DataReadingsPost, opts Options) error {
 	if opts.ClusterName == "" {
 		return fmt.Errorf("programmer mistake: the cluster name (aka `cluster_id` in the config file) cannot be left empty")
@@ -64,15 +71,15 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payloa
 
 	presignedUploadURL, err := c.retrievePresignedUploadURL(ctx, hex.EncodeToString(checksum.Sum(nil)), opts)
 	if err != nil {
-		return err
+		return fmt.Errorf("while retrieving snapshot upload URL: %s", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, presignedUploadURL, encodedBody)
+	// The snapshot-links endpoint returns an AWS presigned URL which only supports the PUT verb.
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, presignedUploadURL, encodedBody)
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Content-Type", "application/json")
 	version.SetUserAgent(req)
 
 	res, err := c.client.Do(req)
@@ -93,19 +100,19 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payloa
 }
 
 func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksum string, opts Options) (string, error) {
-	uploadURL, err := url.JoinPath(c.baseURL, "/api/data/kubernetes/upload")
+	uploadURL, err := url.JoinPath(c.baseURL, apiPathSnapshotLinks)
 	if err != nil {
 		return "", err
 	}
 
 	request := struct {
-		ClusterID          string `json:"cluster_id"`
-		ClusterDescription string `json:"cluster_description"`
-		Checksum           string `json:"checksum_sha256"`
+		ClusterID    string `json:"cluster_id"`
+		Checksum     string `json:"checksum_sha256"`
+		AgentVersion string `json:"agent_version"`
 	}{
-		ClusterID:          opts.ClusterName,
-		ClusterDescription: opts.ClusterDescription,
-		Checksum:           checksum,
+		ClusterID:    opts.ClusterName,
+		Checksum:     checksum,
+		AgentVersion: version.PreflightVersion,
 	}
 
 	encodedBody := &bytes.Buffer{}
@@ -120,7 +127,7 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 
 	req.Header.Set("Content-Type", "application/json")
 	if err := c.authenticateRequest(req); err != nil {
-		return "", fmt.Errorf("failed to authenticate request")
+		return "", fmt.Errorf("failed to authenticate request: %s", err)
 	}
 	version.SetUserAgent(req)
 

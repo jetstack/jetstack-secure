@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,8 +17,7 @@ import (
 const (
 	successBearerToken = "success-token"
 
-	successClusterID          = "success-cluster-id"
-	successClusterDescription = "success-cluster-description"
+	successClusterID = "success-cluster-id"
 )
 
 type mockDataUploadServer struct {
@@ -37,7 +37,7 @@ func (mds *mockDataUploadServer) Close() {
 
 func (mds *mockDataUploadServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
-	case "/api/data/kubernetes/upload":
+	case apiPathSnapshotLinks:
 		mds.handlePresignedUpload(w, r)
 		return
 	case "/presigned-upload":
@@ -80,17 +80,17 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 	}
 
 	var req struct {
-		ClusterID          string `json:"cluster_id"`
-		ClusterDescription string `json:"Cluster_description"`
-		Checksum           string `json:"checksum_sha256"`
+		ClusterID    string `json:"cluster_id"`
+		Checksum     string `json:"checksum_sha256"`
+		AgentVersion string `json:"agent_version"`
 	}
 	if err := json.Unmarshal(body, &req); err != nil {
 		http.Error(w, "failed to unmarshal post body", http.StatusInternalServerError)
 		return
 	}
 
-	if req.ClusterDescription != successClusterDescription {
-		http.Error(w, "post body contains unexpected description", http.StatusInternalServerError)
+	if req.AgentVersion != version.PreflightVersion {
+		http.Error(w, fmt.Sprintf("post body contains unexpected agent version: %s", req.AgentVersion), http.StatusInternalServerError)
 		return
 	}
 
@@ -123,7 +123,7 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 }
 
 func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Request, invalidJSON bool) {
-	if r.Method != http.MethodPost {
+	if r.Method != http.MethodPut {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		_, _ = w.Write([]byte(`{"message":"method not allowed"}`))
 		return
@@ -131,11 +131,6 @@ func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Req
 
 	if r.Header.Get("User-Agent") != version.UserAgent() {
 		http.Error(w, "should set user agent on all requests", http.StatusInternalServerError)
-		return
-	}
-
-	if r.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "should send JSON on all requests", http.StatusInternalServerError)
 		return
 	}
 
