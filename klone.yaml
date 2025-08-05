@@ -13,9 +13,9 @@ targets:
       repo_hash: 684d99b0a6378fb3625c188bc5a0081ae9d2bbdc
       repo_path: modules/generate-verify
     - folder_name: go
-      repo_url: https://github.com/cert-manager/makefile-modules.git
-      repo_ref: main
-      repo_hash: 684d99b0a6378fb3625c188bc5a0081ae9d2bbdc
+      repo_url: https://github.com/SgtCoDFish/cert-manager-makefile-modules.git
+      repo_ref: govulncheck-goprivate
+      repo_hash: b341741b2ef923b257763d809cb30e8bac512f32
       repo_path: modules/go
     - folder_name: helm
       repo_url: https://github.com/cert-manager/makefile-modules.git

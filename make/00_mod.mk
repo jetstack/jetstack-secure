@@ -43,6 +43,7 @@ helm_chart_version := $(VERSION)
 helm_labels_template_name := preflight.labels
 
 govulncheck_generate_org := jetstack
+govulncheck_goprivate := github.com/jetstack/venafi-connection-lib
 
 # Allows us to replace the Helm values.yaml's image.repository and image.tag
 # with the right values.
