@@ -42,6 +42,8 @@ helm_chart_image_name := quay.io/jetstack/charts/venafi-kubernetes-agent
 helm_chart_version := $(VERSION)
 helm_labels_template_name := preflight.labels
 
+govulncheck_generate_org := jetstack
+
 # Allows us to replace the Helm values.yaml's image.repository and image.tag
 # with the right values.
 define helm_values_mutation_function
