@@ -32,6 +32,7 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
+	"github.com/jetstack/preflight/pkg/clusteruid"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
@@ -76,6 +77,28 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 	config, preflightClient, err := ValidateAndCombineConfig(log, cfg, Flags)
 	if err != nil {
 		return fmt.Errorf("While evaluating configuration: %v", err)
+	}
+
+	// We need the cluster UID before we progress further so it can be sent along with other data readings
+
+	{
+		restCfg, err := kubeconfig.LoadRESTConfig("")
+		if err != nil {
+			return err
+		}
+
+		clientset, err := kubernetes.NewForConfig(restCfg)
+		if err != nil {
+			return err
+		}
+
+		ctx, err = clusteruid.GetClusterUID(ctx, clientset)
+		if err != nil {
+			return fmt.Errorf("failed to get cluster UID: %v", err)
+		}
+
+		clusterUID := clusteruid.ClusterUIDFromContext(ctx)
+		log.V(logs.Debug).Info("Retrieved cluster UID", "clusterUID", clusterUID)
 	}
 
 	group, gctx := errgroup.WithContext(ctx)
