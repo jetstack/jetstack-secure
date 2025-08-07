@@ -46,7 +46,7 @@ func NewCyberArkClient(trustedCAs *x509.CertPool, baseURL string, authenticateRe
 	if trustedCAs != nil {
 		tr.TLSClientConfig.RootCAs = trustedCAs
 	}
-	cyberClient.Transport = transport.DebugWrappers(tr)
+	cyberClient.Transport = transport.NewDebuggingRoundTripper(tr, transport.DebugByContext)
 
 	return &CyberArkClient{
 		baseURL:             baseURL,
