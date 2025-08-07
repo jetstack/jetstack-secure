@@ -5,13 +5,18 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
+	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
+	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
 )
 
 func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
@@ -33,8 +38,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 		},
 	}
 	defaultOpts := dataupload.Options{
-		ClusterName:        "success-cluster-id",
-		ClusterDescription: "success-cluster-description",
+		ClusterName: "success-cluster-id",
 	}
 
 	setToken := func(token string) func(*http.Request) error {
@@ -75,25 +79,25 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 			opts:         defaultOpts,
 			authenticate: setToken("fail-token"),
 			requireFn: func(t *testing.T, err error) {
-				require.ErrorContains(t, err, "received response with status code 500: should authenticate using the correct bearer token")
+				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500: should authenticate using the correct bearer token")
 			},
 		},
 		{
 			name:         "invalid JSON from server (RetrievePresignedUploadURL step)",
 			payload:      defaultPayload,
-			opts:         dataupload.Options{ClusterName: "invalid-json-retrieve-presigned", ClusterDescription: defaultOpts.ClusterDescription},
+			opts:         dataupload.Options{ClusterName: "invalid-json-retrieve-presigned"},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
-				require.ErrorContains(t, err, "rejecting JSON response from server as it was too large or was truncated")
+				require.ErrorContains(t, err, "while retrieving snapshot upload URL: rejecting JSON response from server as it was too large or was truncated")
 			},
 		},
 		{
-			name:         "500 from server (PostData step)",
+			name:         "500 from server (RetrievePresignedUploadURL step)",
 			payload:      defaultPayload,
-			opts:         dataupload.Options{ClusterName: "invalid-response-post-data", ClusterDescription: defaultOpts.ClusterDescription},
+			opts:         dataupload.Options{ClusterName: "invalid-response-post-data"},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
-				require.ErrorContains(t, err, "received response with status code 500: mock error")
+				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500: mock error")
 			},
 		},
 	}
@@ -116,4 +120,53 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 			tc.requireFn(t, err)
 		})
 	}
+}
+
+// TestPostDataReadingsWithOptionsWithRealAPI demonstrates that the dataupload code works with the real inventory API.
+// An API token is obtained by authenticating with the ARK_USERNAME and ARK_SECRET from the environment.
+// ARK_SUBDOMAIN should be your tenant subdomain.
+// ARK_PLATFORM_DOMAIN should be either integration-cyberark.cloud or cyberark.cloud
+func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
+	platformDomain := os.Getenv("ARK_PLATFORM_DOMAIN")
+	subdomain := os.Getenv("ARK_SUBDOMAIN")
+	username := os.Getenv("ARK_USERNAME")
+	secret := os.Getenv("ARK_SECRET")
+
+	if platformDomain == "" || subdomain == "" || username == "" || secret == "" {
+		t.Skip("Skipping because one of the following environment variables is unset or empty: ARK_PLATFORM_DOMAIN, ARK_SUBDOMAIN, ARK_USERNAME, ARK_SECRET")
+		return
+	}
+
+	logger := ktesting.NewLogger(t, ktesting.NewConfig())
+	ctx := klog.NewContext(t.Context(), logger)
+
+	const (
+		discoveryContextServiceName = "inventory"
+		separator                   = "."
+	)
+
+	serviceURL := fmt.Sprintf("https://%s%s%s.%s", subdomain, separator, discoveryContextServiceName, platformDomain)
+
+	var (
+		identityClient *identity.Client
+		err            error
+	)
+	if platformDomain == "cyberark.cloud" {
+		identityClient, err = identity.New(ctx, subdomain)
+	} else {
+		discoveryClient := servicediscovery.New(servicediscovery.WithIntegrationEndpoint())
+		identityClient, err = identity.NewWithDiscoveryClient(ctx, discoveryClient, subdomain)
+	}
+	require.NoError(t, err)
+
+	err = identityClient.LoginUsernamePassword(ctx, username, []byte(secret))
+	require.NoError(t, err)
+
+	cyberArkClient, err := dataupload.NewCyberArkClient(nil, serviceURL, identityClient.AuthenticateRequest)
+	require.NoError(t, err)
+
+	err = cyberArkClient.PostDataReadingsWithOptions(t.Context(), api.DataReadingsPost{}, dataupload.Options{
+		ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
+	})
+	require.NoError(t, err)
 }
