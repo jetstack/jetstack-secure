@@ -51,7 +51,10 @@ func (mds *mockDataUploadServer) ServeHTTP(w http.ResponseWriter, r *http.Reques
 func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		_, _ = w.Write([]byte(`{"message":"method not allowed"}`))
+		_, err := w.Write([]byte(`{"message":"method not allowed"}`))
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 
@@ -95,7 +98,10 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 	if req.ClusterID == "invalid-json-retrieve-presigned" {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"url":`)) // invalid JSON
+		_, err := w.Write([]byte(`{"url":`)) // invalid JSON
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 
@@ -122,7 +128,10 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		_, _ = w.Write([]byte(`{"message":"method not allowed"}`))
+		_, err := w.Write([]byte(`{"message":"method not allowed"}`))
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 
@@ -132,7 +141,10 @@ func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Req
 	}
 
 	checksum := sha256.New()
-	_, _ = io.Copy(checksum, r.Body)
+	_, err := io.Copy(checksum, r.Body)
+	if err != nil {
+		panic(err)
+	}
 
 	if r.URL.Query().Get("checksum") != hex.EncodeToString(checksum.Sum(nil)) {
 		http.Error(w, "checksum is invalid", http.StatusInternalServerError)
