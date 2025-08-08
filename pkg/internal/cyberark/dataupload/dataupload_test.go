@@ -3,6 +3,7 @@ package dataupload_test
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -82,6 +83,17 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 			authenticate: setToken("fail-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500: should authenticate using the correct bearer token")
+			},
+		},
+		{
+			name:    "error contains authenticate error",
+			payload: defaultPayload,
+			opts:    defaultOpts,
+			authenticate: func(_ *http.Request) error {
+				return errors.New("simulated-authenticate-error")
+			},
+			requireFn: func(t *testing.T, err error) {
+				require.ErrorContains(t, err, "while retrieving snapshot upload URL: failed to authenticate request: simulated-authenticate-error")
 			},
 		},
 		{
