@@ -1,6 +1,7 @@
 package dataupload
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -140,14 +141,25 @@ func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	checksum := sha256.New()
-	_, err := io.Copy(checksum, r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		panic(err)
 	}
 
+	checksum := sha256.New()
+	_, err = checksum.Write(body)
+	if err != nil {
+		panic(err)
+	}
 	if r.URL.Query().Get("checksum") != hex.EncodeToString(checksum.Sum(nil)) {
 		http.Error(w, "checksum is invalid", http.StatusInternalServerError)
+	}
+
+	var snapshot Snapshot
+	d := json.NewDecoder(bytes.NewBuffer(body))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&snapshot); err != nil {
+		panic(err)
 	}
 
 	w.WriteHeader(http.StatusOK)

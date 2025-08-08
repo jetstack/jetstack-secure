@@ -187,8 +187,16 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 	cyberArkClient, err := dataupload.NewCyberArkClient(nil, serviceURL, identityClient.AuthenticateRequest)
 	require.NoError(t, err)
 
-	err = cyberArkClient.PostDataReadingsWithOptions(ctx, api.DataReadingsPost{}, dataupload.Options{
-		ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
-	})
+	err = cyberArkClient.PostDataReadingsWithOptions(
+		ctx,
+		api.DataReadingsPost{
+			AgentMetadata: &api.AgentMetadata{
+				ClusterID: "bb068932-c80d-460d-88df-34bc7f3f3297",
+			},
+		},
+		dataupload.Options{
+			ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
+		},
+	)
 	require.NoError(t, err)
 }

@@ -29,6 +29,18 @@ const (
 	apiPathSnapshotLinks = "/api/ingestions/kubernetes/snapshot-links"
 )
 
+// Snapshot is the JSON that the CyberArk Discovery and Context API expects to
+// be uploaded to the AWS presigned URL.
+type Snapshot struct {
+	AgentVersion    string        `json:"agent_version"`
+	ClusterID       string        `json:"cluster_id"`
+	K8SVersion      string        `json:"k8s_version"`
+	Secrets         []interface{} `json:"secrets"`
+	ServiceAccounts []interface{} `json:"service_accounts"`
+	Roles           []interface{} `json:"roles"`
+	RoleBindings    []interface{} `json:"role_bindings"`
+}
+
 type CyberArkClient struct {
 	baseURL string
 	client  *http.Client
@@ -63,9 +75,14 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payloa
 		return fmt.Errorf("programmer mistake: the cluster name (aka `cluster_id` in the config file) cannot be left empty")
 	}
 
+	snapshot := Snapshot{
+		ClusterID:    payload.AgentMetadata.ClusterID,
+		AgentVersion: version.PreflightVersion,
+	}
+
 	encodedBody := &bytes.Buffer{}
 	checksum := sha256.New()
-	if err := json.NewEncoder(io.MultiWriter(encodedBody, checksum)).Encode(payload); err != nil {
+	if err := json.NewEncoder(io.MultiWriter(encodedBody, checksum)).Encode(snapshot); err != nil {
 		return err
 	}
 
