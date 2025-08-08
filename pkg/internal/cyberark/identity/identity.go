@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
+	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
@@ -212,7 +213,8 @@ func NewWithDiscoveryClient(ctx context.Context, discoveryClient *servicediscove
 
 	return &Client{
 		client: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout:   10 * time.Second,
+			Transport: transport.NewDebuggingRoundTripper(http.DefaultTransport, transport.DebugByContext),
 		},
 
 		endpoint:  endpoint,

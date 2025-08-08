@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"time"
 
+	"k8s.io/client-go/transport"
+
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -62,7 +64,8 @@ func WithCustomEndpoint(endpoint string) ClientOpt {
 func New(clientOpts ...ClientOpt) *Client {
 	client := &Client{
 		client: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout:   10 * time.Second,
+			Transport: transport.NewDebuggingRoundTripper(http.DefaultTransport, transport.DebugByContext),
 		},
 		endpoint: prodDiscoveryEndpoint,
 	}

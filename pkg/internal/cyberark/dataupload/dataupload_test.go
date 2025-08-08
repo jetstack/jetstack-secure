@@ -17,6 +17,8 @@ import (
 	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
+
+	_ "k8s.io/klog/v2/ktesting/init"
 )
 
 func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
@@ -126,6 +128,11 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 // An API token is obtained by authenticating with the ARK_USERNAME and ARK_SECRET from the environment.
 // ARK_SUBDOMAIN should be your tenant subdomain.
 // ARK_PLATFORM_DOMAIN should be either integration-cyberark.cloud or cyberark.cloud
+//
+// To enable verbose request logging:
+//
+//	go test ./pkg/internal/cyberark/dataupload/... \
+//	  -v -count 1 -run TestPostDataReadingsWithOptionsWithRealAPI -args -testing.v 6
 func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 	platformDomain := os.Getenv("ARK_PLATFORM_DOMAIN")
 	subdomain := os.Getenv("ARK_SUBDOMAIN")
@@ -137,7 +144,7 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 		return
 	}
 
-	logger := ktesting.NewLogger(t, ktesting.NewConfig())
+	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 	ctx := klog.NewContext(t.Context(), logger)
 
 	const (
@@ -165,7 +172,7 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 	cyberArkClient, err := dataupload.NewCyberArkClient(nil, serviceURL, identityClient.AuthenticateRequest)
 	require.NoError(t, err)
 
-	err = cyberArkClient.PostDataReadingsWithOptions(t.Context(), api.DataReadingsPost{}, dataupload.Options{
+	err = cyberArkClient.PostDataReadingsWithOptions(ctx, api.DataReadingsPost{}, dataupload.Options{
 		ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
 	})
 	require.NoError(t, err)
