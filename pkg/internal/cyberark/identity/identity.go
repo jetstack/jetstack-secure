@@ -279,16 +279,19 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
+		logger.Error(err, "")
 		return response, fmt.Errorf("failed to marshal JSON for request to StartAuthentication endpoint: %s", err)
 	}
 
 	endpoint, err := url.JoinPath(c.endpoint, "Security", "StartAuthentication")
 	if err != nil {
+		logger.Error(err, "")
 		return response, fmt.Errorf("failed to create URL for request to CyberArk Identity StartAuthentication: %s", err)
 	}
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(bodyJSON))
 	if err != nil {
+		logger.Error(err, "")
 		return response, fmt.Errorf("failed to initialise request to Identity endpoint %s: %s", endpoint, err)
 	}
 
@@ -296,6 +299,7 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 
 	httpResponse, err := c.client.Do(request)
 	if err != nil {
+		logger.Error(err, "")
 		return response, fmt.Errorf("failed to perform HTTP request to start authentication: %s", err)
 	}
 
@@ -304,6 +308,7 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 	if httpResponse.StatusCode != http.StatusOK {
 		err := fmt.Errorf("got unexpected status code %s from request to start authentication in CyberArk Identity API", httpResponse.Status)
 		if httpResponse.StatusCode >= 500 || httpResponse.StatusCode < 400 {
+			logger.Error(err, "")
 			return response, err
 		}
 
@@ -317,14 +322,18 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 	err = json.NewDecoder(io.LimitReader(httpResponse.Body, maxStartAuthenticationBodySize)).Decode(&startAuthResponse)
 	if err != nil {
 		if err == io.ErrUnexpectedEOF {
+			logger.Error(err, "")
 			return response, fmt.Errorf("rejecting JSON response from server as it was too large or was truncated")
 		}
 
+		logger.Error(err, "")
 		return response, fmt.Errorf("failed to parse JSON from otherwise successful request to start authentication: %s", err)
 	}
 
 	if !startAuthResponse.Success {
-		return response, fmt.Errorf("got a failure response from request to start authentication: message=%q, error=%q", startAuthResponse.Message, startAuthResponse.ErrorID)
+		err := fmt.Errorf("got a failure response from request to start authentication: message=%q, error=%q", startAuthResponse.Message, startAuthResponse.ErrorID)
+		logger.Error(err, "")
+		return response, err
 	}
 
 	logger.V(logs.Debug).Info("made successful request to StartAuthentication", "summary", startAuthResponse.Result.Summary)
@@ -332,20 +341,24 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 	if startAuthResponse.Result.Summary != SummaryNewPackage {
 		// This means we can't respond to whatever summary the server sent.
 		// The best thing to do is try and find a challenge we can solve anyway.
-		klog.FromContext(ctx).Info("got an unexpected Summary from StartAuthentication response; will attempt to complete a login challenge anyway", "summary", startAuthResponse.Result.Summary)
+		logger.Info("got an unexpected Summary from StartAuthentication response; will attempt to complete a login challenge anyway", "summary", startAuthResponse.Result.Summary)
 	}
 
 	// We can only handle a UP type challenge, and if there are any other challenges, we'll have to fail because we can't handle them.
 	// https://github.com/cyberark/ark-sdk-python/blob/3be12c3f2d3a2d0407025028943e584b6edc5996/ark_sdk_python/auth/identity/ark_identity.py#L405
 	switch len(startAuthResponse.Result.Challenges) {
 	case 0:
-		return response, fmt.Errorf("got no valid challenges in response to start authentication; unable to log in")
+		err := fmt.Errorf("got no valid challenges in response to start authentication; unable to log in")
+		logger.Error(err, "")
+		return response, err
 
 	case 1:
 		// do nothing, this is ideal
 
 	default:
-		return response, fmt.Errorf("got %d challenges in response to start authentication, which means MFA may be enabled; unable to log in", len(startAuthResponse.Result.Challenges))
+		err := fmt.Errorf("got %d challenges in response to start authentication, which means MFA may be enabled; unable to log in", len(startAuthResponse.Result.Challenges))
+		logger.Error(err, "")
+		return response, err
 	}
 
 	challenge := startAuthResponse.Result.Challenges[0]
@@ -353,19 +366,25 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 	switch len(challenge.Mechanisms) {
 	case 0:
 		// presumably this shouldn't happen, but handle the case anyway
-		return response, fmt.Errorf("got no mechanisms for challenge from Identity server")
+		err := fmt.Errorf("got no mechanisms for challenge from Identity server")
+		logger.Error(err, "")
+		return response, err
 
 	case 1:
 		// do nothing, this is ideal
 
 	default:
-		return response, fmt.Errorf("got %d mechanisms in response to start authentication, which means MFA may be enabled; unable to log in", len(challenge.Mechanisms))
+		err := fmt.Errorf("got %d mechanisms in response to start authentication, which means MFA may be enabled; unable to log in", len(challenge.Mechanisms))
+		logger.Error(err, "")
+		return response, err
 	}
 
 	mechanism := challenge.Mechanisms[0]
 
 	if !mechanism.Enrolled || mechanism.Name != MechanismUsernamePassword {
-		return response, errNoUPMechanism
+		err := errNoUPMechanism
+		logger.Error(err, "")
+		return response, err
 	}
 
 	response.Action = ActionAnswer
@@ -380,6 +399,9 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 // doAdvanceAuthentication performs the second step of the login process, sending the password to the server
 // and receiving a token in response.
 func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, password *[]byte, requestBody advanceAuthenticationRequestBody) error {
+
+	logger := klog.FromContext(ctx)
+
 	if password == nil {
 		return backoff.Permanent(fmt.Errorf("password must not be nil; this is a programming error"))
 	}
@@ -398,6 +420,7 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(bodyJSON))
 	if err != nil {
+		logger.Error(err, "")
 		return fmt.Errorf("failed to initialise request to Identity endpoint %s: %s", endpoint, err)
 	}
 
@@ -405,6 +428,7 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 
 	httpResponse, err := c.client.Do(request)
 	if err != nil {
+		logger.Error(err, "")
 		return fmt.Errorf("failed to perform HTTP request to advance authentication: %s", err)
 	}
 
@@ -415,6 +439,7 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 	if httpResponse.StatusCode != http.StatusOK {
 		err := fmt.Errorf("got unexpected status code %s from request to advance authentication in CyberArk Identity API", httpResponse.Status)
 		if httpResponse.StatusCode >= 500 || httpResponse.StatusCode < 400 {
+			logger.Error(err, "")
 			return err
 		}
 
@@ -427,14 +452,19 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 	err = json.NewDecoder(io.LimitReader(httpResponse.Body, maxAdvanceAuthenticationBodySize)).Decode(&advanceAuthResponse)
 	if err != nil {
 		if err == io.ErrUnexpectedEOF {
+			logger.Error(err, "")
 			return fmt.Errorf("rejecting JSON response from server as it was too large or was truncated")
 		}
 
+		logger.Error(err, "")
 		return fmt.Errorf("failed to parse JSON from otherwise successful request to advance authentication: %s", err)
 	}
 
 	if !advanceAuthResponse.Success {
-		return fmt.Errorf("got a failure response from request to advance authentication: message=%q, error=%q", advanceAuthResponse.Message, advanceAuthResponse.ErrorID)
+		// TODO: Permanent error?
+		err := fmt.Errorf("got a failure response from request to advance authentication: message=%q, error=%q", advanceAuthResponse.Message, advanceAuthResponse.ErrorID)
+		logger.Error(err, "")
+		return err
 	}
 
 	if advanceAuthResponse.Result.Summary != SummaryLoginSuccess {
@@ -443,7 +473,7 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 		return backoff.Permanent(fmt.Errorf("got a %s response from AdvanceAuthentication; this implies that the user account %s requires MFA, which is not supported. Try unlocking MFA for this user", advanceAuthResponse.Result.Summary, username))
 	}
 
-	klog.FromContext(ctx).Info("successfully completed AdvanceAuthentication request to CyberArk Identity; login complete", "username", username)
+	logger.Info("successfully completed AdvanceAuthentication request to CyberArk Identity; login complete", "username", username)
 
 	c.tokenCachedMutex.Lock()
 

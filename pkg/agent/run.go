@@ -35,6 +35,8 @@ import (
 	"github.com/jetstack/preflight/pkg/clusteruid"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
+	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
+	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
@@ -77,6 +79,44 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 	config, preflightClient, err := ValidateAndCombineConfig(log, cfg, Flags)
 	if err != nil {
 		return fmt.Errorf("While evaluating configuration: %v", err)
+	}
+
+	var caClient *client.CyberArkClient
+	{
+		platformDomain := os.Getenv("ARK_PLATFORM_DOMAIN")
+		subdomain := os.Getenv("ARK_SUBDOMAIN")
+		username := os.Getenv("ARK_USERNAME")
+		password := []byte(os.Getenv("ARK_SECRET"))
+
+		const (
+			discoveryContextServiceName = "inventory"
+			separator                   = "."
+		)
+
+		// TODO(wallrj): Maybe get this URL via the service discovery API.
+		// https://platform-discovery.integration-cyberark.cloud/api/public/tenant-discovery?allEndpoints=true&bySubdomain=tlskp-test
+		serviceURL := fmt.Sprintf("https://%s%s%s.%s", subdomain, separator, discoveryContextServiceName, platformDomain)
+
+		var (
+			identityClient *identity.Client
+			err            error
+		)
+		if platformDomain == "cyberark.cloud" {
+			identityClient, err = identity.New(ctx, subdomain)
+		} else {
+			discoveryClient := servicediscovery.New(servicediscovery.WithIntegrationEndpoint())
+			identityClient, err = identity.NewWithDiscoveryClient(ctx, discoveryClient, subdomain)
+		}
+		if err != nil {
+			return fmt.Errorf("while creating the CyberArk identity client: %v", err)
+		}
+		if err := identityClient.LoginUsernamePassword(ctx, username, password); err != nil {
+			return fmt.Errorf("while logging in: %v", err)
+		}
+		caClient, err = client.NewCyberArkClient(nil, serviceURL, identityClient.AuthenticateRequest)
+		if err != nil {
+			return fmt.Errorf("while creating the CyberArk dataupload client: %v", err)
+		}
 	}
 
 	// We need the cluster UID before we progress further so it can be sent along with other data readings
@@ -185,7 +225,6 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 	}
 
 	dataGatherers := map[string]datagatherer.DataGatherer{}
-
 	// load datagatherer config and boot each one
 	for _, dgConfig := range config.DataGatherers {
 		kind := dgConfig.Kind
@@ -262,7 +301,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 	// be cancelled, which will cause this blocking loop to exit
 	// instead of waiting for the time period.
 	for {
-		if err := gatherAndOutputData(klog.NewContext(ctx, log), eventf, config, preflightClient, dataGatherers); err != nil {
+		if err := gatherAndOutputData(klog.NewContext(ctx, log), eventf, config, preflightClient, caClient, dataGatherers); err != nil {
 			return err
 		}
 
@@ -316,7 +355,7 @@ func newEventf(log logr.Logger, installNS string) (Eventf, error) {
 // Like Printf but for sending events to the agent's Pod object.
 type Eventf func(eventType, reason, msg string, args ...interface{})
 
-func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) error {
+func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConfig, preflightClient client.Client, caClient *client.CyberArkClient, dataGatherers map[string]datagatherer.DataGatherer) error {
 	log := klog.FromContext(ctx).WithName("gatherAndOutputData")
 	var readings []*api.DataReading
 
@@ -338,8 +377,18 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 		}
 	}
 
+	clusterID := clusteruid.ClusterUIDFromContext(ctx)
+	payload := api.DataReadingsPost{
+		AgentMetadata: &api.AgentMetadata{
+			Version:   version.PreflightVersion,
+			ClusterID: clusterID,
+		},
+		DataGatherTime: time.Now(),
+		DataReadings:   readings,
+	}
 	if config.OutputPath != "" {
-		data, err := json.MarshalIndent(readings, "", "  ")
+
+		data, err := json.MarshalIndent(payload, "", "  ")
 		if err != nil {
 			return fmt.Errorf("failed to marshal JSON: %s", err)
 		}
@@ -359,11 +408,11 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 			eventf("Warning", "PushingErr", "retrying in %v after error: %s", t, err)
 			log.Info("Warning: PushingErr: retrying", "in", t, "reason", err)
 		})
-
 		if config.MachineHubMode {
 			post := func() (any, error) {
-				log.Info("machine hub mode not yet implemented")
-				return struct{}{}, nil
+				return struct{}{}, caClient.PostDataReadingsWithOptions(ctx, payload, client.CyberArkClientOptions{
+					ClusterName: clusterID,
+				})
 			}
 
 			group.Go(func() error {

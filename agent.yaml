@@ -1,17 +1,55 @@
-server: "https://platform.jetstack.io"
-organization_id: "my-organization"
-cluster_id: "my_cluster"
-period: "0h1m0s"
+machineHub:
+  subdomain: tlskp-test
+  credentialsSecretName: machinehub-credentials
 data-gatherers:
-  - kind: "dummy"
-    name: "dummy"
-    config:
-      failed-attempts: 5
-  - kind: "dummy"
-    name: "dummy-fail"
-    config:
-      always-fail: true
-venafi-cloud:
-  uploader_id: "example-id"
-  upload_path: "/example/endpoint/path"
-  
+# gather k8s apiserver version information
+- kind: "k8s-discovery"
+  name: "k8s-discovery"
+- kind: "k8s-dynamic"
+  name: "k8s/serviceaccounts"
+  config:
+    resource-type:
+      resource: serviceaccounts
+      version: v1
+- kind: "k8s-dynamic"
+  name: "k8s/secrets"
+  config:
+    resource-type:
+      version: v1
+      resource: secrets
+    field-selectors:
+    - type!=kubernetes.io/service-account-token
+    - type!=kubernetes.io/dockercfg
+    - type!=kubernetes.io/dockerconfigjson
+    - type!=kubernetes.io/basic-auth
+    - type!=kubernetes.io/ssh-auth
+    - type!=bootstrap.kubernetes.io/token
+    - type!=helm.sh/release.v1
+- kind: "k8s-dynamic"
+  name: "k8s/roles"
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: roles
+- kind: "k8s-dynamic"
+  name: "k8s/clusterroles"
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: clusterroles
+- kind: "k8s-dynamic"
+  name: "k8s/rolebindings"
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: rolebindings
+- kind: "k8s-dynamic"
+  name: "k8s/clusterrolebindings"
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: clusterrolebindings
