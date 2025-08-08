@@ -57,6 +57,8 @@ generate-go-mod-tidy: | $(NEEDS_GO)
 
 shared_generate_targets += generate-go-mod-tidy
 
+ifndef govulncheck_skip
+
 default_govulncheck_generate_base_dir := $(dir $(lastword $(MAKEFILE_LIST)))/base/
 # The base directory used to copy the govulncheck GH action from. This can be
 # overwritten with an action with extra authentication or with a totally different
@@ -100,6 +102,8 @@ verify-govulncheck: | $(NEEDS_GOVULNCHECK)
 				popd >/dev/null; \
 				echo ""; \
 			done
+
+endif # govulncheck_skip
 
 ifdef golangci_lint_config
 
