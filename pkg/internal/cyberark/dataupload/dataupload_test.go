@@ -106,6 +106,9 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+			ctx := klog.NewContext(t.Context(), logger)
+
 			server := dataupload.MockDataUploadServer()
 			defer server.Close()
 
@@ -118,7 +121,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 			cyberArkClient, err := dataupload.NewCyberArkClient(certPool, server.Server.URL, tc.authenticate)
 			require.NoError(t, err)
 
-			err = cyberArkClient.PostDataReadingsWithOptions(t.Context(), tc.payload, tc.opts)
+			err = cyberArkClient.PostDataReadingsWithOptions(ctx, tc.payload, tc.opts)
 			tc.requireFn(t, err)
 		})
 	}
