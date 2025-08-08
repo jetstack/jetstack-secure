@@ -41,10 +41,7 @@ func (mds *mockDataUploadServer) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		mds.handlePresignedUpload(w, r)
 		return
 	case "/presigned-upload":
-		mds.handleUpload(w, r, false)
-		return
-	case "/presigned-upload-invalid-json":
-		mds.handleUpload(w, r, false)
+		mds.handleUpload(w, r)
 		return
 	default:
 		w.WriteHeader(http.StatusNotFound)
@@ -122,7 +119,7 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 	}{presignedURL})
 }
 
-func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Request, invalidJSON bool) {
+func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		_, _ = w.Write([]byte(`{"message":"method not allowed"}`))
@@ -131,13 +128,6 @@ func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Req
 
 	if r.Header.Get("User-Agent") != version.UserAgent() {
 		http.Error(w, "should set user agent on all requests", http.StatusInternalServerError)
-		return
-	}
-
-	if invalidJSON {
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"url":`)) // invalid JSON
 		return
 	}
 
