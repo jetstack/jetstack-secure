@@ -1,6 +1,7 @@
 package dataupload
 
 import (
+	"bytes"
 	"crypto/sha3"
 	"encoding/hex"
 	"encoding/json"
@@ -41,10 +42,7 @@ func (mds *mockDataUploadServer) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		mds.handlePresignedUpload(w, r)
 		return
 	case "/presigned-upload":
-		mds.handleUpload(w, r, false)
-		return
-	case "/presigned-upload-invalid-json":
-		mds.handleUpload(w, r, false)
+		mds.handleUpload(w, r)
 		return
 	default:
 		w.WriteHeader(http.StatusNotFound)
@@ -54,7 +52,10 @@ func (mds *mockDataUploadServer) ServeHTTP(w http.ResponseWriter, r *http.Reques
 func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		_, _ = w.Write([]byte(`{"message":"method not allowed"}`))
+		_, err := w.Write([]byte(`{"message":"method not allowed"}`))
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 
@@ -94,7 +95,10 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 	if req.ClusterID == "invalid-json-retrieve-presigned" {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"url":`)) // invalid JSON
+		_, err := w.Write([]byte(`{"url":`)) // invalid JSON
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 
@@ -118,10 +122,13 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 	}{presignedURL})
 }
 
-func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Request, invalidJSON bool) {
+func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		_, _ = w.Write([]byte(`{"message":"method not allowed"}`))
+		_, err := w.Write([]byte(`{"message":"method not allowed"}`))
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 
@@ -130,21 +137,26 @@ func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if invalidJSON {
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"url":`)) // invalid JSON
-		return
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		panic(err)
 	}
 
 	checksum := sha3.New256()
-	_, _ = io.Copy(checksum, r.Body)
-
+	_, err = checksum.Write(body)
+	if err != nil {
+		panic(err)
+	}
 	if r.URL.Query().Get("checksum") != hex.EncodeToString(checksum.Sum(nil)) {
 		http.Error(w, "checksum is invalid", http.StatusInternalServerError)
 	}
 
+	var snapshot snapshot
+	d := json.NewDecoder(bytes.NewBuffer(body))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&snapshot); err != nil {
+		panic(err)
+	}
+
 	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`{"success":true}`))
 }

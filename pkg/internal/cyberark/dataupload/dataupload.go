@@ -58,14 +58,19 @@ func NewCyberArkClient(trustedCAs *x509.CertPool, baseURL string, authenticateRe
 // PostDataReadingsWithOptions PUTs the supplied payload to an [AWS presigned URL] which it obtains via the CyberArk inventory API.
 //
 // [AWS presigned URL]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
-func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payload api.DataReadingsPost, opts Options) error {
+func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, opts Options) error {
 	if opts.ClusterName == "" {
 		return fmt.Errorf("programmer mistake: the cluster name (aka `cluster_id` in the config file) cannot be left empty")
 	}
 
+	snapshot, err := convertDataReadingsToCyberarkSnapshot(readings)
+	if err != nil {
+		return fmt.Errorf("while converting datareadings to Cyberark snapshot format: %s", err)
+	}
+
 	encodedBody := &bytes.Buffer{}
 	checksum := sha3.New256()
-	if err := json.NewEncoder(io.MultiWriter(encodedBody, checksum)).Encode(payload); err != nil {
+	if err := json.NewEncoder(io.MultiWriter(encodedBody, checksum)).Encode(snapshot); err != nil {
 		return err
 	}
 

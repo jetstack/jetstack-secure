@@ -16,6 +16,9 @@ var SecretSelectedFields = []FieldPath{
 	{"metadata", "ownerReferences"},
 	{"metadata", "selfLink"},
 	{"metadata", "uid"},
+	{"metadata", "creationTimestamp"},
+	{"metadata", "deletionTimestamp"},
+	{"metadata", "resourceVersion"},
 
 	{"type"},
 	{"data", "tls.crt"},
