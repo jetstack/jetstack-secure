@@ -139,6 +139,4 @@ func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Req
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`{"success":true}`))
 }
