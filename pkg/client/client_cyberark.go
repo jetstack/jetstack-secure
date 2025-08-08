@@ -38,7 +38,7 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 		return err
 	}
 
-	err = datauploadClient.PostDataReadingsWithOptions(ctx, api.DataReadingsPost{}, dataupload.Options{
+	err = datauploadClient.PostDataReadingsWithOptions(ctx, readings, dataupload.Options{
 		ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
 	})
 	if err != nil {

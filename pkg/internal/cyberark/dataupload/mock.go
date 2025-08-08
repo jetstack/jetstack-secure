@@ -1,6 +1,7 @@
 package dataupload
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -10,8 +11,6 @@ import (
 	"net/http/httptest"
 
 	"github.com/jetstack/preflight/pkg/version"
-
-	_ "embed"
 )
 
 const (
@@ -51,7 +50,10 @@ func (mds *mockDataUploadServer) ServeHTTP(w http.ResponseWriter, r *http.Reques
 func (mds *mockDataUploadServer) handleSnapshotLinks(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		_, _ = w.Write([]byte(`{"message":"method not allowed"}`))
+		_, err := w.Write([]byte(`{"message":"method not allowed"}`))
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 
@@ -91,7 +93,10 @@ func (mds *mockDataUploadServer) handleSnapshotLinks(w http.ResponseWriter, r *h
 	if req.ClusterID == "invalid-json-retrieve-presigned" {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"url":`)) // invalid JSON
+		_, err := w.Write([]byte(`{"url":`)) // invalid JSON
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 
@@ -128,7 +133,10 @@ const amzExampleChecksumError = `<?xml version="1.0" encoding="UTF-8"?>
 func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		_, _ = w.Write([]byte(`{"message":"method not allowed"}`))
+		_, err := w.Write([]byte(`{"message":"method not allowed"}`))
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 
@@ -143,15 +151,31 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 		return
 	}
 
-	checksum := sha256.New()
-	_, _ = io.Copy(checksum, r.Body)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	hash := sha256.New()
+	_, err = hash.Write(body)
+	if err != nil {
+		panic(err)
+	}
 
 	// AWS S3 responds with a BadDigest error if the request body has a
 	// different checksum than the checksum supplied in the request header.
-	if amzChecksum != base64.StdEncoding.EncodeToString(checksum.Sum(nil)) {
+	if amzChecksum != base64.StdEncoding.EncodeToString(hash.Sum(nil)) {
 		w.Header().Set("Content-Type", "application/xml")
 		http.Error(w, amzExampleChecksumError, http.StatusBadRequest)
 	}
+
+	var snapshot snapshot
+	d := json.NewDecoder(bytes.NewBuffer(body))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&snapshot); err != nil {
+		panic(err)
+	}
+
 	// AWS S3 responds with an empty body if the PUT succeeds
 	w.WriteHeader(http.StatusOK)
 }
