@@ -21,7 +21,7 @@ import (
 	_ "k8s.io/klog/v2/ktesting/init"
 )
 
-func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
+func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 	fakeTime := time.Unix(123, 0)
 	defaultPayload := api.DataReadingsPost{
 		AgentMetadata: &api.AgentMetadata{
@@ -135,8 +135,8 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 // To enable verbose request logging:
 //
 //	go test ./pkg/internal/cyberark/dataupload/... \
-//	  -v -count 1 -run TestPostDataReadingsWithOptionsWithRealAPI -args -testing.v 6
-func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
+//	  -v -count 1 -run TestCyberArkClient_PostDataReadingsWithOptions_RealAPI -args -testing.v 6
+func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 	platformDomain := os.Getenv("ARK_PLATFORM_DOMAIN")
 	subdomain := os.Getenv("ARK_SUBDOMAIN")
 	username := os.Getenv("ARK_USERNAME")
