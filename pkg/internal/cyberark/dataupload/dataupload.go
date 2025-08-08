@@ -41,6 +41,113 @@ type Snapshot struct {
 	RoleBindings    []interface{} `json:"role_bindings"`
 }
 
+// The names of Datagatherer configs which have the data to populate the Cyberark Snapshot
+const (
+	Discovery                   = "k8s-discovery"
+	SecretsGatherer             = "k8s/secrets"
+	ServiceAccountsGatherer     = "k8s/serviceaccounts"
+	RolesGatherer               = "k8s/roles"
+	RoleBindingsGatherer        = "k8s/rolebindings"
+	ClusterRolesGatherer        = "k8s/clusterroles"
+	ClusterRoleBindingsGatherer = "k8s/clusterrolebindings"
+)
+
+// ConvertDataReadingsToCyberarkSnapshot converts jetstack-secure DataReadings into Cyberark Snapshot format.
+func ConvertDataReadingsToCyberarkSnapshot(
+	input api.DataReadingsPost,
+) (snapshot Snapshot, err error) {
+	var (
+		k8sVersion                                    string
+		secrets, serviceAccounts, roles, roleBindings []interface{}
+	)
+
+	for _, reading := range input.DataReadings {
+		switch reading.DataGatherer {
+		case Discovery:
+			data, ok := reading.Data.(map[string]interface{})
+			if !ok {
+				return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
+			}
+			serverVersion := data["server_version"]
+			serverVersionBytes, err := json.Marshal(serverVersion)
+			if err != nil {
+				return snapshot, fmt.Errorf("while marshalling server_version: %s", err)
+			}
+			var serverVersionInfo map[string]string
+			if err := json.Unmarshal(serverVersionBytes, &serverVersionInfo); err != nil {
+				return snapshot, fmt.Errorf("while un-marshalling server_version bytes: %s", err)
+			}
+			k8sVersion = serverVersionInfo["gitVersion"]
+		case SecretsGatherer:
+			if data, ok := reading.Data.(map[string]interface{}); ok {
+				if items, ok := data["items"].([]*api.GatheredResource); ok {
+					resources := make([]interface{}, len(items))
+					for i, resource := range items {
+						resources[i] = resource.Resource
+					}
+					secrets = append(secrets, resources...)
+				} else {
+					return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
+				}
+			} else {
+				return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
+			}
+		case ServiceAccountsGatherer:
+			if data, ok := reading.Data.(map[string]interface{}); ok {
+				if items, ok := data["items"].([]*api.GatheredResource); ok {
+					resources := make([]interface{}, len(items))
+					for i, resource := range items {
+						resources[i] = resource.Resource
+					}
+					serviceAccounts = append(serviceAccounts, resources...)
+				} else {
+					return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
+				}
+			} else {
+				return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
+			}
+		case RolesGatherer, ClusterRoleBindingsGatherer:
+			if data, ok := reading.Data.(map[string]interface{}); ok {
+				if items, ok := data["items"].([]*api.GatheredResource); ok {
+					resources := make([]interface{}, len(items))
+					for i, resource := range items {
+						resources[i] = resource.Resource
+					}
+					roles = append(roles, resources...)
+				} else {
+					return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
+				}
+			} else {
+				return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
+			}
+		case RoleBindingsGatherer, ClusterRolesGatherer:
+			if data, ok := reading.Data.(map[string]interface{}); ok {
+				if items, ok := data["items"].([]*api.GatheredResource); ok {
+					resources := make([]interface{}, len(items))
+					for i, resource := range items {
+						resources[i] = resource.Resource
+					}
+					roleBindings = append(roleBindings, resources...)
+				} else {
+					return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
+				}
+			} else {
+				return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
+			}
+		}
+	}
+
+	return Snapshot{
+		AgentVersion:    input.AgentMetadata.Version,
+		ClusterID:       input.AgentMetadata.ClusterID,
+		K8SVersion:      k8sVersion,
+		Secrets:         secrets,
+		ServiceAccounts: serviceAccounts,
+		Roles:           roles,
+		RoleBindings:    roleBindings,
+	}, nil
+}
+
 type CyberArkClient struct {
 	baseURL string
 	client  *http.Client
@@ -75,9 +182,9 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payloa
 		return fmt.Errorf("programmer mistake: the cluster name (aka `cluster_id` in the config file) cannot be left empty")
 	}
 
-	snapshot := Snapshot{
-		ClusterID:    payload.AgentMetadata.ClusterID,
-		AgentVersion: version.PreflightVersion,
+	snapshot, err := ConvertDataReadingsToCyberarkSnapshot(payload)
+	if err != nil {
+		return fmt.Errorf("while converting datareadings to Cyberark snapshot format: %s", err)
 	}
 
 	encodedBody := &bytes.Buffer{}
