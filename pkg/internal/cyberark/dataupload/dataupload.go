@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -28,6 +29,88 @@ const (
 	// TODO(wallrj): Link to CyberArk API documentation when it is published.
 	apiPathSnapshotLinks = "/api/ingestions/kubernetes/snapshot-links"
 )
+
+type ResourceData map[string][]interface{}
+
+// Snapshot is the JSON that the CyberArk Discovery and Context API expects to
+// be uploaded to the AWS presigned URL.
+type Snapshot struct {
+	AgentVersion    string        `json:"agent_version"`
+	ClusterID       string        `json:"cluster_id"`
+	K8SVersion      string        `json:"k8s_version"`
+	Secrets         []interface{} `json:"secrets"`
+	ServiceAccounts []interface{} `json:"service_accounts"`
+	Roles           []interface{} `json:"roles"`
+	RoleBindings    []interface{} `json:"role_bindings"`
+}
+
+// The names of Datagatherers which have the data to populate the Cyberark Snapshot mapped to the key in the Cyberark snapshot.
+var gathererNameToresourceDataKeyMap = map[string]string{
+	"k8s/secrets":             "secrets",
+	"k8s/serviceaccounts":     "serviceaccounts",
+	"k8s/roles":               "roles",
+	"k8s/clusterroles":        "roles",
+	"k8s/rolebindings":        "rolebindings",
+	"k8s/clusterrolebindings": "rolebindings",
+}
+
+func extractResourceListFromReading(reading *api.DataReading) ([]interface{}, error) {
+	data, ok := reading.Data.(*k8s.DynamicData)
+	if !ok {
+		return nil, fmt.Errorf("failed to convert data: %s", reading.DataGatherer)
+	}
+	items := data.Items
+	resources := make([]interface{}, len(items))
+	for i, resource := range items {
+		resources[i] = resource.Resource
+	}
+	return resources, nil
+}
+
+func extractServerVersionFromReading(reading *api.DataReading) (string, error) {
+	data, ok := reading.Data.(*k8s.DiscoveryData)
+	if !ok {
+		return "", fmt.Errorf("failed to convert data: %s", reading.DataGatherer)
+	}
+	if data.ServerVersion == nil {
+		return "unknown", nil
+	}
+	return data.ServerVersion.GitVersion, nil
+}
+
+// ConvertDataReadingsToCyberarkSnapshot converts jetstack-secure DataReadings into Cyberark Snapshot format.
+func ConvertDataReadingsToCyberarkSnapshot(
+	input api.DataReadingsPost,
+) (_ *Snapshot, err error) {
+	k8sVersion := ""
+	resourceData := ResourceData{}
+	for _, reading := range input.DataReadings {
+		if reading.DataGatherer == "k8s-discovery" {
+			k8sVersion, err = extractServerVersionFromReading(reading)
+			if err != nil {
+				return nil, fmt.Errorf("while extracting server version from data-reading: %s", err)
+			}
+		}
+		if key, found := gathererNameToresourceDataKeyMap[reading.DataGatherer]; found {
+			var resources []interface{}
+			resources, err = extractResourceListFromReading(reading)
+			if err != nil {
+				return nil, fmt.Errorf("while extracting resource list from data-reading: %s", err)
+			}
+			resourceData[key] = append(resourceData[key], resources...)
+		}
+	}
+
+	return &Snapshot{
+		AgentVersion:    input.AgentMetadata.Version,
+		ClusterID:       input.AgentMetadata.ClusterID,
+		K8SVersion:      k8sVersion,
+		Secrets:         resourceData["secrets"],
+		ServiceAccounts: resourceData["serviceaccounts"],
+		Roles:           resourceData["roles"],
+		RoleBindings:    resourceData["rolebindings"],
+	}, nil
+}
 
 type CyberArkClient struct {
 	baseURL string
@@ -63,9 +146,14 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payloa
 		return fmt.Errorf("programmer mistake: the cluster name (aka `cluster_id` in the config file) cannot be left empty")
 	}
 
+	snapshot, err := ConvertDataReadingsToCyberarkSnapshot(payload)
+	if err != nil {
+		return fmt.Errorf("while converting datareadings to Cyberark snapshot format: %s", err)
+	}
+
 	encodedBody := &bytes.Buffer{}
 	checksum := sha256.New()
-	if err := json.NewEncoder(io.MultiWriter(encodedBody, checksum)).Encode(payload); err != nil {
+	if err := json.NewEncoder(io.MultiWriter(encodedBody, checksum)).Encode(snapshot); err != nil {
 		return err
 	}
 

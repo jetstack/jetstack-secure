@@ -28,8 +28,8 @@ type DataReading struct {
 type GatheredResource struct {
 	// Resource is a reference to a k8s object that was found by the informer
 	// should be of type unstructured.Unstructured, raw Object
-	Resource  interface{}
-	DeletedAt Time
+	Resource  interface{} `json:"resource"`
+	DeletedAt Time        `json:"deleted_at,omitempty"`
 }
 
 func (v GatheredResource) MarshalJSON() ([]byte, error) {

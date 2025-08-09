@@ -1,19 +1,27 @@
 package dataupload_test
 
 import (
+	"bytes"
+	"compress/gzip"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
@@ -21,7 +29,7 @@ import (
 	_ "k8s.io/klog/v2/ktesting/init"
 )
 
-func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
+func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 	fakeTime := time.Unix(123, 0)
 	defaultPayload := api.DataReadingsPost{
 		AgentMetadata: &api.AgentMetadata{
@@ -85,6 +93,17 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 			},
 		},
 		{
+			name:    "error contains authenticate error",
+			payload: defaultPayload,
+			opts:    defaultOpts,
+			authenticate: func(_ *http.Request) error {
+				return errors.New("simulated-authenticate-error")
+			},
+			requireFn: func(t *testing.T, err error) {
+				require.ErrorContains(t, err, "while retrieving snapshot upload URL: failed to authenticate request: simulated-authenticate-error")
+			},
+		},
+		{
 			name:         "invalid JSON from server (RetrievePresignedUploadURL step)",
 			payload:      defaultPayload,
 			opts:         dataupload.Options{ClusterName: "invalid-json-retrieve-presigned"},
@@ -106,6 +125,9 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+			ctx := klog.NewContext(t.Context(), logger)
+
 			server := dataupload.MockDataUploadServer()
 			defer server.Close()
 
@@ -118,7 +140,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 			cyberArkClient, err := dataupload.NewCyberArkClient(certPool, server.Server.URL, tc.authenticate)
 			require.NoError(t, err)
 
-			err = cyberArkClient.PostDataReadingsWithOptions(t.Context(), tc.payload, tc.opts)
+			err = cyberArkClient.PostDataReadingsWithOptions(ctx, tc.payload, tc.opts)
 			tc.requireFn(t, err)
 		})
 	}
@@ -132,8 +154,8 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 // To enable verbose request logging:
 //
 //	go test ./pkg/internal/cyberark/dataupload/... \
-//	  -v -count 1 -run TestPostDataReadingsWithOptionsWithRealAPI -args -testing.v 6
-func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
+//	  -v -count 1 -run TestCyberArkClient_PostDataReadingsWithOptions_RealAPI -args -testing.v 6
+func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 	platformDomain := os.Getenv("ARK_PLATFORM_DOMAIN")
 	subdomain := os.Getenv("ARK_SUBDOMAIN")
 	username := os.Getenv("ARK_USERNAME")
@@ -172,8 +194,101 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 	cyberArkClient, err := dataupload.NewCyberArkClient(nil, serviceURL, identityClient.AuthenticateRequest)
 	require.NoError(t, err)
 
-	err = cyberArkClient.PostDataReadingsWithOptions(ctx, api.DataReadingsPost{}, dataupload.Options{
-		ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
+	dataReadings := parseDataReadings(t, readGZIP(t, "testdata/example-1/datareadings.json.gz"))
+	err = cyberArkClient.PostDataReadingsWithOptions(
+		ctx,
+		api.DataReadingsPost{
+			AgentMetadata: &api.AgentMetadata{
+				ClusterID: "bb068932-c80d-460d-88df-34bc7f3f3297",
+			},
+			DataReadings: dataReadings,
+		},
+		dataupload.Options{
+			ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
+		},
+	)
+	require.NoError(t, err)
+}
+
+func parseDataReadings(t *testing.T, data []byte) []*api.DataReading {
+	var dataReadings []*api.DataReading
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&dataReadings)
+	require.NoError(t, err)
+
+	for _, reading := range dataReadings {
+		dataBytes, err := json.Marshal(reading.Data)
+		require.NoError(t, err)
+		in := bytes.NewReader(dataBytes)
+		d := json.NewDecoder(in)
+		d.DisallowUnknownFields()
+
+		var dynamicGatherData k8s.DynamicData
+		if err := d.Decode(&dynamicGatherData); err == nil {
+			reading.Data = &dynamicGatherData
+			continue
+		}
+
+		_, err = in.Seek(0, 0)
+		require.NoError(t, err)
+
+		var discoveryData k8s.DiscoveryData
+		if err = d.Decode(&discoveryData); err == nil {
+			reading.Data = &discoveryData
+			continue
+		}
+
+		require.Failf(t, "failed to parse reading", "reading: %#v", reading)
+	}
+	return dataReadings
+}
+
+func readGZIP(t *testing.T, path string) []byte {
+	f, err := os.Open(path)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, f.Close()) }()
+	gzr, err := gzip.NewReader(f)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, gzr.Close()) }()
+	bytes, err := io.ReadAll(gzr)
+	require.NoError(t, err)
+	return bytes
+}
+
+func writeGZIP(t *testing.T, path string, data []byte) {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*")
+	require.NoError(t, err)
+	gzw := gzip.NewWriter(tmp)
+	_, err = io.Copy(gzw, bytes.NewReader(data))
+	require.NoError(t, gzw.Flush())
+	require.NoError(t, gzw.Close())
+	require.NoError(t, tmp.Close())
+	require.NoError(t, err)
+	err = os.Rename(tmp.Name(), path)
+	require.NoError(t, err)
+}
+
+func TestConvertDataReadingsToCyberarkSnapshot(t *testing.T) {
+	dataReadings := parseDataReadings(t, readGZIP(t, "testdata/example-1/datareadings.json.gz"))
+	snapshot, err := dataupload.ConvertDataReadingsToCyberarkSnapshot(api.DataReadingsPost{
+		AgentMetadata: &api.AgentMetadata{
+			Version:   "test-version",
+			ClusterID: "test-cluster-id",
+		},
+		DataReadings: dataReadings,
 	})
 	require.NoError(t, err)
+
+	actualSnapshotBytes, err := json.MarshalIndent(snapshot, "", "  ")
+	require.NoError(t, err)
+
+	goldenFilePath := "testdata/example-1/snapshot.json.gz"
+	if _, update := os.LookupEnv("UPDATE_GOLDEN_FILES"); update {
+		writeGZIP(t, goldenFilePath, actualSnapshotBytes)
+	} else {
+		expectedSnapshotBytes := readGZIP(t, goldenFilePath)
+		assert.JSONEq(t, string(expectedSnapshotBytes), string(actualSnapshotBytes))
+	}
 }
