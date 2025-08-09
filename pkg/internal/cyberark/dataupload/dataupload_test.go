@@ -2,13 +2,16 @@ package dataupload_test
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -191,7 +194,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 	cyberArkClient, err := dataupload.NewCyberArkClient(nil, serviceURL, identityClient.AuthenticateRequest)
 	require.NoError(t, err)
 
-	dataReadings := loadDataReadings(t, "testdata/example-1/datareadings.json")
+	dataReadings := parseDataReadings(t, readGZIP(t, "testdata/example-1/datareadings.json.gz"))
 	err = cyberArkClient.PostDataReadingsWithOptions(
 		ctx,
 		api.DataReadingsPost{
@@ -207,15 +210,13 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func loadDataReadings(t *testing.T, path string) []*api.DataReading {
+func parseDataReadings(t *testing.T, data []byte) []*api.DataReading {
 	var dataReadings []*api.DataReading
-	{
-		f, err := os.Open(path)
-		require.NoError(t, err)
-		err = json.NewDecoder(f).Decode(&dataReadings)
-		require.NoError(t, f.Close())
-		require.NoError(t, err)
-	}
+
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&dataReadings)
+	require.NoError(t, err)
 
 	for _, reading := range dataReadings {
 		dataBytes, err := json.Marshal(reading.Data)
@@ -244,8 +245,33 @@ func loadDataReadings(t *testing.T, path string) []*api.DataReading {
 	return dataReadings
 }
 
+func readGZIP(t *testing.T, path string) []byte {
+	f, err := os.Open(path)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, f.Close()) }()
+	gzr, err := gzip.NewReader(f)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, gzr.Close()) }()
+	bytes, err := io.ReadAll(gzr)
+	require.NoError(t, err)
+	return bytes
+}
+
+func writeGZIP(t *testing.T, path string, data []byte) {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*")
+	require.NoError(t, err)
+	gzw := gzip.NewWriter(tmp)
+	_, err = io.Copy(gzw, bytes.NewReader(data))
+	require.NoError(t, gzw.Flush())
+	require.NoError(t, gzw.Close())
+	require.NoError(t, tmp.Close())
+	require.NoError(t, err)
+	err = os.Rename(tmp.Name(), path)
+	require.NoError(t, err)
+}
+
 func TestConvertDataReadingsToCyberarkSnapshot(t *testing.T) {
-	dataReadings := loadDataReadings(t, "testdata/example-1/datareadings.json")
+	dataReadings := parseDataReadings(t, readGZIP(t, "testdata/example-1/datareadings.json.gz"))
 	snapshot, err := dataupload.ConvertDataReadingsToCyberarkSnapshot(api.DataReadingsPost{
 		AgentMetadata: &api.AgentMetadata{
 			Version:   "test-version",
@@ -258,13 +284,11 @@ func TestConvertDataReadingsToCyberarkSnapshot(t *testing.T) {
 	actualSnapshotBytes, err := json.MarshalIndent(snapshot, "", "  ")
 	require.NoError(t, err)
 
-	goldenFilePath := "testdata/example-1/snapshot.json"
+	goldenFilePath := "testdata/example-1/snapshot.json.gz"
 	if _, update := os.LookupEnv("UPDATE_GOLDEN_FILES"); update {
-		err := os.WriteFile(goldenFilePath, actualSnapshotBytes, 0o0644)
-		require.NoError(t, err)
+		writeGZIP(t, goldenFilePath, actualSnapshotBytes)
 	} else {
-		expectedSnapshotBytes, err := os.ReadFile(goldenFilePath)
-		require.NoError(t, err)
+		expectedSnapshotBytes := readGZIP(t, goldenFilePath)
 		assert.JSONEq(t, string(expectedSnapshotBytes), string(actualSnapshotBytes))
 	}
 }
