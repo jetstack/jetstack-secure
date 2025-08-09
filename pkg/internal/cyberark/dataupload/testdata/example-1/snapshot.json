@@ -1,7 +1,7 @@
 {
   "agent_version": "test-version",
   "cluster_id": "test-cluster-id",
-  "k8s_version": "",
+  "k8s_version": "v1.31.9",
   "secrets": [
     {
       "apiVersion": "v1",

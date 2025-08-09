@@ -67,25 +67,15 @@ func extractResourceListFromReading(reading *api.DataReading) ([]interface{}, er
 	return resources, nil
 }
 
-// TODO(wallj): Use k8s version.Info struct here
 func extractServerVersionFromReading(reading *api.DataReading) (string, error) {
-	data, ok := reading.Data.(map[string]interface{})
+	data, ok := reading.Data.(*k8s.DiscoveryData)
 	if !ok {
 		return "", fmt.Errorf("failed to convert data: %s", reading.DataGatherer)
 	}
-	serverVersion, ok := data["server_version"]
-	if !ok {
-		return "", fmt.Errorf("server_version key not found in data: %v", data)
+	if data.ServerVersion == nil {
+		return "unknown", nil
 	}
-	serverVersionBytes, err := json.Marshal(serverVersion)
-	if err != nil {
-		return "", fmt.Errorf("while marshalling server_version: %s", err)
-	}
-	var serverVersionInfo map[string]string
-	if err := json.Unmarshal(serverVersionBytes, &serverVersionInfo); err != nil {
-		return "", fmt.Errorf("while un-marshalling server_version bytes: %s", err)
-	}
-	return serverVersionInfo["gitVersion"], nil
+	return data.ServerVersion.GitVersion, nil
 }
 
 // ConvertDataReadingsToCyberarkSnapshot converts jetstack-secure DataReadings into Cyberark Snapshot format.
@@ -95,7 +85,7 @@ func ConvertDataReadingsToCyberarkSnapshot(
 	k8sVersion := ""
 	resourceData := ResourceData{}
 	for _, reading := range input.DataReadings {
-		if reading.DataGatherer == "k8s/discovery" {
+		if reading.DataGatherer == "k8s-discovery" {
 			k8sVersion, err = extractServerVersionFromReading(reading)
 			if err != nil {
 				return nil, fmt.Errorf("while extracting server version from data-reading: %s", err)
