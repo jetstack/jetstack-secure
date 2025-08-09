@@ -1,7 +1,9 @@
 package dataupload_test
 
 import (
+	"bytes"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -10,11 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
@@ -187,16 +191,80 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 	cyberArkClient, err := dataupload.NewCyberArkClient(nil, serviceURL, identityClient.AuthenticateRequest)
 	require.NoError(t, err)
 
+	dataReadings := loadDataReadings(t, "testdata/example-1/datareadings.json")
 	err = cyberArkClient.PostDataReadingsWithOptions(
 		ctx,
 		api.DataReadingsPost{
 			AgentMetadata: &api.AgentMetadata{
 				ClusterID: "bb068932-c80d-460d-88df-34bc7f3f3297",
 			},
+			DataReadings: dataReadings,
 		},
 		dataupload.Options{
 			ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
 		},
 	)
 	require.NoError(t, err)
+}
+
+func loadDataReadings(t *testing.T, path string) []*api.DataReading {
+	var dataReadings []*api.DataReading
+	{
+		f, err := os.Open(path)
+		require.NoError(t, err)
+		err = json.NewDecoder(f).Decode(&dataReadings)
+		require.NoError(t, f.Close())
+		require.NoError(t, err)
+	}
+
+	for _, reading := range dataReadings {
+		dataBytes, err := json.Marshal(reading.Data)
+		require.NoError(t, err)
+		in := bytes.NewReader(dataBytes)
+		d := json.NewDecoder(in)
+		d.DisallowUnknownFields()
+
+		var dynamicGatherData k8s.DynamicData
+		if err := d.Decode(&dynamicGatherData); err == nil {
+			reading.Data = &dynamicGatherData
+			continue
+		}
+
+		_, err = in.Seek(0, 0)
+		require.NoError(t, err)
+
+		var discoveryData k8s.DiscoveryData
+		if err = d.Decode(&discoveryData); err == nil {
+			reading.Data = &discoveryData
+			continue
+		}
+
+		require.Failf(t, "failed to parse reading", "reading: %#v", reading)
+	}
+	return dataReadings
+}
+
+func TestConvertDataReadingsToCyberarkSnapshot(t *testing.T) {
+	dataReadings := loadDataReadings(t, "testdata/example-1/datareadings.json")
+	snapshot, err := dataupload.ConvertDataReadingsToCyberarkSnapshot(api.DataReadingsPost{
+		AgentMetadata: &api.AgentMetadata{
+			Version:   "test-version",
+			ClusterID: "test-cluster-id",
+		},
+		DataReadings: dataReadings,
+	})
+	require.NoError(t, err)
+
+	actualSnapshotBytes, err := json.MarshalIndent(snapshot, "", "  ")
+	require.NoError(t, err)
+
+	goldenFilePath := "testdata/example-1/snapshot.json"
+	if _, update := os.LookupEnv("UPDATE_GOLDEN_FILES"); update {
+		err := os.WriteFile(goldenFilePath, actualSnapshotBytes, 0o0644)
+		require.NoError(t, err)
+	} else {
+		expectedSnapshotBytes, err := os.ReadFile(goldenFilePath)
+		require.NoError(t, err)
+		assert.JSONEq(t, string(expectedSnapshotBytes), string(actualSnapshotBytes))
+	}
 }

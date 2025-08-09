@@ -18,3 +18,9 @@ go run . agent \
     --output-path pkg/internal/cyberark/dataupload/testdata/example-1/datareadings.json
 ```
 
+
+To recreate the golden output file:
+
+```bash
+UPDATE_GOLDEN_FILES=true go test ./pkg/internal/cyberark/dataupload/... -run TestConvertDataReadingsToCyberarkSnapshot
+```

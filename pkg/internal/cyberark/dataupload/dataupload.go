@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -29,6 +30,8 @@ const (
 	apiPathSnapshotLinks = "/api/ingestions/kubernetes/snapshot-links"
 )
 
+type ResourceData map[string][]interface{}
+
 // Snapshot is the JSON that the CyberArk Discovery and Context API expects to
 // be uploaded to the AWS presigned URL.
 type Snapshot struct {
@@ -41,110 +44,81 @@ type Snapshot struct {
 	RoleBindings    []interface{} `json:"role_bindings"`
 }
 
-// The names of Datagatherer configs which have the data to populate the Cyberark Snapshot
-const (
-	Discovery                   = "k8s-discovery"
-	SecretsGatherer             = "k8s/secrets"
-	ServiceAccountsGatherer     = "k8s/serviceaccounts"
-	RolesGatherer               = "k8s/roles"
-	RoleBindingsGatherer        = "k8s/rolebindings"
-	ClusterRolesGatherer        = "k8s/clusterroles"
-	ClusterRoleBindingsGatherer = "k8s/clusterrolebindings"
-)
+// The names of Datagatherers which have the data to populate the Cyberark Snapshot mapped to the key in the Cyberark snapshot.
+var gathererNameToresourceDataKeyMap = map[string]string{
+	"k8s/secrets":             "secrets",
+	"k8s/serviceaccounts":     "serviceaccounts",
+	"k8s/roles":               "roles",
+	"k8s/clusterroles":        "roles",
+	"k8s/rolebindings":        "rolebindings",
+	"k8s/clusterrolebindings": "rolebindings",
+}
+
+func extractResourceListFromReading(reading *api.DataReading) ([]interface{}, error) {
+	data, ok := reading.Data.(*k8s.DynamicData)
+	if !ok {
+		return nil, fmt.Errorf("failed to convert data: %s", reading.DataGatherer)
+	}
+	items := data.Items
+	resources := make([]interface{}, len(items))
+	for i, resource := range items {
+		resources[i] = resource.Resource
+	}
+	return resources, nil
+}
+
+// TODO(wallj): Use k8s version.Info struct here
+func extractServerVersionFromReading(reading *api.DataReading) (string, error) {
+	data, ok := reading.Data.(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("failed to convert data: %s", reading.DataGatherer)
+	}
+	serverVersion, ok := data["server_version"]
+	if !ok {
+		return "", fmt.Errorf("server_version key not found in data: %v", data)
+	}
+	serverVersionBytes, err := json.Marshal(serverVersion)
+	if err != nil {
+		return "", fmt.Errorf("while marshalling server_version: %s", err)
+	}
+	var serverVersionInfo map[string]string
+	if err := json.Unmarshal(serverVersionBytes, &serverVersionInfo); err != nil {
+		return "", fmt.Errorf("while un-marshalling server_version bytes: %s", err)
+	}
+	return serverVersionInfo["gitVersion"], nil
+}
 
 // ConvertDataReadingsToCyberarkSnapshot converts jetstack-secure DataReadings into Cyberark Snapshot format.
 func ConvertDataReadingsToCyberarkSnapshot(
 	input api.DataReadingsPost,
-) (snapshot Snapshot, err error) {
-	var (
-		k8sVersion                                    string
-		secrets, serviceAccounts, roles, roleBindings []interface{}
-	)
-
+) (_ *Snapshot, err error) {
+	k8sVersion := ""
+	resourceData := ResourceData{}
 	for _, reading := range input.DataReadings {
-		switch reading.DataGatherer {
-		case Discovery:
-			data, ok := reading.Data.(map[string]interface{})
-			if !ok {
-				return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
-			}
-			serverVersion := data["server_version"]
-			serverVersionBytes, err := json.Marshal(serverVersion)
+		if reading.DataGatherer == "k8s/discovery" {
+			k8sVersion, err = extractServerVersionFromReading(reading)
 			if err != nil {
-				return snapshot, fmt.Errorf("while marshalling server_version: %s", err)
+				return nil, fmt.Errorf("while extracting server version from data-reading: %s", err)
 			}
-			var serverVersionInfo map[string]string
-			if err := json.Unmarshal(serverVersionBytes, &serverVersionInfo); err != nil {
-				return snapshot, fmt.Errorf("while un-marshalling server_version bytes: %s", err)
+		}
+		if key, found := gathererNameToresourceDataKeyMap[reading.DataGatherer]; found {
+			var resources []interface{}
+			resources, err = extractResourceListFromReading(reading)
+			if err != nil {
+				return nil, fmt.Errorf("while extracting resource list from data-reading: %s", err)
 			}
-			k8sVersion = serverVersionInfo["gitVersion"]
-		case SecretsGatherer:
-			if data, ok := reading.Data.(map[string]interface{}); ok {
-				if items, ok := data["items"].([]*api.GatheredResource); ok {
-					resources := make([]interface{}, len(items))
-					for i, resource := range items {
-						resources[i] = resource.Resource
-					}
-					secrets = append(secrets, resources...)
-				} else {
-					return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
-				}
-			} else {
-				return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
-			}
-		case ServiceAccountsGatherer:
-			if data, ok := reading.Data.(map[string]interface{}); ok {
-				if items, ok := data["items"].([]*api.GatheredResource); ok {
-					resources := make([]interface{}, len(items))
-					for i, resource := range items {
-						resources[i] = resource.Resource
-					}
-					serviceAccounts = append(serviceAccounts, resources...)
-				} else {
-					return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
-				}
-			} else {
-				return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
-			}
-		case RolesGatherer, ClusterRoleBindingsGatherer:
-			if data, ok := reading.Data.(map[string]interface{}); ok {
-				if items, ok := data["items"].([]*api.GatheredResource); ok {
-					resources := make([]interface{}, len(items))
-					for i, resource := range items {
-						resources[i] = resource.Resource
-					}
-					roles = append(roles, resources...)
-				} else {
-					return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
-				}
-			} else {
-				return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
-			}
-		case RoleBindingsGatherer, ClusterRolesGatherer:
-			if data, ok := reading.Data.(map[string]interface{}); ok {
-				if items, ok := data["items"].([]*api.GatheredResource); ok {
-					resources := make([]interface{}, len(items))
-					for i, resource := range items {
-						resources[i] = resource.Resource
-					}
-					roleBindings = append(roleBindings, resources...)
-				} else {
-					return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
-				}
-			} else {
-				return snapshot, fmt.Errorf("failed to convert: %s", reading.DataGatherer)
-			}
+			resourceData[key] = append(resourceData[key], resources...)
 		}
 	}
 
-	return Snapshot{
+	return &Snapshot{
 		AgentVersion:    input.AgentMetadata.Version,
 		ClusterID:       input.AgentMetadata.ClusterID,
 		K8SVersion:      k8sVersion,
-		Secrets:         secrets,
-		ServiceAccounts: serviceAccounts,
-		Roles:           roles,
-		RoleBindings:    roleBindings,
+		Secrets:         resourceData["secrets"],
+		ServiceAccounts: resourceData["serviceaccounts"],
+		Roles:           resourceData["roles"],
+		RoleBindings:    resourceData["rolebindings"],
 	}, nil
 }
 
