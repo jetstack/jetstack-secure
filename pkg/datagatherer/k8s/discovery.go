@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
 
 	"github.com/jetstack/preflight/pkg/datagatherer"
@@ -57,17 +58,18 @@ func (g *DataGathererDiscovery) WaitForCacheSync(ctx context.Context) error {
 	return nil
 }
 
+type DiscoveryData struct {
+	ServerVersion *version.Info `json:"server_version"`
+}
+
 // Fetch will fetch discovery data from the apiserver, or return an error
 func (g *DataGathererDiscovery) Fetch() (interface{}, int, error) {
-	data, err := g.cl.ServerVersion()
+	serverVersion, err := g.cl.ServerVersion()
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to get server version: %v", err)
 	}
 
-	response := map[string]interface{}{
-		// data has type Info: https://godoc.org/k8s.io/apimachinery/pkg/version#Info
-		"server_version": data,
-	}
-
-	return response, len(response), nil
+	return &DiscoveryData{
+		ServerVersion: serverVersion,
+	}, 1, nil
 }
