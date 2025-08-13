@@ -3,7 +3,7 @@ package dataupload
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
+	"crypto/sha3"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
@@ -64,7 +64,7 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payloa
 	}
 
 	encodedBody := &bytes.Buffer{}
-	checksum := sha256.New()
+	checksum := sha3.New256()
 	if err := json.NewEncoder(io.MultiWriter(encodedBody, checksum)).Encode(payload); err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 
 	request := struct {
 		ClusterID    string `json:"cluster_id"`
-		Checksum     string `json:"checksum_sha256"`
+		Checksum     string `json:"checksum_sha3"`
 		AgentVersion string `json:"agent_version"`
 	}{
 		ClusterID:    opts.ClusterName,
