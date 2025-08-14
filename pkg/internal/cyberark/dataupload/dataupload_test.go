@@ -8,9 +8,10 @@ import (
 	"net/http"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
@@ -23,20 +24,41 @@ import (
 	_ "k8s.io/klog/v2/ktesting/init"
 )
 
-func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
-	fakeTime := time.Unix(123, 0)
-	defaultDataReadings := []*api.DataReading{
-		{
-			ClusterID:     "success-cluster-id",
-			DataGatherer:  "test-gatherer",
-			Timestamp:     api.Time{Time: fakeTime},
-			Data:          map[string]interface{}{"test": "data"},
-			SchemaVersion: "v1",
+func genNamespace(name string) *unstructured.Unstructured {
+	o := &unstructured.Unstructured{}
+	o.SetAPIVersion("")
+	o.SetKind("Namespace")
+	o.SetName(name)
+	return o
+}
+func genArkNamespacesDataReading(clusterID types.UID) *api.DataReading {
+	kubeSystemNamespace := genNamespace("kube-system")
+	kubeSystemNamespace.SetUID(clusterID)
+	return &api.DataReading{
+		ClusterID:    "ignored-tlspk-cluster-id",
+		DataGatherer: "ark/namespaces",
+		Data: &api.DynamicData{
+			Items: []*api.GatheredResource{
+				{
+					Resource: kubeSystemNamespace,
+				},
+				{
+					Resource: genNamespace("kube-public"),
+				},
+				{
+					Resource: genNamespace("venafi"),
+				},
+				{
+					Resource: genNamespace("cert-manager"),
+				},
+			},
 		},
+		SchemaVersion: "v1",
 	}
-
-	defaultOpts := dataupload.Options{
-		ClusterName: "success-cluster-id",
+}
+func TestCyberArkClient_PostDataReadings_MockAPI(t *testing.T) {
+	defaultDataReadings := []*api.DataReading{
+		genArkNamespacesDataReading("success-cluster-id"),
 	}
 
 	setToken := func(token string) func(*http.Request) error {
@@ -50,31 +72,27 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 		name         string
 		readings     []*api.DataReading
 		authenticate func(req *http.Request) error
-		opts         dataupload.Options
 		requireFn    func(t *testing.T, err error)
 	}{
 		{
 			name:         "successful upload",
 			readings:     defaultDataReadings,
-			opts:         defaultOpts,
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
 		},
 		{
-			name:         "error when cluster name is empty",
-			readings:     defaultDataReadings,
-			opts:         dataupload.Options{ClusterName: ""},
+			name:         "error when cluster ID not found among data readings",
+			readings:     nil,
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
-				require.ErrorContains(t, err, "programmer mistake: the cluster name")
+				require.ErrorContains(t, err, "while converting datareadings to Cyberark snapshot format: failed to compute a clusterID from the data-readings")
 			},
 		},
 		{
 			name:         "error when bearer token is incorrect",
 			readings:     defaultDataReadings,
-			opts:         defaultOpts,
 			authenticate: setToken("fail-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500: should authenticate using the correct bearer token")
@@ -83,7 +101,6 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 		{
 			name:     "error contains authenticate error",
 			readings: defaultDataReadings,
-			opts:     defaultOpts,
 			authenticate: func(_ *http.Request) error {
 				return errors.New("simulated-authenticate-error")
 			},
@@ -92,18 +109,20 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 			},
 		},
 		{
-			name:         "invalid JSON from server (RetrievePresignedUploadURL step)",
-			readings:     defaultDataReadings,
-			opts:         dataupload.Options{ClusterName: "invalid-json-retrieve-presigned"},
+			name: "invalid JSON from server (RetrievePresignedUploadURL step)",
+			readings: []*api.DataReading{
+				genArkNamespacesDataReading("invalid-json-retrieve-presigned"),
+			},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.ErrorContains(t, err, "while retrieving snapshot upload URL: rejecting JSON response from server as it was too large or was truncated")
 			},
 		},
 		{
-			name:         "500 from server (RetrievePresignedUploadURL step)",
-			readings:     defaultDataReadings,
-			opts:         dataupload.Options{ClusterName: "invalid-response-post-data"},
+			name: "500 from server (RetrievePresignedUploadURL step)",
+			readings: []*api.DataReading{
+				genArkNamespacesDataReading("invalid-response-post-data"),
+			},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500: mock error")
@@ -128,13 +147,13 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 			cyberArkClient, err := dataupload.NewCyberArkClient(certPool, server.Server.URL, tc.authenticate)
 			require.NoError(t, err)
 
-			err = cyberArkClient.PostDataReadingsWithOptions(ctx, tc.readings, tc.opts)
+			err = cyberArkClient.PostDataReadings(ctx, tc.readings)
 			tc.requireFn(t, err)
 		})
 	}
 }
 
-// TestCyberArkClient_PostDataReadingsWithOptions_RealAPI demonstrates that the dataupload code works with the real inventory API.
+// TestCyberArkClient_PostDataReadings_RealAPI demonstrates that the dataupload code works with the real inventory API.
 // An API token is obtained by authenticating with the ARK_USERNAME and ARK_SECRET from the environment.
 // ARK_SUBDOMAIN should be your tenant subdomain.
 // ARK_PLATFORM_DOMAIN should be either integration-cyberark.cloud or cyberark.cloud
@@ -142,8 +161,8 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 // To enable verbose request logging:
 //
 //	go test ./pkg/internal/cyberark/dataupload/... \
-//	  -v -count 1 -run TestCyberArkClient_PostDataReadingsWithOptions_RealAPI -args -testing.v 6
-func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
+//	  -v -count 1 -run TestCyberArkClient_PostDataReadings_RealAPI -args -testing.v 6
+func TestCyberArkClient_PostDataReadings_RealAPI(t *testing.T) {
 	platformDomain := os.Getenv("ARK_PLATFORM_DOMAIN")
 	subdomain := os.Getenv("ARK_SUBDOMAIN")
 	username := os.Getenv("ARK_USERNAME")
@@ -183,12 +202,9 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	dataReadings := testutil.ParseDataReadings(t, testutil.ReadGZIP(t, "testdata/example-1/datareadings.json.gz"))
-	err = cyberArkClient.PostDataReadingsWithOptions(
+	err = cyberArkClient.PostDataReadings(
 		ctx,
 		dataReadings,
-		dataupload.Options{
-			ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
-		},
 	)
 	require.NoError(t, err)
 }

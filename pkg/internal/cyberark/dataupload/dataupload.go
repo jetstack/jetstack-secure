@@ -36,10 +36,6 @@ type CyberArkClient struct {
 	authenticateRequest func(req *http.Request) error
 }
 
-type Options struct {
-	ClusterName string
-}
-
 func NewCyberArkClient(trustedCAs *x509.CertPool, baseURL string, authenticateRequest func(req *http.Request) error) (*CyberArkClient, error) {
 	cyberClient := &http.Client{}
 	tr := http.DefaultTransport.(*http.Transport).Clone()
@@ -55,14 +51,10 @@ func NewCyberArkClient(trustedCAs *x509.CertPool, baseURL string, authenticateRe
 	}, nil
 }
 
-// PostDataReadingsWithOptions PUTs the supplied payload to an [AWS presigned URL] which it obtains via the CyberArk inventory API.
+// PostDataReadings PUTs the supplied payload to an [AWS presigned URL] which it obtains via the CyberArk inventory API.
 //
 // [AWS presigned URL]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
-func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, opts Options) error {
-	if opts.ClusterName == "" {
-		return fmt.Errorf("programmer mistake: the cluster name (aka `cluster_id` in the config file) cannot be left empty")
-	}
-
+func (c *CyberArkClient) PostDataReadings(ctx context.Context, readings []*api.DataReading) error {
 	snapshot, err := convertDataReadingsToCyberarkSnapshot(readings)
 	if err != nil {
 		return fmt.Errorf("while converting datareadings to Cyberark snapshot format: %s", err)
@@ -74,7 +66,7 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 		return err
 	}
 
-	presignedUploadURL, err := c.retrievePresignedUploadURL(ctx, hex.EncodeToString(checksum.Sum(nil)), opts)
+	presignedUploadURL, err := c.retrievePresignedUploadURL(ctx, hex.EncodeToString(checksum.Sum(nil)), snapshot.ClusterID)
 	if err != nil {
 		return fmt.Errorf("while retrieving snapshot upload URL: %s", err)
 	}
@@ -104,7 +96,7 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 	return nil
 }
 
-func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksum string, opts Options) (string, error) {
+func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksum string, clusterID string) (string, error) {
 	uploadURL, err := url.JoinPath(c.baseURL, apiPathSnapshotLinks)
 	if err != nil {
 		return "", err
@@ -115,7 +107,7 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 		Checksum     string `json:"checksum_sha3"`
 		AgentVersion string `json:"agent_version"`
 	}{
-		ClusterID:    opts.ClusterName,
+		ClusterID:    clusterID,
 		Checksum:     checksum,
 		AgentVersion: version.PreflightVersion,
 	}
