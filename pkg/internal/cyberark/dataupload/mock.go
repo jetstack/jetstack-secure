@@ -1,7 +1,7 @@
 package dataupload
 
 import (
-	"crypto/sha256"
+	"crypto/sha3"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -73,19 +73,15 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 		return
 	}
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "failed to read post body", http.StatusInternalServerError)
-		return
-	}
-
+	decoder := json.NewDecoder(r.Body)
 	var req struct {
 		ClusterID    string `json:"cluster_id"`
-		Checksum     string `json:"checksum_sha256"`
+		Checksum     string `json:"checksum_sha3"`
 		AgentVersion string `json:"agent_version"`
 	}
-	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, "failed to unmarshal post body", http.StatusInternalServerError)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		http.Error(w, `{"error": "Invalid request format"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -141,7 +137,7 @@ func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	checksum := sha256.New()
+	checksum := sha3.New256()
 	_, _ = io.Copy(checksum, r.Body)
 
 	if r.URL.Query().Get("checksum") != hex.EncodeToString(checksum.Sum(nil)) {
