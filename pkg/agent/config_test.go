@@ -96,7 +96,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--period", "99m", "--credentials-file", fakeCredsPath))
 		require.NoError(t, err)
 		assert.Equal(t, testutil.Undent(`
-			INFO Configured to push to Venafi mode="Jetstack Secure OAuth" reason="--credentials-file was specified without --venafi-cloud"
+			INFO Configured to push mode="Jetstack Secure OAuth" reason="--credentials-file was specified without --venafi-cloud"
 			INFO Both the 'period' field and --period are set. Using the value provided with --period.
 		`), gotLogs.String())
 		assert.Equal(t, 99*time.Minute, got.Period)
@@ -178,7 +178,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 
 		// The log line printed by pflag is not captured by the log recorder.
 		assert.Equal(t, testutil.Undent(`
-			INFO Configured to push to Venafi mode="Jetstack Secure OAuth" reason="--credentials-file was specified without --venafi-cloud"
+			INFO Configured to push mode="Jetstack Secure OAuth" reason="--credentials-file was specified without --venafi-cloud"
 			INFO Using period from config period="1h0m0s"
 		`), b.String())
 	})
@@ -194,13 +194,13 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withoutCmdLineFlags(),
 		)
 		assert.EqualError(t, err, testutil.Undent(`
-			no TLSPK mode specified and MachineHub mode is disabled. You must either enable the MachineHub mode (using --machine-hub), or enable one of the TLSPK modes.
-			To enable one of the TLSPK modes, you can:
+			no upload mode specified. You must either enable one of the upload modes, or use --output-path to save data to a file.
+			To enable one of the upload modes, you can:
 			 - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the Venafi Cloud Key Pair Service Account mode.
 			 - Use --venafi-connection for the Venafi Cloud VenafiConnection mode.
 			 - Use --credentials-file alone if you want to use the Jetstack Secure OAuth mode.
 			 - Use --api-token if you want to use the Jetstack Secure API Token mode.
-			Note that it is possible to use one of the TLSPK modes along with the MachineHub mode (--machine-hub).`))
+			 - Use --machine-hub if you want to use the Machine Hub mode.`))
 		assert.Nil(t, cl)
 	})
 
@@ -594,7 +594,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		)
 		require.NoError(t, err)
 		assert.Equal(t, testutil.Undent(`
-			INFO Configured to push to Venafi venConnName="venafi-components" mode="Venafi Cloud VenafiConnection" reason="--venafi-connection was specified"
+			INFO Configured to push venConnName="venafi-components" mode="Venafi Cloud VenafiConnection" reason="--venafi-connection was specified"
 			INFO ignoring the server field specified in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
 			INFO ignoring the venafi-cloud.upload_path field in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
 			INFO ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in Venafi Cloud VenafiConnection mode.
@@ -630,28 +630,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			`)),
 			withCmdLineFlags("--machine-hub"))
 		require.NoError(t, err)
-		assert.Equal(t, Off, got.TLSPKMode)
-		assert.Equal(t, true, got.MachineHubMode)
-	})
-
-	t.Run("machinehub + venafi-cloud-keypair-auth should work simultaneously", func(t *testing.T) {
-		t.Setenv("POD_NAMESPACE", "venafi")
-		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
-		privKeyPath := withFile(t, fakePrivKeyPEM)
-		got, _, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(testutil.Undent(`
-				machineHub:
-				  subdomain: foo
-				  credentialsSecretName: secret-1
-				period: 1h
-				venafi-cloud:
-				  upload_path: /v1/tlspk/upload/clusterdata
-				cluster_id: foo
-			`)),
-			withCmdLineFlags("--machine-hub", "--venafi-cloud", "--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath))
-		require.NoError(t, err)
-		assert.Equal(t, VenafiCloudKeypair, got.TLSPKMode)
-		assert.Equal(t, true, got.MachineHubMode)
+		assert.Equal(t, MachineHub, got.TLSPKMode)
 	})
 }
 

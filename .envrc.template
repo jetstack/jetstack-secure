@@ -1,0 +1,6 @@
+# Variables required for hack/e2e/ca/test.sh
+export OCI_BASE=ttl.sh/f702739d-6123-4070-8b2d-b90707d44f8b/cyberark-disco-agent
+export ARK_USERNAME=
+export ARK_SECRET=
+export ARK_PLATFORM_DOMAIN=
+export ARK_SUBDOMAIN=

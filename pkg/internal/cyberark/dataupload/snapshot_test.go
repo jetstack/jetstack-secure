@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jetstack/preflight/pkg/testutil"
+	"github.com/jetstack/preflight/pkg/internal/cyberark/testutil"
 )
 
 func TestConvertDataReadingsToCyberarkSnapshot(t *testing.T) {

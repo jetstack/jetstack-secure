@@ -19,7 +19,7 @@ import (
 	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
-	"github.com/jetstack/preflight/pkg/testutil"
+	"github.com/jetstack/preflight/pkg/internal/cyberark/testutil"
 
 	_ "k8s.io/klog/v2/ktesting/init"
 )
@@ -31,6 +31,7 @@ func genNamespace(name string) *unstructured.Unstructured {
 	o.SetName(name)
 	return o
 }
+
 func genArkNamespacesDataReading(clusterID types.UID) *api.DataReading {
 	kubeSystemNamespace := genNamespace("kube-system")
 	kubeSystemNamespace.SetUID(clusterID)
@@ -56,6 +57,7 @@ func genArkNamespacesDataReading(clusterID types.UID) *api.DataReading {
 		SchemaVersion: "v1",
 	}
 }
+
 func TestCyberArkClient_PostDataReadings_MockAPI(t *testing.T) {
 	defaultDataReadings := []*api.DataReading{
 		genArkNamespacesDataReading("success-cluster-id"),

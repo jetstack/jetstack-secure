@@ -345,18 +345,6 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 			log.Info("Warning: PushingErr: retrying", "in", t, "reason", err)
 		})
 
-		if config.MachineHubMode {
-			post := func() (any, error) {
-				log.Info("machine hub mode not yet implemented")
-				return struct{}{}, nil
-			}
-
-			group.Go(func() error {
-				_, err := backoff.Retry(ctx, post, backoff.WithBackOff(backOff), backoff.WithNotify(notificationFunc), backoff.WithMaxElapsedTime(config.BackoffMaxTime))
-				return err
-			})
-		}
-
 		if config.TLSPKMode != Off {
 			post := func() (any, error) {
 				return struct{}{}, postData(klog.NewContext(ctx, log), config, preflightClient, readings)
@@ -428,39 +416,31 @@ func gatherData(ctx context.Context, config CombinedConfig, dataGatherers map[st
 
 func postData(ctx context.Context, config CombinedConfig, preflightClient client.Client, readings []*api.DataReading) error {
 	log := klog.FromContext(ctx).WithName("postData")
-	baseURL := config.Server
 
-	log.V(logs.Debug).Info("Posting data", "baseURL", baseURL)
-
+	var opts client.Options
 	switch config.TLSPKMode { // nolint:exhaustive
 	case VenafiCloudKeypair, VenafiCloudVenafiConnection:
 		// orgID and clusterID are not required for Venafi Cloud auth
-		err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
+		opts = client.Options{
 			ClusterName:        config.ClusterID,
 			ClusterDescription: config.ClusterDescription,
-		})
-		if err != nil {
-			return fmt.Errorf("post to server failed: %+v", err)
 		}
-		log.Info("Data sent successfully")
-
-		return nil
-
 	case JetstackSecureOAuth, JetstackSecureAPIToken:
-		err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
+		opts = client.Options{
 			OrgID:     config.OrganizationID,
 			ClusterID: config.ClusterID,
-		})
-		if err != nil {
-			return fmt.Errorf("post to server failed: %+v", err)
 		}
-		log.Info("Data sent successfully")
-
-		return err
-
+	case MachineHub:
+		// Machine hub client gets all its metadata from the data-readings.
 	default:
 		return fmt.Errorf("not implemented for mode %s", config.TLSPKMode)
 	}
+
+	if err := preflightClient.PostDataReadingsWithOptions(ctx, readings, opts); err != nil {
+		return fmt.Errorf("post to server failed: %+v", err)
+	}
+	log.Info("Data sent successfully")
+	return nil
 }
 
 // listenAndServe starts the supplied HTTP server and stops it gracefully when
