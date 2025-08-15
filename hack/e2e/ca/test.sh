@@ -27,7 +27,7 @@ pushd "${tmp_dir}"
 make -C "$root_dir" release \
      OCI_SIGN_ON_PUSH=false \
      oci_platforms=linux/amd64 \
-     oci_preflight_image_name=$OCI_BASE/images/venafi-agent \
+     oci_preflight_image_name=$OCI_BASE/images/cyberark-disco-agent \
      helm_chart_image_name=$OCI_BASE/charts/venafi-kubernetes-agent \
      GITHUB_OUTPUT="${tmp_dir}/release.env"
 source release.env
@@ -35,6 +35,7 @@ source release.env
 kind create cluster || true
 kubectl create ns "$k8s_namespace" || true
 
+kubectl delete secret agent-credentials --namespace "$k8s_namespace" --ignore-not-found
 kubectl create secret generic agent-credentials \
         --namespace "$k8s_namespace" \
         --from-literal=ARK_USERNAME=$ARK_USERNAME \
@@ -42,18 +43,12 @@ kubectl create secret generic agent-credentials \
         --from-literal=ARK_PLATFORM_DOMAIN=$ARK_PLATFORM_DOMAIN \
         --from-literal=ARK_SUBDOMAIN=$ARK_SUBDOMAIN
 
-helm upgrade agent "oci://${OCI_BASE}/charts/venafi-kubernetes-agent" \
+helm upgrade agent "${root_dir}/deploy/charts/cyberark-disco-agent" \
      --install \
      --create-namespace \
      --namespace "$k8s_namespace" \
-     --version "${RELEASE_HELM_CHART_VERSION}" \
-     --set fullnameOverride=agent \
-     --set "image.repository=${OCI_BASE}/images/venafi-agent" \
+     --set fullnameOverride=disco-agent \
+     --set "image.repository=${RELEASE_OCI_PREFLIGHT_IMAGE}" \
+     --set "image.tag=${RELEASE_OCI_PREFLIGHT_TAG}" \
+     --set-json "podLabels={\"test\": \"${RANDOM}\"}" \
      --values "${script_dir}/values.agent.yaml"
-
-kubectl scale -n "$k8s_namespace" deployment agent  --replicas=0
-kubectl get cm -n "$k8s_namespace" agent-config -o jsonpath={.data.config\\.yaml} > config.original.yaml
-yq eval-all '. as $item ireduce ({}; . * $item)' config.original.yaml "${script_dir}/config.yaml" > config.yaml
-kubectl delete cm -n "$k8s_namespace" agent-config
-kubectl create cm -n "$k8s_namespace" agent-config --from-file=config.yaml
-kubectl scale -n "$k8s_namespace" deployment agent  --replicas=1
