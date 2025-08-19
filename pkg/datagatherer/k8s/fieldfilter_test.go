@@ -25,6 +25,13 @@ func TestSelect(t *testing.T) {
 				"labels": map[string]interface{}{
 					"foo": "bar",
 				},
+				"resourceVersion":   "fake-resource-version",
+				"creationTimestamp": "2025-08-15T00:00:01Z",
+				"deletionTimestamp": "2025-08-15T00:00:02Z",
+				// Examples of fields which are dropped
+				"deletionGracePeriodSeconds": 10,
+				"finalizers":                 []string{"example.com/fake-finalizer"},
+				"generation":                 11,
 			},
 			"type": "kubernetes.io/tls",
 			"data": map[string]interface{}{
@@ -47,6 +54,9 @@ func TestSelect(t *testing.T) {
 				"labels": map[string]interface{}{
 					"foo": "bar",
 				},
+				"resourceVersion":   "fake-resource-version",
+				"creationTimestamp": "2025-08-15T00:00:01Z",
+				"deletionTimestamp": "2025-08-15T00:00:02Z",
 			},
 			"type": "kubernetes.io/tls",
 			"data": map[string]interface{}{
@@ -68,6 +78,13 @@ func TestSelect(t *testing.T) {
 				"labels": map[string]interface{}{
 					"foo": "bar",
 				},
+				"resourceVersion":   "fake-resource-version",
+				"creationTimestamp": "2025-08-15T00:00:01Z",
+				"deletionTimestamp": "2025-08-15T00:00:02Z",
+				// Examples of fields which are dropped
+				"deletionGracePeriodSeconds": 10,
+				"finalizers":                 []string{"example.com/fake-finalizer"},
+				"generation":                 11,
 			},
 			"spec": map[string]interface{}{
 				"host": "www.example.com",
@@ -94,6 +111,9 @@ func TestSelect(t *testing.T) {
 					// "Select". "Redact" removes it.
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
 				},
+				"resourceVersion":   "fake-resource-version",
+				"creationTimestamp": "2025-08-15T00:00:01Z",
+				"deletionTimestamp": "2025-08-15T00:00:02Z",
 			},
 			"spec": map[string]interface{}{
 				"host": "www.example.com",

@@ -350,6 +350,18 @@ func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
 	return list, len(items), nil
 }
 
+// redactList removes sensitive and superfluous data from the supplied resource list.
+// All resources have superfluous managed-data fields removed.
+// All resources have sensitive labels and annotations removed.
+// Secret and Route are processed as special cases. For these
+// resources there is an allow-list of fields that should be retained.
+// For Secret resources, the `data` is redacted, to prevent private keys or sensitive
+// data being collected; only the tls.crt and ca.crt data keys are retained.
+// For Route resources, only the fields related to CA certificate and policy are retained.
+// TODO(wallrj): A short coming of the current allow-list implementation is that
+// you have to specify absolute fields paths. It is not currently possible to
+// select all metadata with: `{metadata}`. This means that the metadata for
+// Secret and Route has fewer fields than the metadata for all other resources.
 func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys []*regexp.Regexp) error {
 	for i := range list {
 		if item, ok := list[i].Resource.(*unstructured.Unstructured); ok {
@@ -361,7 +373,7 @@ func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys
 
 			resource := item
 
-			// Redact item if it is a:
+			// Redact item if it is a Secret or a Route.
 			for _, gvk := range gvks {
 				// secret object
 				if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
