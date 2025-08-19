@@ -5,7 +5,10 @@ import (
 )
 
 // SecretSelectedFields is the list of fields sent from Secret objects to the
-// backend
+// backend.
+// The `data` is redacted, to prevent private keys or sensitive data being
+// collected. Only the following none-sensitive keys are retained: tls.crt,
+// ca.crt. These keys are assumed to always contain public TLS certificates.
 var SecretSelectedFields = []FieldPath{
 	{"kind"},
 	{"apiVersion"},
@@ -16,6 +19,9 @@ var SecretSelectedFields = []FieldPath{
 	{"metadata", "ownerReferences"},
 	{"metadata", "selfLink"},
 	{"metadata", "uid"},
+	{"metadata", "creationTimestamp"},
+	{"metadata", "deletionTimestamp"},
+	{"metadata", "resourceVersion"},
 
 	{"type"},
 	{"data", "tls.crt"},
@@ -23,7 +29,16 @@ var SecretSelectedFields = []FieldPath{
 }
 
 // RouteSelectedFields is the list of fields sent from OpenShift Route objects to the
-// backend
+// backend.
+// The Route resource is redacted because it may contain private keys for TLS.
+//
+// TODO(wallrj): Find out if the `.tls.key` field is the only one that may
+// contain sensitive data and if so, that field could be redacted instead
+// selecting everything else, for consistency with Ingress or any of the other
+// resources that are collected. Or alternatively add an comment to explain why
+// for Route, the set of fields is allow-listed while for Ingress, all fields
+// are collected.
+// https://docs.redhat.com/en/documentation/openshift_container_platform/4.19/html/network_apis/route-route-openshift-io-v1#spec-tls-3
 var RouteSelectedFields = []FieldPath{
 	{"kind"},
 	{"apiVersion"},
@@ -33,6 +48,9 @@ var RouteSelectedFields = []FieldPath{
 	{"metadata", "ownerReferences"},
 	{"metadata", "selfLink"},
 	{"metadata", "uid"},
+	{"metadata", "creationTimestamp"},
+	{"metadata", "deletionTimestamp"},
+	{"metadata", "resourceVersion"},
 
 	{"spec", "host"},
 	{"spec", "to", "kind"},
