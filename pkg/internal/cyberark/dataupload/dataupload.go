@@ -3,8 +3,9 @@ package dataupload
 import (
 	"bytes"
 	"context"
-	"crypto/sha3"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -56,20 +57,33 @@ func NewCyberArkClient(trustedCAs *x509.CertPool, baseURL string, authenticateRe
 }
 
 // PostDataReadingsWithOptions PUTs the supplied payload to an [AWS presigned URL] which it obtains via the CyberArk inventory API.
-//
 // [AWS presigned URL]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
+//
+// A SHA256 checksum header is included in the request, to verify that the payload
+// has been received intact.
+// Read [Checking object integrity for data uploads in Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity-upload.html),
+// to learn more.
+//
+// TODO(wallrj): There is a bug in the AWS backend:
+// [S3 Presigned PutObjectCommand URLs ignore Sha256 Hash when uploading](https://github.com/aws/aws-sdk/issues/480)
+// ...which means that the `x-amz-checksum-sha256` request header is optional.
+// If you omit that header, it is possible to PUT any data.
+// There is a work around listed in that issue which we have shared with the
+// CyberArk API team.
 func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payload api.DataReadingsPost, opts Options) error {
 	if opts.ClusterName == "" {
 		return fmt.Errorf("programmer mistake: the cluster name (aka `cluster_id` in the config file) cannot be left empty")
 	}
 
 	encodedBody := &bytes.Buffer{}
-	checksum := sha3.New256()
-	if err := json.NewEncoder(io.MultiWriter(encodedBody, checksum)).Encode(payload); err != nil {
+	hash := sha256.New()
+	if err := json.NewEncoder(io.MultiWriter(encodedBody, hash)).Encode(payload); err != nil {
 		return err
 	}
-
-	presignedUploadURL, err := c.retrievePresignedUploadURL(ctx, hex.EncodeToString(checksum.Sum(nil)), opts)
+	checksum := hash.Sum(nil)
+	checksumHex := hex.EncodeToString(checksum)
+	checksumBase64 := base64.StdEncoding.EncodeToString(checksum)
+	presignedUploadURL, err := c.retrievePresignedUploadURL(ctx, checksumHex, opts)
 	if err != nil {
 		return fmt.Errorf("while retrieving snapshot upload URL: %s", err)
 	}
@@ -79,7 +93,7 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payloa
 	if err != nil {
 		return err
 	}
-
+	req.Header.Set("X-Amz-Checksum-Sha256", checksumBase64)
 	version.SetUserAgent(req)
 
 	res, err := c.client.Do(req)
@@ -107,7 +121,7 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 
 	request := struct {
 		ClusterID    string `json:"cluster_id"`
-		Checksum     string `json:"checksum_sha3"`
+		Checksum     string `json:"checksum_sha256"`
 		AgentVersion string `json:"agent_version"`
 	}{
 		ClusterID:    opts.ClusterName,

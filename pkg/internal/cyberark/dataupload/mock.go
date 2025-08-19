@@ -1,8 +1,8 @@
 package dataupload
 
 import (
-	"crypto/sha3"
-	"encoding/hex"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -76,7 +76,7 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 	decoder := json.NewDecoder(r.Body)
 	var req struct {
 		ClusterID    string `json:"cluster_id"`
-		Checksum     string `json:"checksum_sha3"`
+		Checksum     string `json:"checksum_sha256"`
 		AgentVersion string `json:"agent_version"`
 	}
 	decoder.DisallowUnknownFields()
@@ -112,11 +112,15 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 	// Write response body
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	presignedURL := mds.Server.URL + "/presigned-upload?checksum=" + req.Checksum
+	presignedURL := mds.Server.URL + "/presigned-upload"
 	_ = json.NewEncoder(w).Encode(struct {
 		URL string `json:"url"`
 	}{presignedURL})
 }
+
+// An example of a real checksum mismatch error from the AWS API when the
+// request body does not match the checksum in the request header.
+const amzExampleChecksumError = `<Error><Code>BadDigest</Code><Message>The SHA256 you specified did not match the calculated checksum.</Message><RequestId>GBDMP09BEZ929YBK</RequestId><HostId>sFTQb9JQpfJY/t+Ctn0anBmp4lKzEGES8ttmfAmFInuJIhvaV/U+20vYaGbdtlEnExZQRV/5xo6RQqq3xItM+px/Q2AEiv1G</HostId></Error>`
 
 func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Request, invalidJSON bool) {
 	if r.Method != http.MethodPut {
@@ -137,11 +141,17 @@ func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	checksum := sha3.New256()
+	amzChecksum := r.Header.Get("X-Amz-Checksum-Sha256")
+	if amzChecksum == "" {
+		http.Error(w, "should set x-amz-checksum-sha256 header on all requests", http.StatusInternalServerError)
+		return
+	}
+
+	checksum := sha256.New()
 	_, _ = io.Copy(checksum, r.Body)
 
-	if r.URL.Query().Get("checksum") != hex.EncodeToString(checksum.Sum(nil)) {
-		http.Error(w, "checksum is invalid", http.StatusInternalServerError)
+	if amzChecksum != base64.StdEncoding.EncodeToString(checksum.Sum(nil)) {
+		http.Error(w, amzExampleChecksumError, http.StatusBadRequest)
 	}
 
 	w.WriteHeader(http.StatusOK)
