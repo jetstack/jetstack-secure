@@ -33,7 +33,7 @@ func TestAgentRunOneShot(t *testing.T) {
 			"--agent-config-file=testdata/agent/one-shot/success/config.yaml",
 			"--input-path=testdata/agent/one-shot/success/input.json",
 			"--output-path=/dev/null",
-			"-v=1",
+			"-v=9",
 		}
 		Execute()
 		return
