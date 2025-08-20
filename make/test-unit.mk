@@ -7,7 +7,7 @@ test-unit: | $(NEEDS_GO) $(NEEDS_GOTESTSUM) $(ARTIFACTS) $(NEEDS_ETCD) $(NEEDS_K
 		--junitfile=$(ARTIFACTS)/junit-go-e2e.xml \
 		-- \
 		-coverprofile=$(ARTIFACTS)/filtered.cov \
-		./api/... ./pkg/... \
+		./cmd/... ./api/... ./pkg/... \
 		-- \
 		-ldflags $(go_preflight_ldflags)
 
