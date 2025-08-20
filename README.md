@@ -20,7 +20,19 @@ To build and run a version from master:
 go run main.go agent --agent-config-file ./path/to/agent/config/file.yaml -p 0h1m0s
 ```
 
-You can find an example agent file [here](https://github.com/jetstack/preflight/blob/master/agent.yaml).
+You can configure the agent to perform one data gathering loop and output the data to a local file:
+
+```bash
+go run . agent \
+   --agent-config-file examples/one-shot-secret.yaml \
+   --one-shot \
+   --output-path output.json
+```
+
+> Some examples of agent configuration files:
+> - [./agent.yaml](./agent.yaml).
+> - [./examples/one-shot-secret.yaml](./examples/one-shot-secret.yaml).
+> - [./examples/cert-manager-agent.yaml](./examples/cert-manager-agent.yaml).
 
 You might also want to run a local echo server to monitor requests sent by the agent:
 

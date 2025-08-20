@@ -322,17 +322,7 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 		}
 	}
 
-	if config.OutputPath != "" {
-		data, err := json.MarshalIndent(readings, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal JSON: %s", err)
-		}
-		err = os.WriteFile(config.OutputPath, data, 0644)
-		if err != nil {
-			return fmt.Errorf("failed to output to local file: %s", err)
-		}
-		log.Info("Data saved to local file", "outputPath", config.OutputPath)
-	} else {
+	{
 		group, ctx := errgroup.WithContext(ctx)
 
 		backOff := backoff.NewExponentialBackOff()
@@ -413,39 +403,19 @@ func gatherData(ctx context.Context, config CombinedConfig, dataGatherers map[st
 
 func postData(ctx context.Context, config CombinedConfig, preflightClient client.Client, readings []*api.DataReading) error {
 	log := klog.FromContext(ctx).WithName("postData")
-	baseURL := config.Server
-
-	log.V(logs.Debug).Info("Posting data", "baseURL", baseURL)
-
-	switch config.TLSPKMode { // nolint:exhaustive
-	case VenafiCloudKeypair, VenafiCloudVenafiConnection:
+	ctx = klog.NewContext(ctx, log)
+	err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
+		ClusterName:        config.ClusterID,
+		ClusterDescription: config.ClusterDescription,
 		// orgID and clusterID are not required for Venafi Cloud auth
-		err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
-			ClusterName:        config.ClusterID,
-			ClusterDescription: config.ClusterDescription,
-		})
-		if err != nil {
-			return fmt.Errorf("post to server failed: %+v", err)
-		}
-		log.Info("Data sent successfully")
-
-		return nil
-
-	case JetstackSecureOAuth, JetstackSecureAPIToken:
-		err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
-			OrgID:     config.OrganizationID,
-			ClusterID: config.ClusterID,
-		})
-		if err != nil {
-			return fmt.Errorf("post to server failed: %+v", err)
-		}
-		log.Info("Data sent successfully")
-
-		return err
-
-	default:
-		return fmt.Errorf("not implemented for mode %s", config.TLSPKMode)
+		OrgID:     config.OrganizationID,
+		ClusterID: config.ClusterID,
+	})
+	if err != nil {
+		return fmt.Errorf("post to server failed: %+v", err)
 	}
+	log.Info("Data sent successfully")
+	return nil
 }
 
 // listenAndServe starts the supplied HTTP server and stops it gracefully when
