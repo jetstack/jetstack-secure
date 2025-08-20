@@ -1,4 +1,4 @@
-package dataupload
+package testing
 
 import (
 	"crypto/sha256"
@@ -9,9 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/jetstack/preflight/pkg/internal/cyberark"
 	"github.com/jetstack/preflight/pkg/version"
-
-	_ "embed"
 )
 
 const (
@@ -37,7 +36,7 @@ func (mds *mockDataUploadServer) Close() {
 
 func (mds *mockDataUploadServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
-	case apiPathSnapshotLinks:
+	case cyberark.EndpointSnapshotLinks:
 		mds.handleSnapshotLinks(w, r)
 		return
 	case "/presigned-upload":
