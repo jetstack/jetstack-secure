@@ -38,20 +38,17 @@ func (mds *mockDataUploadServer) Close() {
 func (mds *mockDataUploadServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case apiPathSnapshotLinks:
-		mds.handlePresignedUpload(w, r)
+		mds.handleSnapshotLinks(w, r)
 		return
 	case "/presigned-upload":
-		mds.handleUpload(w, r, false)
-		return
-	case "/presigned-upload-invalid-json":
-		mds.handleUpload(w, r, false)
+		mds.handlePresignedUpload(w, r)
 		return
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
 
-func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r *http.Request) {
+func (mds *mockDataUploadServer) handleSnapshotLinks(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		_, _ = w.Write([]byte(`{"message":"method not allowed"}`))
@@ -120,9 +117,15 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 
 // An example of a real checksum mismatch error from the AWS API when the
 // request body does not match the checksum in the request header.
-const amzExampleChecksumError = `<Error><Code>BadDigest</Code><Message>The SHA256 you specified did not match the calculated checksum.</Message><RequestId>GBDMP09BEZ929YBK</RequestId><HostId>sFTQb9JQpfJY/t+Ctn0anBmp4lKzEGES8ttmfAmFInuJIhvaV/U+20vYaGbdtlEnExZQRV/5xo6RQqq3xItM+px/Q2AEiv1G</HostId></Error>`
+const amzExampleChecksumError = `<?xml version="1.0" encoding="UTF-8"?>
+<Error>
+  <Code>BadDigest</Code>
+  <Message>The SHA256 you specified did not match the calculated checksum.</Message>
+  <RequestId>THR2V1RX700Z8SC7</RequestId>
+  <HostId>F0xSC0H93Xs0BlCx6RjasZgrtjNkNB7lF4+yz1AiPQHswpdEoqj3iTgEN8SUWgV2Qm/laPobVIMz9SYTNHqdoA==</HostId>
+</Error>`
 
-func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Request, invalidJSON bool) {
+func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		_, _ = w.Write([]byte(`{"message":"method not allowed"}`))
@@ -131,13 +134,6 @@ func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Req
 
 	if r.Header.Get("User-Agent") != version.UserAgent() {
 		http.Error(w, "should set user agent on all requests", http.StatusInternalServerError)
-		return
-	}
-
-	if invalidJSON {
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"url":`)) // invalid JSON
 		return
 	}
 
@@ -150,11 +146,12 @@ func (mds *mockDataUploadServer) handleUpload(w http.ResponseWriter, r *http.Req
 	checksum := sha256.New()
 	_, _ = io.Copy(checksum, r.Body)
 
+	// AWS S3 responds with a BadDigest error if the request body has a
+	// different checksum than the checksum supplied in the request header.
 	if amzChecksum != base64.StdEncoding.EncodeToString(checksum.Sum(nil)) {
+		w.Header().Set("Content-Type", "application/xml")
 		http.Error(w, amzExampleChecksumError, http.StatusBadRequest)
 	}
-
+	// AWS S3 responds with an empty body if the PUT succeeds
 	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`{"success":true}`))
 }
