@@ -42,9 +42,9 @@ helm_chart_image_name := quay.io/jetstack/charts/venafi-kubernetes-agent
 helm_chart_version := $(VERSION)
 helm_labels_template_name := preflight.labels
 
-# We skip using the upstream govulncheck targets because we need to customise the workflow YAML
+# We skip using the upstream govulncheck generate target because we need to customise the workflow YAML
 # locally. We provide the targets in this repo instead, and manually maintain the workflow.
-govulncheck_skip := true
+dont_generate_govulncheck := true
 
 # Allows us to replace the Helm values.yaml's image.repository and image.tag
 # with the right values.
