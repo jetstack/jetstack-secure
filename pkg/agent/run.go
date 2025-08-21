@@ -156,7 +156,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 
 	// To help users notice issues with the agent, we show the error messages in
 	// the agent pod's events.
-	eventf, err := newEventf(log, config.InstallNS)
+	eventf, err := newEventf(log)
 	if err != nil {
 		return fmt.Errorf("failed to create event recorder: %v", err)
 	}
@@ -260,7 +260,19 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 // POD_NAME to contain the pod name. Note that the RBAC rule allowing sending
 // events is attached to the pod's service account, not the impersonated service
 // account (venafi-connection).
-func newEventf(log logr.Logger, installNS string) (Eventf, error) {
+func newEventf(log logr.Logger) (Eventf, error) {
+	podName := os.Getenv("POD_NAME")
+	podNode := os.Getenv("POD_NODE")
+	podUID := os.Getenv("POD_UID")
+	podNamespace := os.Getenv("POD_NAMESPACE")
+	if podName == "" || podNode == "" || podUID == "" || podNamespace == "" {
+		log.Info(
+			"Pod event recorder disabled",
+			"reason", "The agent does not appear to be running in a Kubernetes cluster.",
+			"detail", "When running in a Kubernetes cluster the following environment variables must be set: POD_NAME, POD_NODE, POD_UID, POD_NAMESPACE",
+		)
+		return func(eventType, reason, msg string, args ...interface{}) {}, nil
+	}
 	restcfg, err := kubeconfig.LoadRESTConfig("")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load kubeconfig: %v", err)
@@ -269,22 +281,17 @@ func newEventf(log logr.Logger, installNS string) (Eventf, error) {
 	_ = corev1.AddToScheme(scheme)
 
 	var eventf Eventf
-	if os.Getenv("POD_NAME") == "" {
-		eventf = func(eventType, reason, msg string, args ...interface{}) {}
-		log.Error(nil, "Error messages will not show in the pod's events because the POD_NAME environment variable is empty")
-	} else {
-		podName := os.Getenv("POD_NAME")
 
-		eventClient, err := kubernetes.NewForConfig(restcfg)
-		if err != nil {
-			return eventf, fmt.Errorf("failed to create event client: %v", err)
-		}
-		broadcaster := record.NewBroadcaster()
-		broadcaster.StartRecordingToSink(&clientgocorev1.EventSinkImpl{Interface: eventClient.CoreV1().Events(installNS)})
-		eventRec := broadcaster.NewRecorder(scheme, corev1.EventSource{Component: "venafi-kubernetes-agent", Host: os.Getenv("POD_NODE")})
-		eventf = func(eventType, reason, msg string, args ...interface{}) {
-			eventRec.Eventf(&corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: podName, Namespace: installNS, UID: types.UID(os.Getenv("POD_UID"))}}, eventType, reason, msg, args...)
-		}
+	eventClient, err := kubernetes.NewForConfig(restcfg)
+	if err != nil {
+		return eventf, fmt.Errorf("failed to create event client: %v", err)
+	}
+	broadcaster := record.NewBroadcaster()
+	broadcaster.StartRecordingToSink(&clientgocorev1.EventSinkImpl{Interface: eventClient.CoreV1().Events(podNamespace)})
+	eventRec := broadcaster.NewRecorder(scheme, corev1.EventSource{Component: "venafi-kubernetes-agent", Host: podNode})
+	eventf = func(eventType, reason, msg string, args ...interface{}) {
+		eventRec.Eventf(&corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: podName, Namespace: podNamespace, UID: types.UID(podUID)}}, eventType, reason, msg, args...)
+
 	}
 
 	return eventf, nil

@@ -15,21 +15,12 @@ import (
 // after the first data gathering iteration.
 func TestAgentRunOneShot(t *testing.T) {
 	if _, found := os.LookupEnv("GO_CHILD"); found {
-		// Silence the warning about missing pod name for event generation
-		// TODO(wallrj): This should not be required when an `--input-file` has been supplied.
-		t.Setenv("POD_NAME", "venafi-kubernetes-e2e")
-		// Silence the error about missing kubeconfig.
-		// TODO(wallrj): This should not be required when an `--input-file` has been supplied.
-		t.Setenv("KUBECONFIG", "testdata/agent/one-shot/success/kubeconfig.yaml")
-
 		os.Args = []string{
 			"preflight",
 			"agent",
 			"--one-shot",
 			// TODO(wallrj): This should not be required when an `--input-file` has been supplied.
 			"--api-token=should-not-be-required",
-			// TODO(wallrj): This should not be required when an `--input-file` has been supplied.
-			"--install-namespace=default",
 			"--agent-config-file=testdata/agent/one-shot/success/config.yaml",
 			"--input-path=testdata/agent/one-shot/success/input.json",
 			"--output-path=/dev/null",
