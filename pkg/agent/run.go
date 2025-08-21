@@ -337,28 +337,14 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 			log.Info("Warning: PushingErr: retrying", "in", t, "reason", err)
 		})
 
-		if config.MachineHubMode {
-			post := func() (any, error) {
-				log.Info("machine hub mode not yet implemented")
-				return struct{}{}, nil
-			}
-
-			group.Go(func() error {
-				_, err := backoff.Retry(ctx, post, backoff.WithBackOff(backOff), backoff.WithNotify(notificationFunc), backoff.WithMaxElapsedTime(config.BackoffMaxTime))
-				return err
-			})
+		post := func() (any, error) {
+			return struct{}{}, postData(klog.NewContext(ctx, log), config, preflightClient, readings)
 		}
 
-		if config.TLSPKMode != Off {
-			post := func() (any, error) {
-				return struct{}{}, postData(klog.NewContext(ctx, log), config, preflightClient, readings)
-			}
-
-			group.Go(func() error {
-				_, err := backoff.Retry(ctx, post, backoff.WithBackOff(backOff), backoff.WithNotify(notificationFunc), backoff.WithMaxElapsedTime(config.BackoffMaxTime))
-				return err
-			})
-		}
+		group.Go(func() error {
+			_, err := backoff.Retry(ctx, post, backoff.WithBackOff(backOff), backoff.WithNotify(notificationFunc), backoff.WithMaxElapsedTime(config.BackoffMaxTime))
+			return err
+		})
 
 		groupErr := group.Wait()
 		if groupErr != nil {
