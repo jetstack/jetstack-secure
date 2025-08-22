@@ -64,24 +64,3 @@ test-helm: | $(NEEDS_HELM-UNITTEST)
 ## @category Testing
 test-helm-snapshot: | $(NEEDS_HELM-UNITTEST)
 	$(HELM-UNITTEST) ./deploy/charts/venafi-kubernetes-agent/ -u
-
-
-.PHONY: verify-govulncheck
-## Verify all Go modules for vulnerabilities using govulncheck Copied from makefile-modules
-## @category [shared] Generate/ Verify
-#
-# Runs `govulncheck` on all Go modules related to the project.
-# Ignores Go modules among the temporary build artifacts in _bin, to avoid
-# scanning the code of the vendored Go, after running make vendor-go.
-# Ignores Go modules in make/_shared, because those will be checked in centrally
-# in the makefile_modules repository.
-verify-govulncheck: | $(NEEDS_GOVULNCHECK)
-	@find . -name go.mod -not \( -path "./$(bin_dir)/*" -or -path "./make/_shared/*" \) \
-		| while read d; do \
-				target=$$(dirname $${d}); \
-				echo "Running 'GOTOOLCHAIN=go$(VENDORED_GO_VERSION) $(bin_dir)/tools/govulncheck ./...' in directory '$${target}'"; \
-				pushd "$${target}" >/dev/null; \
-				GOTOOLCHAIN=go$(VENDORED_GO_VERSION) $(GOVULNCHECK) ./... || exit; \
-				popd >/dev/null; \
-				echo ""; \
-			done
