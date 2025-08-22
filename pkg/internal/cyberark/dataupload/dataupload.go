@@ -70,14 +70,19 @@ func NewCyberArkClient(trustedCAs *x509.CertPool, baseURL string, authenticateRe
 // If you omit that header, it is possible to PUT any data.
 // There is a work around listed in that issue which we have shared with the
 // CyberArk API team.
-func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payload api.DataReadingsPost, opts Options) error {
+func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, opts Options) error {
 	if opts.ClusterName == "" {
 		return fmt.Errorf("programmer mistake: the cluster name (aka `cluster_id` in the config file) cannot be left empty")
 	}
 
+	snapshot, err := convertDataReadingsToCyberarkSnapshot(readings)
+	if err != nil {
+		return fmt.Errorf("while converting datareadings to Cyberark snapshot format: %s", err)
+	}
+
 	encodedBody := &bytes.Buffer{}
 	hash := sha256.New()
-	if err := json.NewEncoder(io.MultiWriter(encodedBody, hash)).Encode(payload); err != nil {
+	if err := json.NewEncoder(io.MultiWriter(encodedBody, hash)).Encode(snapshot); err != nil {
 		return err
 	}
 	checksum := hash.Sum(nil)
