@@ -19,8 +19,6 @@ func TestAgentRunOneShot(t *testing.T) {
 			"preflight",
 			"agent",
 			"--one-shot",
-			// TODO(wallrj): This should not be required when an `--input-file` has been supplied.
-			"--api-token=should-not-be-required",
 			"--agent-config-file=testdata/agent/one-shot/success/config.yaml",
 			"--input-path=testdata/agent/one-shot/success/input.json",
 			"--output-path=/dev/null",

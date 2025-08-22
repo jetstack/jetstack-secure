@@ -324,15 +324,16 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 
 }
 
-// TLSPKMode controls how to authenticate to TLSPK / Jetstack Secure. Only one
-// TLSPKMode may be provided if using those backends.
-type TLSPKMode string
+// OutputMode controls how the collected data is published.
+// Only one OutputMode may be provided.
+type OutputMode string
 
 const (
-	JetstackSecureOAuth         TLSPKMode = "Jetstack Secure OAuth"
-	JetstackSecureAPIToken      TLSPKMode = "Jetstack Secure API Token"
-	VenafiCloudKeypair          TLSPKMode = "Venafi Cloud Key Pair Service Account"
-	VenafiCloudVenafiConnection TLSPKMode = "Venafi Cloud VenafiConnection"
+	JetstackSecureOAuth         OutputMode = "Jetstack Secure OAuth"
+	JetstackSecureAPIToken      OutputMode = "Jetstack Secure API Token"
+	VenafiCloudKeypair          OutputMode = "Venafi Cloud Key Pair Service Account"
+	VenafiCloudVenafiConnection OutputMode = "Venafi Cloud VenafiConnection"
+	LocalFile                   OutputMode = "Local File"
 )
 
 // The command-line flags and the config file are combined into this struct by
@@ -345,7 +346,7 @@ type CombinedConfig struct {
 	StrictMode     bool
 	OneShot        bool
 
-	TLSPKMode TLSPKMode
+	OutputMode OutputMode
 
 	// Used by all TLSPK modes.
 	ClusterID string
@@ -389,7 +390,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 
 	{
 		var (
-			mode          TLSPKMode
+			mode          OutputMode
 			reason        string
 			keysAndValues []any
 		)
@@ -419,18 +420,25 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		case !flags.VenafiCloudMode && flags.CredentialsPath != "":
 			mode = JetstackSecureOAuth
 			reason = "--credentials-file was specified without --venafi-cloud"
+		case flags.OutputPath != "":
+			mode = LocalFile
+			reason = "--output-path was specified"
+		case cfg.OutputPath != "":
+			mode = LocalFile
+			reason = "output-path was specified in the config file"
 		default:
-			return CombinedConfig{}, nil, fmt.Errorf("no TLSPK mode specified. " +
-				"To enable one of the TLSPK modes, you can:\n" +
+			return CombinedConfig{}, nil, fmt.Errorf("no output mode specified. " +
+				"To enable one of the output modes, you can:\n" +
 				" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
 				" - Use --venafi-connection for the " + string(VenafiCloudVenafiConnection) + " mode.\n" +
 				" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
-				" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.")
+				" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.\n" +
+				" - Use --output-path or output-path in the config file for " + string(LocalFile) + " mode.")
 		}
 
 		keysAndValues = append(keysAndValues, "mode", mode, "reason", reason)
-		log.V(logs.Debug).Info("Configured to push to Venafi", keysAndValues...)
-		res.TLSPKMode = mode
+		log.V(logs.Debug).Info("Output mode selected", keysAndValues...)
+		res.OutputMode = mode
 	}
 
 	var errs error
@@ -459,7 +467,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			endpointPath = cfg.Endpoint.Path
 		case !hasServerField && !hasEndpointField:
 			server = "https://preflight.jetstack.io"
-			if res.TLSPKMode == VenafiCloudKeypair {
+			if res.OutputMode == VenafiCloudKeypair {
 				// The VenafiCloudVenafiConnection mode doesn't need a server.
 				server = client.VenafiCloudProdURL
 			}
@@ -468,7 +476,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		if urlErr != nil || url.Hostname() == "" {
 			errs = multierror.Append(errs, fmt.Errorf("server %q is not a valid URL", server))
 		}
-		if res.TLSPKMode == VenafiCloudVenafiConnection && server != "" {
+		if res.OutputMode == VenafiCloudVenafiConnection && server != "" {
 			log.Info(fmt.Sprintf("ignoring the server field specified in the config file. In %s mode, this field is not needed.", VenafiCloudVenafiConnection))
 			server = ""
 		}
@@ -479,10 +487,10 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	// Validation of `venafi-cloud.upload_path`.
 	{
 		var uploadPath string
-		switch res.TLSPKMode { // nolint:exhaustive
+		switch res.OutputMode { // nolint:exhaustive
 		case VenafiCloudKeypair:
 			if cfg.VenafiCloud == nil || cfg.VenafiCloud.UploadPath == "" {
-				errs = multierror.Append(errs, fmt.Errorf("the venafi-cloud.upload_path field is required when using the %s mode", res.TLSPKMode))
+				errs = multierror.Append(errs, fmt.Errorf("the venafi-cloud.upload_path field is required when using the %s mode", res.OutputMode))
 				break // Skip to the end of the switch statement.
 			}
 			_, urlErr := url.Parse(cfg.VenafiCloud.UploadPath)
@@ -499,7 +507,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			// change this value with the new --venafi-connection flag, and this
 			// field is simply ignored.
 			if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploadPath != "" {
-				log.Info(fmt.Sprintf(`ignoring the venafi-cloud.upload_path field in the config file. In %s mode, this field is not needed.`, res.TLSPKMode))
+				log.Info(fmt.Sprintf(`ignoring the venafi-cloud.upload_path field in the config file. In %s mode, this field is not needed.`, res.OutputMode))
 			}
 			uploadPath = ""
 		}
@@ -517,7 +525,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	// https://venafi.atlassian.net/browse/VC-35385 is done.
 	{
 		if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploaderID != "" {
-			log.Info(fmt.Sprintf(`ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in %s mode.`, res.TLSPKMode))
+			log.Info(fmt.Sprintf(`ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
 		}
 	}
 
@@ -525,10 +533,10 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	{
 		var clusterID string
 		var organizationID string // Only used by the old jetstack-secure mode.
-		switch res.TLSPKMode {    // nolint:exhaustive
+		switch res.OutputMode {   // nolint:exhaustive
 		case VenafiCloudKeypair, VenafiCloudVenafiConnection:
 			if cfg.ClusterID == "" {
-				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.TLSPKMode))
+				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.OutputMode))
 			}
 			clusterID = cfg.ClusterID
 		case JetstackSecureOAuth, JetstackSecureAPIToken:
@@ -587,7 +595,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			var err error
 			installNS, err = getInClusterNamespace()
 			if err != nil {
-				if res.TLSPKMode == VenafiCloudVenafiConnection {
+				if res.OutputMode == VenafiCloudVenafiConnection {
 					errs = multierror.Append(errs, fmt.Errorf("could not guess which namespace the agent is running in: %w", err))
 				}
 			}
@@ -596,7 +604,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	}
 
 	// Validation of --venafi-connection and --venafi-connection-namespace.
-	if res.TLSPKMode == VenafiCloudVenafiConnection {
+	if res.OutputMode == VenafiCloudVenafiConnection {
 		res.VenConnName = flags.VenConnName
 		venConnNS := flags.VenConnNS
 		if flags.VenConnNS == "" {
@@ -643,12 +651,12 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		return CombinedConfig{}, nil, errs
 	}
 
-	preflightClient, err := validateCredsAndCreateClient(log, flags.CredentialsPath, flags.ClientID, flags.PrivateKeyPath, flags.APIToken, res)
+	outputClient, err := validateCredsAndCreateClient(log, flags.CredentialsPath, flags.ClientID, flags.PrivateKeyPath, flags.APIToken, res)
 	if err != nil {
 		return CombinedConfig{}, nil, multierror.Prefix(err, "validating creds:")
 	}
 
-	return res, preflightClient, nil
+	return res, outputClient, nil
 }
 
 // Validation of --credentials-file/-k, --client-id, and --private-key-path,
@@ -660,9 +668,9 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClientID, flagPrivateKeyPath, flagAPIToken string, cfg CombinedConfig) (client.Client, error) {
 	var errs error
 
-	var preflightClient client.Client
+	var outputClient client.Client
 	metadata := &api.AgentMetadata{Version: version.PreflightVersion, ClusterID: cfg.ClusterID}
-	switch cfg.TLSPKMode {
+	switch cfg.OutputMode {
 	case JetstackSecureOAuth:
 		// Note that there are no command line flags to configure the
 		// JetstackSecureOAuth mode.
@@ -678,7 +686,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			break // Don't continue with the client if credentials file invalid.
 		}
 
-		preflightClient, err = client.NewOAuthClient(metadata, creds, cfg.Server)
+		outputClient, err = client.NewOAuthClient(metadata, creds, cfg.Server)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
@@ -730,7 +738,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		log.Info("Loading upload_path from \"venafi-cloud\" configuration.")
 
 		var err error
-		preflightClient, err = client.NewVenafiCloudClient(metadata, creds, cfg.Server, uploaderID, cfg.UploadPath)
+		outputClient, err = client.NewVenafiCloudClient(metadata, creds, cfg.Server, uploaderID, cfg.UploadPath)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
@@ -742,25 +750,27 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			break // Don't continue with the client if kubeconfig wasn't loaded.
 		}
 
-		preflightClient, err = client.NewVenConnClient(restCfg, metadata, cfg.InstallNS, cfg.VenConnName, cfg.VenConnNS, nil)
+		outputClient, err = client.NewVenConnClient(restCfg, metadata, cfg.InstallNS, cfg.VenConnName, cfg.VenConnNS, nil)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
 	case JetstackSecureAPIToken:
 		var err error
-		preflightClient, err = client.NewAPITokenClient(metadata, flagAPIToken, cfg.Server)
+		outputClient, err = client.NewAPITokenClient(metadata, flagAPIToken, cfg.Server)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
+	case LocalFile:
+		outputClient = client.NewFileClient(cfg.OutputPath)
 	default:
-		panic(fmt.Errorf("programmer mistake: auth mode not implemented: %s", cfg.TLSPKMode))
+		panic(fmt.Errorf("programmer mistake: output mode not implemented: %s", cfg.OutputMode))
 	}
 
 	if errs != nil {
-		return nil, fmt.Errorf("failed loading config using the %s mode: %w", cfg.TLSPKMode, errs)
+		return nil, fmt.Errorf("failed loading config using the %s mode: %w", cfg.OutputMode, errs)
 	}
 
-	return preflightClient, nil
+	return outputClient, nil
 }
 
 // Same as ValidateAndCombineConfig but just for validating the data gatherers.
