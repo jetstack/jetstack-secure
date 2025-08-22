@@ -25,7 +25,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 	// OAuth mode.
 	fakeCredsPath := withFile(t, `{"user_id":"foo","user_secret":"bar","client_id": "baz","client_secret": "foobar","auth_server_domain":"bazbar"}`)
 
-	t.Run("--install-namespace must be provided if POD_NAMESPACE is not set", func(t *testing.T) {
+	t.Run("In Venafi Connection mode, --install-namespace must be provided if POD_NAMESPACE is not set", func(t *testing.T) {
 		_, _, err := ValidateAndCombineConfig(discardLogs(),
 			withConfig(testutil.Undent(`
 				server: https://api.venafi.eu
@@ -33,7 +33,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 				cluster_id: bar
 				period: 5m
 			`)),
-			withCmdLineFlags("--credentials-file", fakeCredsPath))
+			withCmdLineFlags("--venafi-connection", "venafi-components"))
 		assert.EqualError(t, err, "1 error occurred:\n\t* could not guess which namespace the agent is running in: POD_NAMESPACE env var not set, meaning that you are probably not running in cluster. Please use --install-namespace or POD_NAMESPACE to specify the namespace in which the agent is running.\n\n")
 	})
 
@@ -614,6 +614,34 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--venafi-connection", "venafi-components"))
 		require.NoError(t, err)
 		assert.Equal(t, VenafiCloudVenafiConnection, got.TLSPKMode)
+	})
+
+	// When --input-path is supplied, the data is being read from a local file
+	// and the agent is probably running outside the cluster and has no access
+	// to a cluster, so the environment variables which are required for
+	// generating events attached to the Agent pod should not be required:
+	// POD_NAME, POD_NAMESPACE, POD_UID, KUBECONFIG, etc.
+	// This test deliberately does not set those environment variables.
+	//
+	// TODO(wallrj): Some other config settings like cluster_id, organization_id
+	// should also not be required in this situation. We'll fix those in the
+	// future.
+	t.Run("--input-path requires no Kubernetes config", func(t *testing.T) {
+		expectedInputPath := "/foo/bar/baz"
+		got, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				cluster_id: should-not-be-required
+				organization_id: should-not-be-required
+			`)),
+			withCmdLineFlags(
+				"--one-shot",
+				"--input-path", expectedInputPath,
+				"--output-path", "/dev/null",
+				"--api-token", "should-not-be-required",
+			),
+		)
+		require.NoError(t, err)
+		assert.Equal(t, expectedInputPath, got.InputPath)
 	})
 }
 

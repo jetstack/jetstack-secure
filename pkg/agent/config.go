@@ -581,22 +581,26 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	}
 
 	// Validation of --install-namespace.
-	installNS := flags.InstallNS
-	if flags.InstallNS == "" {
-		var err error
-		installNS, err = getInClusterNamespace()
-		if err != nil {
-			errs = multierror.Append(errs, fmt.Errorf("could not guess which namespace the agent is running in: %w", err))
+	{
+		installNS := flags.InstallNS
+		if installNS == "" {
+			var err error
+			installNS, err = getInClusterNamespace()
+			if err != nil {
+				if res.TLSPKMode == VenafiCloudVenafiConnection {
+					errs = multierror.Append(errs, fmt.Errorf("could not guess which namespace the agent is running in: %w", err))
+				}
+			}
 		}
+		res.InstallNS = installNS
 	}
-	res.InstallNS = installNS
 
 	// Validation of --venafi-connection and --venafi-connection-namespace.
 	if res.TLSPKMode == VenafiCloudVenafiConnection {
 		res.VenConnName = flags.VenConnName
 		venConnNS := flags.VenConnNS
 		if flags.VenConnNS == "" {
-			venConnNS = installNS
+			venConnNS = res.InstallNS
 		}
 		res.VenConnNS = venConnNS
 	}
