@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"k8s.io/client-go/transport"
@@ -62,12 +63,17 @@ func WithCustomEndpoint(endpoint string) ClientOpt {
 
 // New creates a new CyberArk Service Discovery client, configurable with ClientOpt
 func New(clientOpts ...ClientOpt) *Client {
+	endpoint := os.Getenv("ARK_DISCOVERY_ENDPOINT")
+	if endpoint == "" {
+		endpoint = prodDiscoveryEndpoint
+	}
+
 	client := &Client{
 		client: &http.Client{
 			Timeout:   10 * time.Second,
 			Transport: transport.NewDebuggingRoundTripper(http.DefaultTransport, transport.DebugByContext),
 		},
-		endpoint: prodDiscoveryEndpoint,
+		endpoint: endpoint,
 	}
 
 	for _, opt := range clientOpts {

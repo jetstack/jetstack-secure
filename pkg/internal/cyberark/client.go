@@ -48,6 +48,21 @@ func NewDatauploadClient(ctx context.Context, cfg ClientConfig) (*dataupload.Cyb
 
 	serviceURL := fmt.Sprintf("https://%s%s%s.%s", cfg.subdomain, separator, discoveryContextServiceName, cfg.platformDomain)
 
+	var serviceDiscoveryOptions []servicediscovery.ClientOpt
+
+	if cfg.platformDomain != "cyberark.cloud" {
+
+	}
+
+	if serviceDiscoveryEndpoint := os.Getenv("ARK_SERVICE_DISCOVERY_ENDPOINT"); serviceDiscoveryEndpoint != "" {
+		serviceDiscoveryOptions = append(
+			serviceDiscoveryOptions,
+			servicediscovery.WithCustomEndpoint(serviceDiscoveryEndpoint),
+		)
+	}
+
+	serviceDiscoveryClient := servicediscovery.New(serviceDiscoveryOptions...)
+
 	var (
 		identityClient *identity.Client
 		err            error
@@ -55,8 +70,7 @@ func NewDatauploadClient(ctx context.Context, cfg ClientConfig) (*dataupload.Cyb
 	if cfg.platformDomain == "cyberark.cloud" {
 		identityClient, err = identity.New(ctx, cfg.subdomain)
 	} else {
-		discoveryClient := servicediscovery.New(servicediscovery.WithIntegrationEndpoint())
-		identityClient, err = identity.NewWithDiscoveryClient(ctx, discoveryClient, cfg.subdomain)
+		identityClient, err = identity.NewWithDiscoveryClient(ctx, serviceDiscoveryClient, cfg.subdomain)
 	}
 	if err != nil {
 		return nil, err

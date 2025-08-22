@@ -750,6 +750,46 @@ func Test_ValidateAndCombineConfig_VenafiCloudKeyPair(t *testing.T) {
 	})
 }
 
+func Test_ValidateAndCombineConfig_MachineHub(t *testing.T) {
+	t.Setenv("POD_NAMESPACE", "venafi")
+	t.Setenv("ARK_PLATFORM_DOMAIN", "integration-cyberark.cloud")
+	t.Setenv("ARK_SUBDOMAIN", "tlskp-test")
+	t.Setenv("ARK_USERNAME", "first_last@cyberark.cloud.123456")
+	t.Setenv("ARK_SECRET", "test-secret")
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second*3)
+	defer cancel()
+	log := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.Verbosity(7)))
+	ctx = klog.NewContext(ctx, log)
+
+	srv, _, setVenafiCloudAssert := testutil.FakeVenafiCloud(t)
+	t.Setenv("ARK_DISCOVERY_ENDPOINT", srv.URL)
+	setVenafiCloudAssert(func(t testing.TB, gotReq *http.Request) {
+		// Only care about /v1/tlspk/upload/clusterdata/:uploader_id?name=
+		if gotReq.URL.Path == "/v1/oauth/token/serviceaccount" {
+			return
+		}
+
+		assert.Equal(t, srv.URL, "https://"+gotReq.Host)
+		assert.Equal(t, "test cluster name", gotReq.URL.Query().Get("name"))
+		assert.Equal(t, "/v1/tlspk/upload/clusterdata/no", gotReq.URL.Path)
+	})
+
+	got, cl, err := ValidateAndCombineConfig(discardLogs(),
+		withConfig(testutil.Undent(`
+				period: 1h
+			`)),
+		withCmdLineFlags("--machine-hub"),
+	)
+	require.NoError(t, err)
+	//	testutil.TrustCA(t, cl, cert)
+	assert.Equal(t, MachineHub, got.OutputMode)
+
+	err = cl.PostDataReadingsWithOptions(ctx, nil, client.Options{})
+	require.NoError(t, err)
+
+}
+
 // Slower test cases due to envtest. That's why they are separated from the
 // other tests.
 func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
