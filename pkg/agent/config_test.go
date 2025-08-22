@@ -194,13 +194,11 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withoutCmdLineFlags(),
 		)
 		assert.EqualError(t, err, testutil.Undent(`
-			no TLSPK mode specified and MachineHub mode is disabled. You must either enable the MachineHub mode (using --machine-hub), or enable one of the TLSPK modes.
-			To enable one of the TLSPK modes, you can:
+			no TLSPK mode specified. To enable one of the TLSPK modes, you can:
 			 - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the Venafi Cloud Key Pair Service Account mode.
 			 - Use --venafi-connection for the Venafi Cloud VenafiConnection mode.
 			 - Use --credentials-file alone if you want to use the Jetstack Secure OAuth mode.
-			 - Use --api-token if you want to use the Jetstack Secure API Token mode.
-			Note that it is possible to use one of the TLSPK modes along with the MachineHub mode (--machine-hub).`))
+			 - Use --api-token if you want to use the Jetstack Secure API Token mode.`))
 		assert.Nil(t, cl)
 	})
 
@@ -616,42 +614,6 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--venafi-connection", "venafi-components"))
 		require.NoError(t, err)
 		assert.Equal(t, VenafiCloudVenafiConnection, got.TLSPKMode)
-	})
-
-	t.Run("machinehub only: username and password", func(t *testing.T) {
-		t.Setenv("POD_NAMESPACE", "venafi")
-		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
-		got, _, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(testutil.Undent(`
-				machineHub:
-				  subdomain: foo
-				  credentialsSecretName: secret-1
-				period: 1h
-			`)),
-			withCmdLineFlags("--machine-hub"))
-		require.NoError(t, err)
-		assert.Equal(t, Off, got.TLSPKMode)
-		assert.Equal(t, true, got.MachineHubMode)
-	})
-
-	t.Run("machinehub + venafi-cloud-keypair-auth should work simultaneously", func(t *testing.T) {
-		t.Setenv("POD_NAMESPACE", "venafi")
-		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
-		privKeyPath := withFile(t, fakePrivKeyPEM)
-		got, _, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(testutil.Undent(`
-				machineHub:
-				  subdomain: foo
-				  credentialsSecretName: secret-1
-				period: 1h
-				venafi-cloud:
-				  upload_path: /v1/tlspk/upload/clusterdata
-				cluster_id: foo
-			`)),
-			withCmdLineFlags("--machine-hub", "--venafi-cloud", "--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath))
-		require.NoError(t, err)
-		assert.Equal(t, VenafiCloudKeypair, got.TLSPKMode)
-		assert.Equal(t, true, got.MachineHubMode)
 	})
 }
 

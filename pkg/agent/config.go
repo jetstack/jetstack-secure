@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -62,9 +61,6 @@ type Config struct {
 	ExcludeAnnotationKeysRegex []string `yaml:"exclude-annotation-keys-regex"`
 	// Skips label keys that match the given set of regular expressions.
 	ExcludeLabelKeysRegex []string `yaml:"exclude-label-keys-regex"`
-
-	// MachineHub holds config specific to MachineHub mode.
-	MachineHub MachineHubConfig `yaml:"machineHub"`
 }
 
 type Endpoint struct {
@@ -90,33 +86,6 @@ type VenafiCloudConfig struct {
 	// UploadPath is the endpoint path for the upload API. Only used in Venafi
 	// Cloud Key Pair Service Account mode.
 	UploadPath string `yaml:"upload_path,omitempty"`
-}
-
-// MachineHubConfig holds configuration values specific to the CyberArk Machine Hub integration
-type MachineHubConfig struct {
-	// Subdomain is the subdomain indicating where data should be pushed. Used
-	// for querying the Service Discovery Service to discover the Identity API
-	// URL.
-	Subdomain string `yaml:"subdomain"`
-
-	// CredentialsSecretName is the name of a Kubernetes Secret in the same
-	// namespace as the agent, which will be watched for a username and password
-	// to send to CyberArk Identity for authentication.
-	CredentialsSecretName string `yaml:"credentialsSecretName"`
-}
-
-func (mhc MachineHubConfig) Validate() error {
-	var errs []error
-
-	if mhc.Subdomain == "" {
-		errs = append(errs, fmt.Errorf("subdomain must not be empty in MachineHub mode"))
-	}
-
-	if mhc.CredentialsSecretName == "" {
-		errs = append(errs, fmt.Errorf("credentialsSecretName must not be empty in MachineHub mode"))
-	}
-
-	return errors.Join(errs...)
 }
 
 type AgentCmdFlags struct {
@@ -364,10 +333,6 @@ const (
 	JetstackSecureAPIToken      TLSPKMode = "Jetstack Secure API Token"
 	VenafiCloudKeypair          TLSPKMode = "Venafi Cloud Key Pair Service Account"
 	VenafiCloudVenafiConnection TLSPKMode = "Venafi Cloud VenafiConnection"
-
-	// It is possible to push to both MachineHub and TLSPK. With this mode, the
-	// agent will only push to MachineHub and not to TLSPK.
-	Off TLSPKMode = "MachineHub only"
 )
 
 // The command-line flags and the config file are combined into this struct by
@@ -408,11 +373,6 @@ type CombinedConfig struct {
 	// Only used for testing purposes.
 	OutputPath string
 	InputPath  string
-
-	// MachineHub-related settings.
-	MachineHubMode                  bool
-	MachineHubSubdomain             string
-	MachineHubCredentialsSecretName string
 }
 
 // ValidateAndCombineConfig combines and validates the input configuration with
@@ -426,19 +386,6 @@ type CombinedConfig struct {
 // error.
 func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) (CombinedConfig, client.Client, error) {
 	res := CombinedConfig{}
-
-	if flags.MachineHubMode {
-		if err := cfg.MachineHub.Validate(); err != nil {
-			return CombinedConfig{}, nil, fmt.Errorf("invalid MachineHub config provided: %w", err)
-		}
-
-		res.MachineHubMode = true
-		res.MachineHubSubdomain = cfg.MachineHub.Subdomain
-		res.MachineHubCredentialsSecretName = cfg.MachineHub.CredentialsSecretName
-
-		keysAndValues := []any{"credentialsSecretName", res.MachineHubCredentialsSecretName}
-		log.V(logs.Info).Info("Will push to CyberArk MachineHub using a username and password loaded from a Kubernetes Secret", keysAndValues...)
-	}
 
 	{
 		var (
@@ -473,31 +420,23 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			mode = JetstackSecureOAuth
 			reason = "--credentials-file was specified without --venafi-cloud"
 		default:
-			if !flags.MachineHubMode {
-				return CombinedConfig{}, nil, fmt.Errorf("no TLSPK mode specified and MachineHub mode is disabled. You must either enable the MachineHub mode (using --machine-hub), or enable one of the TLSPK modes.\n" +
-					"To enable one of the TLSPK modes, you can:\n" +
-					" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
-					" - Use --venafi-connection for the " + string(VenafiCloudVenafiConnection) + " mode.\n" +
-					" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
-					" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.\n" +
-					"Note that it is possible to use one of the TLSPK modes along with the MachineHub mode (--machine-hub).")
-			}
-
-			mode = Off
+			return CombinedConfig{}, nil, fmt.Errorf("no TLSPK mode specified. " +
+				"To enable one of the TLSPK modes, you can:\n" +
+				" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
+				" - Use --venafi-connection for the " + string(VenafiCloudVenafiConnection) + " mode.\n" +
+				" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
+				" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.")
 		}
 
 		keysAndValues = append(keysAndValues, "mode", mode, "reason", reason)
-		if mode != Off {
-			log.V(logs.Debug).Info("Configured to push to Venafi", keysAndValues...)
-		}
-
+		log.V(logs.Debug).Info("Configured to push to Venafi", keysAndValues...)
 		res.TLSPKMode = mode
 	}
 
 	var errs error
 
 	// Validation and defaulting of `server` and the deprecated `endpoint.path`.
-	if res.TLSPKMode != Off {
+	{
 		// Only relevant if using TLSPK backends
 		hasEndpointField := cfg.Endpoint.Host != "" && cfg.Endpoint.Path != ""
 		hasServerField := cfg.Server != ""
@@ -583,7 +522,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	}
 
 	// Validation of `cluster_id` and `organization_id`.
-	if res.TLSPKMode != Off {
+	{
 		var clusterID string
 		var organizationID string // Only used by the old jetstack-secure mode.
 		switch res.TLSPKMode {    // nolint:exhaustive
@@ -605,8 +544,10 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		res.OrganizationID = organizationID
 		res.ClusterID = clusterID
 		res.ClusterDescription = cfg.ClusterDescription
+	}
 
-		// Validation of `data-gatherers`.
+	// Validation of `data-gatherers`.
+	{
 		if dgErr := ValidateDataGatherers(cfg.DataGatherers); dgErr != nil {
 			errs = multierror.Append(errs, dgErr)
 		}
@@ -807,8 +748,6 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-	case Off:
-		// No client needed in this mode.
 	default:
 		panic(fmt.Errorf("programmer mistake: auth mode not implemented: %s", cfg.TLSPKMode))
 	}
