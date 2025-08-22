@@ -199,6 +199,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			 - Use --venafi-connection for the Venafi Cloud VenafiConnection mode.
 			 - Use --credentials-file alone if you want to use the Jetstack Secure OAuth mode.
 			 - Use --api-token if you want to use the Jetstack Secure API Token mode.
+			 - Use --machine-hub if you want to use the MachineHub mode.
 			 - Use --output-path or output-path in the config file for Local File mode.`))
 		assert.Nil(t, cl)
 	})
@@ -615,6 +616,40 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--venafi-connection", "venafi-components"))
 		require.NoError(t, err)
 		assert.Equal(t, VenafiCloudVenafiConnection, got.OutputMode)
+	})
+
+	t.Run("--machine-hub selects MachineHub mode", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
+		t.Setenv("ARK_PLATFORM_DOMAIN", "cyberark.cloud")
+		t.Setenv("ARK_SUBDOMAIN", "tlspk")
+		t.Setenv("ARK_USERNAME", "first_last@cyberark.cloud.123456")
+		t.Setenv("ARK_SECRET", "test-secret")
+		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(""),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.NoError(t, err)
+		assert.Equal(t, MachineHub, got.OutputMode)
+		assert.IsType(t, &client.CyberArkClient{}, cl)
+	})
+
+	t.Run("--machine-hub without required environment variables", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
+		t.Setenv("ARK_PLATFORM_DOMAIN", "")
+		t.Setenv("ARK_SUBDOMAIN", "")
+		t.Setenv("ARK_USERNAME", "")
+		t.Setenv("ARK_SECRET", "")
+		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(""),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		assert.Equal(t, CombinedConfig{}, got)
+		assert.Nil(t, cl)
+		assert.EqualError(t, err, testutil.Undent(`
+			validating creds: failed loading config using the MachineHub mode: 1 error occurred:
+				* missing environment variables: ARK_PLATFORM_DOMAIN, ARK_SUBDOMAIN, ARK_USERNAME, ARK_SECRET
+
+	   `))
 	})
 
 	t.Run("argument: --output-file selects local file mode", func(t *testing.T) {
