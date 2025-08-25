@@ -1,4 +1,4 @@
-package dataupload_test
+package dataupload
 
 import (
 	"crypto/x509"
@@ -11,13 +11,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2"
-	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/api"
-	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
+	cyberarktesting "github.com/jetstack/preflight/pkg/internal/cyberark/testing"
 
+	"k8s.io/klog/v2/ktesting"
 	_ "k8s.io/klog/v2/ktesting/init"
 )
 
@@ -39,7 +39,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 			},
 		},
 	}
-	defaultOpts := dataupload.Options{
+	defaultOpts := Options{
 		ClusterName: "success-cluster-id",
 	}
 
@@ -54,7 +54,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 		name         string
 		payload      api.DataReadingsPost
 		authenticate func(req *http.Request) error
-		opts         dataupload.Options
+		opts         Options
 		requireFn    func(t *testing.T, err error)
 	}{
 		{
@@ -69,7 +69,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 		{
 			name:         "error when cluster name is empty",
 			payload:      defaultPayload,
-			opts:         dataupload.Options{ClusterName: ""},
+			opts:         Options{ClusterName: ""},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.ErrorContains(t, err, "programmer mistake: the cluster name")
@@ -87,7 +87,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 		{
 			name:         "invalid JSON from server (RetrievePresignedUploadURL step)",
 			payload:      defaultPayload,
-			opts:         dataupload.Options{ClusterName: "invalid-json-retrieve-presigned"},
+			opts:         Options{ClusterName: "invalid-json-retrieve-presigned"},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.ErrorContains(t, err, "while retrieving snapshot upload URL: rejecting JSON response from server as it was too large or was truncated")
@@ -96,7 +96,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 		{
 			name:         "500 from server (RetrievePresignedUploadURL step)",
 			payload:      defaultPayload,
-			opts:         dataupload.Options{ClusterName: "invalid-response-post-data"},
+			opts:         Options{ClusterName: "invalid-response-post-data"},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500: mock error")
@@ -106,7 +106,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			server := dataupload.MockDataUploadServer()
+			server := cyberarktesting.MockDataUploadServer()
 			defer server.Close()
 
 			certPool := x509.NewCertPool()
@@ -115,7 +115,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 				Bytes: server.Server.TLS.Certificates[0].Certificate[0],
 			})))
 
-			cyberArkClient, err := dataupload.NewCyberArkClient(certPool, server.Server.URL, tc.authenticate)
+			cyberArkClient, err := NewCyberArkClient(certPool, server.Server.URL, tc.authenticate)
 			require.NoError(t, err)
 
 			err = cyberArkClient.PostDataReadingsWithOptions(t.Context(), tc.payload, tc.opts)
@@ -169,10 +169,10 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 	err = identityClient.LoginUsernamePassword(ctx, username, []byte(secret))
 	require.NoError(t, err)
 
-	cyberArkClient, err := dataupload.NewCyberArkClient(nil, serviceURL, identityClient.AuthenticateRequest)
+	cyberArkClient, err := NewCyberArkClient(nil, serviceURL, identityClient.AuthenticateRequest)
 	require.NoError(t, err)
 
-	err = cyberArkClient.PostDataReadingsWithOptions(ctx, api.DataReadingsPost{}, dataupload.Options{
+	err = cyberArkClient.PostDataReadingsWithOptions(ctx, api.DataReadingsPost{}, Options{
 		ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
 	})
 	require.NoError(t, err)

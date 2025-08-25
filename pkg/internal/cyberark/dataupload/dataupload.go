@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/pkg/internal/cyberark"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -23,11 +24,6 @@ const (
 	// maxRetrievePresignedUploadURLBodySize is the maximum allowed size for a response body from the
 	// Retrieve Presigned Upload URL service.
 	maxRetrievePresignedUploadURLBodySize = 10 * 1024
-
-	// apiPathSnapshotLinks is the URL path of the snapshot-links endpoint of the inventory API.
-	// This endpoint returns an AWS presigned URL.
-	// TODO(wallrj): Link to CyberArk API documentation when it is published.
-	apiPathSnapshotLinks = "/api/ingestions/kubernetes/snapshot-links"
 )
 
 type CyberArkClient struct {
@@ -114,7 +110,7 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payloa
 }
 
 func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksum string, opts Options) (string, error) {
-	uploadURL, err := url.JoinPath(c.baseURL, apiPathSnapshotLinks)
+	uploadURL, err := url.JoinPath(c.baseURL, cyberark.EndpointSnapshotLinks)
 	if err != nil {
 		return "", err
 	}
