@@ -8,10 +8,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+
+	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/pkg/version"
-
-	_ "embed"
 )
 
 const (
@@ -21,21 +22,39 @@ const (
 )
 
 type mockDataUploadServer struct {
-	Server *httptest.Server
+	t         testing.TB
+	serverURL string
 }
 
-// MockDataUploadServer returns a mocked data upload server with default values.
-func MockDataUploadServer() *mockDataUploadServer {
-	mds := &mockDataUploadServer{}
-	mds.Server = httptest.NewTLSServer(mds)
-	return mds
-}
-
-func (mds *mockDataUploadServer) Close() {
-	mds.Server.Close()
+// MockDataUploadServer starts a server which mocks the CyberArk
+// Discovery and Context API, and an HTTP client with the CA certs needed to
+// connect to it.
+//
+// The returned URL can be supplied to the `dataupload.New` function as the base
+// URL for the discoverycontext API.
+//
+// The returned HTTP client has a transport which logs requests and responses
+// depending on log level of the logger supplied in the context.
+//
+// The mock server will return a successful response when the cluster ID matches
+// successClusterID. Other cluster IDs can be used to trigger various failure
+// responses.
+func MockDataUploadServer(t testing.TB) (string, *http.Client) {
+	mux := http.NewServeMux()
+	server := httptest.NewTLSServer(mux)
+	t.Cleanup(server.Close)
+	mds := &mockDataUploadServer{
+		t:         t,
+		serverURL: server.URL,
+	}
+	mux.Handle("/", mds)
+	httpClient := server.Client()
+	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
+	return server.URL, httpClient
 }
 
 func (mds *mockDataUploadServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	mds.t.Log(r.Method, r.RequestURI)
 	switch r.URL.Path {
 	case apiPathSnapshotLinks:
 		mds.handleSnapshotLinks(w, r)
@@ -109,7 +128,7 @@ func (mds *mockDataUploadServer) handleSnapshotLinks(w http.ResponseWriter, r *h
 	// Write response body
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	presignedURL := mds.Server.URL + "/presigned-upload"
+	presignedURL := mds.serverURL + "/presigned-upload"
 	_ = json.NewEncoder(w).Encode(struct {
 		URL string `json:"url"`
 	}{presignedURL})

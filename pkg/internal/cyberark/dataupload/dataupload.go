@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -12,8 +11,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-
-	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/version"
@@ -31,8 +28,8 @@ const (
 )
 
 type CyberArkClient struct {
-	baseURL string
-	client  *http.Client
+	baseURL    string
+	httpClient *http.Client
 
 	authenticateRequest func(req *http.Request) error
 }
@@ -41,19 +38,12 @@ type Options struct {
 	ClusterName string
 }
 
-func NewCyberArkClient(trustedCAs *x509.CertPool, baseURL string, authenticateRequest func(req *http.Request) error) (*CyberArkClient, error) {
-	cyberClient := &http.Client{}
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	if trustedCAs != nil {
-		tr.TLSClientConfig.RootCAs = trustedCAs
-	}
-	cyberClient.Transport = transport.NewDebuggingRoundTripper(tr, transport.DebugByContext)
-
+func New(httpClient *http.Client, baseURL string, authenticateRequest func(req *http.Request) error) *CyberArkClient {
 	return &CyberArkClient{
 		baseURL:             baseURL,
-		client:              cyberClient,
+		httpClient:          httpClient,
 		authenticateRequest: authenticateRequest,
-	}, nil
+	}
 }
 
 // PostDataReadingsWithOptions PUTs the supplied payload to an [AWS presigned URL] which it obtains via the CyberArk inventory API.
@@ -96,7 +86,7 @@ func (c *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, payloa
 	req.Header.Set("X-Amz-Checksum-Sha256", checksumBase64)
 	version.SetUserAgent(req)
 
-	res, err := c.client.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -145,7 +135,7 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 	}
 	version.SetUserAgent(req)
 
-	res, err := c.client.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return "", err
 	}

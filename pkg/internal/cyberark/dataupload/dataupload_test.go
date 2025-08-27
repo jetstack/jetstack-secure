@@ -2,7 +2,6 @@ package dataupload_test
 
 import (
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
@@ -109,19 +108,14 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			server := dataupload.MockDataUploadServer()
-			defer server.Close()
+			logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+			ctx := klog.NewContext(t.Context(), logger)
 
-			certPool := x509.NewCertPool()
-			require.True(t, certPool.AppendCertsFromPEM(pem.EncodeToMemory(&pem.Block{
-				Type:  "CERTIFICATE",
-				Bytes: server.Server.TLS.Certificates[0].Certificate[0],
-			})))
+			datauploadAPIBaseURL, httpClient := dataupload.MockDataUploadServer(t)
 
-			cyberArkClient, err := dataupload.NewCyberArkClient(certPool, server.Server.URL, tc.authenticate)
-			require.NoError(t, err)
+			cyberArkClient := dataupload.New(httpClient, datauploadAPIBaseURL, tc.authenticate)
 
-			err = cyberArkClient.PostDataReadingsWithOptions(t.Context(), tc.payload, tc.opts)
+			err := cyberArkClient.PostDataReadingsWithOptions(ctx, tc.payload, tc.opts)
 			tc.requireFn(t, err)
 		})
 	}
@@ -153,12 +147,8 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 	ctx := klog.NewContext(t.Context(), logger)
 
-	const (
-		discoveryContextServiceName = "inventory"
-		separator                   = "."
-	)
-
-	serviceURL := fmt.Sprintf("https://%s%s%s.%s", subdomain, separator, discoveryContextServiceName, platformDomain)
+	// TODO(wallrj): get this from the servicediscovery API instead.
+	inventoryAPI := fmt.Sprintf("https://%s.inventory.%s", subdomain, platformDomain)
 
 	var rootCAs *x509.CertPool
 	httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
@@ -173,9 +163,7 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 	err = identityClient.LoginUsernamePassword(ctx, username, []byte(secret))
 	require.NoError(t, err)
 
-	cyberArkClient, err := dataupload.NewCyberArkClient(nil, serviceURL, identityClient.AuthenticateRequest)
-	require.NoError(t, err)
-
+	cyberArkClient := dataupload.New(httpClient, inventoryAPI, identityClient.AuthenticateRequest)
 	err = cyberArkClient.PostDataReadingsWithOptions(ctx, api.DataReadingsPost{}, dataupload.Options{
 		ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
 	})
