@@ -24,7 +24,7 @@ const (
 	// apiPathSnapshotLinks is the URL path of the snapshot-links endpoint of the inventory API.
 	// This endpoint returns an AWS presigned URL.
 	// TODO(wallrj): Link to CyberArk API documentation when it is published.
-	apiPathSnapshotLinks = "/api/ingestions/kubernetes/snapshot-links"
+	apiPathSnapshotLinks = "/ingestions/kubernetes/snapshot-links"
 )
 
 type CyberArkClient struct {

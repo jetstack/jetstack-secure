@@ -53,12 +53,12 @@ func run(ctx context.Context) error {
 	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
 
 	sdClient := servicediscovery.New(httpClient)
-	identityAPI, err := sdClient.DiscoverIdentityAPIURL(ctx, subdomain)
+	services, err := sdClient.DiscoverServices(ctx, subdomain)
 	if err != nil {
 		return fmt.Errorf("while performing service discovery: %s", err)
 	}
 
-	client := identity.New(httpClient, identityAPI, subdomain)
+	client := identity.New(httpClient, services.Identity.API, subdomain)
 
 	err = client.LoginUsernamePassword(ctx, username, []byte(password))
 	if err != nil {

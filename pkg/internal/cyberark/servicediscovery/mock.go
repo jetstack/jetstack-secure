@@ -22,7 +22,8 @@ const (
 	// MockDiscoverySubdomain is the subdomain for which the MockDiscoveryServer will return a success response
 	MockDiscoverySubdomain = "venafi-test"
 
-	mockIdentityAPIURL = "https://ajp5871.id.integration-cyberark.cloud"
+	mockIdentityAPIURL         = "https://ajp5871.id.integration-cyberark.cloud"
+	mockDiscoveryContextAPIURL = "https://venafi-test.inventory.integration-cyberark.cloud/api"
 )
 
 //go:embed testdata/discovery_success.json.template
@@ -41,15 +42,16 @@ type mockDiscoveryServer struct {
 // server.
 //
 // The mock server will return a successful response when the subdomain is
-// `MockDiscoverySubdomain`, and the identity API URL in that response will be
-// `identityAPIURL`.
+// `MockDiscoverySubdomain`, and the API URLs in the response will match those
+// supplied in `services`.
 // Other subdomains, can be used to trigger various failure responses.
+//
 // The returned HTTP client has a transport which logs requests and responses
 // depending on log level of the logger supplied in the context.
-func MockDiscoveryServer(t testing.TB, identityAPIURL string) *http.Client {
+func MockDiscoveryServer(t *testing.T, services Services) *http.Client {
 	tmpl := template.Must(template.New("mockDiscoverySuccess").Parse(discoverySuccessTemplate))
 	buf := &bytes.Buffer{}
-	err := tmpl.Execute(buf, struct{ IdentityAPIURL string }{identityAPIURL})
+	err := tmpl.Execute(buf, services)
 	if err != nil {
 		panic(err)
 	}
