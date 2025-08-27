@@ -4,7 +4,12 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/ktesting"
+
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
+
+	_ "k8s.io/klog/v2/ktesting/init"
 )
 
 func Test_IdentityAdvanceAuthentication(t *testing.T) {
@@ -97,7 +102,8 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 
 	for name, testSpec := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx := t.Context()
+			logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+			ctx := klog.NewContext(t.Context(), logger)
 
 			identityAPI, httpClient := MockIdentityServer(t)
 
