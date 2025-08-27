@@ -2,25 +2,32 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 
+	"github.com/jetstack/venafi-connection-lib/http_client"
+	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
+	"github.com/jetstack/preflight/pkg/version"
 )
 
 // This is a trivial CLI application for testing our identity client end-to-end.
 // It's not intended for distribution; it simply allows us to run our client and check
 // the login is successful.
-
+//
+// To test against a tenant on the integration platform, set:
+// ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/api/v2
 const (
-	subdomainFlag = "subdomain"
-	usernameFlag  = "username"
-	passwordEnv   = "TESTIDENTITY_PASSWORD"
+	subdomainFlag          = "subdomain"
+	usernameFlag           = "username"
+	passwordEnv            = "ARK_SECRET"
+	serviceDiscoveryAPIEnv = "ARK_DISCOVERY_API"
 )
 
 var (
@@ -41,16 +48,30 @@ func run(ctx context.Context) error {
 	if password == "" {
 		return fmt.Errorf("no password provided in %s", passwordEnv)
 	}
-	sdClient := servicediscovery.New(servicediscovery.WithIntegrationEndpoint())
 
-	client, err := identity.NewWithDiscoveryClient(ctx, sdClient, subdomain)
-	if err != nil {
-		return err
+	serviceDiscoveryAPI := os.Getenv(serviceDiscoveryAPIEnv)
+	if serviceDiscoveryAPI == "" {
+		serviceDiscoveryAPI = servicediscovery.ProdDiscoveryEndpoint
 	}
+
+	var rootCAs *x509.CertPool
+	httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
+	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
+
+	sdClient := servicediscovery.New(
+		servicediscovery.WithHTTPClient(httpClient),
+		servicediscovery.WithCustomEndpoint(serviceDiscoveryAPI),
+	)
+	identityAPI, err := sdClient.DiscoverIdentityAPIURL(ctx, subdomain)
+	if err != nil {
+		return fmt.Errorf("while performing service discovery: %s", err)
+	}
+
+	client := identity.New(httpClient, identityAPI, subdomain)
 
 	err = client.LoginUsernamePassword(ctx, username, []byte(password))
 	if err != nil {
-		return err
+		return fmt.Errorf("while performing login with username and password: %s", err)
 	}
 
 	return nil
@@ -61,7 +82,7 @@ func main() {
 
 	flagSet := flag.NewFlagSet("test", flag.ExitOnError)
 	klog.InitFlags(flagSet)
-	_ = flagSet.Parse([]string{"--v", "5"})
+	_ = flagSet.Parse([]string{"--v", "6"})
 
 	logger := klog.Background()
 

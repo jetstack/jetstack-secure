@@ -99,21 +99,11 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx := t.Context()
 
-			identityServer := MockIdentityServer()
-			defer identityServer.Close()
+			identityAPI, httpClient := MockIdentityServer(t)
 
-			mockDiscoveryServer := servicediscovery.MockDiscoveryServerWithCustomAPIURL(identityServer.Server.URL)
-			defer mockDiscoveryServer.Close()
+			client := New(httpClient, identityAPI, servicediscovery.MockDiscoverySubdomain)
 
-			discoveryClient := servicediscovery.New(servicediscovery.WithCustomEndpoint(mockDiscoveryServer.Server.URL))
-
-			client, err := NewWithDiscoveryClient(ctx, discoveryClient, servicediscovery.MockDiscoverySubdomain)
-			if err != nil {
-				t.Errorf("failed to create identity client: %s", err)
-				return
-			}
-
-			err = client.doAdvanceAuthentication(ctx, testSpec.username, &testSpec.password, testSpec.advanceBody)
+			err := client.doAdvanceAuthentication(ctx, testSpec.username, &testSpec.password, testSpec.advanceBody)
 			if testSpec.expectedError != err {
 				if testSpec.expectedError == nil {
 					t.Errorf("didn't expect an error but got %v", err)

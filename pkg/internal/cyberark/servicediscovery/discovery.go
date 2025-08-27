@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	prodDiscoveryEndpoint        = "https://platform-discovery.cyberark.cloud/api/v2/"
-	integrationDiscoveryEndpoint = "https://platform-discovery.integration-cyberark.cloud/api/v2/"
+	ProdDiscoveryEndpoint = "https://platform-discovery.cyberark.cloud/api/v2/"
 
 	// identityServiceName is the name of the identity service we're looking for in responses from the Service Discovery API
 	// We were told to use the identity_administration field, not the identity_user_portal field.
@@ -45,13 +44,6 @@ func WithHTTPClient(httpClient *http.Client) ClientOpt {
 	}
 }
 
-// WithIntegrationEndpoint sets the discovery client to use the integration testing endpoint rather than production
-func WithIntegrationEndpoint() ClientOpt {
-	return func(c *Client) {
-		c.endpoint = integrationDiscoveryEndpoint
-	}
-}
-
 // WithCustomEndpoint sets the endpoint to a custom URL without checking that the URL is a CyberArk Service Discovery
 // server.
 func WithCustomEndpoint(endpoint string) ClientOpt {
@@ -67,7 +59,7 @@ func New(clientOpts ...ClientOpt) *Client {
 			Timeout:   10 * time.Second,
 			Transport: transport.NewDebuggingRoundTripper(http.DefaultTransport, transport.DebugByContext),
 		},
-		endpoint: prodDiscoveryEndpoint,
+		endpoint: ProdDiscoveryEndpoint,
 	}
 
 	for _, opt := range clientOpts {

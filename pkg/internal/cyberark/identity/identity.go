@@ -12,10 +12,8 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v5"
-	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 
-	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 )
@@ -177,10 +175,9 @@ type advanceAuthenticationResponseResult struct {
 // Client is an client for interacting with the CyberArk Identity API and performing a login using a username and password.
 // For context on the behaviour of this client, see the Python SDK: https://github.com/cyberark/ark-sdk-python/blob/3be12c3f2d3a2d0407025028943e584b6edc5996/ark_sdk_python/auth/identity/ark_identity.py
 type Client struct {
-	client *http.Client
-
-	endpoint  string
-	subdomain string
+	httpClient *http.Client
+	baseURL    string
+	subdomain  string
 
 	tokenCached      token
 	tokenCachedMutex sync.Mutex
@@ -190,39 +187,15 @@ type Client struct {
 type token string
 
 // New returns an initialized CyberArk Identity client using a default service discovery client.
-// NB: This function performs service discovery when called, in order to ensure that all Identity
-// clients are created with a valid Identity API URL. This function blocks on the network call to
-// the discovery service.
-func New(ctx context.Context, subdomain string) (*Client, error) {
-	return NewWithDiscoveryClient(ctx, servicediscovery.New(), subdomain)
-}
-
-// NewWithDiscoveryClient returns an initialized CyberArk Identity client using the given service discovery client.
-// NB: This function performs service discovery when called, in order to ensure that all Identity
-// clients are created with a valid Identity API URL. This function blocks on the network call to
-// the discovery service.
-func NewWithDiscoveryClient(ctx context.Context, discoveryClient *servicediscovery.Client, subdomain string) (*Client, error) {
-	if discoveryClient == nil {
-		return nil, fmt.Errorf("must provide a non-nil discovery client to the Identity Client")
-	}
-
-	endpoint, err := discoveryClient.DiscoverIdentityAPIURL(ctx, subdomain)
-	if err != nil {
-		return nil, err
-	}
-
+func New(httpClient *http.Client, baseURL string, subdomain string) *Client {
 	return &Client{
-		client: &http.Client{
-			Timeout:   10 * time.Second,
-			Transport: transport.NewDebuggingRoundTripper(http.DefaultTransport, transport.DebugByContext),
-		},
-
-		endpoint:  endpoint,
-		subdomain: subdomain,
+		httpClient: httpClient,
+		baseURL:    baseURL,
+		subdomain:  subdomain,
 
 		tokenCached:      "",
 		tokenCachedMutex: sync.Mutex{},
-	}, nil
+	}
 }
 
 // LoginUsernamePassword performs a blocking call to fetch an auth token from CyberArk Identity using the given username and password.
@@ -282,7 +255,7 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 		return response, fmt.Errorf("failed to marshal JSON for request to StartAuthentication endpoint: %s", err)
 	}
 
-	endpoint, err := url.JoinPath(c.endpoint, "Security", "StartAuthentication")
+	endpoint, err := url.JoinPath(c.baseURL, "Security", "StartAuthentication")
 	if err != nil {
 		return response, fmt.Errorf("failed to create URL for request to CyberArk Identity StartAuthentication: %s", err)
 	}
@@ -294,7 +267,7 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 
 	setIdentityHeaders(request)
 
-	httpResponse, err := c.client.Do(request)
+	httpResponse, err := c.httpClient.Do(request)
 	if err != nil {
 		return response, fmt.Errorf("failed to perform HTTP request to start authentication: %s", err)
 	}
@@ -391,7 +364,7 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 		return backoff.Permanent(fmt.Errorf("failed to marshal JSON for request to AdvanceAuthentication endpoint: %s", err))
 	}
 
-	endpoint, err := url.JoinPath(c.endpoint, "Security", "AdvanceAuthentication")
+	endpoint, err := url.JoinPath(c.baseURL, "Security", "AdvanceAuthentication")
 	if err != nil {
 		return backoff.Permanent(fmt.Errorf("failed to create URL for request to CyberArk Identity AdvanceAuthentication: %s", err))
 	}
@@ -403,7 +376,7 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 
 	setIdentityHeaders(request)
 
-	httpResponse, err := c.client.Do(request)
+	httpResponse, err := c.httpClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("failed to perform HTTP request to advance authentication: %s", err)
 	}

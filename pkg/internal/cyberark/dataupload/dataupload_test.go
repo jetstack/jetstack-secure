@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jetstack/venafi-connection-lib/http_client"
 	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
+	"github.com/jetstack/preflight/pkg/version"
 
 	_ "k8s.io/klog/v2/ktesting/init"
 )
@@ -129,6 +132,9 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 // ARK_SUBDOMAIN should be your tenant subdomain.
 // ARK_PLATFORM_DOMAIN should be either integration-cyberark.cloud or cyberark.cloud
 //
+// To test against a tenant on the integration platform, also set:
+// ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/api/v2
+//
 // To enable verbose request logging:
 //
 //	go test ./pkg/internal/cyberark/dataupload/... \
@@ -138,6 +144,10 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 	subdomain := os.Getenv("ARK_SUBDOMAIN")
 	username := os.Getenv("ARK_USERNAME")
 	secret := os.Getenv("ARK_SECRET")
+	serviceDiscoveryAPI := os.Getenv("ARK_DISCOVERY_API")
+	if serviceDiscoveryAPI == "" {
+		serviceDiscoveryAPI = servicediscovery.ProdDiscoveryEndpoint
+	}
 
 	if platformDomain == "" || subdomain == "" || username == "" || secret == "" {
 		t.Skip("Skipping because one of the following environment variables is unset or empty: ARK_PLATFORM_DOMAIN, ARK_SUBDOMAIN, ARK_USERNAME, ARK_SECRET")
@@ -154,18 +164,19 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 
 	serviceURL := fmt.Sprintf("https://%s%s%s.%s", subdomain, separator, discoveryContextServiceName, platformDomain)
 
-	var (
-		identityClient *identity.Client
-		err            error
+	var rootCAs *x509.CertPool
+	httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
+	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
+
+	discoveryClient := servicediscovery.New(
+		servicediscovery.WithHTTPClient(httpClient),
+		servicediscovery.WithCustomEndpoint(serviceDiscoveryAPI),
 	)
-	if platformDomain == "cyberark.cloud" {
-		identityClient, err = identity.New(ctx, subdomain)
-	} else {
-		discoveryClient := servicediscovery.New(servicediscovery.WithIntegrationEndpoint())
-		identityClient, err = identity.NewWithDiscoveryClient(ctx, discoveryClient, subdomain)
-	}
+
+	identityAPI, err := discoveryClient.DiscoverIdentityAPIURL(ctx, subdomain)
 	require.NoError(t, err)
 
+	identityClient := identity.New(httpClient, identityAPI, subdomain)
 	err = identityClient.LoginUsernamePassword(ctx, username, []byte(secret))
 	require.NoError(t, err)
 
