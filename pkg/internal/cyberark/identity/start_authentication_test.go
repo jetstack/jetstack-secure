@@ -40,19 +40,9 @@ func Test_IdentityStartAuthentication(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx := t.Context()
 
-			identityServer := MockIdentityServer()
-			defer identityServer.Close()
+			identityServer, httpClient := MockIdentityServer(t)
 
-			mockDiscoveryServer := servicediscovery.MockDiscoveryServerWithCustomAPIURL(identityServer.Server.URL)
-			defer mockDiscoveryServer.Close()
-
-			discoveryClient := servicediscovery.New(servicediscovery.WithCustomEndpoint(mockDiscoveryServer.Server.URL))
-
-			client, err := NewWithDiscoveryClient(ctx, discoveryClient, servicediscovery.MockDiscoverySubdomain)
-			if err != nil {
-				t.Errorf("failed to create identity client: %s", err)
-				return
-			}
+			client := New(httpClient, identityServer, servicediscovery.MockDiscoverySubdomain)
 
 			advanceBody, err := client.doStartAuthentication(ctx, testSpec.username)
 			if err != nil {

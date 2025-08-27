@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+
+	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/pkg/version"
 
@@ -51,22 +54,17 @@ var (
 	advanceAuthenticationFailureResponse string
 )
 
-type mockIdentityServer struct {
-	Server *httptest.Server
-}
+type mockIdentityServer struct{}
 
-// MockIdentityServer returns a mocked CyberArk Identity server.
-// The returned server should be Closed by the caller after use.
-func MockIdentityServer() *mockIdentityServer {
+// MockIdentityServer returns a URL of a mocked CyberArk identity server and an
+// HTTP client with the CA certs needed to connect to it..
+func MockIdentityServer(t *testing.T) (string, *http.Client) {
 	mis := &mockIdentityServer{}
-
-	mis.Server = httptest.NewServer(mis)
-
-	return mis
-}
-
-func (mis *mockIdentityServer) Close() {
-	mis.Server.Close()
+	server := httptest.NewTLSServer(mis)
+	t.Cleanup(server.Close)
+	httpClient := server.Client()
+	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
+	return server.URL, httpClient
 }
 
 func (mis *mockIdentityServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
