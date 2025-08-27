@@ -8,7 +8,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"testing"
 	"text/template"
+
+	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/pkg/version"
 
@@ -19,50 +22,51 @@ const (
 	// MockDiscoverySubdomain is the subdomain for which the MockDiscoveryServer will return a success response
 	MockDiscoverySubdomain = "venafi-test"
 
-	defaultIdentityAPIURL = "https://ajp5871.id.integration-cyberark.cloud"
+	mockIdentityAPIURL = "https://ajp5871.id.integration-cyberark.cloud"
 )
 
 //go:embed testdata/discovery_success.json.template
 var discoverySuccessTemplate string
 
 type mockDiscoveryServer struct {
-	Server *httptest.Server
-
+	t               testing.TB
 	successResponse string
 }
 
-// MockDiscoveryServer returns a mocked discovery server with a default value for the Identity API.
-// The returned server should be Closed by the caller after use.
-func MockDiscoveryServer() *mockDiscoveryServer {
-	return MockDiscoveryServerWithCustomAPIURL(defaultIdentityAPIURL)
-}
-
-func MockDiscoveryServerWithCustomAPIURL(apiURL string) *mockDiscoveryServer {
+// MockDiscoveryServer starts a mocked CyberArk service discovery server and
+// returns an HTTP client with the CA certs needed to connect to it.
+//
+// The URL of the mock server is set in the `ARK_DISCOVERY_API` environment
+// variable, so any code using the `servicediscovery.Client` will use this mock
+// server.
+//
+// The mock server will return a successful response when the subdomain is
+// `MockDiscoverySubdomain`, and the identity API URL in that response will be
+// `identityAPIURL`.
+// Other subdomains, can be used to trigger various failure responses.
+// The returned HTTP client has a transport which logs requests and responses
+// depending on log level of the logger supplied in the context.
+func MockDiscoveryServer(t testing.TB, identityAPIURL string) *http.Client {
 	tmpl := template.Must(template.New("mockDiscoverySuccess").Parse(discoverySuccessTemplate))
-
 	buf := &bytes.Buffer{}
-
-	err := tmpl.Execute(buf, struct{ IdentityAPIURL string }{apiURL})
+	err := tmpl.Execute(buf, struct{ IdentityAPIURL string }{identityAPIURL})
 	if err != nil {
 		panic(err)
 	}
-
 	mds := &mockDiscoveryServer{
+		t:               t,
 		successResponse: buf.String(),
 	}
-
-	server := httptest.NewServer(mds)
-
-	mds.Server = server
-
-	return mds
-}
-
-func (mds *mockDiscoveryServer) Close() {
-	mds.Server.Close()
+	server := httptest.NewTLSServer(mds)
+	t.Cleanup(server.Close)
+	t.Setenv("ARK_DISCOVERY_API", server.URL)
+	httpClient := server.Client()
+	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
+	return httpClient
 }
 
 func (mds *mockDiscoveryServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	mds.t.Log(r.Method, r.RequestURI)
 	if r.Method != http.MethodGet {
 		// This was observed by making a POST request to the integration environment
 		// Normally, we'd expect 405 Method Not Allowed but we match the observed response here
