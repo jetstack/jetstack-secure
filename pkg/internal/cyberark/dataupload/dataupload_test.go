@@ -144,10 +144,6 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 	subdomain := os.Getenv("ARK_SUBDOMAIN")
 	username := os.Getenv("ARK_USERNAME")
 	secret := os.Getenv("ARK_SECRET")
-	serviceDiscoveryAPI := os.Getenv("ARK_DISCOVERY_API")
-	if serviceDiscoveryAPI == "" {
-		serviceDiscoveryAPI = servicediscovery.ProdDiscoveryEndpoint
-	}
 
 	if platformDomain == "" || subdomain == "" || username == "" || secret == "" {
 		t.Skip("Skipping because one of the following environment variables is unset or empty: ARK_PLATFORM_DOMAIN, ARK_SUBDOMAIN, ARK_USERNAME, ARK_SECRET")
@@ -168,10 +164,7 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 	httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
 	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
 
-	discoveryClient := servicediscovery.New(
-		servicediscovery.WithHTTPClient(httpClient),
-		servicediscovery.WithCustomEndpoint(serviceDiscoveryAPI),
-	)
+	discoveryClient := servicediscovery.New(httpClient)
 
 	identityAPI, err := discoveryClient.DiscoverIdentityAPIURL(ctx, subdomain)
 	require.NoError(t, err)

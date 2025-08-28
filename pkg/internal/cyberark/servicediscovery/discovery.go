@@ -7,15 +7,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"time"
-
-	"k8s.io/client-go/transport"
+	"os"
 
 	"github.com/jetstack/preflight/pkg/version"
 )
 
 const (
-	ProdDiscoveryEndpoint = "https://platform-discovery.cyberark.cloud/api/v2/"
+	ProdDiscoveryAPIBaseURL = "https://platform-discovery.cyberark.cloud/api/v2/"
 
 	// identityServiceName is the name of the identity service we're looking for in responses from the Service Discovery API
 	// We were told to use the identity_administration field, not the identity_user_portal field.
@@ -30,40 +28,19 @@ const (
 // users to fetch URLs for various APIs available in CyberArk. This client is specialised to
 // fetch only API endpoints, since only API endpoints are required by the Venafi Kubernetes Agent currently.
 type Client struct {
-	client   *http.Client
-	endpoint string
-}
-
-// ClientOpt allows configuration of a Client when using New
-type ClientOpt func(*Client)
-
-// WithHTTPClient allows the user to specify a custom HTTP client for the discovery client
-func WithHTTPClient(httpClient *http.Client) ClientOpt {
-	return func(c *Client) {
-		c.client = httpClient
-	}
-}
-
-// WithCustomEndpoint sets the endpoint to a custom URL without checking that the URL is a CyberArk Service Discovery
-// server.
-func WithCustomEndpoint(endpoint string) ClientOpt {
-	return func(c *Client) {
-		c.endpoint = endpoint
-	}
+	client  *http.Client
+	baseURL string
 }
 
 // New creates a new CyberArk Service Discovery client, configurable with ClientOpt
-func New(clientOpts ...ClientOpt) *Client {
-	client := &Client{
-		client: &http.Client{
-			Timeout:   10 * time.Second,
-			Transport: transport.NewDebuggingRoundTripper(http.DefaultTransport, transport.DebugByContext),
-		},
-		endpoint: ProdDiscoveryEndpoint,
+func New(httpClient *http.Client) *Client {
+	baseURL := os.Getenv("ARK_DISCOVERY_API")
+	if baseURL == "" {
+		baseURL = ProdDiscoveryAPIBaseURL
 	}
-
-	for _, opt := range clientOpts {
-		opt(client)
+	client := &Client{
+		client:  httpClient,
+		baseURL: baseURL,
 	}
 
 	return client
@@ -72,7 +49,7 @@ func New(clientOpts ...ClientOpt) *Client {
 // DiscoverIdentityAPIURL fetches from the service discovery service for a given subdomain
 // and parses the CyberArk Identity API URL.
 func (c *Client) DiscoverIdentityAPIURL(ctx context.Context, subdomain string) (string, error) {
-	endpoint, err := url.JoinPath(c.endpoint, "services", "subdomain", subdomain)
+	endpoint, err := url.JoinPath(c.baseURL, "services", "subdomain", subdomain)
 	if err != nil {
 		return "", fmt.Errorf("failed to build a valid URL for subdomain %s; possibly an invalid endpoint: %s", subdomain, err)
 	}

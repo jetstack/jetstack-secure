@@ -3,6 +3,11 @@ package servicediscovery
 import (
 	"fmt"
 	"testing"
+
+	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/ktesting"
+
+	_ "k8s.io/klog/v2/ktesting/init"
 )
 
 func Test_DiscoverIdentityAPIURL(t *testing.T) {
@@ -45,12 +50,12 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 
 	for name, testSpec := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx := t.Context()
+			logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+			ctx := klog.NewContext(t.Context(), logger)
 
-			ts := MockDiscoveryServer()
-			defer ts.Close()
+			httpClient := MockDiscoveryServer(t, mockIdentityAPIURL)
 
-			client := New(WithCustomEndpoint(ts.Server.URL))
+			client := New(httpClient)
 
 			apiURL, err := client.DiscoverIdentityAPIURL(ctx, testSpec.subdomain)
 			if err != nil {

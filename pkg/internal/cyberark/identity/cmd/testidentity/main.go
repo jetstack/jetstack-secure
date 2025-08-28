@@ -24,10 +24,9 @@ import (
 // To test against a tenant on the integration platform, set:
 // ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/api/v2
 const (
-	subdomainFlag          = "subdomain"
-	usernameFlag           = "username"
-	passwordEnv            = "ARK_SECRET"
-	serviceDiscoveryAPIEnv = "ARK_DISCOVERY_API"
+	subdomainFlag = "subdomain"
+	usernameFlag  = "username"
+	passwordEnv   = "ARK_SECRET"
 )
 
 var (
@@ -49,19 +48,11 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("no password provided in %s", passwordEnv)
 	}
 
-	serviceDiscoveryAPI := os.Getenv(serviceDiscoveryAPIEnv)
-	if serviceDiscoveryAPI == "" {
-		serviceDiscoveryAPI = servicediscovery.ProdDiscoveryEndpoint
-	}
-
 	var rootCAs *x509.CertPool
 	httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
 	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
 
-	sdClient := servicediscovery.New(
-		servicediscovery.WithHTTPClient(httpClient),
-		servicediscovery.WithCustomEndpoint(serviceDiscoveryAPI),
-	)
+	sdClient := servicediscovery.New(httpClient)
 	identityAPI, err := sdClient.DiscoverIdentityAPIURL(ctx, subdomain)
 	if err != nil {
 		return fmt.Errorf("while performing service discovery: %s", err)
