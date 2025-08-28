@@ -1,0 +1,12 @@
+# An example agent config for MachineHub output mode.
+#
+# For example:
+#
+#  export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain
+#  export ARK_USERNAME=       # your CyberArk username
+#  export ARK_SECRET=         # your CyberArk password
+#  go run . agent --one-shot --machine-hub -v 6 --agent-config-file ./examples/machinehub.yaml
+
+data-gatherers:
+  - kind: "dummy"
+    name: "dummy"

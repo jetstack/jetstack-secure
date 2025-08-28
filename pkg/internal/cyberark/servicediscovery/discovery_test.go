@@ -31,7 +31,7 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 		"no identity service in response": {
 			subdomain:     "no-identity",
 			expectedURL:   "",
-			expectedError: fmt.Errorf("didn't find %s in service discovery response, which may indicate a suspended tenant; unable to detect CyberArk Identity API URL", identityServiceName),
+			expectedError: fmt.Errorf("didn't find %s in service discovery response, which may indicate a suspended tenant; unable to detect CyberArk Identity API URL", IdentityServiceName),
 		},
 		"unexpected HTTP response": {
 			subdomain:     "bad-request",

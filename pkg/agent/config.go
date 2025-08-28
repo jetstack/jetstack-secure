@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net/url"
@@ -10,9 +11,11 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/hashicorp/go-multierror"
+	"github.com/jetstack/venafi-connection-lib/http_client"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
@@ -334,6 +337,7 @@ const (
 	VenafiCloudKeypair          OutputMode = "Venafi Cloud Key Pair Service Account"
 	VenafiCloudVenafiConnection OutputMode = "Venafi Cloud VenafiConnection"
 	LocalFile                   OutputMode = "Local File"
+	MachineHub                  OutputMode = "MachineHub"
 )
 
 // The command-line flags and the config file are combined into this struct by
@@ -420,6 +424,9 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		case !flags.VenafiCloudMode && flags.CredentialsPath != "":
 			mode = JetstackSecureOAuth
 			reason = "--credentials-file was specified without --venafi-cloud"
+		case flags.MachineHubMode:
+			mode = MachineHub
+			reason = "--machine-hub was specified"
 		case flags.OutputPath != "":
 			mode = LocalFile
 			reason = "--output-path was specified"
@@ -433,6 +440,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 				" - Use --venafi-connection for the " + string(VenafiCloudVenafiConnection) + " mode.\n" +
 				" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
 				" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.\n" +
+				" - Use --machine-hub if you want to use the " + string(MachineHub) + " mode.\n" +
 				" - Use --output-path or output-path in the config file for " + string(LocalFile) + " mode.")
 		}
 
@@ -548,6 +556,13 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			}
 			organizationID = cfg.OrganizationID
 			clusterID = cfg.ClusterID
+		case MachineHub:
+			if cfg.ClusterID != "" {
+				log.Info(fmt.Sprintf(`Ignoring the cluster_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
+			}
+			if cfg.OrganizationID != "" {
+				log.Info(fmt.Sprintf(`Ignoring the organization_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
+			}
 		}
 		res.OrganizationID = organizationID
 		res.ClusterID = clusterID
@@ -762,6 +777,17 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		}
 	case LocalFile:
 		outputClient = client.NewFileClient(cfg.OutputPath)
+	case MachineHub:
+		var (
+			err     error
+			rootCAs *x509.CertPool
+		)
+		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
+		httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
+		outputClient, err = client.NewCyberArk(httpClient)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
 	default:
 		panic(fmt.Errorf("programmer mistake: output mode not implemented: %s", cfg.OutputMode))
 	}

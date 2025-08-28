@@ -28,7 +28,7 @@ const (
 	// mockSuccessfulStartAuthenticationToken is the token returned by the
 	// mock server in response to a successful AdvanceAuthentication request
 	// Must match what's in testdata/advance_authentication_success.json
-	mockSuccessfulStartAuthenticationToken = "long-token"
+	mockSuccessfulStartAuthenticationToken = "success-token"
 )
 
 var (
