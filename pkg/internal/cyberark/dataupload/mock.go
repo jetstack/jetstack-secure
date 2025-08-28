@@ -1,6 +1,7 @@
 package dataupload
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/pkg/version"
@@ -162,15 +164,27 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 		return
 	}
 
-	checksum := sha256.New()
-	_, _ = io.Copy(checksum, r.Body)
+	body, err := io.ReadAll(r.Body)
+	require.NoError(mds.t, err)
+
+	hash := sha256.New()
+	_, err = hash.Write(body)
+	require.NoError(mds.t, err)
 
 	// AWS S3 responds with a BadDigest error if the request body has a
 	// different checksum than the checksum supplied in the request header.
-	if amzChecksum != base64.StdEncoding.EncodeToString(checksum.Sum(nil)) {
+	if amzChecksum != base64.StdEncoding.EncodeToString(hash.Sum(nil)) {
 		w.Header().Set("Content-Type", "application/xml")
 		http.Error(w, amzExampleChecksumError, http.StatusBadRequest)
 	}
+
+	// Verifies that the new Snapshot format is used in the request body.
+	var snapshot Snapshot
+	d := json.NewDecoder(bytes.NewBuffer(body))
+	d.DisallowUnknownFields()
+	err = d.Decode(&snapshot)
+	require.NoError(mds.t, err)
+
 	// AWS S3 responds with an empty body if the PUT succeeds
 	w.WriteHeader(http.StatusOK)
 }

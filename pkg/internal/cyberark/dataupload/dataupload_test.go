@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/jetstack/venafi-connection-lib/http_client"
 	"github.com/stretchr/testify/require"
@@ -14,7 +13,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
-	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
@@ -23,28 +21,10 @@ import (
 	_ "k8s.io/klog/v2/ktesting/init"
 )
 
-func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
-	fakeTime := time.Unix(123, 0)
-	defaultPayload := api.DataReadingsPost{
-		AgentMetadata: &api.AgentMetadata{
-			Version:   "test-version",
-			ClusterID: "test",
-		},
-		DataGatherTime: fakeTime,
-		DataReadings: []*api.DataReading{
-			{
-				ClusterID:     "success-cluster-id",
-				DataGatherer:  "test-gatherer",
-				Timestamp:     api.Time{Time: fakeTime},
-				Data:          map[string]interface{}{"test": "data"},
-				SchemaVersion: "v1",
-			},
-		},
-	}
-	defaultOpts := dataupload.Options{
-		ClusterName: "success-cluster-id",
-	}
-
+// TestCyberArkClient_PutSnapshot_MockAPI tests the dataupload code against a
+// mock API server. The mock server is configured to return different responses
+// based on the cluster ID and bearer token used in the request.
+func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 	setToken := func(token string) func(*http.Request) error {
 		return func(req *http.Request) error {
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -54,51 +34,60 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		payload      api.DataReadingsPost
+		snapshot     dataupload.Snapshot
 		authenticate func(req *http.Request) error
-		opts         dataupload.Options
 		requireFn    func(t *testing.T, err error)
 	}{
 		{
-			name:         "successful upload",
-			payload:      defaultPayload,
-			opts:         defaultOpts,
+			name: "successful upload",
+			snapshot: dataupload.Snapshot{
+				ClusterID:    "success-cluster-id",
+				AgentVersion: "test-version",
+			},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.NoError(t, err)
 			},
 		},
 		{
-			name:         "error when cluster name is empty",
-			payload:      defaultPayload,
-			opts:         dataupload.Options{ClusterName: ""},
+			name: "error when cluster ID is empty",
+			snapshot: dataupload.Snapshot{
+				ClusterID:    "",
+				AgentVersion: "test-version",
+			},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
-				require.ErrorContains(t, err, "programmer mistake: the cluster name")
+				require.ErrorContains(t, err, "programmer mistake: the snapshot cluster ID cannot be left empty")
 			},
 		},
 		{
-			name:         "error when bearer token is incorrect",
-			payload:      defaultPayload,
-			opts:         defaultOpts,
+			name: "error when bearer token is incorrect",
+			snapshot: dataupload.Snapshot{
+				ClusterID:    "test",
+				AgentVersion: "test-version",
+			},
 			authenticate: setToken("fail-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500: should authenticate using the correct bearer token")
 			},
 		},
 		{
-			name:         "invalid JSON from server (RetrievePresignedUploadURL step)",
-			payload:      defaultPayload,
-			opts:         dataupload.Options{ClusterName: "invalid-json-retrieve-presigned"},
+			name: "invalid JSON from server (RetrievePresignedUploadURL step)",
+			snapshot: dataupload.Snapshot{
+				ClusterID:    "invalid-json-retrieve-presigned",
+				AgentVersion: "test-version",
+			},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.ErrorContains(t, err, "while retrieving snapshot upload URL: rejecting JSON response from server as it was too large or was truncated")
 			},
 		},
 		{
-			name:         "500 from server (RetrievePresignedUploadURL step)",
-			payload:      defaultPayload,
-			opts:         dataupload.Options{ClusterName: "invalid-response-post-data"},
+			name: "500 from server (RetrievePresignedUploadURL step)",
+			snapshot: dataupload.Snapshot{
+				ClusterID:    "invalid-response-post-data",
+				AgentVersion: "test-version",
+			},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
 				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500: mock error")
@@ -115,13 +104,13 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 
 			cyberArkClient := dataupload.New(httpClient, datauploadAPIBaseURL, tc.authenticate)
 
-			err := cyberArkClient.PostDataReadingsWithOptions(ctx, tc.payload, tc.opts)
+			err := cyberArkClient.PutSnapshot(ctx, tc.snapshot)
 			tc.requireFn(t, err)
 		})
 	}
 }
 
-// TestPostDataReadingsWithOptionsWithRealAPI demonstrates that the dataupload code works with the real inventory API.
+// TestCyberArkClient_PutSnapshot_RealAPI demonstrates that the dataupload code works with the real inventory API.
 // An API token is obtained by authenticating with the ARK_USERNAME and ARK_SECRET from the environment.
 // ARK_SUBDOMAIN should be your tenant subdomain.
 //
@@ -131,8 +120,8 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 // To enable verbose request logging:
 //
 //	go test ./pkg/internal/cyberark/dataupload/... \
-//	  -v -count 1 -run TestPostDataReadingsWithOptionsWithRealAPI -args -testing.v 6
-func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
+//	  -v -count 1 -run TestCyberArkClient_PutSnapshot_RealAPI -args -testing.v 6
+func TestCyberArkClient_PutSnapshot_RealAPI(t *testing.T) {
 	subdomain := os.Getenv("ARK_SUBDOMAIN")
 	username := os.Getenv("ARK_USERNAME")
 	secret := os.Getenv("ARK_SECRET")
@@ -159,8 +148,8 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	cyberArkClient := dataupload.New(httpClient, services.DiscoveryContext.API, identityClient.AuthenticateRequest)
-	err = cyberArkClient.PostDataReadingsWithOptions(ctx, api.DataReadingsPost{}, dataupload.Options{
-		ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
+	err = cyberArkClient.PutSnapshot(ctx, dataupload.Snapshot{
+		ClusterID: "bb068932-c80d-460d-88df-34bc7f3f3297",
 	})
 	require.NoError(t, err)
 }
