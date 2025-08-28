@@ -26,6 +26,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	"github.com/jetstack/preflight/pkg/client"
+	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
+	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
+	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
 )
 
 // To see the API server logs, set:
@@ -257,6 +260,33 @@ func FakeTPP(t testing.TB) (*httptest.Server, *x509.Certificate) {
 	require.NoError(t, err)
 
 	return server, cert
+}
+
+// FakeCyberArk returns an HTTP client that will route requests to mock CyberArk
+// Service Discovery, Identity and Discovery and Context APIs. This is useful
+// for testing code that uses all those APIs, such as
+// `cyberark.NewDatauploadClient`.
+//
+// The environment variable `ARK_DISCOVERY_API` is set to the URL of the mock
+// Service Discovery API, for the supplied `testing.TB` so that the client under
+// test will use the mock Service Discovery API.
+//
+// The returned HTTP client has a transport which logs requests and responses
+// depending on log level of the logger supplied in the context.
+func FakeCyberArk(t testing.TB) *http.Client {
+	t.Helper()
+
+	identityAPI, _ := identity.MockIdentityServer(t)
+	discoveryContextAPI, _ := dataupload.MockDataUploadServer(t)
+	httpClient := servicediscovery.MockDiscoveryServer(t, servicediscovery.Services{
+		Identity: servicediscovery.ServiceEndpoint{
+			API: identityAPI,
+		},
+		DiscoveryContext: servicediscovery.ServiceEndpoint{
+			API: discoveryContextAPI,
+		},
+	})
+	return httpClient
 }
 
 // Generated using:

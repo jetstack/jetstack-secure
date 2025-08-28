@@ -48,7 +48,7 @@ type mockDiscoveryServer struct {
 //
 // The returned HTTP client has a transport which logs requests and responses
 // depending on log level of the logger supplied in the context.
-func MockDiscoveryServer(t *testing.T, services Services) *http.Client {
+func MockDiscoveryServer(t testing.TB, services Services) *http.Client {
 	tmpl := template.Must(template.New("mockDiscoverySuccess").Parse(discoverySuccessTemplate))
 	buf := &bytes.Buffer{}
 	err := tmpl.Execute(buf, services)

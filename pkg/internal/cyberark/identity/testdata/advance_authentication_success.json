@@ -3,7 +3,7 @@
   "Result": {
     "AuthLevel": "Normal",
     "DisplayName": "Namey McNamerson",
-    "Token": "long-token",
+    "Token": "success-token",
     "Auth": "auth-auth",
     "UserId": "11111111-2222-3333-4444-555555555555",
     "EmailAddress": "name@example.com",

@@ -1,0 +1,21 @@
+# Example .envrc file for use with direnv.
+# Copy this file to .envrc and edit the values as required.
+# Do not check in your .envrc file to source control as it may contain secrets.
+
+# The following variables are required by the E2E test script: ./hack/e2e/test.sh.
+export VEN_API_KEY=       # your Venafi Cloud API key with full permissions
+export VEN_API_KEY_PULL=  # your Venafi Cloud API key with pull-only permissions
+export VEN_ZONE=          # the Venafi Cloud zone to use for certificate requests
+export VEN_VCP_REGION=    # the Venafi Cloud region to use (us or eu)
+export VEN_API_HOST=      # the Venafi Cloud API host (usually api.venafi.cloud or api.venafi.eu)
+export OCI_BASE=          # the base URL for the OCI registry where the Agent chart and image will be pushed
+export CLOUDSDK_CORE_PROJECT= # the GCP project ID where a GKE cluster will be created.
+export CLOUDSDK_COMPUTE_ZONE= # the GCP zone where a GKE cluster will be created. E.g. europe-west2-b
+export CLUSTER_NAME=          # the name of the GKE cluster which will be created. E.g. cluster-1
+
+# The following variables are required for CyberArk / MachineHub integration tests.
+export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain
+export ARK_USERNAME=       # your CyberArk username
+export ARK_SECRET=         # your CyberArk password
+# OPTIONAL: the URL for the CyberArk Discovery API if not using the production environment
+export ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/api/v2

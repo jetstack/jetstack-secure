@@ -35,10 +35,6 @@ type CyberArkClient struct {
 	authenticateRequest func(req *http.Request) error
 }
 
-type Options struct {
-	ClusterName string
-}
-
 func New(httpClient *http.Client, baseURL string, authenticateRequest func(req *http.Request) error) *CyberArkClient {
 	return &CyberArkClient{
 		baseURL:             baseURL,
