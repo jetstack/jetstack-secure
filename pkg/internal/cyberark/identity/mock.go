@@ -54,12 +54,16 @@ var (
 	advanceAuthenticationFailureResponse string
 )
 
-type mockIdentityServer struct{}
+type mockIdentityServer struct {
+	t testing.TB
+}
 
 // MockIdentityServer returns a URL of a mocked CyberArk identity server and an
 // HTTP client with the CA certs needed to connect to it..
-func MockIdentityServer(t *testing.T) (string, *http.Client) {
-	mis := &mockIdentityServer{}
+func MockIdentityServer(t testing.TB) (string, *http.Client) {
+	mis := &mockIdentityServer{
+		t: t,
+	}
 	server := httptest.NewTLSServer(mis)
 	t.Cleanup(server.Close)
 	httpClient := server.Client()
@@ -68,6 +72,7 @@ func MockIdentityServer(t *testing.T) (string, *http.Client) {
 }
 
 func (mis *mockIdentityServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	mis.t.Log(r.Method, r.RequestURI)
 	switch r.URL.String() {
 	case "/Security/StartAuthentication":
 		mis.handleStartAuthentication(w, r)
