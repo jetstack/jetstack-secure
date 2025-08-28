@@ -124,7 +124,6 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 // TestPostDataReadingsWithOptionsWithRealAPI demonstrates that the dataupload code works with the real inventory API.
 // An API token is obtained by authenticating with the ARK_USERNAME and ARK_SECRET from the environment.
 // ARK_SUBDOMAIN should be your tenant subdomain.
-// ARK_PLATFORM_DOMAIN should be either integration-cyberark.cloud or cyberark.cloud
 //
 // To test against a tenant on the integration platform, also set:
 // ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/api/v2
@@ -134,21 +133,17 @@ func TestCyberArkClient_PostDataReadingsWithOptions(t *testing.T) {
 //	go test ./pkg/internal/cyberark/dataupload/... \
 //	  -v -count 1 -run TestPostDataReadingsWithOptionsWithRealAPI -args -testing.v 6
 func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
-	platformDomain := os.Getenv("ARK_PLATFORM_DOMAIN")
 	subdomain := os.Getenv("ARK_SUBDOMAIN")
 	username := os.Getenv("ARK_USERNAME")
 	secret := os.Getenv("ARK_SECRET")
 
-	if platformDomain == "" || subdomain == "" || username == "" || secret == "" {
-		t.Skip("Skipping because one of the following environment variables is unset or empty: ARK_PLATFORM_DOMAIN, ARK_SUBDOMAIN, ARK_USERNAME, ARK_SECRET")
+	if subdomain == "" || username == "" || secret == "" {
+		t.Skip("Skipping because one of the following environment variables is unset or empty: ARK_SUBDOMAIN, ARK_USERNAME, ARK_SECRET")
 		return
 	}
 
 	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 	ctx := klog.NewContext(t.Context(), logger)
-
-	// TODO(wallrj): get this from the servicediscovery API instead.
-	inventoryAPI := fmt.Sprintf("https://%s.inventory.%s", subdomain, platformDomain)
 
 	var rootCAs *x509.CertPool
 	httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
@@ -156,14 +151,14 @@ func TestPostDataReadingsWithOptionsWithRealAPI(t *testing.T) {
 
 	discoveryClient := servicediscovery.New(httpClient)
 
-	identityAPI, err := discoveryClient.DiscoverIdentityAPIURL(ctx, subdomain)
+	services, err := discoveryClient.DiscoverServices(ctx, subdomain)
 	require.NoError(t, err)
 
-	identityClient := identity.New(httpClient, identityAPI, subdomain)
+	identityClient := identity.New(httpClient, services.Identity.API, subdomain)
 	err = identityClient.LoginUsernamePassword(ctx, username, []byte(secret))
 	require.NoError(t, err)
 
-	cyberArkClient := dataupload.New(httpClient, inventoryAPI, identityClient.AuthenticateRequest)
+	cyberArkClient := dataupload.New(httpClient, services.DiscoveryContext.API, identityClient.AuthenticateRequest)
 	err = cyberArkClient.PostDataReadingsWithOptions(ctx, api.DataReadingsPost{}, dataupload.Options{
 		ClusterName: "bb068932-c80d-460d-88df-34bc7f3f3297",
 	})

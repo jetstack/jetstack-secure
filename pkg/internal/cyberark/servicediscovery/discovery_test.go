@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
@@ -53,21 +55,26 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 			logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 			ctx := klog.NewContext(t.Context(), logger)
 
-			httpClient := MockDiscoveryServer(t, mockIdentityAPIURL)
+			httpClient := MockDiscoveryServer(t, Services{
+				Identity: ServiceEndpoint{
+					API: mockIdentityAPIURL,
+				},
+				DiscoveryContext: ServiceEndpoint{
+					API: mockDiscoveryContextAPIURL,
+				},
+			})
 
 			client := New(httpClient)
 
-			apiURL, err := client.DiscoverIdentityAPIURL(ctx, testSpec.subdomain)
-			if err != nil {
-				if err.Error() != testSpec.expectedError.Error() {
-					t.Errorf("expectedError=%v\nobservedError=%v", testSpec.expectedError, err)
-				}
+			services, err := client.DiscoverServices(ctx, testSpec.subdomain)
+			if testSpec.expectedError != nil {
+				assert.EqualError(t, err, testSpec.expectedError.Error())
+				assert.Nil(t, services)
+				return
 			}
-
-			// NB: we don't exit here because we also want to check the API URL is empty in the event of an error
-
-			if apiURL != testSpec.expectedURL {
-				t.Errorf("expected API URL=%s\nobserved API URL=%s", testSpec.expectedURL, apiURL)
+			require.NoError(t, err)
+			if services.Identity.API != testSpec.expectedURL {
+				t.Errorf("expected API URL=%s\nobserved API URL=%s", testSpec.expectedURL, services.Identity.API)
 			}
 		})
 	}
