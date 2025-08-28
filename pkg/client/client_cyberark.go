@@ -6,4 +6,4 @@ import (
 
 type CyberArkClient = dataupload.CyberArkClient
 
-var NewCyberArkClient = dataupload.NewCyberArkClient
+var NewCyberArkClient = dataupload.New
