@@ -305,6 +305,14 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 	var readings []*api.DataReading
 
 	if config.InputPath != "" {
+		// TODO(wallrj): The datareadings read from disk can not yet be pushed
+		// to the CyberArk Discovery and Context API. Why? Because they have
+		// simple data types such as map[string]interface{}. In contrast, the
+		// data from data gatherers can be cast to rich types like DynamicData
+		// or DiscoveryData The CyberArk dataupload client requires the data to
+		// have rich types to convert it to the Discovery and Context snapshots
+		// format. Consider refactoring testutil.ParseDataReadings so that it
+		// can be used here.
 		log.V(logs.Debug).Info("Reading data from local file", "inputPath", config.InputPath)
 		data, err := os.ReadFile(config.InputPath)
 		if err != nil {

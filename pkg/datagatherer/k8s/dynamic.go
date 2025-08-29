@@ -314,7 +314,6 @@ func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
 		return nil, -1, fmt.Errorf("resource type must be specified")
 	}
 
-	var list = map[string]interface{}{}
 	var items = []*api.GatheredResource{}
 
 	fetchNamespaces := g.namespaces
@@ -344,10 +343,9 @@ func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
 		return nil, -1, err
 	}
 
-	// add gathered resources to items
-	list["items"] = items
-
-	return list, len(items), nil
+	return &api.DynamicData{
+		Items: items,
+	}, len(items), nil
 }
 
 // redactList removes sensitive and superfluous data from the supplied resource list.
