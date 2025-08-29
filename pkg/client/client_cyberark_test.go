@@ -17,6 +17,7 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/internal/cyberark"
+	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
 	"github.com/jetstack/preflight/pkg/testutil"
 	"github.com/jetstack/preflight/pkg/version"
@@ -78,7 +79,8 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 
 func TestConvertDataReadingsToCyberarkSnapshot(t *testing.T) {
 	dataReadings := testutil.ParseDataReadings(t, testutil.ReadGZIP(t, "testdata/example-1/datareadings.json.gz"))
-	snapshot, err := client.ConvertDataReadingsToCyberarkSnapshot(dataReadings)
+	var snapshot dataupload.Snapshot
+	err := client.ConvertDataReadingsToCyberarkSnapshot(dataReadings, &snapshot)
 	require.NoError(t, err)
 
 	actualSnapshotBytes, err := json.MarshalIndent(snapshot, "", "  ")

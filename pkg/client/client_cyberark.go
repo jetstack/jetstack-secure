@@ -6,11 +6,11 @@ import (
 	"net/http"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/internal/cyberark"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
-	"github.com/jetstack/preflight/pkg/version"
 )
 
 // CyberArkClient is a client for publishing data readings to CyberArk's discoverycontext API.
@@ -50,9 +50,8 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 	if err != nil {
 		return fmt.Errorf("while initializing data upload client: %s", err)
 	}
-
-	snapshot, err := ConvertDataReadingsToCyberarkSnapshot(readings)
-	if err != nil {
+	var snapshot dataupload.Snapshot
+	if err := ConvertDataReadingsToCyberarkSnapshot(readings, &snapshot); err != nil {
 		return fmt.Errorf("while converting data readings: %s", err)
 	}
 	// Temporary hard coded cluster ID.
@@ -66,47 +65,29 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 	return nil
 }
 
-type resourceData map[string][]runtime.Object
-
-// The names of Datagatherers which have the data to populate the Cyberark
-// Snapshot mapped to the key in the Cyberark snapshot.
-var gathererNameToResourceDataKeyMap = map[string]string{
-	"ark/secrets":             "secrets",
-	"ark/serviceaccounts":     "serviceaccounts",
-	"ark/roles":               "roles",
-	"ark/clusterroles":        "clusterroles",
-	"ark/rolebindings":        "rolebindings",
-	"ark/clusterrolebindings": "clusterrolebindings",
-	"ark/jobs":                "jobs",
-	"ark/cronjobs":            "cronjobs",
-	"ark/deployments":         "deployments",
-	"ark/statefulsets":        "statefulsets",
-	"ark/daemonsets":          "daemonsets",
-	"ark/pods":                "pods",
-}
-
 // extractServerVersionFromReading converts the opaque data from a DiscoveryData
 // data reading to allow access to the Kubernetes version fields within.
-func extractServerVersionFromReading(reading *api.DataReading) (string, error) {
+func extractServerVersionFromReading(reading *api.DataReading, target *string) error {
 	data, ok := reading.Data.(*api.DiscoveryData)
 	if !ok {
-		return "", fmt.Errorf(
+		return fmt.Errorf(
 			"programmer mistake: the DataReading must have data type *api.DiscoveryData. "+
 				"This DataReading (%s) has data type %T", reading.DataGatherer, reading.Data)
 	}
 	if data.ServerVersion == nil {
-		return "unknown", nil
+		return nil
 	}
-	return data.ServerVersion.GitVersion, nil
+	*target = data.ServerVersion.GitVersion
+	return nil
 }
 
 // extractResourceListFromReading converts the opaque data from a DynamicData
 // data reading to runtime.Object resources, to allow access to the metadata and
 // other kubernetes API fields.
-func extractResourceListFromReading(reading *api.DataReading) ([]runtime.Object, error) {
+func extractResourceListFromReading(reading *api.DataReading, target *[]runtime.Object) error {
 	data, ok := reading.Data.(*api.DynamicData)
 	if !ok {
-		return nil, fmt.Errorf(
+		return fmt.Errorf(
 			"programmer mistake: the DataReading must have data type *api.DynamicData. "+
 				"This DataReading (%s) has data type %T", reading.DataGatherer, reading.Data)
 	}
@@ -115,12 +96,28 @@ func extractResourceListFromReading(reading *api.DataReading) ([]runtime.Object,
 		if resource, ok := item.Resource.(runtime.Object); ok {
 			resources[i] = resource
 		} else {
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"programmer mistake: the DynamicData items must have Resource type runtime.Object. "+
 					"This item (%d) has Resource type %T", i, item.Resource)
 		}
 	}
-	return resources, nil
+	*target = resources
+	return nil
+}
+
+var expectedGathererNames = []string{
+	"ark/secrets",
+	"ark/serviceaccounts",
+	"ark/roles",
+	"ark/clusterroles",
+	"ark/rolebindings",
+	"ark/clusterrolebindings",
+	"ark/jobs",
+	"ark/cronjobs",
+	"ark/deployments",
+	"ark/statefulsets",
+	"ark/daemonsets",
+	"ark/pods",
 }
 
 // ConvertDataReadingsToCyberarkSnapshot converts a list of DataReadings to a CyberArk Snapshot.
@@ -129,40 +126,57 @@ func extractResourceListFromReading(reading *api.DataReading) ([]runtime.Object,
 // If any required data is missing or cannot be converted, an error is returned.
 func ConvertDataReadingsToCyberarkSnapshot(
 	readings []*api.DataReading,
-) (s dataupload.Snapshot, _ error) {
-	k8sVersion := ""
-	resourceData := resourceData{}
-	for _, reading := range readings {
-		if reading.DataGatherer == "ark/discovery" {
-			var err error
-			k8sVersion, err = extractServerVersionFromReading(reading)
-			if err != nil {
-				return s, fmt.Errorf("while extracting server version from data-reading: %s", err)
-			}
+	snapshot *dataupload.Snapshot,
+) error {
+	allDataGathererNames := make([]string, len(readings))
+	unhandledDataGatherers := sets.New[string]()
+	expectedDataGatherers := sets.New[string](expectedGathererNames...)
+	for i, reading := range readings {
+		dataGathererName := reading.DataGatherer
+		allDataGathererNames[i] = dataGathererName
+		var err error
+		switch reading.DataGatherer {
+		case "ark/discovery":
+			err = extractServerVersionFromReading(reading, &snapshot.K8SVersion)
+		case "ark/secrets":
+			err = extractResourceListFromReading(reading, &snapshot.Secrets)
+		case "ark/serviceaccounts":
+			err = extractResourceListFromReading(reading, &snapshot.ServiceAccounts)
+		case "ark/roles":
+			err = extractResourceListFromReading(reading, &snapshot.Roles)
+		case "ark/clusterroles":
+			err = extractResourceListFromReading(reading, &snapshot.ClusterRoles)
+		case "ark/rolebindings":
+			err = extractResourceListFromReading(reading, &snapshot.RoleBindings)
+		case "ark/clusterrolebindings":
+			err = extractResourceListFromReading(reading, &snapshot.ClusterRoleBindings)
+		case "ark/jobs":
+			err = extractResourceListFromReading(reading, &snapshot.Jobs)
+		case "ark/cronjobs":
+			err = extractResourceListFromReading(reading, &snapshot.CronJobs)
+		case "ark/deployments":
+			err = extractResourceListFromReading(reading, &snapshot.Deployments)
+		case "ark/statefulsets":
+			err = extractResourceListFromReading(reading, &snapshot.Statefulsets)
+		case "ark/daemonsets":
+			err = extractResourceListFromReading(reading, &snapshot.Daemonsets)
+		case "ark/pods":
+			err = extractResourceListFromReading(reading, &snapshot.Pods)
+		default:
+			unhandledDataGatherers.Insert(dataGathererName)
 		}
-		if key, found := gathererNameToResourceDataKeyMap[reading.DataGatherer]; found {
-			resources, err := extractResourceListFromReading(reading)
-			if err != nil {
-				return s, fmt.Errorf("while extracting resource list from data-reading: %s", err)
-			}
-			resourceData[key] = append(resourceData[key], resources...)
+		if err != nil {
+			return fmt.Errorf("while extracting data reading %s: %s", dataGathererName, err)
 		}
 	}
-
-	return dataupload.Snapshot{
-		AgentVersion:        version.PreflightVersion,
-		K8SVersion:          k8sVersion,
-		Secrets:             resourceData["secrets"],
-		ServiceAccounts:     resourceData["serviceaccounts"],
-		Roles:               resourceData["roles"],
-		ClusterRoles:        resourceData["clusterroles"],
-		RoleBindings:        resourceData["rolebindings"],
-		ClusterRoleBindings: resourceData["clusterrolebindings"],
-		Jobs:                resourceData["jobs"],
-		CronJobs:            resourceData["cronjobs"],
-		Deployments:         resourceData["deployments"],
-		Statefulsets:        resourceData["statefulsets"],
-		Daemonsets:          resourceData["daemonsets"],
-		Pods:                resourceData["pods"],
-	}, nil
+	allDataGatherers := sets.New[string](allDataGathererNames...)
+	missingDataGatherers := expectedDataGatherers.Difference(allDataGatherers)
+	if missingDataGatherers.Len() > 0 || unhandledDataGatherers.Len() > 0 {
+		return fmt.Errorf(
+			"Unexpected data gatherers. missing: %v, unhandled: %v",
+			sets.List(missingDataGatherers),
+			sets.List(unhandledDataGatherers),
+		)
+	}
+	return nil
 }
