@@ -16,9 +16,13 @@ const (
 	// ProdDiscoveryAPIBaseURL is the base URL for the production CyberArk Service Discovery API
 	ProdDiscoveryAPIBaseURL = "https://platform-discovery.cyberark.cloud/api/v2/"
 
-	// identityServiceName is the name of the identity service we're looking for in responses from the Service Discovery API
+	// IdentityServiceName is the name of the identity service we're looking for in responses from the Service Discovery API
 	// We were told to use the identity_administration field, not the identity_user_portal field.
-	identityServiceName = "identity_administration"
+	IdentityServiceName = "identity_administration"
+
+	// DiscoveryContextServiceName is the name of the discovery and context API
+	// in responses from the Service Discovery API.
+	DiscoveryContextServiceName = "discoverycontext"
 
 	// maxDiscoverBodySize is the maximum allowed size for a response body from the CyberArk Service Discovery subdomain endpoint
 	// As of 2025-04-16, a response from the integration environment is ~4kB
@@ -101,7 +105,6 @@ func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Servi
 	}
 
 	var services Services
-
 	err = json.NewDecoder(io.LimitReader(resp.Body, maxDiscoverBodySize)).Decode(&services)
 	if err != nil {
 		if err == io.ErrUnexpectedEOF {
@@ -112,7 +115,7 @@ func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Servi
 	}
 
 	if services.Identity.API == "" {
-		return nil, fmt.Errorf("didn't find %s in service discovery response, which may indicate a suspended tenant; unable to detect CyberArk Identity API URL", identityServiceName)
+		return nil, fmt.Errorf("didn't find %s in service discovery response, which may indicate a suspended tenant; unable to detect CyberArk Identity API URL", IdentityServiceName)
 	}
 
 	return &services, nil
