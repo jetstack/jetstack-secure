@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/internal/cyberark"
 	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
@@ -49,14 +51,111 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 		return fmt.Errorf("while initializing data upload client: %s", err)
 	}
 
-	err = datauploadClient.PutSnapshot(ctx, dataupload.Snapshot{
-		// Temporary hard coded cluster ID.
-		// TODO(wallrj): The clusterID will eventually be extracted from the supplied readings.
-		ClusterID:    "success-cluster-id",
-		AgentVersion: version.PreflightVersion,
-	})
+	snapshot, err := ConvertDataReadingsToCyberarkSnapshot(readings)
+	if err != nil {
+		return fmt.Errorf("while converting data readings: %s", err)
+	}
+	// Temporary hard coded cluster ID.
+	// TODO(wallrj): The clusterID will eventually be extracted from the supplied readings.
+	snapshot.ClusterID = "success-cluster-id"
+
+	err = datauploadClient.PutSnapshot(ctx, snapshot)
 	if err != nil {
 		return fmt.Errorf("while uploading snapshot: %s", err)
 	}
 	return nil
+}
+
+type resourceData map[string][]*unstructured.Unstructured
+
+// The names of Datagatherers which have the data to populate the Cyberark
+// Snapshot mapped to the key in the Cyberark snapshot.
+var gathererNameToResourceDataKeyMap = map[string]string{
+	"ark/secrets":             "secrets",
+	"ark/serviceaccounts":     "serviceaccounts",
+	"ark/roles":               "roles",
+	"ark/clusterroles":        "clusterroles",
+	"ark/rolebindings":        "rolebindings",
+	"ark/clusterrolebindings": "clusterrolebindings",
+	"ark/jobs":                "jobs",
+	"ark/cronjobs":            "cronjobs",
+	"ark/deployments":         "deployments",
+	"ark/statefulsets":        "statefulsets",
+	"ark/daemonsets":          "daemonsets",
+	"ark/pods":                "pods",
+}
+
+// extractServerVersionFromReading converts the opaque data from a DiscoveryData
+// data reding to allow access to the Kubernetes version fields within.
+func extractServerVersionFromReading(reading *api.DataReading) (string, error) {
+	data, ok := reading.Data.(*api.DiscoveryData)
+	if !ok {
+		return "", fmt.Errorf("failed to convert data: %s", reading.DataGatherer)
+	}
+	if data.ServerVersion == nil {
+		return "unknown", nil
+	}
+	return data.ServerVersion.GitVersion, nil
+}
+
+// extractResourceListFromReading converts the opaque data from a DynamicData
+// data reading to Unstructured resources, to allow access to the metadata and
+// other kubernetes API fields.
+func extractResourceListFromReading(reading *api.DataReading) ([]*unstructured.Unstructured, error) {
+	data, ok := reading.Data.(*api.DynamicData)
+	if !ok {
+		return nil, fmt.Errorf("failed to convert data: %s", reading.DataGatherer)
+	}
+	items := data.Items
+	resources := make([]*unstructured.Unstructured, len(items))
+	for i, item := range items {
+		if resource, ok := item.Resource.(*unstructured.Unstructured); ok {
+			resources[i] = resource
+		} else {
+			return nil, fmt.Errorf("failed to convert resource: %#v", item)
+		}
+	}
+	return resources, nil
+}
+
+// ConvertDataReadingsToCyberarkSnapshot converts DataReadings to the Cyberark
+// Snapshot format.
+func ConvertDataReadingsToCyberarkSnapshot(
+	readings []*api.DataReading,
+) (s dataupload.Snapshot, _ error) {
+	k8sVersion := ""
+	resourceData := resourceData{}
+	for _, reading := range readings {
+		if reading.DataGatherer == "ark/discovery" {
+			var err error
+			k8sVersion, err = extractServerVersionFromReading(reading)
+			if err != nil {
+				return s, fmt.Errorf("while extracting server version from data-reading: %s", err)
+			}
+		}
+		if key, found := gathererNameToResourceDataKeyMap[reading.DataGatherer]; found {
+			resources, err := extractResourceListFromReading(reading)
+			if err != nil {
+				return s, fmt.Errorf("while extracting resource list from data-reading: %s", err)
+			}
+			resourceData[key] = append(resourceData[key], resources...)
+		}
+	}
+
+	return dataupload.Snapshot{
+		AgentVersion:        version.PreflightVersion,
+		K8SVersion:          k8sVersion,
+		Secrets:             resourceData["secrets"],
+		ServiceAccounts:     resourceData["serviceaccounts"],
+		Roles:               resourceData["roles"],
+		ClusterRoles:        resourceData["clusterroles"],
+		RoleBindings:        resourceData["rolebindings"],
+		ClusterRoleBindings: resourceData["clusterrolebindings"],
+		Jobs:                resourceData["jobs"],
+		CronJobs:            resourceData["cronjobs"],
+		Deployments:         resourceData["deployments"],
+		Statefulsets:        resourceData["statefulsets"],
+		Daemonsets:          resourceData["daemonsets"],
+		Pods:                resourceData["pods"],
+	}, nil
 }

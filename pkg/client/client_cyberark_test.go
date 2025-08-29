@@ -2,10 +2,13 @@ package client_test
 
 import (
 	"crypto/x509"
+	"encoding/json"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/jetstack/venafi-connection-lib/http_client"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
@@ -39,9 +42,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 		require.NoError(t, err)
 
 		var readings []*api.DataReading
-		err = c.PostDataReadingsWithOptions(ctx, readings, client.Options{
-			ClusterID: "success-cluster-id",
-		})
+		err = c.PostDataReadingsWithOptions(ctx, readings, client.Options{})
 		require.NoError(t, err)
 	})
 }
@@ -69,10 +70,25 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 			}
 			require.NoError(t, err)
 		}
-		var readings []*api.DataReading
-		err = c.PostDataReadingsWithOptions(ctx, readings, client.Options{
-			ClusterID: "success-cluster-id",
-		})
+		readings := testutil.ParseDataReadings(t, testutil.ReadGZIP(t, "testdata/example-1/datareadings.json.gz"))
+		err = c.PostDataReadingsWithOptions(ctx, readings, client.Options{})
 		require.NoError(t, err)
 	})
+}
+
+func TestConvertDataReadingsToCyberarkSnapshot(t *testing.T) {
+	dataReadings := testutil.ParseDataReadings(t, testutil.ReadGZIP(t, "testdata/example-1/datareadings.json.gz"))
+	snapshot, err := client.ConvertDataReadingsToCyberarkSnapshot(dataReadings)
+	require.NoError(t, err)
+
+	actualSnapshotBytes, err := json.MarshalIndent(snapshot, "", "  ")
+	require.NoError(t, err)
+
+	goldenFilePath := "testdata/example-1/snapshot.json.gz"
+	if _, update := os.LookupEnv("UPDATE_GOLDEN_FILES"); update {
+		testutil.WriteGZIP(t, goldenFilePath, actualSnapshotBytes)
+	} else {
+		expectedSnapshotBytes := testutil.ReadGZIP(t, goldenFilePath)
+		assert.JSONEq(t, string(expectedSnapshotBytes), string(actualSnapshotBytes))
+	}
 }

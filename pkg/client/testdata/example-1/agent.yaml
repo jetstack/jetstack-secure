@@ -1,0 +1,95 @@
+cluster_id: example-cluster-id
+organization_id: example-organization-id
+data-gatherers:
+# gather k8s apiserver version information
+- kind: k8s-discovery
+  name: ark/discovery
+- kind: k8s-dynamic
+  name: ark/secrets
+  config:
+    resource-type:
+      version: v1
+      resource: secrets
+    field-selectors:
+    - type!=kubernetes.io/service-account-token
+    - type!=kubernetes.io/dockercfg
+    - type!=kubernetes.io/dockerconfigjson
+    - type!=kubernetes.io/basic-auth
+    - type!=kubernetes.io/ssh-auth
+    - type!=bootstrap.kubernetes.io/token
+    - type!=helm.sh/release.v1
+- kind: k8s-dynamic
+  name: ark/serviceaccounts
+  config:
+    resource-type:
+      resource: serviceaccounts
+      version: v1
+- kind: k8s-dynamic
+  name: ark/roles
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: roles
+- kind: k8s-dynamic
+  name: ark/clusterroles
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: clusterroles
+- kind: k8s-dynamic
+  name: ark/rolebindings
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: rolebindings
+- kind: k8s-dynamic
+  name: ark/clusterrolebindings
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: clusterrolebindings
+- kind: k8s-dynamic
+  name: ark/jobs
+  config:
+    resource-type:
+      version: v1
+      group: batch
+      resource: jobs
+- kind: k8s-dynamic
+  name: ark/cronjobs
+  config:
+    resource-type:
+      version: v1
+      group: batch
+      resource: cronjobs
+- kind: k8s-dynamic
+  name: ark/deployments
+  config:
+    resource-type:
+      version: v1
+      group: apps
+      resource: deployments
+- kind: k8s-dynamic
+  name: ark/statefulsets
+  config:
+    resource-type:
+      version: v1
+      group: apps
+      resource: statefulsets
+- kind: k8s-dynamic
+  name: ark/daemonsets
+  config:
+    resource-type:
+      version: v1
+      group: apps
+      resource: daemonsets
+- kind: k8s-dynamic
+  name: ark/pods
+  config:
+    resource-type:
+      version: v1
+      resource: pods

@@ -1,8 +1,12 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"time"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/version"
 )
 
 // DataReadingsPost is the payload in the upload request.
@@ -28,8 +32,8 @@ type DataReading struct {
 type GatheredResource struct {
 	// Resource is a reference to a k8s object that was found by the informer
 	// should be of type unstructured.Unstructured, raw Object
-	Resource  interface{}
-	DeletedAt Time
+	Resource  interface{} `json:"resource"`
+	DeletedAt Time        `json:"deleted_at,omitempty"`
 }
 
 func (v GatheredResource) MarshalJSON() ([]byte, error) {
@@ -47,4 +51,33 @@ func (v GatheredResource) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(data)
+}
+
+func (v *GatheredResource) UnmarshalJSON(data []byte) error {
+	var tmpResource struct {
+		Resource  *unstructured.Unstructured `json:"resource"`
+		DeletedAt Time                       `json:"deleted_at,omitempty"`
+	}
+
+	d := json.NewDecoder(bytes.NewReader(data))
+	d.DisallowUnknownFields()
+
+	if err := d.Decode(&tmpResource); err != nil {
+		return err
+	}
+	v.Resource = tmpResource.Resource
+	v.DeletedAt = tmpResource.DeletedAt
+	return nil
+}
+
+// DynamicData is the DataReading.Data returned by the k8s.DataGathererDynamic
+// gatherer
+type DynamicData struct {
+	Items []*GatheredResource `json:"items"`
+}
+
+// DiscoveryData is the DataReading.Data returned by the k8s.ConfigDiscovery
+// gatherer
+type DiscoveryData struct {
+	ServerVersion *version.Info `json:"server_version"`
 }
