@@ -42,6 +42,11 @@ func NewCyberArk(httpClient *http.Client) (*CyberArkClient, error) {
 // then uploads a snapshot.
 // The supplied Options are not used by this publisher.
 func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, _ Options) error {
+	var snapshot dataupload.Snapshot
+	if err := convertDataReadings(defaultExtractorFunctions, readings, &snapshot); err != nil {
+		return fmt.Errorf("while converting data readings: %s", err)
+	}
+
 	cfg, err := o.configLoader()
 	if err != nil {
 		return err
@@ -49,10 +54,6 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 	datauploadClient, err := cyberark.NewDatauploadClient(ctx, o.httpClient, cfg)
 	if err != nil {
 		return fmt.Errorf("while initializing data upload client: %s", err)
-	}
-	var snapshot dataupload.Snapshot
-	if err := convertDataReadings(defaultExtractorFunctions, readings, &snapshot); err != nil {
-		return fmt.Errorf("while converting data readings: %s", err)
 	}
 	// Temporary hard coded cluster ID.
 	// TODO(wallrj): The clusterID will eventually be extracted from the supplied readings.

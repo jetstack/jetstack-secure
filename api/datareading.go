@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -26,6 +27,58 @@ type DataReading struct {
 	Timestamp     Time        `json:"timestamp"`
 	Data          interface{} `json:"data"`
 	SchemaVersion string      `json:"schema_version"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface for DataReading.
+// It handles the dynamic parsing of the Data field based on the DataGatherer.
+func (o *DataReading) UnmarshalJSON(data []byte) error {
+	var tmp struct {
+		ClusterID     string          `json:"cluster_id,omitempty"`
+		DataGatherer  string          `json:"data-gatherer"`
+		Timestamp     Time            `json:"timestamp"`
+		Data          json.RawMessage `json:"data"`
+		SchemaVersion string          `json:"schema_version"`
+	}
+
+	d := json.NewDecoder(bytes.NewReader(data))
+	d.DisallowUnknownFields()
+
+	if err := d.Decode(&tmp); err != nil {
+		return err
+	}
+	o.ClusterID = tmp.ClusterID
+	o.DataGatherer = tmp.DataGatherer
+	o.Timestamp = tmp.Timestamp
+	o.SchemaVersion = tmp.SchemaVersion
+
+	{
+		var discoveryData DiscoveryData
+		d := json.NewDecoder(bytes.NewReader(tmp.Data))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&discoveryData); err == nil {
+			o.Data = &discoveryData
+			return nil
+		}
+	}
+	{
+		var dynamicData DynamicData
+		d := json.NewDecoder(bytes.NewReader(tmp.Data))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&dynamicData); err == nil {
+			o.Data = &dynamicData
+			return nil
+		}
+	}
+	{
+		var genericData map[string]interface{}
+		d := json.NewDecoder(bytes.NewReader(tmp.Data))
+		d.DisallowUnknownFields()
+		if err := d.Decode(&genericData); err == nil {
+			o.Data = genericData
+			return nil
+		}
+	}
+	return fmt.Errorf("failed to parse DataReading.Data for gatherer %s", o.DataGatherer)
 }
 
 // GatheredResource wraps the raw k8s resource that is sent to the jetstack secure backend
