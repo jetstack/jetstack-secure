@@ -16,7 +16,7 @@ jobs:
       id-token: write # needed for keyless signing & google auth
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: ./.github/actions/repo_access
         with:
