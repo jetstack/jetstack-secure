@@ -10,6 +10,8 @@ import (
 	"github.com/jetstack/venafi-connection-lib/http_client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
@@ -23,6 +25,40 @@ import (
 
 	_ "k8s.io/klog/v2/ktesting/init"
 )
+
+func genNamespace(name string) *unstructured.Unstructured {
+	o := &unstructured.Unstructured{}
+	o.SetAPIVersion("")
+	o.SetKind("Namespace")
+	o.SetName(name)
+	return o
+}
+
+func genArkNamespacesDataReading(clusterID types.UID) *api.DataReading {
+	kubeSystemNamespace := genNamespace("kube-system")
+	kubeSystemNamespace.SetUID(clusterID)
+	return &api.DataReading{
+		ClusterID:    "ignored-tlspk-cluster-id",
+		DataGatherer: "ark/namespaces",
+		Data: &api.DynamicData{
+			Items: []*api.GatheredResource{
+				{
+					Resource: kubeSystemNamespace,
+				},
+				{
+					Resource: genNamespace("kube-public"),
+				},
+				{
+					Resource: genNamespace("venafi"),
+				},
+				{
+					Resource: genNamespace("cert-manager"),
+				},
+			},
+		},
+		SchemaVersion: "v1",
+	}
+}
 
 // TestCyberArkClient_PostDataReadingsWithOptions_MockAPI demonstrates that the
 // dataupload code works with the mock CyberArk APIs.
@@ -41,7 +77,9 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 		c, err := client.NewCyberArk(httpClient)
 		require.NoError(t, err)
 
-		var readings []*api.DataReading
+		readings := []*api.DataReading{
+			genArkNamespacesDataReading("success-cluster-id"),
+		}
 		err = c.PostDataReadingsWithOptions(ctx, readings, client.Options{})
 		require.NoError(t, err)
 	})

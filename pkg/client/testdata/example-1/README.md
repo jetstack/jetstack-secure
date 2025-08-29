@@ -14,7 +14,7 @@ go run . agent \
     --one-shot \
     --agent-config-file pkg/client/testdata/example-1/agent.yaml \
     --output-path pkg/client/testdata/example-1/datareadings.json
-gzip pkg/internal/cyberark/dataupload/testdata/example-1/datareadings.json
+gzip pkg/client/testdata/example-1/datareadings.json
 ```
 
 

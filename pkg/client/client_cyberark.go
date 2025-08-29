@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -55,9 +56,6 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 	if err != nil {
 		return fmt.Errorf("while converting data readings: %s", err)
 	}
-	// Temporary hard coded cluster ID.
-	// TODO(wallrj): The clusterID will eventually be extracted from the supplied readings.
-	snapshot.ClusterID = "success-cluster-id"
 
 	err = datauploadClient.PutSnapshot(ctx, snapshot)
 	if err != nil {
@@ -83,6 +81,25 @@ var gathererNameToResourceDataKeyMap = map[string]string{
 	"ark/statefulsets":        "statefulsets",
 	"ark/daemonsets":          "daemonsets",
 	"ark/pods":                "pods",
+}
+
+// extractClusterUIDFromReading converts the opaque data from a DynamicData
+// reading to Unstructured Namespace resources, and finds the UID of the
+// `kube-system` namespace.
+// This UID can be used as a unique identifier for the Kubernetes cluster.
+// - https://venafi.slack.com/archives/C04SQR5DAD7/p1747825325264979
+// - https://github.com/kubernetes/kubernetes/issues/77487#issuecomment-489786023
+func extractClusterUIDFromReading(reading *api.DataReading) (string, error) {
+	resources, err := extractResourceListFromReading(reading)
+	if err != nil {
+		return "", err
+	}
+	for _, resource := range resources {
+		if resource.GetName() == "kube-system" {
+			return string(resource.GetUID()), nil
+		}
+	}
+	return "", fmt.Errorf("kube-system namespace UID not found in data reading: %v", reading)
 }
 
 // extractServerVersionFromReading converts the opaque data from a DiscoveryData
@@ -124,6 +141,7 @@ func ConvertDataReadingsToCyberarkSnapshot(
 	readings []*api.DataReading,
 ) (s dataupload.Snapshot, _ error) {
 	k8sVersion := ""
+	clusterID := ""
 	resourceData := resourceData{}
 	for _, reading := range readings {
 		if reading.DataGatherer == "ark/discovery" {
@@ -131,6 +149,13 @@ func ConvertDataReadingsToCyberarkSnapshot(
 			k8sVersion, err = extractServerVersionFromReading(reading)
 			if err != nil {
 				return s, fmt.Errorf("while extracting server version from data-reading: %s", err)
+			}
+		}
+		if reading.DataGatherer == "ark/namespaces" {
+			var err error
+			clusterID, err = extractClusterUIDFromReading(reading)
+			if err != nil {
+				return s, fmt.Errorf("while extracting cluster UID from data-reading: %s", err)
 			}
 		}
 		if key, found := gathererNameToResourceDataKeyMap[reading.DataGatherer]; found {
@@ -141,10 +166,13 @@ func ConvertDataReadingsToCyberarkSnapshot(
 			resourceData[key] = append(resourceData[key], resources...)
 		}
 	}
-
+	if clusterID == "" {
+		return s, errors.New("failed to compute a clusterID from the data-readings")
+	}
 	return dataupload.Snapshot{
 		AgentVersion:        version.PreflightVersion,
 		K8SVersion:          k8sVersion,
+		ClusterID:           clusterID,
 		Secrets:             resourceData["secrets"],
 		ServiceAccounts:     resourceData["serviceaccounts"],
 		Roles:               resourceData["roles"],

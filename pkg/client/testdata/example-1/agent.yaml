@@ -5,6 +5,12 @@ data-gatherers:
 - kind: k8s-discovery
   name: ark/discovery
 - kind: k8s-dynamic
+  name: ark/namespaces
+  config:
+    resource-type:
+      version: v1
+      resource: namespaces
+- kind: k8s-dynamic
   name: ark/secrets
   config:
     resource-type:

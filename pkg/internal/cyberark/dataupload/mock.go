@@ -123,7 +123,7 @@ func (mds *mockDataUploadServer) handleSnapshotLinks(w http.ResponseWriter, r *h
 	}
 
 	if req.ClusterID != successClusterID {
-		http.Error(w, "post body contains cluster ID", http.StatusInternalServerError)
+		http.Error(w, "post body does not contain cluster ID", http.StatusInternalServerError)
 		return
 	}
 
