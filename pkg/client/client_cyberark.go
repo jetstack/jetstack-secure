@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/jetstack/preflight/api"
-	"github.com/jetstack/preflight/pkg/internal/cyberark"
-	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
+	"github.com/jetstack/preflight/internal/cyberark"
+	"github.com/jetstack/preflight/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
