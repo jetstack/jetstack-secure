@@ -25,10 +25,10 @@ import (
 	ctrlruntime "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	"github.com/jetstack/preflight/internal/cyberark/dataupload"
+	"github.com/jetstack/preflight/internal/cyberark/identity"
+	"github.com/jetstack/preflight/internal/cyberark/servicediscovery"
 	"github.com/jetstack/preflight/pkg/client"
-	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
-	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
-	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
 )
 
 // To see the API server logs, set:

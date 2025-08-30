@@ -12,8 +12,8 @@ import (
 	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 
-	"github.com/jetstack/preflight/pkg/internal/cyberark/identity"
-	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
+	"github.com/jetstack/preflight/internal/cyberark/identity"
+	"github.com/jetstack/preflight/internal/cyberark/servicediscovery"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
