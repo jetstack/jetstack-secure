@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
+	"github.com/jetstack/preflight/internal/cyberark/servicediscovery"
 )
 
 func Test_IdentityStartAuthentication(t *testing.T) {

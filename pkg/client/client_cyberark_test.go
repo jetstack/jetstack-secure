@@ -13,9 +13,9 @@ import (
 	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/internal/cyberark"
+	"github.com/jetstack/preflight/internal/cyberark/servicediscovery"
 	"github.com/jetstack/preflight/pkg/client"
-	"github.com/jetstack/preflight/pkg/internal/cyberark"
-	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
 	"github.com/jetstack/preflight/pkg/testutil"
 	"github.com/jetstack/preflight/pkg/version"
 
@@ -50,7 +50,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 //
 // To enable verbose request logging:
 //
-//	go test ./pkg/internal/cyberark/dataupload/... \
+//	go test ./internal/cyberark/dataupload/... \
 //	  -v -count 1 -run TestCyberArkClient_PostDataReadingsWithOptions_RealAPI -args -testing.v 6
 func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
