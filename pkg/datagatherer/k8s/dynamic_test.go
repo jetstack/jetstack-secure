@@ -730,15 +730,12 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			}
 
 			if tc.expected != nil {
-				items, ok := res.(map[string]interface{})
+				data, ok := res.(*api.DynamicData)
 				if !ok {
-					t.Errorf("expected result be an map[string]interface{} but wasn't")
+					t.Errorf("expected result be *api.DynamicData but wasn't")
 				}
 
-				list, ok := items["items"].([]*api.GatheredResource)
-				if !ok {
-					t.Errorf("expected result be an []*api.GatheredResource but wasn't")
-				}
+				list := data.Items
 				// sorting list of results by name
 				sortGatheredResources(list)
 				// sorting list of expected results by name
@@ -1045,10 +1042,9 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			}
 
 			if tc.expected != nil {
-				res, ok := rawRes.(map[string]interface{})
-				require.Truef(t, ok, "expected result be an map[string]interface{} but wasn't")
-				actual := res["items"].([]*api.GatheredResource)
-				require.Truef(t, ok, "expected result be an []*api.GatheredResource but wasn't")
+				res, ok := rawRes.(*api.DynamicData)
+				require.Truef(t, ok, "expected result be an *api.DynamicData but wasn't")
+				actual := res.Items
 
 				// sorting list of results by name
 				sortGatheredResources(actual)
