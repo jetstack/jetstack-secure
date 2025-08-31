@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/jetstack/preflight/pkg/version"
 )
@@ -54,29 +54,29 @@ type Snapshot struct {
 	K8SVersion string `json:"k8s_version"`
 	// Secrets is a list of Secret resources in the cluster. Not all Secret
 	// types are included and only a subset of the Secret data is included.
-	Secrets []*unstructured.Unstructured `json:"secrets"`
+	Secrets []runtime.Object `json:"secrets"`
 	// ServiceAccounts is a list of ServiceAccount resources in the cluster.
-	ServiceAccounts []*unstructured.Unstructured `json:"serviceaccounts"`
+	ServiceAccounts []runtime.Object `json:"serviceaccounts"`
 	// Roles is a list of Role resources in the cluster.
-	Roles []*unstructured.Unstructured `json:"roles"`
+	Roles []runtime.Object `json:"roles"`
 	// ClusterRoles is a list of ClusterRole resources in the cluster.
-	ClusterRoles []*unstructured.Unstructured `json:"clusterroles"`
+	ClusterRoles []runtime.Object `json:"clusterroles"`
 	// RoleBindings is a list of RoleBinding resources in the cluster.
-	RoleBindings []*unstructured.Unstructured `json:"rolebindings"`
+	RoleBindings []runtime.Object `json:"rolebindings"`
 	// ClusterRoleBindings is a list of ClusterRoleBinding resources in the cluster.
-	ClusterRoleBindings []*unstructured.Unstructured `json:"clusterrolebindings"`
+	ClusterRoleBindings []runtime.Object `json:"clusterrolebindings"`
 	// Jobs is a list of Job resources in the cluster.
-	Jobs []*unstructured.Unstructured `json:"jobs"`
+	Jobs []runtime.Object `json:"jobs"`
 	// CronJobs is a list of CronJob resources in the cluster.
-	CronJobs []*unstructured.Unstructured `json:"cronjobs"`
+	CronJobs []runtime.Object `json:"cronjobs"`
 	// Deployments is a list of Deployment resources in the cluster.
-	Deployments []*unstructured.Unstructured `json:"deployments"`
+	Deployments []runtime.Object `json:"deployments"`
 	// Statefulsets is a list of StatefulSet resources in the cluster.
-	Statefulsets []*unstructured.Unstructured `json:"statefulsets"`
+	Statefulsets []runtime.Object `json:"statefulsets"`
 	// Daemonsets is a list of DaemonSet resources in the cluster.
-	Daemonsets []*unstructured.Unstructured `json:"daemonsets"`
+	Daemonsets []runtime.Object `json:"daemonsets"`
 	// Pods is a list of Pod resources in the cluster.
-	Pods []*unstructured.Unstructured `json:"pods"`
+	Pods []runtime.Object `json:"pods"`
 }
 
 // PutSnapshot PUTs the supplied snapshot to an [AWS presigned URL] which it obtains via the CyberArk inventory API.

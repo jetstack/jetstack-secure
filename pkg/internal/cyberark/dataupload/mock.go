@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/transport"
 
@@ -184,6 +185,8 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 	d.DisallowUnknownFields()
 	err = d.Decode(&snapshot)
 	require.NoError(mds.t, err)
+	assert.Equal(mds.t, successClusterID, snapshot.ClusterID)
+	assert.Equal(mds.t, version.PreflightVersion, snapshot.AgentVersion)
 
 	// AWS S3 responds with an empty body if the PUT succeeds
 	w.WriteHeader(http.StatusOK)
