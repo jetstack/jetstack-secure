@@ -49,9 +49,6 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 		return fmt.Errorf("while converting data readings: %s", err)
 	}
 	snapshot.AgentVersion = version.PreflightVersion
-	// Temporary hard coded cluster ID.
-	// TODO(wallrj): The clusterID will eventually be extracted from the supplied readings.
-	snapshot.ClusterID = "success-cluster-id"
 
 	cfg, err := o.configLoader()
 	if err != nil {
@@ -69,9 +66,9 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 	return nil
 }
 
-// extractServerVersionFromReading converts the opaque data from a DiscoveryData
+// extractClusterIDAndServerVersionFromReading converts the opaque data from a DiscoveryData
 // data reading to allow access to the Kubernetes version fields within.
-func extractServerVersionFromReading(reading *api.DataReading, target *string) error {
+func extractClusterIDAndServerVersionFromReading(reading *api.DataReading, target *dataupload.Snapshot) error {
 	if reading == nil {
 		return fmt.Errorf("programmer mistake: the DataReading must not be nil")
 	}
@@ -81,10 +78,10 @@ func extractServerVersionFromReading(reading *api.DataReading, target *string) e
 			"programmer mistake: the DataReading must have data type *api.DiscoveryData. "+
 				"This DataReading (%s) has data type %T", reading.DataGatherer, reading.Data)
 	}
-	if data.ServerVersion == nil {
-		return nil
+	target.ClusterID = data.ClusterID
+	if data.ServerVersion != nil {
+		target.K8SVersion = data.ServerVersion.GitVersion
 	}
-	*target = data.ServerVersion.GitVersion
 	return nil
 }
 
@@ -116,9 +113,7 @@ func extractResourceListFromReading(reading *api.DataReading, target *[]runtime.
 }
 
 var defaultExtractorFunctions = map[string]func(*api.DataReading, *dataupload.Snapshot) error{
-	"ark/discovery": func(r *api.DataReading, s *dataupload.Snapshot) error {
-		return extractServerVersionFromReading(r, &s.K8SVersion)
-	},
+	"ark/discovery": extractClusterIDAndServerVersionFromReading,
 	"ark/secrets": func(r *api.DataReading, s *dataupload.Snapshot) error {
 		return extractResourceListFromReading(r, &s.Secrets)
 	},

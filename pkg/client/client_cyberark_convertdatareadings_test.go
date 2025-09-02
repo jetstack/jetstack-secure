@@ -18,10 +18,10 @@ import (
 // TestExtractServerVersionFromReading tests the extractServerVersionFromReading function.
 func TestExtractServerVersionFromReading(t *testing.T) {
 	type testCase struct {
-		name            string
-		reading         *api.DataReading
-		expectedVersion string
-		expectError     string
+		name             string
+		reading          *api.DataReading
+		expectedSnapshot dataupload.Snapshot
+		expectError      string
 	}
 	tests := []testCase{
 		{
@@ -50,32 +50,36 @@ func TestExtractServerVersionFromReading(t *testing.T) {
 				DataGatherer: "ark/discovery",
 				Data:         &api.DiscoveryData{},
 			},
-			expectedVersion: "",
+			expectedSnapshot: dataupload.Snapshot{},
 		},
 		{
 			name: "happy path",
 			reading: &api.DataReading{
 				DataGatherer: "ark/discovery",
 				Data: &api.DiscoveryData{
+					ClusterID: "success-cluster-id",
 					ServerVersion: &version.Info{
 						GitVersion: "v1.21.0",
 					},
 				},
 			},
-			expectedVersion: "v1.21.0",
+			expectedSnapshot: dataupload.Snapshot{
+				ClusterID:  "success-cluster-id",
+				K8SVersion: "v1.21.0",
+			},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var k8sVersion string
-			err := extractServerVersionFromReading(test.reading, &k8sVersion)
+			var snapshot dataupload.Snapshot
+			err := extractClusterIDAndServerVersionFromReading(test.reading, &snapshot)
 			if test.expectError != "" {
 				assert.EqualError(t, err, test.expectError)
-				assert.Equal(t, "", k8sVersion)
+				assert.Equal(t, dataupload.Snapshot{}, snapshot)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, test.expectedVersion, k8sVersion)
+			assert.Equal(t, test.expectedSnapshot, snapshot)
 		})
 	}
 }
@@ -197,9 +201,7 @@ func TestExtractResourceListFromReading(t *testing.T) {
 // TestConvertDataReadings tests the convertDataReadings function.
 func TestConvertDataReadings(t *testing.T) {
 	simpleExtractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
-		"ark/discovery": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
-			return extractServerVersionFromReading(reading, &snapshot.K8SVersion)
-		},
+		"ark/discovery": extractClusterIDAndServerVersionFromReading,
 		"ark/secrets": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
 			return extractResourceListFromReading(reading, &snapshot.Secrets)
 		},
@@ -208,6 +210,7 @@ func TestConvertDataReadings(t *testing.T) {
 		{
 			DataGatherer: "ark/discovery",
 			Data: &api.DiscoveryData{
+				ClusterID: "success-cluster-id",
 				ServerVersion: &version.Info{
 					GitVersion: "v1.21.0",
 				},
@@ -278,6 +281,7 @@ func TestConvertDataReadings(t *testing.T) {
 			extractorFunctions: simpleExtractorFunctions,
 			readings:           simpleReadings,
 			expectedSnapshot: dataupload.Snapshot{
+				ClusterID:  "success-cluster-id",
 				K8SVersion: "v1.21.0",
 				Secrets: []runtime.Object{
 					&corev1.Secret{
