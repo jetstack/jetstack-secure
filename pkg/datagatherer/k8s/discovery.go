@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 )
 
@@ -32,19 +34,34 @@ func (c *ConfigDiscovery) UnmarshalYAML(unmarshal func(interface{}) error) error
 
 // NewDataGatherer constructs a new instance of the generic K8s data-gatherer for the provided
 // GroupVersionResource.
+// It gets the UID of the 'kube-system' namespace to use as the cluster ID, once at startup.
+// The UID is assumed to be stable for the lifetime of the cluster.
+// - https://github.com/kubernetes/kubernetes/issues/77487#issuecomment-489786023
 func (c *ConfigDiscovery) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	cl, err := NewDiscoveryClient(c.KubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
-
-	return &DataGathererDiscovery{cl: cl}, nil
+	cs, err := NewClientSet(c.KubeConfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("while creating new clientset: %s", err)
+	}
+	kubesystemNS, err := cs.CoreV1().Namespaces().Get(ctx, "kube-system", metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("while getting the kube-system namespace: %s", err)
+	}
+	return &DataGathererDiscovery{
+		cl:        cl,
+		clusterID: string(kubesystemNS.UID),
+	}, nil
 }
 
 // DataGathererDiscovery stores the config for a k8s-discovery datagatherer
 type DataGathererDiscovery struct {
 	// The 'discovery' client used for fetching data.
 	cl *discovery.DiscoveryClient
+	// The cluster ID, derived from the UID of the 'kube-system' namespace.
+	clusterID string
 }
 
 func (g *DataGathererDiscovery) Run(ctx context.Context) error {
@@ -63,11 +80,9 @@ func (g *DataGathererDiscovery) Fetch() (interface{}, int, error) {
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to get server version: %v", err)
 	}
-
-	response := map[string]interface{}{
-		// data has type Info: https://godoc.org/k8s.io/apimachinery/pkg/version#Info
-		"server_version": data,
+	response := &api.DiscoveryData{
+		ClusterID:     g.clusterID,
+		ServerVersion: data,
 	}
-
-	return response, len(response), nil
+	return response, 1, nil
 }

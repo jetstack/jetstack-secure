@@ -7,6 +7,7 @@ import (
 
 	"github.com/jetstack/venafi-connection-lib/http_client"
 	"github.com/stretchr/testify/require"
+	k8sversion "k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
@@ -38,7 +39,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 		c, err := client.NewCyberArk(httpClient)
 		require.NoError(t, err)
 
-		var readings []*api.DataReading
+		readings := fakeReadings()
 		err = c.PostDataReadingsWithOptions(ctx, readings, client.Options{})
 		require.NoError(t, err)
 	})
@@ -67,8 +68,52 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 			}
 			require.NoError(t, err)
 		}
-		var readings []*api.DataReading
+		readings := fakeReadings()
 		err = c.PostDataReadingsWithOptions(ctx, readings, client.Options{})
 		require.NoError(t, err)
 	})
+}
+
+// defaultDynamicDatagathererNames is the list of dynamic datagatherers that
+// are included in the defaultExtractorFunctions map in client_cyberark.go.
+// This is used by fakeReadings to generate empty readings for all the
+// dynamic datagatherers.
+var defaultDynamicDatagathererNames = []string{
+	"ark/secrets",
+	"ark/serviceaccounts",
+	"ark/roles",
+	"ark/clusterroles",
+	"ark/rolebindings",
+	"ark/clusterrolebindings",
+	"ark/jobs",
+	"ark/cronjobs",
+	"ark/deployments",
+	"ark/statefulsets",
+	"ark/daemonsets",
+	"ark/pods",
+}
+
+// fakeReadings returns a set of fake readings that includes a discovery reading
+// and empty readings for all the default dynamic datagatherers.
+func fakeReadings() []*api.DataReading {
+	readings := make([]*api.DataReading, len(defaultDynamicDatagathererNames))
+
+	for i, name := range defaultDynamicDatagathererNames {
+		readings[i] = &api.DataReading{
+			DataGatherer: name,
+			Data:         &api.DynamicData{},
+		}
+	}
+
+	return append([]*api.DataReading{
+		{
+			DataGatherer: "ark/discovery",
+			Data: &api.DiscoveryData{
+				ClusterID: "success-cluster-id",
+				ServerVersion: &k8sversion.Info{
+					GitVersion: "v1.21.0",
+				},
+			},
+		},
+	}, readings...)
 }

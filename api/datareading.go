@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"time"
+
+	"k8s.io/apimachinery/pkg/version"
 )
 
 // DataReadingsPost is the payload in the upload request.
@@ -47,4 +49,24 @@ func (v GatheredResource) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(data)
+}
+
+// DynamicData is the DataReading.Data returned by the k8s.DataGathererDynamic
+// gatherer
+type DynamicData struct {
+	// Items is a list of GatheredResource
+	Items []*GatheredResource `json:"items"`
+}
+
+// DiscoveryData is the DataReading.Data returned by the k8s.ConfigDiscovery
+// gatherer
+type DiscoveryData struct {
+	// ClusterID is the unique ID of the Kubernetes cluster which this snapshot was taken from.
+	// This is sourced from the kube-system namespace UID,
+	// which is assumed to be stable for the lifetime of the cluster.
+	// - https://github.com/kubernetes/kubernetes/issues/77487#issuecomment-489786023
+	ClusterID string `json:"cluster_id"`
+	// ServerVersion is the version information of the k8s apiserver
+	// See https://godoc.org/k8s.io/apimachinery/pkg/version#Info
+	ServerVersion *version.Info `json:"server_version"`
 }

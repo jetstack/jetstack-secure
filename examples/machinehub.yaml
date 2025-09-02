@@ -5,8 +5,126 @@
 #  export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain
 #  export ARK_USERNAME=       # your CyberArk username
 #  export ARK_SECRET=         # your CyberArk password
+#
+#  OPTIONAL: the URL for the CyberArk Discovery API if not using the production environment
+#  # export ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/api/v2
+#
 #  go run . agent --one-shot --machine-hub -v 6 --agent-config-file ./examples/machinehub.yaml
 
 data-gatherers:
-  - kind: "dummy"
-    name: "dummy"
+# Gather Kubernetes API server version information
+- name: ark/discovery
+  kind: k8s-discovery
+
+# Gather Kubernetes secrets, excluding specific types
+- name: ark/secrets
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      version: v1
+      resource: secrets
+    field-selectors:
+    - type!=kubernetes.io/service-account-token
+    - type!=kubernetes.io/dockercfg
+    - type!=kubernetes.io/dockerconfigjson
+    - type!=kubernetes.io/basic-auth
+    - type!=kubernetes.io/ssh-auth
+    - type!=bootstrap.kubernetes.io/token
+    - type!=helm.sh/release.v1
+
+# Gather Kubernetes service accounts
+- name: ark/serviceaccounts
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      resource: serviceaccounts
+      version: v1
+
+# Gather Kubernetes roles
+- name: ark/roles
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: roles
+
+# Gather Kubernetes cluster roles
+- name: ark/clusterroles
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: clusterroles
+
+# Gather Kubernetes role bindings
+- name: ark/rolebindings
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: rolebindings
+
+# Gather Kubernetes cluster role bindings
+- name: ark/clusterrolebindings
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      version: v1
+      group: rbac.authorization.k8s.io
+      resource: clusterrolebindings
+
+# Gather Kubernetes jobs
+- name: ark/jobs
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      version: v1
+      group: batch
+      resource: jobs
+
+# Gather Kubernetes cron jobs
+- name: ark/cronjobs
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      version: v1
+      group: batch
+      resource: cronjobs
+
+# Gather Kubernetes deployments
+- name: ark/deployments
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      version: v1
+      group: apps
+      resource: deployments
+
+# Gather Kubernetes stateful sets
+- name: ark/statefulsets
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      version: v1
+      group: apps
+      resource: statefulsets
+
+# Gather Kubernetes daemon sets
+- name: ark/daemonsets
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      version: v1
+      group: apps
+      resource: daemonsets
+
+# Gather Kubernetes pods
+- name: ark/pods
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      version: v1
+      resource: pods
