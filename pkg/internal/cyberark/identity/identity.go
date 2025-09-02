@@ -9,9 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
-	"time"
 
-	"github.com/cenkalti/backoff/v5"
 	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/pkg/logs"
@@ -209,25 +207,17 @@ func (c *Client) LoginUsernamePassword(ctx context.Context, username string, pas
 		}
 	}()
 
-	operation := func() (any, error) {
-		advanceRequestBody, err := c.doStartAuthentication(ctx, username)
-		if err != nil {
-			return struct{}{}, err
-		}
-
-		// NB: We explicitly pass advanceRequestBody by value here so that when we add the password
-		// in doAdvanceAuthentication we don't create a copy of the password slice elsewhere.
-		err = c.doAdvanceAuthentication(ctx, username, &password, advanceRequestBody)
-		if err != nil {
-			return struct{}{}, err
-		}
-
-		return struct{}{}, nil
+	advanceRequestBody, err := c.doStartAuthentication(ctx, username)
+	if err != nil {
+		return err
 	}
 
-	backoffPolicy := backoff.NewConstantBackOff(10 * time.Second)
-
-	_, err := backoff.Retry(ctx, operation, backoff.WithBackOff(backoffPolicy))
+	// NB: We explicitly pass advanceRequestBody by value here so that when we add the password
+	// in doAdvanceAuthentication we don't create a copy of the password slice elsewhere.
+	err = c.doAdvanceAuthentication(ctx, username, &password, advanceRequestBody)
+	if err != nil {
+		return err
+	}
 
 	return err
 }
@@ -281,8 +271,7 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 		}
 
 		// If we got a 4xx error, we shouldn't retry
-		return response, backoff.Permanent(err)
-
+		return response, err
 	}
 
 	startAuthResponse := startAuthenticationResponseBody{}
@@ -354,19 +343,19 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 // and receiving a token in response.
 func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, password *[]byte, requestBody advanceAuthenticationRequestBody) error {
 	if password == nil {
-		return backoff.Permanent(fmt.Errorf("password must not be nil; this is a programming error"))
+		return fmt.Errorf("password must not be nil; this is a programming error")
 	}
 
 	requestBody.Answer = string(*password)
 
 	bodyJSON, err := json.Marshal(requestBody)
 	if err != nil {
-		return backoff.Permanent(fmt.Errorf("failed to marshal JSON for request to AdvanceAuthentication endpoint: %s", err))
+		return fmt.Errorf("failed to marshal JSON for request to AdvanceAuthentication endpoint: %s", err)
 	}
 
 	endpoint, err := url.JoinPath(c.baseURL, "Security", "AdvanceAuthentication")
 	if err != nil {
-		return backoff.Permanent(fmt.Errorf("failed to create URL for request to CyberArk Identity AdvanceAuthentication: %s", err))
+		return fmt.Errorf("failed to create URL for request to CyberArk Identity AdvanceAuthentication: %s", err)
 	}
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(bodyJSON))
@@ -386,13 +375,7 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 	// Important: Even login failures can produce a 200 status code, so this
 	// check won't catch all failures
 	if httpResponse.StatusCode != http.StatusOK {
-		err := fmt.Errorf("got unexpected status code %s from request to advance authentication in CyberArk Identity API", httpResponse.Status)
-		if httpResponse.StatusCode >= 500 || httpResponse.StatusCode < 400 {
-			return err
-		}
-
-		// If we got a 4xx error, we shouldn't retry
-		return backoff.Permanent(err)
+		return fmt.Errorf("got unexpected status code %s from request to advance authentication in CyberArk Identity API", httpResponse.Status)
 	}
 
 	advanceAuthResponse := advanceAuthenticationResponseBody{}
@@ -413,7 +396,7 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 	if advanceAuthResponse.Result.Summary != SummaryLoginSuccess {
 		// IF MFA was enabled and we got here, there's probably nothing to be gained from a retry
 		// and the best thing to do is fail now so the user can fix MFA settings.
-		return backoff.Permanent(fmt.Errorf("got a %s response from AdvanceAuthentication; this implies that the user account %s requires MFA, which is not supported. Try unlocking MFA for this user", advanceAuthResponse.Result.Summary, username))
+		return fmt.Errorf("got a %s response from AdvanceAuthentication; this implies that the user account %s requires MFA, which is not supported. Try unlocking MFA for this user", advanceAuthResponse.Result.Summary, username)
 	}
 
 	klog.FromContext(ctx).Info("successfully completed AdvanceAuthentication request to CyberArk Identity; login complete", "username", username)
