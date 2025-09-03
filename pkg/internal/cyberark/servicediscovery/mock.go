@@ -23,7 +23,8 @@ const (
 	MockDiscoverySubdomain = "venafi-test"
 
 	mockIdentityAPIURL         = "https://ajp5871.id.integration-cyberark.cloud"
-	mockDiscoveryContextAPIURL = "https://venafi-test.inventory.integration-cyberark.cloud/api"
+	mockDiscoveryContextAPIURL = "https://venafi-test.inventory.integration-cyberark.cloud/"
+	prefix                     = "/api/tenant-discovery/public?bySubdomain="
 )
 
 //go:embed testdata/discovery_success.json.template
@@ -77,7 +78,7 @@ func (mds *mockDiscoveryServer) ServeHTTP(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if !strings.HasPrefix(r.URL.String(), "/services/subdomain/") {
+	if !strings.HasPrefix(r.URL.String(), prefix) {
 		// This was observed by making a request to /api/v2/services/asd
 		// Normally, we'd expect 404 Not Found but we match the observed response here
 		w.WriteHeader(http.StatusForbidden)
@@ -97,7 +98,7 @@ func (mds *mockDiscoveryServer) ServeHTTP(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	subdomain := strings.TrimPrefix(r.URL.String(), "/services/subdomain/")
+	subdomain := strings.TrimPrefix(r.URL.String(), prefix)
 
 	switch subdomain {
 	case MockDiscoverySubdomain:
@@ -105,7 +106,22 @@ func (mds *mockDiscoveryServer) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	case "no-identity":
 		// return a snippet of valid service discovery JSON, but don't include the identity service
-		_, _ = w.Write([]byte(`{"data_privacy": {"ui": "https://ui.dataprivacy.integration-cyberark.cloud/", "api": "https://us-east-1.dataprivacy.integration-cyberark.cloud/api", "bootstrap": "https://venafi-test-data_privacy.integration-cyberark.cloud", "region": "us-east-1"}}`))
+		_, _ = w.Write([]byte(`{
+			"services": [
+				{
+					"service_name": "data_privacy",
+					"region": "us-east-1",
+					"endpoints": [
+						{
+							"is_active": true,
+							"type": "main",
+							"ui": "https://ui.dataprivacy.integration-cyberark.cloud/",
+							"api": "https://us-east-1.dataprivacy.integration-cyberark.cloud/api"
+						}
+					]
+				}
+			]
+		}`))
 
 	case "bad-request":
 		// test how the client handles a random unexpected response

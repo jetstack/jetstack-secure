@@ -48,7 +48,7 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 // ARK_SUBDOMAIN should be your tenant subdomain.
 //
 // To test against a tenant on the integration platform, also set:
-// ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/api/v2
+// ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/api/tenant-discovery/public
 //
 // To enable verbose request logging:
 //
