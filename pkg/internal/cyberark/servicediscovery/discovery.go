@@ -69,9 +69,10 @@ type DiscoveryResponse struct {
 }
 
 type Service struct {
-	ServiceName string            `json:"service_name"`
-	Region      string            `json:"region"`
-	Endpoints   []ServiceEndpoint `json:"endpoints"`
+	ServiceName       string            `json:"service_name"`
+	ServiceSubdomains []string          `json:"service_subdomains"`
+	Region            string            `json:"region"`
+	Endpoints         []ServiceEndpoint `json:"endpoints"`
 }
 
 // ServiceEndpoint represents a single service endpoint returned by the CyberArk
