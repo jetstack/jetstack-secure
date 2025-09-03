@@ -1,0 +1,105 @@
+[
+    {
+        "data-gatherer": "ark/discovery",
+        "data": {
+            "cluster_id": "0e069229-d83b-4075-a4c8-95838ff5c437",
+            "server_version": {
+                "gitVersion": "v1.27.6"
+            }
+        }
+    },
+    {
+        "data-gatherer": "ark/secrets",
+        "data": {
+            "items": [
+                {
+                    "resource": {
+                        "kind": "Secret",
+                        "apiVersion": "v1",
+                        "metadata": {
+                            "name": "app-1-secret-1",
+                            "namespace": "team-1"
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "data-gatherer": "ark/pods",
+        "data": {
+            "items": [
+                {
+                    "resource": {
+                        "kind": "Pod",
+                        "apiVersion": "v1",
+                        "metadata": {
+                            "name": "app-1-pod-1",
+                            "namespace": "team-1"
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "data-gatherer": "ark/statefulsets",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/deployments",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/clusterroles",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/roles",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/clusterrolebindings",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/rolebindings",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/cronjobs",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/jobs",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/daemonsets",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/serviceaccounts",
+        "data": {
+            "items": []
+        }
+    }
+]

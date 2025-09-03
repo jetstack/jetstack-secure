@@ -3,49 +3,81 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	arktesting "github.com/jetstack/preflight/internal/cyberark/testing"
 )
 
-// TestAgentRunOneShot runs the agent in `--one-shot` mode and verifies that it exits
-// after the first data gathering iteration.
-func TestAgentRunOneShot(t *testing.T) {
+// TestOutputModes tests the different output modes of the agent command.
+// It does this by running the agent command in a subprocess with the
+// appropriate flags and configuration files.
+// It assumes that the test is being run from the "cmd" directory and that
+// the repository root is the parent directory of the current working directory.
+func TestOutputModes(t *testing.T) {
+	repoRoot := findRepoRoot(t)
+
+	t.Run("localfile", func(t *testing.T) {
+		runSubprocess(t, repoRoot, []string{
+			"--agent-config-file", filepath.Join(repoRoot, "examples/localfile/config.yaml"),
+			"--input-path", filepath.Join(repoRoot, "examples/localfile/input.json"),
+			"--output-path", "/dev/null",
+		})
+	})
+
+	t.Run("machinehub", func(t *testing.T) {
+		arktesting.SkipIfNoEnv(t)
+		runSubprocess(t, repoRoot, []string{
+			"--agent-config-file", filepath.Join(repoRoot, "examples/machinehub/config.yaml"),
+			"--input-path", filepath.Join(repoRoot, "examples/machinehub/input.json"),
+			"--machine-hub",
+		})
+	})
+}
+
+// findRepoRoot returns the absolute path to the repository root.
+// It assumes that the test is being run from the "cmd" directory.
+func findRepoRoot(t *testing.T) string {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	repoRoot, err := filepath.Abs(filepath.Join(cwd, ".."))
+	require.NoError(t, err)
+	return repoRoot
+}
+
+// runSubprocess runs the current test in a subprocess with the given args.
+// It sets the GO_CHILD environment variable to indicate to the subprocess
+// that it should run the main function instead of the test function.
+// It captures and logs the stdout and stderr of the subprocess.
+// It fails the test if the subprocess exits with a non-zero status.
+// It uses a timeout to avoid hanging indefinitely.
+func runSubprocess(t *testing.T, repoRoot string, args []string) {
 	if _, found := os.LookupEnv("GO_CHILD"); found {
-		os.Args = []string{
+		os.Args = append([]string{
 			"preflight",
 			"agent",
+			"--log-level", "6",
 			"--one-shot",
-			"--agent-config-file=testdata/agent/one-shot/success/config.yaml",
-			"--input-path=testdata/agent/one-shot/success/input.json",
-			"--output-path=/dev/null",
-			"-v=9",
-		}
+		}, args...)
 		Execute()
 		return
 	}
-	t.Log("Running child process")
-	ctx, cancel := context.WithTimeout(t.Context(), time.Second*3)
+	t.Log("Running child process", os.Args[0], "-test.run=^"+t.Name()+"$")
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second*10)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestAgentRunOneShot$")
-	var (
-		stdout bytes.Buffer
-		stderr bytes.Buffer
-	)
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^"+t.Name()+"$")
+	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	cmd.Env = append(
-		os.Environ(),
-		"GO_CHILD=true",
-	)
+	cmd.Env = append(os.Environ(), "GO_CHILD=true")
 	err := cmd.Run()
-
-	stdoutStr := stdout.String()
-	stderrStr := stderr.String()
-	t.Logf("STDOUT\n%s\n", stdoutStr)
-	t.Logf("STDERR\n%s\n", stderrStr)
-	require.NoError(t, err, context.Cause(ctx))
+	t.Logf("STDOUT\n%s\n", stdout.String())
+	t.Logf("STDERR\n%s\n", stderr.String())
+	require.NoError(t, err, fmt.Sprintf("Error: %v\nSTDERR: %s", err, stderr.String()))
 }
