@@ -22,7 +22,7 @@ import (
 // the login is successful.
 //
 // To test against a tenant on the integration platform, set:
-// ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/api/v2
+// ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/
 const (
 	subdomainFlag = "subdomain"
 	usernameFlag  = "username"
