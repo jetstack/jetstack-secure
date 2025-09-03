@@ -20,7 +20,7 @@ import (
 
 const (
 	// MockDiscoverySubdomain is the subdomain for which the MockDiscoveryServer will return a success response
-	MockDiscoverySubdomain = "tlspk-test"
+	MockDiscoverySubdomain = "tlskp-test"
 
 	mockIdentityAPIURL         = "https://ajp5871.id.integration-cyberark.cloud"
 	mockDiscoveryContextAPIURL = "https://venafi-test.inventory.integration-cyberark.cloud/"
