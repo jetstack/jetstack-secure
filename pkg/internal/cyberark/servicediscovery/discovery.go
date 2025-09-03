@@ -57,14 +57,14 @@ func New(httpClient *http.Client) *Client {
 // DiscoveryResponse represents the full JSON response returned by the CyberArk api/tenant-discovery/public API
 // The API is documented here https://ca-il-confluence.il.cyber-ark.com/spaces/EV/pages/575618345/Updated+PD+APIs+doc
 type DiscoveryResponse struct {
-	Region      string            `json:"region"`
-	DRRegion    string            `json:"dr_region"`
-	Subdomain   string            `json:"subdomain"`
-	PlatformID  string            `json:"platform_id"`
-	IdentityID  string            `json:"identity_id"`
-	DefaultURL  string            `json:"default_url"`
-	TenantFlags map[string]string `json:"tenant_flags"`
-	Services    []Service         `json:"services"`
+	Region      string                 `json:"region"`
+	DRRegion    string                 `json:"dr_region"`
+	Subdomain   string                 `json:"subdomain"`
+	PlatformID  string                 `json:"platform_id"`
+	IdentityID  string                 `json:"identity_id"`
+	DefaultURL  string                 `json:"default_url"`
+	TenantFlags map[string]interface{} `json:"tenant_flags"`
+	Services    []Service              `json:"services"`
 }
 
 type Service struct {
