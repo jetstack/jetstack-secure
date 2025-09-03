@@ -17,6 +17,7 @@ import (
 
 const (
 	successUser                   = "test@example.com"
+	failureUser                   = "test-fail@example.com"
 	successUserMultipleChallenges = "test-multiple-challenges@example.com"
 	successUserMultipleMechanisms = "test-multiple-mechanisms@example.com"
 	noUPMechanism                 = "noup@example.com"
@@ -34,6 +35,9 @@ const (
 var (
 	//go:embed testdata/start_authentication_success.json
 	startAuthenticationSuccessResponse string
+
+	//go:embed testdata/start_authentication_bad_user_session_id.json
+	startAuthenticationBadUserResponse string
 
 	//go:embed testdata/start_authentication_success_multiple_challenges.json
 	startAuthenticationSuccessMultipleChallengesResponse string
@@ -133,11 +137,6 @@ func (mis *mockIdentityServer) handleStartAuthentication(w http.ResponseWriter, 
 		return
 	}
 
-	// Important: Experimentally, the Identity server we generated the testdata from seems to accept
-	// any user and provide a success response for StartAuthentication, so filtering on the user here
-	// doesn't match the server's behavior; however, it's helpful to do so since it lets us test different
-	// error handling capabilities in the client.
-
 	switch reqBody.User {
 	case successUser:
 		w.WriteHeader(http.StatusOK)
@@ -160,9 +159,16 @@ func (mis *mockIdentityServer) handleStartAuthentication(w http.ResponseWriter, 
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(startAuthenticationFailureResponse))
 
+	case failureUser:
+		// Experimentally, the real API produces a 200 response and what looks
+		// like a success response body. but the login is rejected later by the
+		// AdvanceAuthentication stage, perhaps by virtue of the sessionID which
+		// is returned here and supplied to AdvanceAuthentication.
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(startAuthenticationBadUserResponse))
+
 	default:
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"message":"MOCK SERVER: invalid user"}`))
+		panic("programmer error: should not be reached")
 	}
 }
 
