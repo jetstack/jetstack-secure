@@ -60,6 +60,7 @@ type DiscoveryResponse struct {
 	Region      string                 `json:"region"`
 	DRRegion    string                 `json:"dr_region"`
 	Subdomain   string                 `json:"subdomain"`
+	TenantID    string                 `json:"tenant_id"`
 	PlatformID  string                 `json:"platform_id"`
 	IdentityID  string                 `json:"identity_id"`
 	DefaultURL  string                 `json:"default_url"`
