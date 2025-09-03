@@ -18,4 +18,4 @@ export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain
 export ARK_USERNAME=       # your CyberArk username
 export ARK_SECRET=         # your CyberArk password
 # OPTIONAL: the URL for the CyberArk Discovery API if not using the production environment
-export ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/api/tenant-discovery/public
+export ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/api/public/tenant-discovery

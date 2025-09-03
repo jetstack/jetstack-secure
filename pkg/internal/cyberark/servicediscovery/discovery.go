@@ -97,7 +97,7 @@ func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Servi
 	if err != nil {
 		return nil, fmt.Errorf("invalid base URL for service discovery: %w", err)
 	}
-	u.Path = path.Join(u.Path, "api/tenant-discovery/public")
+	u.Path = path.Join(u.Path, "api/public/tenant-discovery")
 	u.RawQuery = url.Values{"bySubdomain": []string{subdomain}}.Encode()
 	endpoint := u.String()
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)

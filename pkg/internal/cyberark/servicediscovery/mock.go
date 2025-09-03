@@ -20,11 +20,11 @@ import (
 
 const (
 	// MockDiscoverySubdomain is the subdomain for which the MockDiscoveryServer will return a success response
-	MockDiscoverySubdomain = "venafi-test"
+	MockDiscoverySubdomain = "tlspk-test"
 
 	mockIdentityAPIURL         = "https://ajp5871.id.integration-cyberark.cloud"
 	mockDiscoveryContextAPIURL = "https://venafi-test.inventory.integration-cyberark.cloud/"
-	prefix                     = "/api/tenant-discovery/public?bySubdomain="
+	prefix                     = "/api/public/tenant-discovery?bySubdomain="
 )
 
 //go:embed testdata/discovery_success.json.template
