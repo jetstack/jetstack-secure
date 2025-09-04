@@ -9,7 +9,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -21,7 +21,7 @@ jobs:
         run: |
           make print-go-version >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ steps.go-version.outputs.result }}
 
@@ -41,7 +41,7 @@ jobs:
       id-token: write # needed for google auth
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -53,7 +53,7 @@ jobs:
         run: |
           make print-go-version >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: ${{ steps.go-version.outputs.result }}
 
