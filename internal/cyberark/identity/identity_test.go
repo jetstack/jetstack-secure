@@ -15,8 +15,8 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
-	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
-	arktesting "github.com/jetstack/preflight/pkg/internal/cyberark/testing"
+	"github.com/jetstack/preflight/internal/cyberark/servicediscovery"
+	arktesting "github.com/jetstack/preflight/internal/cyberark/testing"
 
 	_ "k8s.io/klog/v2/ktesting/init"
 )

@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 
 	"github.com/jetstack/preflight/api"
-	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
+	"github.com/jetstack/preflight/internal/cyberark/dataupload"
 )
 
 // TestExtractServerVersionFromReading tests the extractServerVersionFromReading function.

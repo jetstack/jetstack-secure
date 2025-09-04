@@ -11,9 +11,9 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
-	"github.com/jetstack/preflight/pkg/internal/cyberark"
-	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
-	"github.com/jetstack/preflight/pkg/internal/cyberark/servicediscovery"
+	"github.com/jetstack/preflight/internal/cyberark"
+	"github.com/jetstack/preflight/internal/cyberark/dataupload"
+	"github.com/jetstack/preflight/internal/cyberark/servicediscovery"
 	"github.com/jetstack/preflight/pkg/testutil"
 	"github.com/jetstack/preflight/pkg/version"
 
@@ -53,7 +53,7 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 //
 // To enable verbose request logging:
 //
-//	go test ./pkg/internal/cyberark \
+//	go test ./internal/cyberark \
 //	  -v -count 1 -run TestCyberArkClient_PutSnapshot_RealAPI -args -testing.v 6
 func TestCyberArkClient_PutSnapshot_RealAPI(t *testing.T) {
 	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)

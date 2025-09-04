@@ -9,7 +9,7 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
-	"github.com/jetstack/preflight/pkg/internal/cyberark/dataupload"
+	"github.com/jetstack/preflight/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/pkg/version"
 
 	_ "k8s.io/klog/v2/ktesting/init"
