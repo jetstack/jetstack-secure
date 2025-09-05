@@ -30,7 +30,10 @@ type DataReading struct {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface for DataReading.
-// It handles the dynamic parsing of the Data field based on the DataGatherer.
+// The function attempts to decode the Data field into known types in a prioritized order.
+// Empty data is considered an error, because there is no way to discriminate between data types.
+// TODO(wallrj): Add a discriminator field to DataReading to avoid this complex logic.
+// E.g. "data_type": "discovery"|"dynamic"
 func (o *DataReading) UnmarshalJSON(data []byte) error {
 	var tmp struct {
 		ClusterID     string          `json:"cluster_id,omitempty"`
@@ -40,45 +43,49 @@ func (o *DataReading) UnmarshalJSON(data []byte) error {
 		SchemaVersion string          `json:"schema_version"`
 	}
 
-	d := json.NewDecoder(bytes.NewReader(data))
-	d.DisallowUnknownFields()
-
-	if err := d.Decode(&tmp); err != nil {
-		return err
+	// Decode the top-level fields of DataReading
+	if err := jsonUnmarshalStrict(data, &tmp); err != nil {
+		return fmt.Errorf("failed to parse DataReading: %s", err)
 	}
+
+	// Assign top-level fields to the DataReading object
 	o.ClusterID = tmp.ClusterID
 	o.DataGatherer = tmp.DataGatherer
 	o.Timestamp = tmp.Timestamp
 	o.SchemaVersion = tmp.SchemaVersion
 
-	{
-		var discoveryData DiscoveryData
-		d := json.NewDecoder(bytes.NewReader(tmp.Data))
-		d.DisallowUnknownFields()
-		if err := d.Decode(&discoveryData); err == nil {
-			o.Data = &discoveryData
+	// Return an error if data is empty
+	if len(tmp.Data) == 0 || bytes.Equal(tmp.Data, []byte("null")) || bytes.Equal(tmp.Data, []byte("{}")) {
+		return fmt.Errorf("failed to parse DataReading.Data for gatherer %q: empty data", o.DataGatherer)
+	}
+
+	// Define a list of decoding attempts with prioritized types
+	dataTypes := []struct {
+		target interface{}
+		assign func(interface{})
+	}{
+		{&DiscoveryData{}, func(v interface{}) { o.Data = v.(*DiscoveryData) }},
+		{&DynamicData{}, func(v interface{}) { o.Data = v.(*DynamicData) }},
+	}
+
+	// Attempt to decode the Data field into each type
+	for _, dataType := range dataTypes {
+		if err := jsonUnmarshalStrict(tmp.Data, dataType.target); err == nil {
+			dataType.assign(dataType.target)
 			return nil
 		}
 	}
-	{
-		var dynamicData DynamicData
-		d := json.NewDecoder(bytes.NewReader(tmp.Data))
-		d.DisallowUnknownFields()
-		if err := d.Decode(&dynamicData); err == nil {
-			o.Data = &dynamicData
-			return nil
-		}
-	}
-	{
-		var genericData map[string]interface{}
-		d := json.NewDecoder(bytes.NewReader(tmp.Data))
-		d.DisallowUnknownFields()
-		if err := d.Decode(&genericData); err == nil {
-			o.Data = genericData
-			return nil
-		}
-	}
-	return fmt.Errorf("failed to parse DataReading.Data for gatherer %s", o.DataGatherer)
+
+	// Return an error if no type matches
+	return fmt.Errorf("failed to parse DataReading.Data for gatherer %q: unknown type", o.DataGatherer)
+}
+
+// jsonUnmarshalStrict unmarshals JSON data into the provided interface,
+// disallowing unknown fields to ensure strict adherence to the expected structure.
+func jsonUnmarshalStrict(data []byte, v interface{}) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	return decoder.Decode(v)
 }
 
 // GatheredResource wraps the raw k8s resource that is sent to the jetstack secure backend

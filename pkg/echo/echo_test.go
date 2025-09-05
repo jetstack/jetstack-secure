@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/version"
+
 	"github.com/jetstack/preflight/api"
 )
 
@@ -34,8 +36,10 @@ func TestEchoServerRequestResponse(t *testing.T) {
 						ClusterID:    "test_suite_cluster",
 						DataGatherer: "dummy",
 						Timestamp:    api.Time{Time: time.Now()},
-						Data: map[string]string{
-							"test": "test",
+						Data: &api.DiscoveryData{
+							ServerVersion: &version.Info{
+								GitVersion: "v1.20.0",
+							},
 						},
 						SchemaVersion: "2.0.0",
 					},
