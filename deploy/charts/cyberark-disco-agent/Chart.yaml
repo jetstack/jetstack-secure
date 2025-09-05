@@ -1,0 +1,18 @@
+apiVersion: v2
+name: cyberark-disco-agent
+description: |-
+  The cyberark-disco-agent connects your Kubernetes or Openshift cluster to CyberArk Discovery and Context.
+
+maintainers:
+  - name: CyberArk
+    email: support@cyberark.com
+    url: https://cyberark.com
+
+sources:
+  - https://github.com/jetstack/jetstack-secure
+
+# These versions are meant to be overridden by `make helm-chart`. No `v` prefix
+# for the `version` because Helm doesn't support auto-determining the latest
+# version for OCI Helm charts that use a `v` prefix.
+version: 0.0.0
+appVersion: "v0.0.0"

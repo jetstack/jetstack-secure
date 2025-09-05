@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cyberark-disco-agent.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+data:
+  config.yaml: |-
+    period: {{ .Values.config.period | quote }}
+    {{- with .Values.config.excludeAnnotationKeysRegex }}
+    exclude-annotation-keys-regex:
+      {{- . | toYaml | nindent 6 }}
+    {{- end }}
+    {{- with .Values.config.excludeLabelKeysRegex }}
+    exclude-label-keys-regex:
+      {{- . | toYaml | nindent 6 }}
+    {{- end }}
+    data-gatherers:
+    - kind: k8s-discovery
+      name: ark/discovery
+    - kind: k8s-dynamic
+      name: ark/secrets
+      config:
+        resource-type:
+          version: v1
+          resource: secrets
+        field-selectors:
+        - type!=kubernetes.io/dockercfg
+        - type!=kubernetes.io/dockerconfigjson
+        - type!=bootstrap.kubernetes.io/token
+        - type!=helm.sh/release.v1
+    - kind: k8s-dynamic
+      name: ark/serviceaccounts
+      config:
+        resource-type:
+          resource: serviceaccounts
+          version: v1
+    - kind: k8s-dynamic
+      name: ark/roles
+      config:
+        resource-type:
+          version: v1
+          group: rbac.authorization.k8s.io
+          resource: roles
+    - kind: k8s-dynamic
+      name: ark/clusterroles
+      config:
+        resource-type:
+          version: v1
+          group: rbac.authorization.k8s.io
+          resource: clusterroles
+    - kind: k8s-dynamic
+      name: ark/rolebindings
+      config:
+        resource-type:
+          version: v1
+          group: rbac.authorization.k8s.io
+          resource: rolebindings
+    - kind: k8s-dynamic
+      name: ark/clusterrolebindings
+      config:
+        resource-type:
+          version: v1
+          group: rbac.authorization.k8s.io
+          resource: clusterrolebindings
+    - kind: k8s-dynamic
+      name: ark/jobs
+      config:
+        resource-type:
+          version: v1
+          group: batch
+          resource: jobs
+    - kind: k8s-dynamic
+      name: ark/cronjobs
+      config:
+        resource-type:
+          version: v1
+          group: batch
+          resource: cronjobs
+    - kind: k8s-dynamic
+      name: ark/deployments
+      config:
+        resource-type:
+          version: v1
+          group: apps
+          resource: deployments
+    - kind: k8s-dynamic
+      name: ark/statefulsets
+      config:
+        resource-type:
+          version: v1
+          group: apps
+          resource: statefulsets
+    - kind: k8s-dynamic
+      name: ark/daemonsets
+      config:
+        resource-type:
+          version: v1
+          group: apps
+          resource: daemonsets
+    - kind: k8s-dynamic
+      name: ark/pods
+      config:
+        resource-type:
+          version: v1
+          resource: pods

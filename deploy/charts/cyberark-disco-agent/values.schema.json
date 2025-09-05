@@ -1,0 +1,425 @@
+{
+  "$defs": {
+    "helm-values": {
+      "additionalProperties": false,
+      "properties": {
+        "affinity": {
+          "$ref": "#/$defs/helm-values.affinity"
+        },
+        "authentication": {
+          "$ref": "#/$defs/helm-values.authentication"
+        },
+        "config": {
+          "$ref": "#/$defs/helm-values.config"
+        },
+        "extraArgs": {
+          "$ref": "#/$defs/helm-values.extraArgs"
+        },
+        "fullnameOverride": {
+          "$ref": "#/$defs/helm-values.fullnameOverride"
+        },
+        "global": {
+          "$ref": "#/$defs/helm-values.global"
+        },
+        "http_proxy": {
+          "$ref": "#/$defs/helm-values.http_proxy"
+        },
+        "https_proxy": {
+          "$ref": "#/$defs/helm-values.https_proxy"
+        },
+        "image": {
+          "$ref": "#/$defs/helm-values.image"
+        },
+        "imagePullSecrets": {
+          "$ref": "#/$defs/helm-values.imagePullSecrets"
+        },
+        "metrics": {
+          "$ref": "#/$defs/helm-values.metrics"
+        },
+        "nameOverride": {
+          "$ref": "#/$defs/helm-values.nameOverride"
+        },
+        "no_proxy": {
+          "$ref": "#/$defs/helm-values.no_proxy"
+        },
+        "nodeSelector": {
+          "$ref": "#/$defs/helm-values.nodeSelector"
+        },
+        "podAnnotations": {
+          "$ref": "#/$defs/helm-values.podAnnotations"
+        },
+        "podDisruptionBudget": {
+          "$ref": "#/$defs/helm-values.podDisruptionBudget"
+        },
+        "podLabels": {
+          "$ref": "#/$defs/helm-values.podLabels"
+        },
+        "podSecurityContext": {
+          "$ref": "#/$defs/helm-values.podSecurityContext"
+        },
+        "pprof": {
+          "$ref": "#/$defs/helm-values.pprof"
+        },
+        "replicaCount": {
+          "$ref": "#/$defs/helm-values.replicaCount"
+        },
+        "resources": {
+          "$ref": "#/$defs/helm-values.resources"
+        },
+        "securityContext": {
+          "$ref": "#/$defs/helm-values.securityContext"
+        },
+        "serviceAccount": {
+          "$ref": "#/$defs/helm-values.serviceAccount"
+        },
+        "tolerations": {
+          "$ref": "#/$defs/helm-values.tolerations"
+        },
+        "volumeMounts": {
+          "$ref": "#/$defs/helm-values.volumeMounts"
+        },
+        "volumes": {
+          "$ref": "#/$defs/helm-values.volumes"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.affinity": {
+      "default": {},
+      "type": "object"
+    },
+    "helm-values.authentication": {
+      "additionalProperties": false,
+      "properties": {
+        "secretName": {
+          "$ref": "#/$defs/helm-values.authentication.secretName"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.authentication.secretName": {
+      "default": "agent-credentials",
+      "type": "string"
+    },
+    "helm-values.config": {
+      "additionalProperties": false,
+      "properties": {
+        "excludeAnnotationKeysRegex": {
+          "$ref": "#/$defs/helm-values.config.excludeAnnotationKeysRegex"
+        },
+        "excludeLabelKeysRegex": {
+          "$ref": "#/$defs/helm-values.config.excludeLabelKeysRegex"
+        },
+        "period": {
+          "$ref": "#/$defs/helm-values.config.period"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.config.excludeAnnotationKeysRegex": {
+      "default": [],
+      "description": "You can configure the agent to exclude some annotations or labels from being pushed . All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being pushed.\n\nDots is the only character that needs to be escaped in the regex. Use either double quotes with escaped single quotes or unquoted strings for the regex to avoid YAML parsing issues with `\\.`.\n\nExample: excludeAnnotationKeysRegex: ['^kapp\\.k14s\\.io/original.*']",
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.config.excludeLabelKeysRegex": {
+      "default": [],
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.config.period": {
+      "default": "1h0m0s",
+      "description": "Push data every hour unless changed.",
+      "type": "string"
+    },
+    "helm-values.extraArgs": {
+      "default": [],
+      "description": "extraArgs:\n- --logging-format=json\n- --log-level=6 # To enable HTTP request logging",
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.fullnameOverride": {
+      "default": "",
+      "type": "string"
+    },
+    "helm-values.global": {
+      "description": "Global values shared across all (sub)charts"
+    },
+    "helm-values.http_proxy": {
+      "description": "Configures the HTTP_PROXY environment variable where a HTTP proxy is required.",
+      "type": "string"
+    },
+    "helm-values.https_proxy": {
+      "description": "Configures the HTTPS_PROXY environment variable where a HTTP proxy is required.",
+      "type": "string"
+    },
+    "helm-values.image": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "#/$defs/helm-values.image.digest"
+        },
+        "pullPolicy": {
+          "$ref": "#/$defs/helm-values.image.pullPolicy"
+        },
+        "repository": {
+          "$ref": "#/$defs/helm-values.image.repository"
+        },
+        "tag": {
+          "$ref": "#/$defs/helm-values.image.tag"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.image.digest": {
+      "default": "",
+      "description": "The image digest",
+      "type": "string"
+    },
+    "helm-values.image.pullPolicy": {
+      "default": "IfNotPresent",
+      "description": "This sets the pull policy for images.",
+      "type": "string"
+    },
+    "helm-values.image.repository": {
+      "default": "",
+      "type": "string"
+    },
+    "helm-values.image.tag": {
+      "default": "",
+      "description": "Overrides the image tag whose default is the chart appVersion.",
+      "type": "string"
+    },
+    "helm-values.imagePullSecrets": {
+      "default": [],
+      "description": "This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/",
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.metrics": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "$ref": "#/$defs/helm-values.metrics.enabled"
+        },
+        "podmonitor": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.metrics.enabled": {
+      "default": true,
+      "description": "Enable the metrics server.\nIf false, the metrics server will be disabled and the other metrics fields below will be ignored.",
+      "type": "boolean"
+    },
+    "helm-values.metrics.podmonitor": {
+      "additionalProperties": false,
+      "properties": {
+        "annotations": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.annotations"
+        },
+        "enabled": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.enabled"
+        },
+        "endpointAdditionalProperties": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.endpointAdditionalProperties"
+        },
+        "honorLabels": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.honorLabels"
+        },
+        "interval": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.interval"
+        },
+        "labels": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.labels"
+        },
+        "namespace": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.namespace"
+        },
+        "prometheusInstance": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.prometheusInstance"
+        },
+        "scrapeTimeout": {
+          "$ref": "#/$defs/helm-values.metrics.podmonitor.scrapeTimeout"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.metrics.podmonitor.annotations": {
+      "default": {},
+      "description": "Additional annotations to add to the PodMonitor.",
+      "type": "object"
+    },
+    "helm-values.metrics.podmonitor.enabled": {
+      "default": false,
+      "description": "Create a PodMonitor to add the metrics to Prometheus, if you are using Prometheus Operator. See https://prometheus-operator.dev/docs/operator/api/#monitoring.coreos.com/v1.PodMonitor",
+      "type": "boolean"
+    },
+    "helm-values.metrics.podmonitor.endpointAdditionalProperties": {
+      "default": {},
+      "description": "EndpointAdditionalProperties allows setting additional properties on the endpoint such as relabelings, metricRelabelings etc.\n\nFor example:\nendpointAdditionalProperties:\n relabelings:\n - action: replace\n   sourceLabels:\n   - __meta_kubernetes_pod_node_name\n   targetLabel: instance",
+      "type": "object"
+    },
+    "helm-values.metrics.podmonitor.honorLabels": {
+      "default": false,
+      "description": "Keep labels from scraped data, overriding server-side labels.",
+      "type": "boolean"
+    },
+    "helm-values.metrics.podmonitor.interval": {
+      "default": "60s",
+      "description": "The interval to scrape metrics.",
+      "type": "string"
+    },
+    "helm-values.metrics.podmonitor.labels": {
+      "default": {},
+      "description": "Additional labels to add to the PodMonitor.",
+      "type": "object"
+    },
+    "helm-values.metrics.podmonitor.namespace": {
+      "description": "The namespace that the pod monitor should live in.\nDefaults to the cyberark-disco-agent namespace.",
+      "type": "string"
+    },
+    "helm-values.metrics.podmonitor.prometheusInstance": {
+      "default": "default",
+      "description": "Specifies the `prometheus` label on the created PodMonitor. This is used when different Prometheus instances have label selectors matching different PodMonitors.",
+      "type": "string"
+    },
+    "helm-values.metrics.podmonitor.scrapeTimeout": {
+      "default": "30s",
+      "description": "The timeout before a metrics scrape fails.",
+      "type": "string"
+    },
+    "helm-values.nameOverride": {
+      "default": "",
+      "description": "This is to override the chart name.",
+      "type": "string"
+    },
+    "helm-values.no_proxy": {
+      "description": "Configures the NO_PROXY environment variable where a HTTP proxy is required, but certain domains should be excluded.",
+      "type": "string"
+    },
+    "helm-values.nodeSelector": {
+      "default": {},
+      "type": "object"
+    },
+    "helm-values.podAnnotations": {
+      "default": {},
+      "description": "This is for setting Kubernetes Annotations to a Pod. For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/",
+      "type": "object"
+    },
+    "helm-values.podDisruptionBudget": {
+      "default": {
+        "enabled": false
+      },
+      "description": "Configure a PodDisruptionBudget for the agent's Deployment. If running with multiple replicas, consider setting podDisruptionBudget.enabled to true.",
+      "type": "object"
+    },
+    "helm-values.podLabels": {
+      "default": {},
+      "description": "This is for setting Kubernetes Labels to a Pod.\nFor more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/",
+      "type": "object"
+    },
+    "helm-values.podSecurityContext": {
+      "default": {},
+      "type": "object"
+    },
+    "helm-values.pprof": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "$ref": "#/$defs/helm-values.pprof.enabled"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.pprof.enabled": {
+      "default": false,
+      "description": "Enable profiling with the pprof endpoint",
+      "type": "boolean"
+    },
+    "helm-values.replicaCount": {
+      "default": 1,
+      "description": "This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/",
+      "type": "number"
+    },
+    "helm-values.resources": {
+      "default": {},
+      "type": "object"
+    },
+    "helm-values.securityContext": {
+      "default": {
+        "allowPrivilegeEscalation": false,
+        "capabilities": {
+          "drop": [
+            "ALL"
+          ]
+        },
+        "readOnlyRootFilesystem": true,
+        "runAsNonRoot": true,
+        "seccompProfile": {
+          "type": "RuntimeDefault"
+        }
+      },
+      "description": "Add Container specific SecurityContext settings to the container. Takes precedence over `podSecurityContext` when set. See https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container",
+      "type": "object"
+    },
+    "helm-values.serviceAccount": {
+      "additionalProperties": false,
+      "properties": {
+        "annotations": {
+          "$ref": "#/$defs/helm-values.serviceAccount.annotations"
+        },
+        "automount": {
+          "$ref": "#/$defs/helm-values.serviceAccount.automount"
+        },
+        "create": {
+          "$ref": "#/$defs/helm-values.serviceAccount.create"
+        },
+        "name": {
+          "$ref": "#/$defs/helm-values.serviceAccount.name"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.serviceAccount.annotations": {
+      "default": {},
+      "description": "Annotations to add to the service account",
+      "type": "object"
+    },
+    "helm-values.serviceAccount.automount": {
+      "default": true,
+      "description": "Automatically mount a ServiceAccount's API credentials?",
+      "type": "boolean"
+    },
+    "helm-values.serviceAccount.create": {
+      "default": true,
+      "description": "Specifies whether a service account should be created",
+      "type": "boolean"
+    },
+    "helm-values.serviceAccount.name": {
+      "default": "",
+      "description": "The name of the service account to use.\nIf not set and create is true, a name is generated using the fullname template",
+      "type": "string"
+    },
+    "helm-values.tolerations": {
+      "default": [],
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.volumeMounts": {
+      "default": [],
+      "description": "Additional volumeMounts on the output Deployment definition.",
+      "items": {},
+      "type": "array"
+    },
+    "helm-values.volumes": {
+      "default": [],
+      "description": "Additional volumes on the output Deployment definition.",
+      "items": {},
+      "type": "array"
+    }
+  },
+  "$ref": "#/$defs/helm-values",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
