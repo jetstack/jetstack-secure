@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cyberark-disco-agent.fullname" . }}
+  labels:
+    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cyberark-disco-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "cyberark-disco-agent.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cyberark-disco-agent.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: agent
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}{{- with .Values.image.digest }}@{{ . }}{{- end }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_UID
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.uid
+          - name: POD_NODE
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          - name: ARK_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.authentication.secretName }}
+                key: ARK_USERNAME
+          - name: ARK_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.authentication.secretName }}
+                key: ARK_SECRET
+          - name: ARK_SUBDOMAIN
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.authentication.secretName }}
+                key: ARK_SUBDOMAIN
+          - name: ARK_DISCOVERY_API
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.authentication.secretName }}
+                key: ARK_DISCOVERY_API
+                optional: true
+          {{- with .Values.http_proxy }}
+          - name: HTTP_PROXY
+            value: {{ . }}
+          {{- end }}
+          {{- with .Values.https_proxy }}
+          - name: HTTPS_PROXY
+            value: {{ . }}
+          {{- end }}
+          {{- with .Values.no_proxy }}
+          - name: NO_PROXY
+            value: {{ . }}
+          {{- end }}
+          args:
+            - "agent"
+            - "-c"
+            - "/etc/cyberark-disco-agent/config.yaml"
+            - --machine-hub
+            - --logging-format=json
+            {{- if .Values.metrics.enabled }}
+            - --enable-metrics
+            {{- end }}
+            {{- if .Values.pprof.enabled }}
+            - --enable-pprof
+            {{- end }}
+            {{- range .Values.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/cyberark-disco-agent"
+              readOnly: true
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: agent-api
+              containerPort: 8081
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "cyberark-disco-agent.fullname" . }}-config
+            optional: false
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

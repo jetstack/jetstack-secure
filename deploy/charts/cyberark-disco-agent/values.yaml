@@ -1,0 +1,197 @@
+# Default values for cyberark-disco-agent.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+replicaCount: 1
+
+# This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
+image:
+  repository: ""
+  # This sets the pull policy for images.
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+  # The image digest
+  digest: ""
+
+# This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+imagePullSecrets: []
+# This is to override the chart name.
+nameOverride: ""
+fullnameOverride: ""
+
+# This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# This is for setting Kubernetes Annotations to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+podAnnotations: {}
+# This is for setting Kubernetes Labels to a Pod.
+# For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# Add Container specific SecurityContext settings to the container. Takes
+# precedence over `podSecurityContext` when set. See
+# https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container
+# +docs:property
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  seccompProfile: { type: RuntimeDefault }
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Configures the HTTP_PROXY environment variable where a HTTP proxy is required.
+# +docs:property
+# http_proxy: "http://proxy:8080"
+
+# Configures the HTTPS_PROXY environment variable where a HTTP proxy is required.
+# +docs:property
+# https_proxy: "https://proxy:8080"
+
+# Configures the NO_PROXY environment variable where a HTTP proxy is required,
+# but certain domains should be excluded.
+# +docs:property
+# no_proxy: 127.0.0.1,localhost
+
+# Configure a PodDisruptionBudget for the agent's Deployment. If running with multiple
+# replicas, consider setting podDisruptionBudget.enabled to true.
+# +docs:property
+podDisruptionBudget:
+  # Enable or disable the PodDisruptionBudget resource, which helps prevent downtime
+  # during voluntary disruptions such as during a Node upgrade.
+  enabled: false
+
+  # Configure the minimum available pods for disruptions. Can either be set to
+  # an integer (e.g. 1) or a percentage value (e.g. 25%).
+  # Cannot be used if `maxUnavailable` is set.
+  # +docs:property
+  # minAvailable: 1
+
+  # Configure the maximum unavailable pods for disruptions. Can either be set to
+  # an integer (e.g. 1) or a percentage value (e.g. 25%).
+  # Cannot be used if `minAvailable` is set.
+  # +docs:property
+  # maxUnavailable: 1
+
+# Configuration for the agent
+config:
+  # Push data every hour unless changed.
+  period: "1h0m0s"
+
+  # You can configure the agent to exclude some annotations or
+  # labels from being pushed . All Kubernetes objects
+  # are affected. The objects are still pushed, but the specified annotations
+  # and labels are removed before being pushed.
+  #
+  # Dots is the only character that needs to be escaped in the regex. Use either
+  # double quotes with escaped single quotes or unquoted strings for the regex
+  # to avoid YAML parsing issues with `\.`.
+  #
+  # Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
+  excludeAnnotationKeysRegex: []
+  excludeLabelKeysRegex: []
+
+authentication:
+  secretName: agent-credentials
+
+#  extraArgs:
+#  - --logging-format=json
+#  - --log-level=6 # To enable HTTP request logging
+extraArgs: []
+
+pprof:
+  # Enable profiling with the pprof endpoint
+  enabled: false
+
+metrics:
+  # Enable the metrics server.
+  # If false, the metrics server will be disabled and the other metrics fields below will be ignored.
+  enabled: true
+  podmonitor:
+    # Create a PodMonitor to add the metrics to Prometheus, if you are using Prometheus Operator.
+    # See https://prometheus-operator.dev/docs/operator/api/#monitoring.coreos.com/v1.PodMonitor
+    enabled: false
+
+    # The namespace that the pod monitor should live in.
+    # Defaults to the cyberark-disco-agent namespace.
+    # +docs:property
+    # namespace: cyberark
+
+    # Specifies the `prometheus` label on the created PodMonitor.
+    # This is used when different Prometheus instances have label selectors
+    # matching different PodMonitors.
+    prometheusInstance: default
+
+    # The interval to scrape metrics.
+    interval: 60s
+
+    # The timeout before a metrics scrape fails.
+    scrapeTimeout: 30s
+
+    # Additional labels to add to the PodMonitor.
+    labels: {}
+
+    # Additional annotations to add to the PodMonitor.
+    annotations: {}
+
+    # Keep labels from scraped data, overriding server-side labels.
+    honorLabels: false
+
+    # EndpointAdditionalProperties allows setting additional properties on the endpoint such as relabelings, metricRelabelings etc.
+    #
+    # For example:
+    #  endpointAdditionalProperties:
+    #   relabelings:
+    #   - action: replace
+    #     sourceLabels:
+    #     - __meta_kubernetes_pod_node_name
+    #     targetLabel: instance
+    endpointAdditionalProperties: {}
+

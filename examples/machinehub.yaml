@@ -24,11 +24,8 @@ data-gatherers:
       version: v1
       resource: secrets
     field-selectors:
-    - type!=kubernetes.io/service-account-token
     - type!=kubernetes.io/dockercfg
     - type!=kubernetes.io/dockerconfigjson
-    - type!=kubernetes.io/basic-auth
-    - type!=kubernetes.io/ssh-auth
     - type!=bootstrap.kubernetes.io/token
     - type!=helm.sh/release.v1
 

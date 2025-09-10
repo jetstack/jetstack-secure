@@ -46,12 +46,15 @@ helm_labels_template_name := preflight.labels
 # locally. We provide the targets in this repo instead, and manually maintain the workflow.
 govulncheck_skip := true
 
+helm_image_name ?= $(oci_preflight_image_name)
+helm_image_tag ?= $(oci_preflight_image_tag)
+
 # Allows us to replace the Helm values.yaml's image.repository and image.tag
 # with the right values.
 define helm_values_mutation_function
 $(YQ) \
-	'( .image.repository = "$(oci_preflight_image_name)" ) | \
-	( .image.tag = "$(oci_preflight_image_tag)" )' \
+	'( .image.repository = "$(helm_image_name)" ) | \
+	( .image.tag = "$(helm_image_tag)" )' \
 	$1 --inplace
 endef
 
@@ -59,3 +62,4 @@ golangci_lint_config := .golangci.yaml
 go_header_file := /dev/null
 
 include make/extra_tools.mk
+include make/ark/00_mod.mk
