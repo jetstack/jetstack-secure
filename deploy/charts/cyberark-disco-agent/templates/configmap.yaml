@@ -30,6 +30,8 @@ data:
         - type!=kubernetes.io/dockerconfigjson
         - type!=bootstrap.kubernetes.io/token
         - type!=helm.sh/release.v1
+        filters:
+        - ExcludeTLSSecretsWithoutClientCert
     - kind: k8s-dynamic
       name: ark/serviceaccounts
       config:

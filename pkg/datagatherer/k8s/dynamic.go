@@ -43,6 +43,11 @@ type ConfigDynamic struct {
 	IncludeNamespaces []string `yaml:"include-namespaces"`
 	// FieldSelectors is a list of field selectors to use when listing this resource
 	FieldSelectors []string `yaml:"field-selectors"`
+	// Filters is a list of filter functions to apply to the resources before adding them to the cache.
+	// Each filter function should return true if the resource should be excluded, false otherwise.
+	// Available filter functions:
+	// - ExcludeTLSSecretsWithoutClientCert: ignores all TLS secrets that do not contain client certificates
+	Filters []cacheFilterFunction `yaml:"filters"`
 }
 
 // UnmarshalYAML unmarshals the ConfigDynamic resolving GroupVersionResource.
@@ -57,6 +62,7 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		ExcludeNamespaces []string `yaml:"exclude-namespaces"`
 		IncludeNamespaces []string `yaml:"include-namespaces"`
 		FieldSelectors    []string `yaml:"field-selectors"`
+		Filters           []string `yaml:"filters"`
 	}{}
 	err := unmarshal(&aux)
 	if err != nil {
@@ -70,6 +76,15 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	c.ExcludeNamespaces = aux.ExcludeNamespaces
 	c.IncludeNamespaces = aux.IncludeNamespaces
 	c.FieldSelectors = aux.FieldSelectors
+
+	for _, filterName := range aux.Filters {
+		switch filterName {
+		case "ExcludeTLSSecretsWithoutClientCert":
+			c.Filters = append(c.Filters, excludeTLSSecretsWithoutClientCert)
+		default:
+			return fmt.Errorf("filters contains an unknown filter function: %s. Must be one of: ExcludeTLSSecretsWithoutClientCert", filterName)
+		}
+	}
 
 	return nil
 }
@@ -107,6 +122,9 @@ type sharedInformerFunc func(informers.SharedInformerFactory) k8scache.SharedInd
 
 // kubernetesNativeResources map of the native kubernetes resources, linking each resource to a sharedInformerFunc for that resource.
 // secrets are still treated as unstructured rather than corev1.Secret, for a faster unmarshaling
+//
+// TODO(wallrj): What does "faster unmarshaling" mean in this context? If
+// unstructured is faster then why not use it for all resources?
 var kubernetesNativeResources = map[schema.GroupVersionResource]sharedInformerFunc{
 	corev1.SchemeGroupVersion.WithResource("pods"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
 		return sharedFactory.Core().V1().Pods().Informer()
@@ -144,6 +162,15 @@ var kubernetesNativeResources = map[schema.GroupVersionResource]sharedInformerFu
 }
 
 // NewDataGatherer constructs a new instance of the generic K8s data-gatherer for the provided
+// configuration.
+//
+// If the GroupVersionResource is a native Kubernetes resource, the data
+// gatherer will use a typed clientset and SharedInformerFactory, otherwise it
+// will use a dynamic client and dynamic informer factory, for CRDs like those
+// of cert-manager.
+//
+// Secret is a special case, it is a native resource but it will be treated as unstructured
+// rather than corev1.Secret, for "faster unmarshaling".
 func (c *ConfigDynamic) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	if isNativeResource(c.GroupVersionResource) {
 		clientset, err := NewClientSet(c.KubeConfigPath)
@@ -218,7 +245,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 
 	registration, err := newDataGatherer.informer.AddEventHandlerWithOptions(k8scache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			onAdd(log, obj, dgCache)
+			onAdd(log, obj, dgCache, c.Filters...)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			onUpdate(log, oldObj, newObj, dgCache)

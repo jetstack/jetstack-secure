@@ -106,3 +106,26 @@ when listing Secrets.
     - type!=bootstrap.kubernetes.io/token
     - type!=helm.sh/release.v1
 ```
+
+## Filters
+
+You can use filters to drop certain resources based on custom logic.
+For example, you can drop TLS secrets that do not contain any client certificates using the `ExcludeTLSSecretsWithoutClientCert` filter, as shown below:
+
+```yaml
+- kind: "k8s-dynamic"
+  name: "k8s/secrets"
+  config:
+    resource-type:
+      version: v1
+      resource: secrets
+    filters:
+    - ExcludeTLSSecretsWithoutClientCert
+```
+
+The available filters are:
+* `ExcludeTLSSecretsWithoutClientCert`: Drops TLS secrets that do not contain any client certificates.
+
+If you find that the filters are not having the desired effect, you can enable
+debug logging by setting the log-level to `debug`. This will log info about why
+certain resources are not being gathered.

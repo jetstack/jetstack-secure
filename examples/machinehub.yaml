@@ -28,6 +28,8 @@ data-gatherers:
     - type!=kubernetes.io/dockerconfigjson
     - type!=bootstrap.kubernetes.io/token
     - type!=helm.sh/release.v1
+    filters:
+    - ExcludeTLSSecretsWithoutClientCert
 
 # Gather Kubernetes service accounts
 - name: ark/serviceaccounts

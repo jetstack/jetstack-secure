@@ -1,8 +1,16 @@
 package k8s
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"math/big"
 	"reflect"
 	"regexp"
 	"sort"
@@ -24,6 +32,8 @@ import (
 	"k8s.io/client-go/informers"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/api"
 )
@@ -217,6 +227,8 @@ include-namespaces:
 - default
 field-selectors:
 - type!=kubernetes.io/service-account-token
+filters:
+- ExcludeTLSSecretsWithoutClientCert
 `
 
 	expectedGVR := schema.GroupVersionResource{
@@ -259,6 +271,9 @@ field-selectors:
 	if got, want := cfg.FieldSelectors, expectedFieldSelectors; !reflect.DeepEqual(got, want) {
 		t.Errorf("FieldSelectors does not match: got=%+v want=%+v", got, want)
 	}
+	// Can't compare functions, so just check that one filter was loaded.
+	// See https://go.dev/ref/spec#Comparison_operators
+	assert.Equal(t, 1, len(cfg.Filters), "unexpected number of filters")
 }
 
 func TestConfigDynamicValidate(t *testing.T) {
@@ -366,6 +381,10 @@ func init() {
 }
 
 func TestDynamicGatherer_Fetch(t *testing.T) {
+	clientCertificateChain := sampleCertificateChain(t, x509.ExtKeyUsageClientAuth)
+	nonClientCertificateChain := sampleCertificateChain(t, x509.ExtKeyUsageServerAuth)
+	peerCertificateChain := sampleCertificateChain(t, x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth)
+
 	// start a k8s client
 	// init the datagatherer's informer with the client
 	// add/delete resources watched by the data gatherer
@@ -632,12 +651,64 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				map[string]interface{}{"prod": "true"},
 			)}},
 		},
+		"ignore-tls-secrets-containing-non-client-certificates": {
+			// Demonstrates the ExcludeTLSSecretsWithoutClientCert filter
+			// function, which is used to exclude TLS secrets that do not contain
+			// client certificates. Client certificates are identified by having
+			// the "ExtKeyUsageClientAuth" Extended Key Usage (EKU) bit set.
+			//
+			// In this test case, one secret contains a client certificate and
+			// should be included in the gathered results, while another secret
+			// does not contain a client certificate and should be excluded.
+			//
+			// A selection of other edge cases are also included, such as a secret
+			// with a certificate that has both client and server EKU bits set,
+			// as well as secrets with invalid base64 and invalid PEM data.
+			//
+			// The expected result is that only the secrets with the valid client
+			// certificates are included in the gathered resources.
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+				Filters:              []cacheFilterFunction{excludeTLSSecretsWithoutClientCert},
+			},
+			addObjects: []runtime.Object{
+				getSecret("client", "ns1", map[string]interface{}{
+					"tls.crt": clientCertificateChain,
+				}, true, true),
+				getSecret("server", "ns2", map[string]interface{}{
+					"tls.crt": nonClientCertificateChain,
+				}, true, true),
+				getSecret("peer", "ns3", map[string]interface{}{
+					"tls.crt": peerCertificateChain,
+				}, true, true),
+				getSecret("invalid-base64", "ns4", map[string]interface{}{
+					"tls.crt": "invalid-base64",
+				}, true, true),
+				getSecret("invalid-pem", "ns5", map[string]interface{}{
+					"tls.crt": "DEADBEEF",
+				}, true, true),
+			},
+			expected: []*api.GatheredResource{
+				{
+					Resource: getSecret("client", "ns1", map[string]interface{}{
+						"tls.crt": clientCertificateChain,
+					}, true, false),
+				},
+				{
+					Resource: getSecret("peer", "ns3", map[string]interface{}{
+						"tls.crt": peerCertificateChain,
+					}, true, false),
+				},
+			},
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
+			log := ktesting.NewLogger(t, ktesting.DefaultConfig)
+			ctx := klog.NewContext(t.Context(), log)
 			var wg sync.WaitGroup
-			ctx := t.Context()
 			gvrToListKind := map[schema.GroupVersionResource]string{
 				{Group: "foobar", Version: "v1", Resource: "foos"}:      "UnstructuredList",
 				{Group: "apps", Version: "v1", Resource: "deployments"}: "UnstructuredList",
@@ -1263,4 +1334,180 @@ func toRegexps(keys []string) []*regexp.Regexp {
 		regexps = append(regexps, regexp.MustCompile(key))
 	}
 	return regexps
+}
+
+func TestExcludeTLSSecretsWithoutClientCert(t *testing.T) {
+	type testCase struct {
+		name    string
+		secret  interface{}
+		exclude bool
+	}
+
+	tests := []testCase{
+		{
+			name:    "TLS secret with client cert",
+			secret:  newTLSSecret("tls-secret-with-client", sampleCertificateChain(t, x509.ExtKeyUsageClientAuth)),
+			exclude: false,
+		},
+		{
+			name:    "TLS secret without client cert",
+			secret:  newTLSSecret("tls-secret-without-client", sampleCertificateChain(t, x509.ExtKeyUsageServerAuth)),
+			exclude: true,
+		},
+		{
+			name: "Non-unstructured",
+			secret: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "non-unstructured-secret",
+					Namespace: "default",
+				},
+			},
+			exclude: false,
+		},
+		{
+			name: "Non-secret",
+			secret: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "cert-manager/v1",
+					"kind":       "Certificate",
+					"metadata": map[string]interface{}{
+						"name":      "non-secret",
+						"namespace": "default",
+					},
+				},
+			},
+			exclude: false,
+		},
+		{
+			name:    "Non-TLS secret",
+			secret:  newOpaqueSecret("non-tls-secret"),
+			exclude: false,
+		},
+		{
+			name:    "TLS secret with invalid base64",
+			secret:  newTLSSecret("tls-secret-with-invalid-cert", "invalid-base64"),
+			exclude: true,
+		},
+		{
+			name:    "TLS secret with no cert data",
+			secret:  newTLSSecret("tls-secret-with-no-cert", nil),
+			exclude: true,
+		},
+		{
+			name:    "TLS secret with empty cert data",
+			secret:  newTLSSecret("tls-secret-with-empty-cert", ""),
+			exclude: true,
+		},
+		{
+			name:    "TLS secret with invalid PEM",
+			secret:  newTLSSecret("tls-secret-with-invalid-pem", base64.StdEncoding.EncodeToString([]byte("invalid-pem"))),
+			exclude: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			log := ktesting.NewLogger(t, ktesting.DefaultConfig)
+			excluded := excludeTLSSecretsWithoutClientCert(log, tc.secret)
+			assert.Equal(t, tc.exclude, excluded, "case: %s", tc.name)
+		})
+	}
+}
+
+// newTLSSecret creates a Kubernetes TLS secret with the given name and certificate data.
+// If crt is nil, the secret will not contain a "tls.crt" entry.
+func newTLSSecret(name string, crt interface{}) *unstructured.Unstructured {
+	data := map[string]interface{}{"tls.key": "dummy-key"}
+	if crt != nil {
+		data["tls.crt"] = crt
+	}
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": "default",
+			},
+			"type": "kubernetes.io/tls",
+			"data": data,
+		},
+	}
+}
+
+// newOpaqueSecret creates a Kubernetes Opaque secret with the given name.
+func newOpaqueSecret(name string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": "default",
+			},
+			"type": "Opaque",
+			"data": map[string]interface{}{
+				"key": "value",
+			},
+		},
+	}
+}
+
+// sampleCertificateChain returns a PEM encoded sample certificate chain for testing purposes.
+// The leaf certificate is signed by a self-signed CA certificate.
+// Uses an eliptic curve key for the CA and leaf certificates for speed.
+// The returned string is base64 encoded to match how TLS certificates
+// are typically provided in Kubernetes secrets.
+func sampleCertificateChain(t testing.TB, usages ...x509.ExtKeyUsage) string {
+	t.Helper()
+
+	caPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	caTemplate := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Test CA"},
+			CommonName:   "Test CA",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	caCertDER, err := x509.CreateCertificate(rand.Reader, &caTemplate, &caTemplate, &caPrivKey.PublicKey, caPrivKey)
+	require.NoError(t, err)
+
+	caCertPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caCertDER,
+	})
+
+	clientPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	clientTemplate := x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject: pkix.Name{
+			Organization: []string{"Test Organization"},
+			CommonName:   "example.com",
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(24 * time.Hour),
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: usages,
+	}
+
+	clientCertDER, err := x509.CreateCertificate(rand.Reader, &clientTemplate, &caTemplate, &clientPrivKey.PublicKey, caPrivKey)
+	require.NoError(t, err)
+
+	clientCertPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: clientCertDER,
+	})
+
+	return base64.StdEncoding.EncodeToString(append(clientCertPEM, caCertPEM...))
 }
