@@ -35,8 +35,10 @@ func TestSelect(t *testing.T) {
 			},
 			"type": "kubernetes.io/tls",
 			"data": map[string]interface{}{
-				"tls.crt": "cert data",
-				"tls.key": "secret",
+				"tls.crt":    "cert data",
+				"tls.key":    "secret",
+				"extra":      "should be removed",
+				"conjur-map": "should be kept",
 			},
 		},
 		SecretSelectedFields,
@@ -61,7 +63,8 @@ func TestSelect(t *testing.T) {
 			"type": "kubernetes.io/tls",
 			"data": map[string]interface{}{
 				// The "tls.key" is ignored.
-				"tls.crt": "cert data",
+				"tls.crt":    "cert data",
+				"conjur-map": "should be kept",
 			},
 		},
 	))
