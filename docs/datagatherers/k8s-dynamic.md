@@ -77,7 +77,7 @@ Secrets can be gathered using the following config:
       resource: secrets
 ```
 
-Before Secrets are sent to the Preflight backend, they are redacted so no secret data is transmitted. See [`fieldfilter.go`](./../../pkg/datagatherer/k8s/fieldfilter.go) to see the details of which fields are filteres and which ones are redacted.
+Before Secrets are sent to the Preflight backend, they are redacted so no secret data is transmitted. See [`fieldfilter.go`](./../../pkg/datagatherer/k8s/fieldfilter.go) to see the details of which fields are filtered and which ones are redacted.
 
 > **All resource other than Kubernetes Secrets are sent in full, so make sure that you don't store secret information on arbitrary resources.**
 

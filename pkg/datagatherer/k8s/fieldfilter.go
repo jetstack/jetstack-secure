@@ -9,6 +9,9 @@ import (
 // The `data` is redacted, to prevent private keys or sensitive data being
 // collected. Only the following none-sensitive keys are retained: tls.crt,
 // ca.crt. These keys are assumed to always contain public TLS certificates.
+// The `conjur-map` key is also retained, as it is used to map Secrets to
+// Conjur variables, and is not considered sensitive.
+// See https://docs.cyberark.com/conjur-open-source/latest/en/content/integrations/k8s-ocp/cjr-secrets-provider-lp.htm
 var SecretSelectedFields = []FieldPath{
 	{"kind"},
 	{"apiVersion"},
@@ -26,6 +29,7 @@ var SecretSelectedFields = []FieldPath{
 	{"type"},
 	{"data", "tls.crt"},
 	{"data", "ca.crt"},
+	{"data", "conjur-map"},
 }
 
 // RouteSelectedFields is the list of fields sent from OpenShift Route objects to the
