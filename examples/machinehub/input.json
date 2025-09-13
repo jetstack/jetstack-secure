@@ -19,7 +19,8 @@
                         "metadata": {
                             "name": "app-1-secret-1",
                             "namespace": "team-1"
-                        }
+                        },
+                        "type": "kubernetes.io/tls"
                     }
                 }
             ]

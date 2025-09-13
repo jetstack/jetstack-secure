@@ -11,9 +11,9 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/internal/cyberark"
@@ -60,7 +60,7 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 	}
 
 	// Minimize the snapshot to reduce size and improve privacy
-	minimizeSnapshot(log.V(logs.Debug), &snapshot)
+	minimizeSnapshot(log.V(logs.Debug).WithName("minimizeSnapshot"), &snapshot)
 
 	snapshot.AgentVersion = version.PreflightVersion
 
@@ -100,9 +100,9 @@ func extractClusterIDAndServerVersionFromReading(reading *api.DataReading, targe
 }
 
 // extractResourceListFromReading converts the opaque data from a DynamicData
-// data reading to runtime.Object resources, to allow access to the metadata and
+// data reading to T resources, to allow access to the metadata and
 // other kubernetes API fields.
-func extractResourceListFromReading(reading *api.DataReading, target *[]runtime.Object) error {
+func extractResourceListFromReading[T client.Object](reading *api.DataReading, target *[]T) error {
 	if reading == nil {
 		return fmt.Errorf("programmer mistake: the DataReading must not be nil")
 	}
@@ -112,14 +112,15 @@ func extractResourceListFromReading(reading *api.DataReading, target *[]runtime.
 			"programmer mistake: the DataReading must have data type *api.DynamicData. "+
 				"This DataReading (%s) has data type %T", reading.DataGatherer, reading.Data)
 	}
-	resources := make([]runtime.Object, len(data.Items))
+	resources := make([]T, len(data.Items))
 	for i, item := range data.Items {
-		if resource, ok := item.Resource.(runtime.Object); ok {
+		if resource, ok := item.Resource.(T); ok {
 			resources[i] = resource
 		} else {
+			expectedType := fmt.Sprintf("%T", new(T))[1:] // strip leading '*'
 			return fmt.Errorf(
-				"programmer mistake: the DynamicData items must have Resource type runtime.Object. "+
-					"This item (%d) has Resource type %T", i, item.Resource)
+				"programmer mistake: the DynamicData items must have Resource type %s. "+
+					"This item (%d) has Resource type %T", expectedType, i, item.Resource)
 		}
 	}
 	*target = resources
@@ -223,9 +224,11 @@ func convertDataReadings(
 //     service.
 func minimizeSnapshot(log logr.Logger, snapshot *dataupload.Snapshot) {
 	originalSecretCount := len(snapshot.Secrets)
-	filteredSecrets := make([]runtime.Object, 0, originalSecretCount)
+	filteredSecrets := make([]*unstructured.Unstructured, 0, originalSecretCount)
 	for _, secret := range snapshot.Secrets {
+		log := log.WithValues("name", secret.GetName(), "namespace", secret.GetNamespace())
 		if isExcludableSecret(log, secret) {
+			log.Info("Dropped")
 			continue
 		}
 		filteredSecrets = append(filteredSecrets, secret)
@@ -240,24 +243,9 @@ func minimizeSnapshot(log logr.Logger, snapshot *dataupload.Snapshot) {
 //
 // The Secret is kept if there is any doubt or if there is a problem decoding
 // its contents.
-//
-// Secrets are obtained by a DynamicClient, so they have type
-// *unstructured.Unstructured.
-func isExcludableSecret(log logr.Logger, obj runtime.Object) bool {
-	// Fast path: type assertion and kind/type checks
-	unstructuredObj, ok := obj.(*unstructured.Unstructured)
-	if !ok {
-		log.Info("Object is not a Unstructured", "type", fmt.Sprintf("%T", obj))
-		return false
-	}
+func isExcludableSecret(log logr.Logger, unstructuredObj *unstructured.Unstructured) bool {
 	if unstructuredObj.GetKind() != "Secret" || unstructuredObj.GetAPIVersion() != "v1" {
-		return false
-	}
-
-	log = log.WithValues("namespace", unstructuredObj.GetNamespace(), "name", unstructuredObj.GetName())
-	dataMap, found, err := unstructured.NestedMap(unstructuredObj.Object, "data")
-	if err != nil || !found {
-		log.Info("Secret data missing or not a map")
+		log.Info("Object is not a core/v1 Secret", "apiVersion", unstructuredObj.GetAPIVersion(), "kind", unstructuredObj.GetKind())
 		return false
 	}
 
@@ -268,8 +256,14 @@ func isExcludableSecret(log logr.Logger, obj runtime.Object) bool {
 	}
 
 	if corev1.SecretType(secretType) != corev1.SecretTypeTLS {
-		log.Info("Secret of this type are never excluded", "type", secretType)
+		log.Info("Secret of this type are never dropped", "type", secretType)
 		return false
+	}
+
+	dataMap, found, err := unstructured.NestedMap(unstructuredObj.Object, "data")
+	if err != nil || !found {
+		log.Info("Secret data missing or not a map", "error", err, "decision", "drop")
+		return true
 	}
 
 	return isExcludableTLSSecret(log, dataMap)
