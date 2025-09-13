@@ -1,7 +1,16 @@
 package client
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/pem"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -10,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/internal/cyberark/dataupload"
@@ -308,4 +318,265 @@ func TestConvertDataReadings(t *testing.T) {
 		})
 	}
 
+}
+
+// TestMinimizeSnapshot tests the minimizeSnapshot function.
+// It creates a snapshot with various secrets and service accounts, runs
+// minimizeSnapshot on it, and checks that the resulting snapshot only contains
+// the expected secrets and service accounts.
+func TestMinimizeSnapshot(t *testing.T) {
+	secretWithClientCert := newTLSSecret("tls-secret-with-client", sampleCertificateChain(t, x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth))
+	secretWithoutClientCert := newTLSSecret("tls-secret-without-client", sampleCertificateChain(t, x509.ExtKeyUsageServerAuth))
+	opaqueSecret := newOpaqueSecret("opaque-secret")
+	serviceAccount := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "ServiceAccount",
+			"metadata": map[string]interface{}{
+				"name":      "my-service-account",
+				"namespace": "default",
+			},
+		},
+	}
+
+	type testCase struct {
+		name             string
+		inputSnapshot    dataupload.Snapshot
+		expectedSnapshot dataupload.Snapshot
+	}
+	tests := []testCase{
+		{
+			name: "empty snapshot",
+			inputSnapshot: dataupload.Snapshot{
+				AgentVersion:    "v1.0.0",
+				ClusterID:       "cluster-1",
+				K8SVersion:      "v1.21.0",
+				Secrets:         []runtime.Object{},
+				ServiceAccounts: []runtime.Object{},
+				Roles:           []runtime.Object{},
+			},
+			expectedSnapshot: dataupload.Snapshot{
+				AgentVersion:    "v1.0.0",
+				ClusterID:       "cluster-1",
+				K8SVersion:      "v1.21.0",
+				Secrets:         []runtime.Object{},
+				ServiceAccounts: []runtime.Object{},
+				Roles:           []runtime.Object{},
+			},
+		},
+		{
+			name: "snapshot with various secrets and service accounts",
+			inputSnapshot: dataupload.Snapshot{
+				AgentVersion: "v1.0.0",
+				ClusterID:    "cluster-1",
+				K8SVersion:   "v1.21.0",
+				Secrets: []runtime.Object{
+					secretWithClientCert,
+					secretWithoutClientCert,
+					opaqueSecret,
+				},
+				ServiceAccounts: []runtime.Object{
+					serviceAccount,
+				},
+				Roles: []runtime.Object{},
+			},
+			expectedSnapshot: dataupload.Snapshot{
+				AgentVersion: "v1.0.0",
+				ClusterID:    "cluster-1",
+				K8SVersion:   "v1.21.0",
+				Secrets: []runtime.Object{
+					secretWithClientCert,
+					opaqueSecret,
+				},
+				ServiceAccounts: []runtime.Object{
+					serviceAccount,
+				},
+				Roles: []runtime.Object{},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			log := ktesting.NewLogger(t, ktesting.DefaultConfig)
+			minimizeSnapshot(log, &test.inputSnapshot)
+			assert.Equal(t, test.expectedSnapshot, test.inputSnapshot)
+		})
+	}
+}
+
+// TestIsExcludableSecret tests the isExcludableSecret function.
+func TestIsExcludableSecret(t *testing.T) {
+	type testCase struct {
+		name    string
+		secret  runtime.Object
+		exclude bool
+	}
+
+	tests := []testCase{
+		{
+			name:    "TLS secret with client cert in tls.crt",
+			secret:  newTLSSecret("tls-secret-with-client", sampleCertificateChain(t, x509.ExtKeyUsageClientAuth)),
+			exclude: false,
+		},
+		{
+			name:    "TLS secret with non-client cert in tls.crt",
+			secret:  newTLSSecret("tls-secret-without-client", sampleCertificateChain(t, x509.ExtKeyUsageServerAuth)),
+			exclude: true,
+		},
+		{
+			name: "Non-unstructured",
+			secret: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "non-unstructured-secret",
+					Namespace: "default",
+				},
+			},
+			exclude: false,
+		},
+		{
+			name: "Non-secret",
+			secret: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "cert-manager/v1",
+					"kind":       "Certificate",
+					"metadata": map[string]interface{}{
+						"name":      "non-secret",
+						"namespace": "default",
+					},
+				},
+			},
+			exclude: false,
+		},
+		{
+			name:    "Non-TLS secret",
+			secret:  newOpaqueSecret("non-tls-secret"),
+			exclude: false,
+		},
+		{
+			name:    "TLS secret without tls.crt",
+			secret:  newTLSSecret("tls-secret-with-no-cert", nil),
+			exclude: true,
+		},
+		{
+			name:    "TLS secret with empty tls.crt",
+			secret:  newTLSSecret("tls-secret-with-empty-cert", ""),
+			exclude: true,
+		},
+		{
+			name:    "TLS secret with invalid base64 in tls.crt",
+			secret:  newTLSSecret("tls-secret-with-invalid-cert", "invalid-base64"),
+			exclude: true,
+		},
+		{
+			name:    "TLS secret with invalid PEM in tls.crt",
+			secret:  newTLSSecret("tls-secret-with-invalid-pem", base64.StdEncoding.EncodeToString([]byte("invalid-pem"))),
+			exclude: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			log := ktesting.NewLogger(t, ktesting.DefaultConfig)
+			excluded := isExcludableSecret(log, tc.secret)
+			assert.Equal(t, tc.exclude, excluded, "case: %s", tc.name)
+		})
+	}
+}
+
+// newTLSSecret creates a Kubernetes TLS secret with the given name and certificate data.
+// If crt is nil, the secret will not contain a "tls.crt" entry.
+func newTLSSecret(name string, crt interface{}) *unstructured.Unstructured {
+	data := map[string]interface{}{"tls.key": "dummy-key"}
+	if crt != nil {
+		data["tls.crt"] = crt
+	}
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": "default",
+			},
+			"type": "kubernetes.io/tls",
+			"data": data,
+		},
+	}
+}
+
+// newOpaqueSecret creates a Kubernetes Opaque secret with the given name.
+func newOpaqueSecret(name string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": "default",
+			},
+			"type": "Opaque",
+			"data": map[string]interface{}{
+				"key": "value",
+			},
+		},
+	}
+}
+
+// sampleCertificateChain returns a PEM encoded sample certificate chain for testing purposes.
+// The leaf certificate is signed by a self-signed CA certificate.
+// Uses an eliptic curve key for the CA and leaf certificates for speed.
+// The returned string is base64 encoded to match how TLS certificates
+// are typically provided in Kubernetes secrets.
+func sampleCertificateChain(t testing.TB, usages ...x509.ExtKeyUsage) string {
+	t.Helper()
+
+	caPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	caTemplate := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Test CA"},
+			CommonName:   "Test CA",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	caCertDER, err := x509.CreateCertificate(rand.Reader, &caTemplate, &caTemplate, &caPrivKey.PublicKey, caPrivKey)
+	require.NoError(t, err)
+
+	caCertPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caCertDER,
+	})
+
+	clientPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	clientTemplate := x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject: pkix.Name{
+			Organization: []string{"Test Organization"},
+			CommonName:   "example.com",
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(24 * time.Hour),
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: usages,
+	}
+
+	clientCertDER, err := x509.CreateCertificate(rand.Reader, &clientTemplate, &caTemplate, &clientPrivKey.PublicKey, caPrivKey)
+	require.NoError(t, err)
+
+	clientCertPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: clientCertDER,
+	})
+
+	return base64.StdEncoding.EncodeToString(append(clientCertPEM, caCertPEM...))
 }
