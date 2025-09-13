@@ -14,12 +14,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/klog/v2/ktesting"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/internal/cyberark/dataupload"
@@ -155,7 +153,7 @@ func TestExtractResourceListFromReading(t *testing.T) {
 					},
 				},
 			},
-			expectError: `programmer mistake: the DynamicData items must have Resource type runtime.Object. ` +
+			expectError: `programmer mistake: the DynamicData items must have Resource type *unstructured.Unstructured. ` +
 				`This item (0) has Resource type *api.DiscoveryData`,
 		},
 		{
@@ -194,7 +192,7 @@ func TestExtractResourceListFromReading(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var resources []runtime.Object
+			var resources []*unstructured.Unstructured
 			err := extractResourceListFromReading(test.reading, &resources)
 			if test.expectError != "" {
 				assert.EqualError(t, err, test.expectError)
@@ -231,10 +229,14 @@ func TestConvertDataReadings(t *testing.T) {
 			Data: &api.DynamicData{
 				Items: []*api.GatheredResource{
 					{
-						Resource: &corev1.Secret{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "app-1",
-								Namespace: "team-1",
+						Resource: &unstructured.Unstructured{
+							Object: map[string]interface{}{
+								"apiVersion": "v1",
+								"kind":       "Secret",
+								"metadata": map[string]interface{}{
+									"name":      "app-1",
+									"namespace": "team-1",
+								},
 							},
 						},
 					},
@@ -293,11 +295,15 @@ func TestConvertDataReadings(t *testing.T) {
 			expectedSnapshot: dataupload.Snapshot{
 				ClusterID:  "success-cluster-id",
 				K8SVersion: "v1.21.0",
-				Secrets: []runtime.Object{
-					&corev1.Secret{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      "app-1",
-							Namespace: "team-1",
+				Secrets: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "v1",
+							"kind":       "Secret",
+							"metadata": map[string]interface{}{
+								"name":      "app-1",
+								"namespace": "team-1",
+							},
 						},
 					},
 				},
@@ -351,17 +357,17 @@ func TestMinimizeSnapshot(t *testing.T) {
 				AgentVersion:    "v1.0.0",
 				ClusterID:       "cluster-1",
 				K8SVersion:      "v1.21.0",
-				Secrets:         []runtime.Object{},
-				ServiceAccounts: []runtime.Object{},
-				Roles:           []runtime.Object{},
+				Secrets:         []*unstructured.Unstructured{},
+				ServiceAccounts: []client.Object{},
+				Roles:           []client.Object{},
 			},
 			expectedSnapshot: dataupload.Snapshot{
 				AgentVersion:    "v1.0.0",
 				ClusterID:       "cluster-1",
 				K8SVersion:      "v1.21.0",
-				Secrets:         []runtime.Object{},
-				ServiceAccounts: []runtime.Object{},
-				Roles:           []runtime.Object{},
+				Secrets:         []*unstructured.Unstructured{},
+				ServiceAccounts: []client.Object{},
+				Roles:           []client.Object{},
 			},
 		},
 		{
@@ -370,28 +376,28 @@ func TestMinimizeSnapshot(t *testing.T) {
 				AgentVersion: "v1.0.0",
 				ClusterID:    "cluster-1",
 				K8SVersion:   "v1.21.0",
-				Secrets: []runtime.Object{
+				Secrets: []*unstructured.Unstructured{
 					secretWithClientCert,
 					secretWithoutClientCert,
 					opaqueSecret,
 				},
-				ServiceAccounts: []runtime.Object{
+				ServiceAccounts: []client.Object{
 					serviceAccount,
 				},
-				Roles: []runtime.Object{},
+				Roles: []client.Object{},
 			},
 			expectedSnapshot: dataupload.Snapshot{
 				AgentVersion: "v1.0.0",
 				ClusterID:    "cluster-1",
 				K8SVersion:   "v1.21.0",
-				Secrets: []runtime.Object{
+				Secrets: []*unstructured.Unstructured{
 					secretWithClientCert,
 					opaqueSecret,
 				},
-				ServiceAccounts: []runtime.Object{
+				ServiceAccounts: []client.Object{
 					serviceAccount,
 				},
-				Roles: []runtime.Object{},
+				Roles: []client.Object{},
 			},
 		},
 	}
@@ -408,7 +414,7 @@ func TestMinimizeSnapshot(t *testing.T) {
 func TestIsExcludableSecret(t *testing.T) {
 	type testCase struct {
 		name    string
-		secret  runtime.Object
+		secret  *unstructured.Unstructured
 		exclude bool
 	}
 
@@ -422,16 +428,6 @@ func TestIsExcludableSecret(t *testing.T) {
 			name:    "TLS secret with non-client cert in tls.crt",
 			secret:  newTLSSecret("tls-secret-without-client", sampleCertificateChain(t, x509.ExtKeyUsageServerAuth)),
 			exclude: true,
-		},
-		{
-			name: "Non-unstructured",
-			secret: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "non-unstructured-secret",
-					Namespace: "default",
-				},
-			},
-			exclude: false,
 		},
 		{
 			name: "Non-secret",
