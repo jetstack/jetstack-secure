@@ -26,7 +26,8 @@
 set -o nounset
 set -o errexit
 set -o pipefail
-set -o xtrace
+# Commenting out for CI, uncomment for local debugging
+#set -o xtrace
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 root_dir=$(cd "${script_dir}/../.." && pwd)
@@ -115,6 +116,7 @@ fi
 
 export VENAFI_KUBERNETES_AGENT_CLIENT_ID="not-used-but-required-by-venctl"
 venctl components kubernetes apply \
+  --no-prompts \
   --region $VEN_VCP_REGION \
   --cert-manager \
   --venafi-enhanced-issuer \
