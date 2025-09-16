@@ -116,7 +116,6 @@ fi
 
 export VENAFI_KUBERNETES_AGENT_CLIENT_ID="not-used-but-required-by-venctl"
 venctl components kubernetes apply \
-  --no-prompts \
   --region $VEN_VCP_REGION \
   --cert-manager \
   --venafi-enhanced-issuer \
