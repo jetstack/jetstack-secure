@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "Result": {
+    "AuthLevel": "Normal",
+    "DisplayName": "Namey McNamerson",
+    "Token": "success-token",
+    "Auth": "auth-auth",
+    "UserId": "11111111-2222-3333-4444-555555555555",
+    "EmailAddress": "name@example.com",
+    "UserDirectory": "CDS",
+    "PodFqdn": "xxx0000.id.integration-cyberark.cloud",
+    "User": "name@example.org.111111",
+    "CustomerID": "XXX0000",
+    "SystemID": "XXX0000",
+    "SourceDsType": "CDS",
+    "Summary": "LoginSuccess"
+  },
+  "Message": null,
+  "MessageID": null,
+  "Exception": null,
+  "ErrorID": null,
+  "ErrorCode": null,
+  "IsSoftError": false,
+  "InnerExceptions": null
+}

@@ -1,0 +1,148 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "venafi-kubernetes-agent.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "venafi-kubernetes-agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "venafi-kubernetes-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "venafi-kubernetes-agent.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "venafi-kubernetes-agent.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_UID
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.uid
+          - name: POD_NODE
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          {{- with .Values.http_proxy }}
+          - name: HTTP_PROXY
+            value: {{ . }}
+          {{- end }}
+          {{- with .Values.https_proxy }}
+          - name: HTTPS_PROXY
+            value: {{ . }}
+          {{- end }}
+          {{- with .Values.no_proxy }}
+          - name: NO_PROXY
+            value: {{ . }}
+          {{- end }}
+          {{- if not (empty .Values.command) }}
+          command:
+          {{- range .Values.command }}
+            - {{ . | quote }}
+          {{- end }}
+          {{- end }}
+          args:
+            - "agent"
+            - "-c"
+            - "/etc/venafi/agent/config/{{ default "config.yaml" .Values.config.configmap.key }}"
+            {{- if .Values.authentication.venafiConnection.enabled }}
+            - --venafi-connection
+            - {{ .Values.authentication.venafiConnection.name | quote }}
+            - --venafi-connection-namespace
+            - {{ .Values.authentication.venafiConnection.namespace | quote }}
+            {{- else }}
+            - "--client-id"
+            - {{ .Values.config.clientId | quote }}
+            - "--private-key-path"
+            - "/etc/venafi/agent/key/{{ .Values.authentication.secretKey }}"
+            {{- end }}
+            - --venafi-cloud
+            {{- if .Values.metrics.enabled }}
+            - --enable-metrics
+            {{- end }}
+            {{- range .Values.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/venafi/agent/config"
+              readOnly: true
+            {{- if not .Values.authentication.venafiConnection.enabled }}
+            - name: credentials
+              mountPath: "/etc/venafi/agent/key"
+              readOnly: true
+            {{- end }}
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if .Values.metrics.enabled }}
+          ports:
+            - containerPort: 8081
+              name: http-metrics
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ default "agent-config" .Values.config.configmap.name }}
+            optional: false
+        {{- if not .Values.authentication.venafiConnection.enabled }}
+        - name: credentials
+          secret:
+            secretName: {{ .Values.authentication.secretName }}
+            optional: false
+        {{- end }}
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

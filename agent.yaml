@@ -1,0 +1,17 @@
+server: "https://platform.jetstack.io"
+organization_id: "my-organization"
+cluster_id: "my_cluster"
+period: "0h1m0s"
+data-gatherers:
+  - kind: "dummy"
+    name: "dummy"
+    config:
+      failed-attempts: 5
+  - kind: "dummy"
+    name: "dummy-fail"
+    config:
+      always-fail: true
+venafi-cloud:
+  uploader_id: "example-id"
+  upload_path: "/example/endpoint/path"
+  

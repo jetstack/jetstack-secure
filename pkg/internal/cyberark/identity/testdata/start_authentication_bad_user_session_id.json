@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "Result": {
+    "ClientHints": {
+      "PersistDefault": false,
+      "AllowPersist": true,
+      "AllowForgotPassword": true,
+      "EndpointAuthenticationEnabled": false
+    },
+    "Version": "1.0",
+    "SessionId": "bad-user-session-id",
+    "EventDescription": null,
+    "RetryWaitingTime": 0,
+    "SecurityImageName": null,
+    "AllowLoginMfaCache": false,
+    "Challenges": [
+      {
+        "Mechanisms": [
+          {
+            "AnswerType": "Text",
+            "Name": "UP",
+            "PromptMechChosen": "Enter Password",
+            "PromptSelectMech": "Password",
+            "MechanismId": "aaaaaaa_AAAAAAAAAAAAAAAAAAAAAAAAAAAA-1111111",
+            "Enrolled": true
+          }
+        ]
+      }
+    ],
+    "Summary": "NewPackage",
+    "TenantId": "TENANTID"
+  },
+  "Message": null,
+  "MessageID": null,
+  "Exception": null,
+  "ErrorID": null,
+  "ErrorCode": null,
+  "IsSoftError": false,
+  "InnerExceptions": null
+}

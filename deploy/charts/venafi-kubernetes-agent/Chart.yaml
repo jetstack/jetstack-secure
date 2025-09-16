@@ -1,0 +1,20 @@
+apiVersion: v2
+name: venafi-kubernetes-agent
+type: application
+
+description: |-
+  The Venafi Kubernetes Agent connects your Kubernetes or Openshift cluster to the Venafi Control Plane.
+
+maintainers:
+  - name: Venafi
+    email: support@venafi.cloud
+    url: https://venafi.com
+
+sources:
+  - https://github.com/jetstack/jetstack-secure
+
+# These versions are meant to be overridden by `make helm-chart`. No `v` prefix
+# for the `version` because Helm doesn't support auto-determining the latest
+# version for OCI Helm charts that use a `v` prefix.
+version: 0.0.0
+appVersion: "v0.0.0"

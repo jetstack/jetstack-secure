@@ -1,0 +1,17 @@
+/preflight
+/preflight.yaml
+/builds
+/bundles
+/output
+credentials.json
+.terraform
+terraform.tfstate
+terraform.tfstate.backup
+bom.xml
+predicate.json
+*.pem
+*.pub
+*.tgz
+
+_bin
+.envrc

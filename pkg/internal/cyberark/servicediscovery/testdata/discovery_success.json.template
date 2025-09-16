@@ -1,0 +1,206 @@
+{
+  "region": "us-east-1",
+  "dr_region": "us-east-2",
+  "subdomain": "venafi-test",
+  "platform_id": "platform-123",
+  "identity_id": "identity-456",
+  "default_url": "https://venafi-test.integration-cyberark.cloud",
+  "tenant_flags": {
+    "is_crdr_supported": "true",
+    "is_crdr_active": "true"
+  },
+  "services": [
+    {
+      "service_name": "data_privacy",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://ui.dataprivacy.integration-cyberark.cloud/",
+          "api": "https://us-east-1.dataprivacy.integration-cyberark.cloud/api"
+        }
+      ]
+    },
+    {
+      "service_name": "secrets_manager",
+      "region": "us-east-2",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://ui.test-conjur.cloud",
+          "api": "https://venafi-test.secretsmgr.integration-cyberark.cloud/api"
+        }
+      ]
+    },
+    {
+      "service_name": "idaptive_risk_analytics",
+      "region": "US-East-Pod",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://ajp5871-my.analytics.idaptive.qa",
+          "api": "https://ajp5871-my.analytics.idaptive.qa"
+        }
+      ]
+    },
+    {
+      "service_name": "component_manager",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://ui-connectormanagement.connectormanagement.integration-cyberark.cloud",
+          "api": "https://venafi-test.connectormanagement.integration-cyberark.cloud/api"
+        }
+      ]
+    },
+    {
+      "service_name": "recording",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://us-east-1.rec-ui.recording.integration-cyberark.cloud",
+          "api": "https://venafi-test.recording.integration-cyberark.cloud/api"
+        }
+      ]
+    },
+    {
+      "service_name": "identity_user_portal",
+      "region": "US-East-Pod",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://ajp5871.id.integration-cyberark.cloud",
+          "api": "https://ajp5871.id.integration-cyberark.cloud"
+        }
+      ]
+    },
+    {
+      "service_name": "userportal",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://us-east-1.ui.userportal.integration-cyberark.cloud/",
+          "api": "https://venafi-test.api.userportal.integration-cyberark.cloud/api"
+        }
+      ]
+    },
+    {
+      "service_name": "cloud_onboarding",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://ui-cloudonboarding.cloudonboarding.integration-cyberark.cloud/",
+          "api": "https://venafi-test.cloudonboarding.integration-cyberark.cloud/api"
+        }
+      ]
+    },
+    {
+      "service_name": "identity_administration",
+      "region": "US-East-Pod",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://ajp5871.id.integration-cyberark.cloud",
+          "api": "{{ .Identity.API }}"
+        }
+      ]
+    },
+    {
+      "service_name": "adminportal",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://ui-adminportal.adminportal.integration-cyberark.cloud",
+          "api": "https://venafi-test.adminportal.integration-cyberark.cloud/api"
+        }
+      ]
+    },
+    {
+      "service_name": "analytics",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://venafi-test.analytics.integration-cyberark.cloud/",
+          "api": "https://venafi-test.analytics.integration-cyberark.cloud/api"
+        }
+      ]
+    },
+    {
+      "service_name": "session_monitoring",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://us-east-1.sm-ui.sessionmonitoring.integration-cyberark.cloud",
+          "api": "https://venafi-test.sessionmonitoring.integration-cyberark.cloud/api"
+        }
+      ]
+    },
+    {
+      "service_name": "audit",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://ui.audit-ui.integration-cyberark.cloud",
+          "api": "https://venafi-test.audit.integration-cyberark.cloud/api"
+        }
+      ]
+    },
+    {
+      "service_name": "fmcdp",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://tagtig.io/",
+          "api": "https://tagtig.io/api"
+        }
+      ]
+    },
+    {
+      "service_name": "featureadopt",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://ui-featureadopt.featureadopt.integration-cyberark.cloud/",
+          "api": "https://us-east-1-featureadopt.featureadopt.integration-cyberark.cloud/api"
+        }
+      ]
+    },
+    {
+      "service_name": "discoverycontext",
+      "region": "us-east-1",
+      "endpoints": [
+        {
+          "is_active": true,
+          "type": "main",
+          "ui": "https://ui-inventory.inventory.integration-cyberark.cloud/",
+          "api": "{{ .DiscoveryContext.API }}"
+        }
+      ]
+    }
+  ]
+}

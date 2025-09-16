@@ -1,0 +1,1 @@
+curl --fail-with-body -sS "https://api.venafi.cloud/v1/teams" -H "tppl-api-key: cf28c531-b218-45c6-873d-44075eec0021" | jq '.teams[0].id' -r
