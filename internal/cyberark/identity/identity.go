@@ -12,6 +12,7 @@ import (
 
 	"k8s.io/klog/v2"
 
+	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 )
@@ -422,4 +423,6 @@ func setIdentityHeaders(r *http.Request) {
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("X-IDAP-NATIVE-CLIENT", "true") //nolint: canonicalheader
 	version.SetUserAgent(r)
+	// Add telemetry headers
+	arkapi.SetTelemetryRequestHeader(r)
 }

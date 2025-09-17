@@ -8,8 +8,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/transport"
 
+	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
 	"github.com/jetstack/preflight/pkg/version"
 
 	_ "embed"
@@ -108,6 +110,10 @@ func checkRequestHeaders(r *http.Request) error {
 		errs = append(errs, fmt.Errorf("should set X-IDAP-NATIVE-CLIENT header to true on all requests"))
 	}
 
+	if r.Header.Get(arkapi.TelemetryHeaderKey) == "" {
+		errs = append(errs, fmt.Errorf("should set telemetry header on all requests"))
+	}
+
 	return errors.Join(errs...)
 }
 
@@ -120,9 +126,8 @@ func (mis *mockIdentityServer) handleStartAuthentication(w http.ResponseWriter, 
 		return
 	}
 
-	if err := checkRequestHeaders(r); err != nil {
+	if err := checkRequestHeaders(r); !assert.NoError(mis.t, err, "request headers are not correct") {
 		w.WriteHeader(http.StatusForbidden)
-		fmt.Fprintf(w, `{"message":"issues with headers sent to mock server: %s"}`, err.Error())
 		return
 	}
 

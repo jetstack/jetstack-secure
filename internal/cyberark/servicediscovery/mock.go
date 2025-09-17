@@ -13,6 +13,7 @@ import (
 
 	"k8s.io/client-go/transport"
 
+	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
 	"github.com/jetstack/preflight/pkg/version"
 
 	_ "embed"
@@ -89,6 +90,12 @@ func (mds *mockDiscoveryServer) ServeHTTP(w http.ResponseWriter, r *http.Request
 	if r.Header.Get("User-Agent") != version.UserAgent() {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("should set user agent on all requests"))
+		return
+	}
+
+	if r.Header.Get(arkapi.TelemetryHeaderKey) == "" {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("should set telemetry header on all requests"))
 		return
 	}
 
