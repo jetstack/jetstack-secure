@@ -10,4 +10,4 @@ authentication:
 
 extraArgs:
 - --logging-format=json
-- --log-level=6
+- --log-level=4

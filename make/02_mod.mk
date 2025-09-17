@@ -1,5 +1,6 @@
 include make/test-unit.mk
 include make/ark/02_mod.mk
+include make/extra_tools.mk
 
 GITHUB_OUTPUT ?= /dev/stderr
 .PHONY: release
@@ -51,7 +52,7 @@ shared_generate_targets += generate-crds-venconn
 ## Wait for it to log a message indicating successful data upload.
 ## See `hack/e2e/test.sh` for the full test script.
 ## @category Testing
-test-e2e-gke:
+test-e2e-gke: | $(NEEDS_HELM) $(NEEDS_STEP) $(NEEDS_VENCTL)
 	./hack/e2e/test.sh
 
 .PHONY: test-helm
@@ -66,6 +67,15 @@ test-helm: | $(NEEDS_HELM-UNITTEST)
 test-helm-snapshot: | $(NEEDS_HELM-UNITTEST)
 	$(HELM-UNITTEST) ./deploy/charts/venafi-kubernetes-agent/ -u
 
+.PHONY: helm-plugins
+## Install required helm plugins
+helm-plugins: $(NEEDS_HELM)
+	@if ! $(HELM) plugin list | grep -q diff; then \
+		echo ">>> Installing helm-diff plugin"; \
+		$(HELM) plugin install https://github.com/databus23/helm-diff; \
+	else \
+		echo "helm-diff plugin already installed"; \
+	fi
 
 .PHONY: verify-govulncheck
 ## Verify all Go modules for vulnerabilities using govulncheck Copied from makefile-modules

@@ -56,3 +56,10 @@ The following metrics are collected:
 - Go collector: via the [default registry](https://github.com/prometheus/client_golang/blob/34e02e282dc4a3cb55ca6441b489ec182e654d59/prometheus/registry.go#L60-L63) in Prometheus `client_golang`.
 - Process collector: via the [default registry](https://github.com/prometheus/client_golang/blob/34e02e282dc4a3cb55ca6441b489ec182e654d59/prometheus/registry.go#L60-L63) in Prometheus `client_golang`.
 - Agent metrics: `data_readings_upload_size`: Data readings upload size (in bytes) sent by the in-cluster agent.
+
+## End to end testing
+
+An end to end test script is available in the [./hack/e2e/test.sh](./hack/e2e/test.sh) directory. It is configured to run in CI
+in the tests.yaml GitHub Actions workflow. To run the script you will need to add the `test-e2e` label to the PR.
+The script creates a cluster in GKE and cleanups after itself unless the `keep-e2e-cluster` label is set on the PR. Adding that 
+label will leave the cluster running for further debugging but it will incur costs so manually delete the cluster when done.

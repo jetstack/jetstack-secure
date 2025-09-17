@@ -63,3 +63,76 @@ jobs:
           key: downloaded-${{ runner.os }}-${{ hashFiles('klone.yaml') }}-test-unit
 
       - run: make -j test-unit test-helm
+
+  test-e2e:
+    if: contains(github.event.pull_request.labels.*.name, 'test-e2e')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/repo_access
+        with:
+          DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up gcloud
+        id: setup-gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: "gke-gcloud-auth-plugin"
+          project_id: machineidentitysecurity-jsci-e
+
+      - name: Configure Docker for Google Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      - id: go-version
+        run: |
+          make print-go-version >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go-version.outputs.result }}
+
+      - name: Generate timestamp for cluster name
+        id: timestamp # Give the step an ID to reference its output
+        run: |
+          # Generate a timestamp in the format YYMMDD-HHMMSS.
+          # Extracting from PR name would require sanitization due to GKE cluster naming constraints        
+          TIMESTAMP=$(date +'%y%m%d-%H%M%S')
+          CLUSTER_NAME="test-secretless-${TIMESTAMP}"
+          echo "Generated cluster name: ${CLUSTER_NAME}"
+          echo "cluster_name=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
+
+      - run: |
+          make helm-plugins
+          make -j test-e2e-gke
+        # The VEN_API_KEY_PULL secret is set to my API key (Mladen) for glow.in.the.dark tenant.
+        env:
+          VEN_API_KEY: ${{ secrets.VEN_API_KEY_PULL }}
+          VEN_API_KEY_PULL: ${{ secrets.VEN_API_KEY_PULL }}
+          OCI_BASE: europe-west1-docker.pkg.dev/machineidentitysecurity-jsci-e/js-agent-ci-repo
+          VEN_API_HOST: api.venafi.cloud
+          VEN_ZONE: k8s-agent-CI\Default
+          VEN_VCP_REGION: us
+          CLOUDSDK_CORE_PROJECT: machineidentitysecurity-jsci-e
+          CLOUDSDK_COMPUTE_ZONE: europe-west1-b
+          CLUSTER_NAME: ${{ steps.timestamp.outputs.cluster_name }}
+
+      - name: Delete GKE Cluster
+        # 'always()' - Run this step regardless of success or failure.
+        # '!contains(...)' - AND only run if the list of PR labels DOES NOT contain 'keep-e2e-cluster'.
+        # NOTE: You will have to delete the test cluster manually when finished with debugging or incur costs.
+        if: always() && !contains(github.event.pull_request.labels.*.name, 'keep-e2e-cluster')
+        run: |
+          echo "Label 'keep-e2e-cluster' not found. Cleaning up GKE cluster ${{ steps.timestamp.outputs.cluster_name }}"
+          gcloud container clusters delete ${{ steps.timestamp.outputs.cluster_name }} \
+            --project=machineidentitysecurity-jsci-e \
+            --zone=europe-west1-b \
+            --quiet
