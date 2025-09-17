@@ -1,4 +1,10 @@
-repo_name := github.com/jetstack/preflight
+repo_name := github.com/jetstack/jetstack-secure
+# TODO(wallrj): This is a hack to allow use the old preflight repo name in the
+# gci section of the golangci-lint config until we can rename the go module.
+# Without this hack, golangci-lint will complain that the
+# github.com/jetstack/preflight imports should be grouped with all the other
+# third-party modules.
+generate-golangci-lint-config: repo_name := github.com/jetstack/preflight
 
 license_ignore := gitlab.com/venafi,github.com/jetstack
 
@@ -42,9 +48,9 @@ helm_chart_image_name := quay.io/jetstack/charts/venafi-kubernetes-agent
 helm_chart_version := $(VERSION)
 helm_labels_template_name := preflight.labels
 
-# We skip using the upstream govulncheck targets because we need to customise the workflow YAML
+# We skip using the upstream govulncheck generate target because we need to customise the workflow YAML
 # locally. We provide the targets in this repo instead, and manually maintain the workflow.
-govulncheck_skip := true
+dont_generate_govulncheck := true
 
 helm_image_name ?= $(oci_preflight_image_name)
 helm_image_tag ?= $(oci_preflight_image_tag)
