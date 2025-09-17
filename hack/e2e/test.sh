@@ -88,9 +88,9 @@ kubectl create ns venafi || true
 # workload identity service account as it doesn't matter.
 if ! kubectl get secret venafi-image-pull-secret -n venafi; then
   venctl iam service-accounts registry create \
-    --api-key "${VEN_API_KEY_PULL}" \
+    --api-key $VEN_API_KEY_PULL \
     --no-prompts \
-    --owning-team "$(curl --fail-with-body -sS "https://${VEN_API_HOST}/v1/teams" -H "tppl-api-key: $VEN_API_KEY_PULL" | jq '.teams[0].id' -r)" \
+    --owning-team "$(curl --fail-with-body -sS "https://${VEN_API_HOST}/v1/teams" -H "tppl-api-key: ${VEN_API_KEY_PULL}" | jq '.teams[0].id' -r)" \
     --name "venafi-kubernetes-agent-e2e-registry-${RANDOM}" \
     --scopes enterprise-cert-manager,enterprise-venafi-issuer,enterprise-approver-policy \
     | jq '{
