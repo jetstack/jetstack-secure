@@ -1,4 +1,10 @@
 repo_name := github.com/jetstack/jetstack-secure
+# TODO(wallrj): This is a hack to allow use the old preflight repo name in the
+# gci section of the golangci-lint config until we can rename the go module.
+# Without this hack, golangci-lint will complain that the
+# github.com/jetstack/preflight imports should be grouped with all the other
+# third-party modules.
+generate-golangci-lint-config: repo_name := github.com/jetstack/preflight
 
 license_ignore := gitlab.com/venafi,github.com/jetstack
 
