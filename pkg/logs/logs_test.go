@@ -267,7 +267,8 @@ E0000 00:00:00.000000   00000 logs_test.go:000] "Contextual error" err="fake-err
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := exec.Command(os.Args[0], "-test.run=^TestLogs$", "-test.v")
+			ctx := t.Context()
+			cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestLogs$", "-test.v")
 			var (
 				stdout bytes.Buffer
 				stderr bytes.Buffer
