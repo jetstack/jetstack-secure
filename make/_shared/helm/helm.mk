@@ -16,10 +16,6 @@ ifndef bin_dir
 $(error bin_dir is not set)
 endif
 
-ifndef repo_name
-$(error repo_name is not set)
-endif
-
 ifndef helm_chart_source_dir
 $(error helm_chart_source_dir is not set)
 endif
@@ -32,7 +28,7 @@ ifndef helm_chart_version
 $(error helm_chart_version is not set)
 endif
 ifneq ($(helm_chart_version:v%=v),v)
-$(error helm_chart_version "$(helm_chart_version)" should start with a "v")
+$(error helm_chart_version "$(helm_chart_version)" should start with a "v" - did you forget to pull tags from the remote repository?)
 endif
 
 ifndef helm_values_mutation_function
