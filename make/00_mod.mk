@@ -6,6 +6,8 @@ repo_name := github.com/jetstack/jetstack-secure
 # third-party modules.
 generate-golangci-lint-config: repo_name := github.com/jetstack/preflight
 
+OCI_BASE ?= # default to an empty value to avoid warnings
+
 license_ignore := gitlab.com/venafi,github.com/jetstack
 
 kind_cluster_name := preflight
