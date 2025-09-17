@@ -1,4 +1,4 @@
-repo_name := github.com/jetstack/preflight
+repo_name := github.com/jetstack/jetstack-secure
 
 license_ignore := gitlab.com/venafi,github.com/jetstack
 
