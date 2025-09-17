@@ -133,6 +133,6 @@ jobs:
         run: |
           echo "Label 'keep-e2e-cluster' not found. Cleaning up GKE cluster ${{ steps.timestamp.outputs.cluster_name }}"
           gcloud container clusters delete ${{ steps.timestamp.outputs.cluster_name }} \
-            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --project=machineidentitysecurity-jsci-e \
             --zone=europe-west1-b \
             --quiet
