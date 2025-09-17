@@ -21,7 +21,7 @@ jobs:
   govulncheck:
     runs-on: ubuntu-latest
 
-    if: github.repository == 'jetstack/preflight'
+    if: github.repository == 'jetstack/jetstack-secure'
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
