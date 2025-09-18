@@ -15,38 +15,54 @@ The release process is semi-automated.
 > - Create a draft GitHub release,
 > - Upload the Helm chart tarball to the GitHub release.
 
-1. Open the [tests GitHub Actions workflow][tests-workflow]
+1. Upgrade the Go dependencies.
+
+   You will need to install `go-mod-upgrade`:
+
+    ```bash
+    go install github.com/oligot/go-mod-upgrade@latest
+    ```
+
+    Then, run the following:
+
+    ```bash
+    go-mod-upgrade
+    make generate
+    ```
+
+    Finally, create a PR with the changes and merge it.
+
+2. Open the [tests GitHub Actions workflow][tests-workflow]
    and verify that it succeeds on the master branch.
 
-2. Run govulncheck:
+3. Run govulncheck:
    ```bash
-   go install golang.org/x/vuln/cmd/govulncheck@latest
-   govulncheck -v ./...
+   make verify-govulncheck
    ```
 
-3. Create a tag for the new release:
+4. Create a tag for the new release:
    ```sh
    export VERSION=v1.1.0
    git tag --annotate --message="Release ${VERSION}" "${VERSION}"
    git push origin "${VERSION}"
    ```
 
-4. Wait until the GitHub Actions finishes.
+5. Wait until the GitHub Actions finishes.
 
-5. Navigate to the GitHub Releases page and select the draft release to edit.
+6. Navigate to the GitHub Releases page and select the draft release to edit.
    1. Click on “Generate release notes” to automatically compile the changelog.
    2. Review and refine the generated notes to ensure they’re clear and useful
       for end users.
    3. Remove any irrelevant entries, such as “update deps,” “update CI,” “update
       docs,” or similar internal changes that do not impact user functionality.
 
-6. Publish the release.
+7. Publish the release.
 
-7. Inform the `#venctl` channel that a new version of Venafi Kubernetes Agent has been
+8. Inform the `#venctl` channel that a new version of Venafi Kubernetes Agent has been
    released. Make sure to share any breaking change that may affect `venctl connect`
    or `venctl generate`.
 
-8. Inform Michael McLoughlin of the new release so he can update the
+9. Inform Michael McLoughlin of the new release so he can update the
    documentation at <https://docs.venafi.cloud/>.
 
 [tests-workflow]: https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml?query=branch%3Amaster
