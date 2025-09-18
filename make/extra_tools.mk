@@ -7,3 +7,4 @@ ADDITIONAL_GO_DEPENDENCIES += helm-unittest=github.com/helm-unittest/helm-unitte
 
 ADDITIONAL_TOOLS += venctl=1.16.0
 ADDITIONAL_TOOLS += step=0.28.2
+
