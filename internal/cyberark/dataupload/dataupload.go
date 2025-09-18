@@ -14,6 +14,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
+	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -167,6 +168,9 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 		return "", fmt.Errorf("failed to authenticate request: %s", err)
 	}
 	version.SetUserAgent(req)
+
+	// Add telemetry headers
+	arkapi.SetTelemetryRequestHeader(req)
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {

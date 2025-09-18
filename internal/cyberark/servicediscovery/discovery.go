@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 
+	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -109,7 +110,8 @@ func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Servi
 
 	request.Header.Set("Accept", "application/json")
 	version.SetUserAgent(request)
-
+	// Add telemetry headers
+	arkapi.SetTelemetryRequestHeader(request)
 	resp, err := c.client.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform HTTP request: %s", err)

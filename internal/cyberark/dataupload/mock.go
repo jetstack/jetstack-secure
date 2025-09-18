@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/transport"
 
+	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -79,6 +80,12 @@ func (mds *mockDataUploadServer) handleSnapshotLinks(w http.ResponseWriter, r *h
 
 	if r.Header.Get("User-Agent") != version.UserAgent() {
 		http.Error(w, "should set user agent on all requests", http.StatusInternalServerError)
+		return
+	}
+
+	if r.Header.Get(arkapi.TelemetryHeaderKey) == "" {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("should set telemetry header on all requests"))
 		return
 	}
 
@@ -156,6 +163,12 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 
 	if r.Header.Get("User-Agent") != version.UserAgent() {
 		http.Error(w, "should set user agent on all requests", http.StatusInternalServerError)
+		return
+	}
+
+	if r.Header.Get(arkapi.TelemetryHeaderKey) != "" {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("should NOT set telemetry header on requests to presigned URL"))
 		return
 	}
 
