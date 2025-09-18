@@ -1,0 +1,16 @@
+suite: test the contents of the config.yaml
+templates:
+  - configmap.yaml
+release:
+  name: test
+  namespace: test-ns
+tests:
+  - it: defaults
+    asserts:
+      - matchSnapshot: {}
+
+  - it: custom-period
+    set:
+      config.period: 1m
+    asserts:
+      - matchSnapshot: {}

@@ -1,19 +1,3 @@
-.PHONY: ark-generate-helm-docs
-## Generate Helm chart documentation.
-## @category CyberArk Discovery and Context
-ark-generate-helm-docs: helm_chart_source_dir := deploy/charts/cyberark-disco-agent
-ark-generate-helm-docs: generate-helm-docs
-
-shared_generate_targets += ark-generate-helm-docs
-
-.PHONY: ark-generate-helm-schema
-## Generate Helm chart schema.
-## @category CyberArk Discovery and Context
-ark-generate-helm-schema: helm_chart_source_dir := deploy/charts/cyberark-disco-agent
-ark-generate-helm-schema: generate-helm-schema
-
-shared_generate_targets += ark-generate-helm-schema
-
 GITHUB_OUTPUT ?= /dev/stderr
 .PHONY: ark-release
 ## Publish all release artifacts (image + helm chart)
@@ -61,3 +45,13 @@ ark-verify:
 		helm_chart_image_name=$(OCI_BASE)/charts/cyberark-disco-agent
 
 shared_verify_targets_dirty += ark-verify
+
+.PHONY: ark-generate
+## Generate Helm chart documentation and schema
+## @category CyberArk Discovery and Context
+ark-generate:
+	$(MAKE) generate-helm-docs generate-helm-schema \
+		helm_chart_source_dir=deploy/charts/cyberark-disco-agent
+
+shared_generate_targets += ark-generate
+

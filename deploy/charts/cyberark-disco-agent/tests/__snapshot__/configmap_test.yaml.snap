@@ -1,0 +1,210 @@
+custom-period:
+  1: |
+    apiVersion: v1
+    data:
+      config.yaml: |-
+        period: "1m"
+        data-gatherers:
+        - kind: k8s-discovery
+          name: ark/discovery
+        - kind: k8s-dynamic
+          name: ark/secrets
+          config:
+            resource-type:
+              version: v1
+              resource: secrets
+            field-selectors:
+            - type!=kubernetes.io/dockercfg
+            - type!=kubernetes.io/dockerconfigjson
+            - type!=bootstrap.kubernetes.io/token
+            - type!=helm.sh/release.v1
+        - kind: k8s-dynamic
+          name: ark/serviceaccounts
+          config:
+            resource-type:
+              resource: serviceaccounts
+              version: v1
+        - kind: k8s-dynamic
+          name: ark/roles
+          config:
+            resource-type:
+              version: v1
+              group: rbac.authorization.k8s.io
+              resource: roles
+        - kind: k8s-dynamic
+          name: ark/clusterroles
+          config:
+            resource-type:
+              version: v1
+              group: rbac.authorization.k8s.io
+              resource: clusterroles
+        - kind: k8s-dynamic
+          name: ark/rolebindings
+          config:
+            resource-type:
+              version: v1
+              group: rbac.authorization.k8s.io
+              resource: rolebindings
+        - kind: k8s-dynamic
+          name: ark/clusterrolebindings
+          config:
+            resource-type:
+              version: v1
+              group: rbac.authorization.k8s.io
+              resource: clusterrolebindings
+        - kind: k8s-dynamic
+          name: ark/jobs
+          config:
+            resource-type:
+              version: v1
+              group: batch
+              resource: jobs
+        - kind: k8s-dynamic
+          name: ark/cronjobs
+          config:
+            resource-type:
+              version: v1
+              group: batch
+              resource: cronjobs
+        - kind: k8s-dynamic
+          name: ark/deployments
+          config:
+            resource-type:
+              version: v1
+              group: apps
+              resource: deployments
+        - kind: k8s-dynamic
+          name: ark/statefulsets
+          config:
+            resource-type:
+              version: v1
+              group: apps
+              resource: statefulsets
+        - kind: k8s-dynamic
+          name: ark/daemonsets
+          config:
+            resource-type:
+              version: v1
+              group: apps
+              resource: daemonsets
+        - kind: k8s-dynamic
+          name: ark/pods
+          config:
+            resource-type:
+              version: v1
+              resource: pods
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: test
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: cyberark-disco-agent
+        app.kubernetes.io/version: v0.0.0
+        helm.sh/chart: cyberark-disco-agent-0.0.0
+      name: test-cyberark-disco-agent-config
+      namespace: test-ns
+defaults:
+  1: |
+    apiVersion: v1
+    data:
+      config.yaml: |-
+        period: "12h0m0s"
+        data-gatherers:
+        - kind: k8s-discovery
+          name: ark/discovery
+        - kind: k8s-dynamic
+          name: ark/secrets
+          config:
+            resource-type:
+              version: v1
+              resource: secrets
+            field-selectors:
+            - type!=kubernetes.io/dockercfg
+            - type!=kubernetes.io/dockerconfigjson
+            - type!=bootstrap.kubernetes.io/token
+            - type!=helm.sh/release.v1
+        - kind: k8s-dynamic
+          name: ark/serviceaccounts
+          config:
+            resource-type:
+              resource: serviceaccounts
+              version: v1
+        - kind: k8s-dynamic
+          name: ark/roles
+          config:
+            resource-type:
+              version: v1
+              group: rbac.authorization.k8s.io
+              resource: roles
+        - kind: k8s-dynamic
+          name: ark/clusterroles
+          config:
+            resource-type:
+              version: v1
+              group: rbac.authorization.k8s.io
+              resource: clusterroles
+        - kind: k8s-dynamic
+          name: ark/rolebindings
+          config:
+            resource-type:
+              version: v1
+              group: rbac.authorization.k8s.io
+              resource: rolebindings
+        - kind: k8s-dynamic
+          name: ark/clusterrolebindings
+          config:
+            resource-type:
+              version: v1
+              group: rbac.authorization.k8s.io
+              resource: clusterrolebindings
+        - kind: k8s-dynamic
+          name: ark/jobs
+          config:
+            resource-type:
+              version: v1
+              group: batch
+              resource: jobs
+        - kind: k8s-dynamic
+          name: ark/cronjobs
+          config:
+            resource-type:
+              version: v1
+              group: batch
+              resource: cronjobs
+        - kind: k8s-dynamic
+          name: ark/deployments
+          config:
+            resource-type:
+              version: v1
+              group: apps
+              resource: deployments
+        - kind: k8s-dynamic
+          name: ark/statefulsets
+          config:
+            resource-type:
+              version: v1
+              group: apps
+              resource: statefulsets
+        - kind: k8s-dynamic
+          name: ark/daemonsets
+          config:
+            resource-type:
+              version: v1
+              group: apps
+              resource: daemonsets
+        - kind: k8s-dynamic
+          name: ark/pods
+          config:
+            resource-type:
+              version: v1
+              resource: pods
+    kind: ConfigMap
+    metadata:
+      labels:
+        app.kubernetes.io/instance: test
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: cyberark-disco-agent
+        app.kubernetes.io/version: v0.0.0
+        helm.sh/chart: cyberark-disco-agent-0.0.0
+      name: test-cyberark-disco-agent-config
+      namespace: test-ns
