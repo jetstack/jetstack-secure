@@ -8,7 +8,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/jetstack/venafi-connection-lib v0.4.1-0.20250617093438-475079c98311
+	github.com/jetstack/venafi-connection-lib v0.5.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pmylund/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.23.2
