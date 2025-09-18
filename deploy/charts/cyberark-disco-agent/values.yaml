@@ -122,8 +122,8 @@ podDisruptionBudget:
 
 # Configuration for the agent
 config:
-  # Push data every hour unless changed.
-  period: "1h0m0s"
+  # Push data every 12 hours unless changed.
+  period: "12h0m0s"
 
   # You can configure the agent to exclude some annotations or
   # labels from being pushed . All Kubernetes objects

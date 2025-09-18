@@ -257,10 +257,10 @@ Configure a PodDisruptionBudget for the agent's Deployment. If running with mult
 #### **config.period** ~ `string`
 > Default value:
 > ```yaml
-> 1h0m0s
+> 12h0m0s
 > ```
 
-Push data every hour unless changed.
+Push data every 12 hours unless changed.
 #### **config.excludeAnnotationKeysRegex** ~ `array`
 > Default value:
 > ```yaml

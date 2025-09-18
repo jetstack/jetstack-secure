@@ -128,8 +128,8 @@
       "type": "array"
     },
     "helm-values.config.period": {
-      "default": "1h0m0s",
-      "description": "Push data every hour unless changed.",
+      "default": "12h0m0s",
+      "description": "Push data every 12 hours unless changed.",
       "type": "string"
     },
     "helm-values.extraArgs": {
