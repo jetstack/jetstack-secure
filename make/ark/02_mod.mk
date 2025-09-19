@@ -1,31 +1,38 @@
+# Makefile targets for CyberArk Discovery and Context
+
+# The base OCI repository for all CyberArk Discovery and Context artifacts
+ARK_OCI_BASE ?= quay.io/jetstack
+
+# The OCI repository (without tag) for the CyberArk Discovery and Context Agent Docker image
+# Can be overridden when calling `make ark-release` to push to a different repository.
+ARK_IMAGE ?= $(ARK_OCI_BASE)/cyberark-disco-agent
+
+# The OCI repository (without tag) for the CyberArk Discovery and Context Helm chart
+# Can be overridden when calling `make ark-release` to push to a different repository.
+ARK_CHART ?= $(ARK_OCI_BASE)/charts/cyberark-disco-agent
+
+# Used to output variables when running in GitHub Actions
 GITHUB_OUTPUT ?= /dev/stderr
+
 .PHONY: ark-release
 ## Publish all release artifacts (image + helm chart)
 ## @category CyberArk Discovery and Context
-ark-release: oci_ark_image_name := $(OCI_BASE)/images/cyberark-disco-agent
-ark-release: OCI_SIGN_ON_PUSH := false
-ark-release: oci_platforms := linux/amd64
-ark-release: helm_chart_source_dir := deploy/charts/cyberark-disco-agent
-ark-release: helm_chart_image_name := $(OCI_BASE)/charts/cyberark-disco-agent
-ark-release: helm_chart_version := $(helm_chart_version)
 ark-release: oci_ark_image_digest_path := $(bin_dir)/scratch/image/oci-layout-ark.digests
 ark-release: helm_digest_path := $(bin_dir)/scratch/helm/cyberark-disco-agent-$(helm_chart_version).digests
 ark-release:
 	$(MAKE) oci-push-ark helm-chart-oci-push \
-		oci_ark_image_name="$(oci_ark_image_name)" \
-		OCI_SIGN_ON_PUSH="$(OCI_SIGN_ON_PUSH)" \
-		oci_platforms="$(oci_platforms)" \
-		helm_image_name="$(oci_ark_image_name)" \
+		oci_ark_image_name="$(ARK_IMAGE)" \
+		helm_image_name="$(ARK_IMAGE)" \
 		helm_image_tag="$(oci_ark_image_tag)" \
-		helm_chart_source_dir="$(helm_chart_source_dir)" \
-		helm_chart_image_name="$(helm_chart_image_name)"
+		helm_chart_source_dir=deploy/charts/cyberark-disco-agent \
+		helm_chart_image_name="$(ARK_CHART)"
 
-	@echo "RELEASE_OCI_IMAGE=$(oci_ark_image_name)" >> "$(GITHUB_OUTPUT)"
-	@echo "RELEASE_OCI_IMAGE_TAG=$(oci_ark_image_tag)" >> "$(GITHUB_OUTPUT)"
-	@echo "RELEASE_OCI_IMAGE_DIGEST=$$(head -1 $(oci_ark_image_digest_path))" >> "$(GITHUB_OUTPUT)"
-	@echo "RELEASE_OCI_CHART=$(helm_chart_image_name)" >> "$(GITHUB_OUTPUT)"
-	@echo "RELEASE_OCI_CHART_TAG=$(helm_chart_version)" >> "$(GITHUB_OUTPUT)"
-	@echo "RELEASE_OCI_CHART_DIGEST=$$(head -1 $(helm_digest_path))" >> "$(GITHUB_OUTPUT)"
+	@echo "ARK_IMAGE=$(ARK_IMAGE)" >> "$(GITHUB_OUTPUT)"
+	@echo "ARK_IMAGE_TAG=$(oci_ark_image_tag)" >> "$(GITHUB_OUTPUT)"
+	@echo "ARK_IMAGE_DIGEST=$$(head -1 $(oci_ark_image_digest_path))" >> "$(GITHUB_OUTPUT)"
+	@echo "ARK_CHART=$(ARK_CHART)" >> "$(GITHUB_OUTPUT)"
+	@echo "ARK_CHART_TAG=$(helm_chart_version)" >> "$(GITHUB_OUTPUT)"
+	@echo "ARK_CHART_DIGEST=$$(head -1 $(helm_digest_path))" >> "$(GITHUB_OUTPUT)"
 
 	@echo "Release complete!"
 
@@ -40,11 +47,11 @@ ark-test-e2e: $(NEEDS_KIND) $(NEEDS_KUBECTL) $(NEEDS_HELM)
 ## Verify the Helm chart
 ## @category CyberArk Discovery and Context
 ark-verify:
-	$(MAKE) verify-helm-lint verify-helm-values verify-pod-security-standards verify-helm-kubeconform\
+	$(MAKE) verify-helm-lint verify-helm-values verify-pod-security-standards verify-helm-kubeconform \
 		helm_chart_source_dir=deploy/charts/cyberark-disco-agent \
-		helm_chart_image_name=$(OCI_BASE)/charts/cyberark-disco-agent
+		helm_chart_image_name=$(ARK_CHART)
 
-shared_verify_targets_dirty += ark-verify
+shared_verify_targets += ark-verify
 
 .PHONY: ark-generate
 ## Generate Helm chart documentation and schema

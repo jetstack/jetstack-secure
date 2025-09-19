@@ -43,7 +43,11 @@ trap 'rm -rf "${tmp_dir}"' EXIT
 
 pushd "${tmp_dir}"
 > release.env
-make -C "$root_dir" ark-release GITHUB_OUTPUT="${tmp_dir}/release.env"
+make -C "$root_dir" ark-release \
+     GITHUB_OUTPUT="${tmp_dir}/release.env" \
+     OCI_SIGN_ON_PUSH=false \
+     oci_platforms="" \
+     ARK_OCI_BASE="${OCI_BASE}"
 cat release.env
 source release.env
 
@@ -61,15 +65,15 @@ kubectl create secret generic agent-credentials \
         --from-literal=ARK_SUBDOMAIN=$ARK_SUBDOMAIN \
         --from-literal=ARK_DISCOVERY_API=$ARK_DISCOVERY_API
 
-helm upgrade agent "oci://${RELEASE_OCI_CHART}@${RELEASE_OCI_CHART_DIGEST}" \
-     --version "${RELEASE_OCI_CHART_TAG}" \
+helm upgrade agent "oci://${ARK_CHART}@${ARK_CHART_DIGEST}" \
+     --version "${ARK_CHART_TAG}" \
      --install \
      --wait \
      --create-namespace \
      --namespace "$NAMESPACE" \
      --set pprof.enabled=true \
      --set fullnameOverride=disco-agent \
-     --set "image.digest=${RELEASE_OCI_IMAGE_DIGEST}" \
+     --set "image.digest=${ARK_IMAGE_DIGEST}" \
      --set-json "podLabels={\"disco-agent.cyberark.cloud/test-id\": \"${RANDOM}\"}"
 
 kubectl rollout status deployments/disco-agent --namespace "${NAMESPACE}"
