@@ -10,10 +10,11 @@ The release process is semi-automated.
 > [!NOTE]
 >
 > Upon pushing the tag, a GitHub Action will do the following:
-> - Build and publish the container image at `quay.io/jetstack/venafi-agent`,
-> - Build and publish the Helm chart at `oci://quay.io/jetstack/charts/venafi-kubernetes-agent`,
+> - Build and publish the container image: `quay.io/jetstack/venafi-agent`,
+> - Build and publish the Helm chart: `oci://quay.io/jetstack/charts/venafi-kubernetes-agent`,
+> - Build and publish the container image: `quay.io/jetstack/cyberark-disco-agent`,
+> - Build and publish the Helm chart: `oci://quay.io/jetstack/charts/cyberark-disco-agent`,
 > - Create a draft GitHub release,
-> - Upload the Helm chart tarball to the GitHub release.
 
 1. Upgrade the Go dependencies.
 
@@ -71,9 +72,10 @@ The release process is semi-automated.
 
 For context, the new tag will create the following images:
 
-| Image                                                     | Automation                                                                                                                                                                                              |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Image                                                     | Automation                                                                                   |
+|-----------------------------------------------------------|----------------------------------------------------------------------------------------------|
 | `quay.io/jetstack/venafi-agent`                           | Automatically built by the [release action](.github/workflows/release.yml) on Git tag pushes |
+| `quay.io/jetstack/cyberark-disco-agent`                   | Automatically built by the [release action](.github/workflows/release.yml) on Git tag pushes |
 | `registry.venafi.cloud/venafi-agent/venafi-agent`         | Automatically mirrored by Harbor Replication rule                                            |
 | `private-registry.venafi.cloud/venafi-agent/venafi-agent` | Automatically mirrored by Harbor Replication rule                                            |
 | `private-registry.venafi.eu/venafi-agent/venafi-agent`    | Automatically mirrored by Harbor Replication rule                                            |
@@ -81,8 +83,9 @@ For context, the new tag will create the following images:
 and the following OCI Helm charts:
 
 | Helm Chart                                                           | Automation                                                                                   |
-| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+|----------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
 | `oci://quay.io/jetstack/charts/venafi-kubernetes-agent`              | Automatically built by the [release action](.github/workflows/release.yml) on Git tag pushes |
+| `oci://quay.io/jetstack/charts/cyberark-disco-agent`                 | Automatically built by the [release action](.github/workflows/release.yml) on Git tag pushes |
 | `oci://registry.venafi.cloud/charts/venafi-kubernetes-agent`         | Automatically mirrored by Harbor Replication rule                                            |
 | `oci://private-registry.venafi.cloud/charts/venafi-kubernetes-agent` | Automatically mirrored by Harbor Replication rule                                            |
 | `oci://private-registry.venafi.eu/charts/venafi-kubernetes-agent`    | Automatically mirrored by Harbor Replication rule                                            |
@@ -118,3 +121,7 @@ v1.1.0 (Git tag in the jetstack-secure repo)
 ### Step 2: Test the Helm chart "venafi-kubernetes-agent" with venctl connect
 
 NOTE(mael): TBD
+
+### Step 3: Test the Helm chart "cyberark-disco-agent"
+
+NOTE(wallrj): TBD

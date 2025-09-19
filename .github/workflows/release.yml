@@ -37,13 +37,19 @@ jobs:
           go-version: ${{ steps.go-version.outputs.result }}
 
       - id: release
-        run: make release
+        run: make release ark-release
 
     outputs:
       RELEASE_OCI_PREFLIGHT_IMAGE: ${{ steps.release.outputs.RELEASE_OCI_PREFLIGHT_IMAGE }}
       RELEASE_OCI_PREFLIGHT_TAG: ${{ steps.release.outputs.RELEASE_OCI_PREFLIGHT_TAG }}
       RELEASE_HELM_CHART_IMAGE: ${{ steps.release.outputs.RELEASE_HELM_CHART_IMAGE }}
       RELEASE_HELM_CHART_VERSION: ${{ steps.release.outputs.RELEASE_HELM_CHART_VERSION }}
+      ARK_IMAGE: ${{ steps.release.outputs.ARK_IMAGE }}
+      ARK_IMAGE_TAG: ${{ steps.release.outputs.ARK_IMAGE_TAG }}
+      ARK_IMAGE_DIGEST: ${{ steps.release.outputs.ARK_IMAGE_DIGEST }}
+      ARK_CHART: ${{ steps.release.outputs.ARK_CHART }}
+      ARK_CHART_TAG: ${{ steps.release.outputs.ARK_CHART_TAG }}
+      ARK_CHART_DIGEST: ${{ steps.release.outputs.ARK_CHART_DIGEST }}
 
   github_release:
     runs-on: ubuntu-latest
@@ -61,6 +67,12 @@ jobs:
           echo "OCI_PREFLIGHT_TAG: ${{ needs.build_and_push.outputs.RELEASE_OCI_PREFLIGHT_TAG }}" >> .notes-file
           echo "HELM_CHART_IMAGE: ${{ needs.build_and_push.outputs.RELEASE_HELM_CHART_IMAGE }}" >> .notes-file
           echo "HELM_CHART_VERSION: ${{ needs.build_and_push.outputs.RELEASE_HELM_CHART_VERSION }}" >> .notes-file
+          echo "ARK_IMAGE: ${{ needs.build_and_push.outputs.ARK_IMAGE }}" >> .notes-file
+          echo "ARK_IMAGE_TAG: ${{ needs.build_and_push.outputs.ARK_IMAGE_TAG }}" >> .notes-file
+          echo "ARK_IMAGE_DIGEST: ${{ needs.build_and_push.outputs.ARK_IMAGE_DIGEST }}" >> .notes-file
+          echo "ARK_CHART: ${{ needs.build_and_push.outputs.ARK_CHART }}" >> .notes-file
+          echo "ARK_CHART_TAG: ${{ needs.build_and_push.outputs.ARK_CHART_TAG }}" >> .notes-file
+          echo "ARK_CHART_DIGEST: ${{ needs.build_and_push.outputs.ARK_CHART_DIGEST }}" >> .notes-file
 
       - env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
