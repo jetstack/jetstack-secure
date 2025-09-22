@@ -1,0 +1,13 @@
+# In GKE Autopilot clusters, Spot Pods are Pods that run on nodes backed by
+# Compute Engine Spot VMs. Spot Pods are priced lower than standard Autopilot
+# Pods, but can be evicted by GKE whenever compute resources are required to run
+# standard Pods
+# https://cloud.google.com/kubernetes-engine/docs/how-to/autopilot-spot-pods
+nodeAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+    - matchExpressions:
+      - key: cloud.google.com/gke-spot
+        operator: In
+        values:
+        - "true"

@@ -108,6 +108,7 @@ roleRef:
   kind: Role
   name: cert-manager-policy:allow
 subjects:
-- kind: Group
-  name: system:authenticated
-  apiGroup: rbac.authorization.k8s.io
+- kind: ServiceAccount
+  name: cert-manager
+  namespace: venafi
+

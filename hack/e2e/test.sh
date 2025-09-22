@@ -55,7 +55,7 @@ export TERM=dumb
 # Required gcloud environment variables
 # https://cloud.google.com/sdk/docs/configurations#setting_configuration_properties
 : ${CLOUDSDK_CORE_PROJECT?}
-: ${CLOUDSDK_COMPUTE_ZONE?}
+: ${CLOUDSDK_COMPUTE_REGION?}
 
 # The name of the cluster to create
 : ${CLUSTER_NAME?}
@@ -67,7 +67,7 @@ pushd "${root_dir}"
 > release.env
 make release \
      OCI_SIGN_ON_PUSH=false \
-     oci_platforms=linux/amd64 \
+     oci_platforms="" \
      oci_preflight_image_name=$OCI_BASE/images/venafi-agent \
      helm_chart_image_name=$OCI_BASE/charts/venafi-kubernetes-agent \
      GITHUB_OUTPUT=release.env
@@ -76,12 +76,13 @@ popd
 
 export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 if ! gcloud container clusters get-credentials "${CLUSTER_NAME}"; then
-  gcloud container clusters create "${CLUSTER_NAME}" \
-    --preemptible \
-    --machine-type e2-small \
-    --num-nodes 3
+  gcloud container clusters create-auto "${CLUSTER_NAME}"
 fi
 kubectl create ns venafi || true
+
+# Scale down all deployments in the venafi namespace when the script exits to
+# allow the GKE autopilot cluster to scale down to zero nodes,
+trap 'kubectl -n venafi scale deployment --all --replicas=0' EXIT
 
 # Pull secret for Venafi OCI registry
 # IMPORTANT: we pick the first team as the owning team for the registry and
@@ -116,6 +117,7 @@ fi
 
 export VENAFI_KUBERNETES_AGENT_CLIENT_ID="not-used-but-required-by-venctl"
 venctl components kubernetes apply \
+  --global-affinities-file "${script_dir}/affinities.yaml" \
   --region $VEN_VCP_REGION \
   --cert-manager \
   --venafi-enhanced-issuer \
@@ -194,14 +196,9 @@ kubectl -n team-1 wait certificate app-0 --for=condition=Ready
 
 # Wait 60s for log message indicating success.
 # Parse logs as JSON using jq to ensure logs are all JSON formatted.
-# Disable pipefail to prevent SIGPIPE (141) errors from tee
-# See https://unix.stackexchange.com/questions/274120/pipe-fail-141-when-piping-output-into-tee-why
-set +o pipefail
-kubectl logs deployments/venafi-kubernetes-agent \
-        --follow \
-        --namespace venafi \
-    | timeout 60 jq 'if .msg | test("Data sent successfully") then . | halt_error(0) end'
-set -o pipefail
+timeout 60 jq -n \
+        'inputs | if .msg | test("Data sent successfully") then . | halt_error(0) else . end' \
+        <(kubectl logs deployments/disco-agent --namespace "${NAMESPACE}" --follow)
 
 # Create a unique TLS Secret and wait for it to appear in the Venafi certificate
 # inventory API. The case conversion is due to macOS' version of uuidgen which

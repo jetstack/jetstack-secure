@@ -10,7 +10,7 @@ export VEN_VCP_REGION=    # the Venafi Cloud region to use (us or eu)
 export VEN_API_HOST=      # the Venafi Cloud API host (usually api.venafi.cloud or api.venafi.eu)
 export OCI_BASE=          # the base URL for the OCI registry where the Agent chart and image will be pushed
 export CLOUDSDK_CORE_PROJECT= # the GCP project ID where a GKE cluster will be created.
-export CLOUDSDK_COMPUTE_ZONE= # the GCP zone where a GKE cluster will be created. E.g. europe-west2-b
+export CLOUDSDK_COMPUTE_REGION= # the GCP region where a GKE Autopilot cluster will be created. E.g. us-central1
 export CLUSTER_NAME=          # the name of the GKE cluster which will be created. E.g. cluster-1
 
 # The following variables are required for CyberArk / MachineHub integration tests.
