@@ -289,6 +289,13 @@ podDisruptionBudget:
   # +docs:property
   # maxUnavailable: 1
 
+# Optionally include the VenafiConnection CRDs
+venafiConnection:
+  # When set to false, the rendered output does not contain the
+  # VenafiConnection CRDs and RBAC. This is useful for when the
+  # Venafi Connection resources are already installed separately.
+  include: false
+
 # +docs:section=CRDs
 # The CRDs installed by this chart are annotated with "helm.sh/resource-policy: keep", this
 # prevents them from being accidentally removed by Helm when this chart is deleted. After
@@ -305,10 +312,3 @@ crds:
   # annotation is added to the CRD. This will prevent Helm from uninstalling
   # the CRD when the Helm release is uninstalled.
   keep: false
-
-  # Optionally include the VenafiConnection CRDs
-  venafiConnection:
-    # When set to false, the rendered output does not contain the
-    # VenafiConnection CRDs and RBAC. This is useful for when the
-    # Venafi Connection resources are already installed separately.
-    include: false
