@@ -2,9 +2,9 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "cyberark-disco-agent.fullname" . }}-event-emitted
+  name: {{ include "disco-agent.fullname" . }}-event-emitted
   labels:
-    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+    {{- include "disco-agent.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
     resources: ["events"]
@@ -13,39 +13,39 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "cyberark-disco-agent.fullname" . }}-event-emitted
+  name: {{ include "disco-agent.fullname" . }}-event-emitted
   labels:
-    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+    {{- include "disco-agent.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "cyberark-disco-agent.fullname" . }}-event-emitted
+  name: {{ include "disco-agent.fullname" . }}-event-emitted
 subjects:
   - kind: ServiceAccount
-    name: {{ include "cyberark-disco-agent.serviceAccountName" . }}
+    name: {{ include "disco-agent.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "cyberark-disco-agent.fullname" . }}-cluster-viewer
+  name: {{ include "disco-agent.fullname" . }}-cluster-viewer
   labels:
-    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+    {{- include "disco-agent.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: view
 subjects:
   - kind: ServiceAccount
-    name: {{ include "cyberark-disco-agent.serviceAccountName" . }}
+    name: {{ include "disco-agent.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "cyberark-disco-agent.fullname" . }}-secret-reader
+  name: {{ include "disco-agent.fullname" . }}-secret-reader
   labels:
-    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+    {{- include "disco-agent.labels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -54,24 +54,24 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "cyberark-disco-agent.fullname" . }}-secret-reader
+  name: {{ include "disco-agent.fullname" . }}-secret-reader
   labels:
-    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+    {{- include "disco-agent.labels" . | nindent 4 }}
 roleRef:
   kind: ClusterRole
-  name: {{ include "cyberark-disco-agent.fullname" . }}-secret-reader
+  name: {{ include "disco-agent.fullname" . }}-secret-reader
   apiGroup: rbac.authorization.k8s.io
 subjects:
   - kind: ServiceAccount
-    name: {{ include "cyberark-disco-agent.serviceAccountName" . }}
+    name: {{ include "disco-agent.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "cyberark-disco-agent.fullname" . }}-rbac-reader
+  name: {{ include "disco-agent.fullname" . }}-rbac-reader
   labels:
-    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+    {{- include "disco-agent.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["rbac.authorization.k8s.io"]
     resources:
@@ -84,15 +84,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "cyberark-disco-agent.fullname" . }}-rbac-reader
+  name: {{ include "disco-agent.fullname" . }}-rbac-reader
   labels:
-    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+    {{- include "disco-agent.labels" . | nindent 4 }}
 roleRef:
   kind: ClusterRole
-  name: {{ include "cyberark-disco-agent.fullname" . }}-rbac-reader
+  name: {{ include "disco-agent.fullname" . }}-rbac-reader
   apiGroup: rbac.authorization.k8s.io
 subjects:
   - kind: ServiceAccount
-    name: {{ include "cyberark-disco-agent.serviceAccountName" . }}
+    name: {{ include "disco-agent.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 

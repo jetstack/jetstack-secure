@@ -2,14 +2,14 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: {{ include "cyberark-disco-agent.fullname" . }}
+  name: {{ include "disco-agent.fullname" . }}
 {{- if .Values.metrics.podmonitor.namespace }}
   namespace: {{ .Values.metrics.podmonitor.namespace }}
 {{- else }}
   namespace: {{ .Release.Namespace | quote }}
 {{- end }}
   labels:
-    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+    {{- include "disco-agent.labels" . | nindent 4 }}
     prometheus: {{ .Values.metrics.podmonitor.prometheusInstance }}
     {{- with .Values.metrics.podmonitor.labels }}
     {{- toYaml . | nindent 4 }}
@@ -19,10 +19,10 @@ metadata:
     {{- toYaml . | nindent 4 }}
 {{- end }}
 spec:
-  jobLabel: {{ include "cyberark-disco-agent.fullname" . }}
+  jobLabel: {{ include "disco-agent.fullname" . }}
   selector:
     matchLabels:
-      {{- include "cyberark-disco-agent.selectorLabels" . | nindent 6 }}
+      {{- include "disco-agent.selectorLabels" . | nindent 6 }}
 {{- if .Values.metrics.podmonitor.namespace }}
   namespaceSelector:
     matchNames:

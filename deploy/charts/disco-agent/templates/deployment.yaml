@@ -1,14 +1,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "cyberark-disco-agent.fullname" . }}
+  name: {{ include "disco-agent.fullname" . }}
   labels:
-    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+    {{- include "disco-agent.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "cyberark-disco-agent.selectorLabels" . | nindent 6 }}
+      {{- include "disco-agent.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -16,7 +16,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "cyberark-disco-agent.labels" . | nindent 8 }}
+        {{- include "disco-agent.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -25,7 +25,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "cyberark-disco-agent.serviceAccountName" . }}
+      serviceAccountName: {{ include "disco-agent.serviceAccountName" . }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -91,7 +91,7 @@ spec:
           args:
             - "agent"
             - "-c"
-            - "/etc/cyberark-disco-agent/config.yaml"
+            - "/etc/disco-agent/config.yaml"
             - --machine-hub
             - --logging-format=json
             {{- if .Values.metrics.enabled }}
@@ -109,7 +109,7 @@ spec:
           {{- end }}
           volumeMounts:
             - name: config
-              mountPath: "/etc/cyberark-disco-agent"
+              mountPath: "/etc/disco-agent"
               readOnly: true
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
@@ -120,7 +120,7 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: {{ include "cyberark-disco-agent.fullname" . }}-config
+            name: {{ include "disco-agent.fullname" . }}-config
             optional: false
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}

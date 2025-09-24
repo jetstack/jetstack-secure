@@ -2,14 +2,14 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "cyberark-disco-agent.fullname" . }}
+  name: {{ include "disco-agent.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+    {{- include "disco-agent.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      {{- include "cyberark-disco-agent.selectorLabels" . | nindent 6 }}
+      {{- include "disco-agent.selectorLabels" . | nindent 6 }}
 
   {{- if not (or (hasKey .Values.podDisruptionBudget "minAvailable") (hasKey .Values.podDisruptionBudget "maxUnavailable")) }}
   minAvailable: 1 # Default value because minAvailable and maxUnavailable are not set

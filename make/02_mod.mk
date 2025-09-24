@@ -58,13 +58,13 @@ test-e2e-gke: | $(NEEDS_HELM) $(NEEDS_STEP) $(NEEDS_VENCTL)
 ## Run `helm unittest`.
 ## @category Testing
 test-helm: | $(NEEDS_HELM-UNITTEST)
-	$(HELM-UNITTEST) ./deploy/charts/{venafi-kubernetes-agent,cyberark-disco-agent}
+	$(HELM-UNITTEST) ./deploy/charts/{venafi-kubernetes-agent,disco-agent}
 
 .PHONY: test-helm-snapshot
 ## Update the `helm unittest` snapshots.
 ## @category Testing
 test-helm-snapshot: | $(NEEDS_HELM-UNITTEST)
-	$(HELM-UNITTEST) ./deploy/charts/{venafi-kubernetes-agent,cyberark-disco-agent} -u
+	$(HELM-UNITTEST) ./deploy/charts/{venafi-kubernetes-agent,disco-agent} -u
 
 .PHONY: helm-plugins
 ## Install required helm plugins

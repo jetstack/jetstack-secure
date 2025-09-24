@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build and deploy the cyberark-disco-agent Helm chart.
+# Build and deploy the disco-agent Helm chart.
 # Wait for the agent to log a message indicating successful data upload.
 #
 # Prerequisites:
@@ -87,7 +87,7 @@ timeout 60 jq -n \
 # Query the Prometheus metrics endpoint to ensure it's working.
 kubectl get pod \
         --namespace cyberark \
-        --selector app.kubernetes.io/name=cyberark-disco-agent \
+        --selector app.kubernetes.io/name=disco-agent \
         --output jsonpath={.items[*].metadata.name} \
     | xargs -I{} kubectl get --raw /api/v1/namespaces/cyberark/pods/{}:8081/proxy/metrics \
     | grep '^process_'
@@ -95,7 +95,7 @@ kubectl get pod \
 # Query the pprof endpoint to ensure it's working.
 kubectl get pod \
         --namespace cyberark \
-        --selector app.kubernetes.io/name=cyberark-disco-agent \
+        --selector app.kubernetes.io/name=disco-agent \
         --output jsonpath={.items[*].metadata.name} \
     | xargs -I{} kubectl get --raw /api/v1/namespaces/cyberark/pods/{}:8081/proxy/debug/pprof/cmdline \
     | xargs -0
