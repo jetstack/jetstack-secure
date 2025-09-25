@@ -98,10 +98,10 @@ custom-period:
       labels:
         app.kubernetes.io/instance: test
         app.kubernetes.io/managed-by: Helm
-        app.kubernetes.io/name: cyberark-disco-agent
+        app.kubernetes.io/name: disco-agent
         app.kubernetes.io/version: v0.0.0
-        helm.sh/chart: cyberark-disco-agent-0.0.0
-      name: test-cyberark-disco-agent-config
+        helm.sh/chart: disco-agent-0.0.0
+      name: test-disco-agent-config
       namespace: test-ns
 defaults:
   1: |
@@ -203,8 +203,8 @@ defaults:
       labels:
         app.kubernetes.io/instance: test
         app.kubernetes.io/managed-by: Helm
-        app.kubernetes.io/name: cyberark-disco-agent
+        app.kubernetes.io/name: disco-agent
         app.kubernetes.io/version: v0.0.0
-        helm.sh/chart: cyberark-disco-agent-0.0.0
-      name: test-cyberark-disco-agent-config
+        helm.sh/chart: disco-agent-0.0.0
+      name: test-disco-agent-config
       namespace: test-ns

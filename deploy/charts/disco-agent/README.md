@@ -1,4 +1,4 @@
-# cyberark-disco-agent
+# disco-agent
 
 The Cyberark Discovery and Context Agent connects your Kubernetes or OpenShift
 cluster to the Discovery and Context service of the CyberArk Identity Security Platform.
@@ -61,7 +61,7 @@ stringData:
 Deploy the agent:
 
 ```sh
-helm upgrade agent "oci://${OCI_BASE}/charts/cyberark-disco-agent" \
+helm upgrade agent "oci://${OCI_BASE}/charts/disco-agent" \
      --install \
      --create-namespace \
      --namespace "$NAMESPACE" \
@@ -72,7 +72,7 @@ helm upgrade agent "oci://${OCI_BASE}/charts/cyberark-disco-agent" \
 
 Check the Pod and its events:
 ```sh
-kubectl describe -n cyberark pods -l app.kubernetes.io/name=cyberark-disco-agent
+kubectl describe -n cyberark pods -l app.kubernetes.io/name=disco-agent
 ```
 
 Check the logs:
@@ -318,7 +318,7 @@ Create a PodMonitor to add the metrics to Prometheus, if you are using Prometheu
 #### **metrics.podmonitor.namespace** ~ `string`
 
 The namespace that the pod monitor should live in.  
-Defaults to the cyberark-disco-agent namespace.
+Defaults to the disco-agent namespace.
 
 #### **metrics.podmonitor.prometheusInstance** ~ `string`
 > Default value:

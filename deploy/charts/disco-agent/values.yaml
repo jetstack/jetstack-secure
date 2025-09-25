@@ -1,4 +1,4 @@
-# Default values for cyberark-disco-agent.
+# Default values for disco-agent.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -160,7 +160,7 @@ metrics:
     enabled: false
 
     # The namespace that the pod monitor should live in.
-    # Defaults to the cyberark-disco-agent namespace.
+    # Defaults to the disco-agent namespace.
     # +docs:property
     # namespace: cyberark
 

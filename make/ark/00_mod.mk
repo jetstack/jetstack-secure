@@ -7,9 +7,9 @@ go_ark_ldflags := \
 	-X $(repo_name)/pkg/version.BuildDate=$(shell date "+%F-%T-%Z") \
 
 oci_ark_base_image_flavor := static
-oci_ark_image_name := quay.io/jetstack/cyberark-disco-agent
+oci_ark_image_name := quay.io/jetstack/disco-agent
 oci_ark_image_tag := $(VERSION)
-oci_ark_image_name_development := jetstack.local/cyberark-disco-agent
+oci_ark_image_name_development := jetstack.local/disco-agent
 
 # Annotations are the standardised set of annotations we set on every component we publish
 oci_ark_build_args := \

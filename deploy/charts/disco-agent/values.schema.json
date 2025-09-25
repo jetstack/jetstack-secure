@@ -277,7 +277,7 @@
       "type": "object"
     },
     "helm-values.metrics.podmonitor.namespace": {
-      "description": "The namespace that the pod monitor should live in.\nDefaults to the cyberark-disco-agent namespace.",
+      "description": "The namespace that the pod monitor should live in.\nDefaults to the disco-agent namespace.",
       "type": "string"
     },
     "helm-values.metrics.podmonitor.prometheusInstance": {

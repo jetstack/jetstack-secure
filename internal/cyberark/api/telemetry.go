@@ -29,7 +29,7 @@ var (
 
 func init() {
 	telemetryValues = url.Values{}
-	telemetryValues.Set("in", "cyberark-disco-agent")
+	telemetryValues.Set("in", "disco-agent")
 	telemetryValues.Set("vn", "CyberArk")
 	telemetryValues.Set("it", "KubernetesAgent")
 	telemetryValues.Set("iv", version.PreflightVersion)

@@ -1,7 +1,7 @@
 apiVersion: v2
-name: cyberark-disco-agent
+name: disco-agent
 description: |-
-  The cyberark-disco-agent connects your Kubernetes or Openshift cluster to CyberArk Discovery and Context.
+  The disco-agent connects your Kubernetes or Openshift cluster to CyberArk Discovery and Context.
 
 maintainers:
   - name: CyberArk

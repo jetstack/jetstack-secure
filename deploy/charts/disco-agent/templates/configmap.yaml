@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "cyberark-disco-agent.fullname" . }}-config
+  name: {{ include "disco-agent.fullname" . }}-config
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "cyberark-disco-agent.labels" . | nindent 4 }}
+    {{- include "disco-agent.labels" . | nindent 4 }}
 data:
   config.yaml: |-
     period: {{ .Values.config.period | quote }}
