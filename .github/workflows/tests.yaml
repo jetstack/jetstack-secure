@@ -106,11 +106,6 @@ jobs:
         with:
           go-version: ${{ steps.go-version.outputs.result }}
 
-      - name: Setup upterm session
-        uses: owenthereal/action-upterm@v1
-        with:
-          limit-access-to-actor: true
-
       - name: Generate timestamp for cluster name
         id: timestamp # Give the step an ID to reference its output
         run: |
