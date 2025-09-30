@@ -250,13 +250,10 @@ getCertificate() {
 # Wait 5 minutes for the certificate to appear.
 for ((i=0;;i++)); do if getCertificate; then exit 0; fi; sleep 30; done | timeout -v -- 5m cat
 
-echo "Identifying the agent pod to terminate..."
-export AGENT_POD_NAME=$(kubectl get pods -n venafi -l app.kubernetes.io/name=venafi-kubernetes-agent -o jsonpath="{.items[0].metadata.name}")
-
-echo "Gracefully deleting agent pod '${AGENT_POD_NAME}' to flush coverage to the PVC..."
-kubectl delete pod -n venafi "${AGENT_POD_NAME}" --grace-period=30
+echo "Scaling down agent deployment to kill pod and flush coverage to the PVC..."
+kubectl scale deployment venafi-kubernetes-agent -n venafi --replicas=0
 echo "Waiting for agent pod to terminate..."
-kubectl wait --for=delete pod/${AGENT_POD_NAME} -n venafi --timeout=90s
+kubectl wait deployment venafi-kubernetes-agent -n venafi --for=condition=scaled --timeout=60s
 
 kubectl apply -n venafi -f - <<EOF
 apiVersion: v1
