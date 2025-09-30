@@ -83,6 +83,19 @@ if ! gcloud container clusters get-credentials "${CLUSTER_NAME}"; then
 fi
 kubectl create ns venafi || true
 
+kubectl apply -n venafi -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: coverage-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+EOF
+
 # Pull secret for Venafi OCI registry
 # IMPORTANT: we pick the first team as the owning team for the registry and
 # workload identity service account as it doesn't matter.
@@ -123,10 +136,13 @@ venctl components kubernetes apply \
   --venafi-kubernetes-agent \
   --venafi-kubernetes-agent-version "${RELEASE_HELM_CHART_VERSION}" \
   --venafi-kubernetes-agent-values-files "${script_dir}/values.venafi-kubernetes-agent.yaml" \
+  --venafi-kubernetes-agent-values-files "${script_dir}/values.coverage-pvc.yaml" \
   --venafi-kubernetes-agent-custom-image-registry "${OCI_BASE}/images" \
   --venafi-kubernetes-agent-custom-chart-repository "oci://${OCI_BASE}/charts"
 
 kubectl apply -n venafi -f venafi-components.yaml
+kubectl set env deployments/venafi-kubernetes-agent -n venafi GOCOVERDIR=/coverage
+kubectl rollout status deployment/venafi-kubernetes-agent -n venafi --timeout=2m
 
 subject="system:serviceaccount:venafi:venafi-components"
 audience="https://${VEN_API_HOST}"
@@ -233,3 +249,47 @@ getCertificate() {
 
 # Wait 5 minutes for the certificate to appear.
 for ((i=0;;i++)); do if getCertificate; then exit 0; fi; sleep 30; done | timeout -v -- 5m cat
+
+echo "Identifying the agent pod to terminate..."
+export AGENT_POD_NAME=$(kubectl get pods -n venafi -l app.kubernetes.io/name=venafi-kubernetes-agent -o jsonpath="{.items[0].metadata.name}")
+
+echo "Gracefully deleting agent pod '${AGENT_POD_NAME}' to flush coverage to the PVC..."
+kubectl delete pod -n venafi "${AGENT_POD_NAME}" --grace-period=30
+echo "Waiting for agent pod to terminate..."
+kubectl wait --for=delete pod/${AGENT_POD_NAME} -n venafi --timeout=90s
+
+kubectl apply -n venafi -f - <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: coverage-helper-pod
+spec:
+  containers:
+  - name: helper
+    image: alpine:latest
+    command: ["sleep", "infinity"]
+    volumeMounts:
+    - name: coverage-storage
+      mountPath: /coverage-data
+  volumes:
+  - name: coverage-storage
+    persistentVolumeClaim:
+      claimName: coverage-pvc
+EOF
+
+echo "Waiting for the helper pod to be ready..."
+kubectl wait --for=condition=Ready pod/coverage-helper-pod -n venafi --timeout=2m
+
+echo "Copying coverage files from the helper pod..."
+mkdir -p $COVERAGE_HOST_PATH
+# We copy from the helper pod's mount path.
+kubectl cp -n venafi "coverage-helper-pod:/coverage-data/." $COVERAGE_HOST_PATH
+
+echo "Coverage files retrieved. Listing contents:"
+ls -la $COVERAGE_HOST_PATH
+
+# --- MANDATORY CLEANUP ---
+#echo "Cleaning up helper pod and PersistentVolumeClaim..."
+#kubectl delete pod coverage-helper-pod -n venafi
+#kubectl delete pvc coverage-pvc -n venafi
+#echo "Cleanup complete."

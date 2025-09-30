@@ -64,6 +64,12 @@ jobs:
 
       - run: make -j test-unit test-helm
 
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-artifacts
+          path: _bin/artifacts
+
   test-e2e:
     if: contains(github.event.pull_request.labels.*.name, 'test-e2e')
     runs-on: ubuntu-latest
@@ -125,6 +131,11 @@ jobs:
           CLOUDSDK_COMPUTE_ZONE: europe-west1-b
           CLUSTER_NAME: ${{ steps.timestamp.outputs.cluster_name }}
 
+      - name: Setup upterm session
+        uses: owenthereal/action-upterm@v1
+        with:
+          limit-access-to-actor: true
+
       - name: Delete GKE Cluster
         # 'always()' - Run this step regardless of success or failure.
         # '!contains(...)' - AND only run if the list of PR labels DOES NOT contain 'keep-e2e-cluster'.
@@ -136,3 +147,9 @@ jobs:
             --project=machineidentitysecurity-jsci-e \
             --zone=europe-west1-b \
             --quiet
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: _bin/artifacts
