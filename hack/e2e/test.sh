@@ -216,7 +216,7 @@ set +o pipefail
 kubectl logs deployments/venafi-kubernetes-agent \
         --follow \
         --namespace venafi \
-    | timeout 60 jq 'if .msg | test("Data sent successfully") then . | halt_error(0) end'
+    | timeout 60 jq 'try (if .msg | test("Data sent successfully") then . | halt_error(0) end) catch .'
 set -o pipefail
 
 # Create a unique TLS Secret and wait for it to appear in the Venafi certificate
