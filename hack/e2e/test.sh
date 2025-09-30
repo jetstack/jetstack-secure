@@ -216,7 +216,7 @@ set +o pipefail
 kubectl logs deployments/venafi-kubernetes-agent \
         --follow \
         --namespace venafi \
-    | timeout 60 jq 'try (if .msg | test("Data sent successfully") then . | halt_error(0) end) catch .'
+    | timeout 60 jq 'if .msg | test("Data sent successfully") then . | halt_error(0) end'
 set -o pipefail
 
 # Create a unique TLS Secret and wait for it to appear in the Venafi certificate
@@ -280,12 +280,14 @@ echo "Waiting for the helper pod to be ready..."
 kubectl wait --for=condition=Ready pod/coverage-helper-pod -n venafi --timeout=2m
 
 echo "Copying coverage files from the helper pod..."
-mkdir -p $COVERAGE_HOST_PATH
+mkdir -p /home/runner/work/jetstack-secure/jetstack-secure/_bin/artifacts
+#mkdir -p $COVERAGE_HOST_PATH
 # We copy from the helper pod's mount path.
-kubectl cp -n venafi "coverage-helper-pod:/coverage-data/." $COVERAGE_HOST_PATH
+kubectl cp -n venafi "coverage-helper-pod:/coverage-data/." /home/runner/work/jetstack-secure/jetstack-secure/_bin/artifacts
 
 echo "Coverage files retrieved. Listing contents:"
-ls -la $COVERAGE_HOST_PATH
+#ls -la $COVERAGE_HOST_PATH
+ls -la /home/runner/work/jetstack-secure/jetstack-secure/_bin/artifacts
 
 # --- MANDATORY CLEANUP ---
 #echo "Cleaning up helper pod and PersistentVolumeClaim..."
