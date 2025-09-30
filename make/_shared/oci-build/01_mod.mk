@@ -28,7 +28,7 @@ $(ko_config_path_$1:$(CURDIR)/%=%): | $(NEEDS_YQ) $(bin_dir)/scratch/image
 		$(YQ) '.builds[0].ldflags[0] = "-s"' | \
 		$(YQ) '.builds[0].ldflags[1] = "-w"' | \
 		$(YQ) '.builds[0].ldflags[2] = "{{.Env.LDFLAGS}}"' | \
-		$(YQ) '.builds[0].flags[0] = "$(go_$1_flags)"' | \
+		$(YQ) '.builds[0].flags[0] = "-cover"' | \
 		$(YQ) '.builds[0].linux_capabilities = "$(oci_$1_linux_capabilities)"' \
 		> $(CURDIR)/$(oci_layout_path_$1).ko_config.yaml
 
