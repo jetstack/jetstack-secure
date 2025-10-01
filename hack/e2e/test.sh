@@ -251,7 +251,26 @@ getCertificate() {
 for ((i=0;;i++)); do if getCertificate; then exit 0; fi; sleep 30; done | timeout -v -- 5m cat
 
 export AGENT_POD_NAME=$(kubectl get pods -n venafi -l app.kubernetes.io/name=venafi-kubernetes-agent -o jsonpath="{.items[0].metadata.name}")
-echo "Scaling down agent deployment to kill pod and flush coverage to the PVC..."
+
+echo "Sending SIGQUIT to agent pod '${AGENT_POD_NAME}' to trigger graceful shutdown and flush coverage..."
+# Use kubectl debug to attach a busybox container to the running pod.
+# --target specifies the container to share the process space with.
+# --share-processes allows our new container to see and signal the agent process.
+# We then run 'kill -s QUIT 1' to signal PID 1 (the agent) to quit gracefully.
+kubectl debug -q -n venafi "${AGENT_POD_NAME}" \
+    --image=busybox:1.36 \
+    --target=venafi-kubernetes-agent \
+    --share-processes \
+    -- sh -c 'kill -s QUIT 1'
+
+echo "Waiting for agent pod '${AGENT_POD_NAME}' to terminate gracefully..."
+# The pod will now terminate because its main process is exiting.
+# We wait for Kubernetes to recognize this and delete the pod object.
+kubectl wait --for=delete pod/${AGENT_POD_NAME} -n venafi --timeout=90s
+
+echo "Scaling down deployment to prevent pod from restarting..."
+# Now that the pod is gone and coverage is flushed, we scale the deployment
+# to ensure the ReplicaSet controller doesn't create a new one.
 kubectl scale deployment venafi-kubernetes-agent -n venafi --replicas=0
 echo "Waiting for agent pod '${AGENT_POD_NAME}' to terminate as a result of the scale-down..."
 kubectl wait --for=delete pod/${AGENT_POD_NAME} -n venafi --timeout=90s
