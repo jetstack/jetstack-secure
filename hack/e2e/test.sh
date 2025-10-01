@@ -134,6 +134,7 @@ venctl components kubernetes apply \
   --venafi-enhanced-issuer \
   --approver-policy-enterprise \
   --venafi-kubernetes-agent \
+  --venafi-kubernetes-agent-set "shareProcessNamespace=true"
   --venafi-kubernetes-agent-version "${RELEASE_HELM_CHART_VERSION}" \
   --venafi-kubernetes-agent-values-files "${script_dir}/values.venafi-kubernetes-agent.yaml" \
   --venafi-kubernetes-agent-values-files "${script_dir}/values.coverage-pvc.yaml" \
