@@ -1,9 +1,0 @@
-podSecurityContext:
-  fsGroup: 2000
-volumes:
-  - name: coverage-storage
-    persistentVolumeClaim:
-      claimName: coverage-pvc
-volumeMounts:
-  - name: coverage-storage
-    mountPath: /coverage

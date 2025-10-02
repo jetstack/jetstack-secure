@@ -3,25 +3,14 @@
 # Build and install venafi-kubernetes-agent for VenafiConnection based authentication.
 # Wait for it to log a message indicating successful data upload.
 #
-# A VenafiConnection resource is created which directly loads a bearer token
-# from a Kubernetes Secret.
-# This is the simplest way of testing the VenafiConnection integration,
-# but it does not fully test "secretless" (workload identity federation) authentication.
+# This script is designed to be executed by a `make` target that has already
+# provisioned a Kubernetes cluster (e.g., via `make kind-cluster`).
+# It assumes `kubectl` is pre-configured to point to the correct test cluster.
 #
-# Prerequisites:
-# * kubectl: https://kubernetes.io/docs/tasks/tools/#kubectl
-# * venctl: https://docs.venafi.cloud/vaas/venctl/t-venctl-install/
-# * jq: https://jqlang.github.io/jq/download/
-# * step: https://smallstep.com/docs/step-cli/installation/
-# * curl: https://www.man7.org/linux/man-pages/man1/curl.1.html
-# * envsubst: https://www.man7.org/linux/man-pages/man1/envsubst.1.html
-# * gcloud: https://cloud.google.com/sdk/docs/install
-# * gke-gcloud-auth-plugin: https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl
-# > :warning: If you installed gcloud using snap, you have to install the kubectl plugin using apt:
-# > https://github.com/actions/runner-images/issues/6778#issuecomment-1360360603
+# A VenafiConnection resource is created which uses workload identity federation.
 #
-# In case metrics and logs are missing from your cluster, see:
-# * https://cloud.google.com/kubernetes-engine/docs/troubleshooting/dashboards#write_permissions
+# Prerequisites (expected to be available in the execution environment):
+# * kubectl, venctl, jq, step, curl, envsubst, docker
 
 set -o nounset
 set -o errexit
@@ -35,58 +24,42 @@ export TERM=dumb
 
 # Your Venafi Cloud API key.
 : ${VEN_API_KEY?}
-# Separate API Key for getting a pull secret, if your main venafi cloud tenant
-# doesn't allow you to create registry service accounts.
+# Separate API Key for getting a pull secret.
 : ${VEN_API_KEY_PULL?}
-
-# The Venafi Cloud zone (application/issuing_template) which will be used by the
-# issuer an policy.
+# The Venafi Cloud zone.
 : ${VEN_ZONE?}
-
-# The hostname of the Venafi API server.
-# US: api.venafi.cloud
-# EU: api.venafi.eu
+# The hostname of the Venafi API server (e.g., api.venafi.cloud).
 : ${VEN_API_HOST?}
-
-# The base URL of the OCI registry used for Docker images and Helm charts
-# E.g. ttl.sh/63773370-0bcf-4ac0-bd42-5515616089ff
+# The region of the Venafi API server (e.g., "us" or "eu").
+: ${VEN_VCP_REGION?}
+# The base URL of the OCI registry (e.g., ttl.sh/some-random-uuid).
 : ${OCI_BASE?}
 
-# Required gcloud environment variables
-# https://cloud.google.com/sdk/docs/configurations#setting_configuration_properties
-: ${CLOUDSDK_CORE_PROJECT?}
-: ${CLOUDSDK_COMPUTE_ZONE?}
-
-# The name of the cluster to create
-: ${CLUSTER_NAME?}
-
+REMOTE_AGENT_IMAGE="${OCI_BASE}/venafi-kubernetes-agent-e2e"
 
 cd "${script_dir}"
 
+# Build and PUSH agent image and Helm chart to the anonymous registry
+echo ">>> Building and pushing agent to '${REMOTE_AGENT_IMAGE}'..."
 pushd "${root_dir}"
 > release.env
 make release \
      OCI_SIGN_ON_PUSH=false \
      oci_platforms=linux/amd64 \
-     oci_preflight_image_name=$OCI_BASE/images/venafi-agent \
+     oci_preflight_image_name=${REMOTE_AGENT_IMAGE} \
      helm_chart_image_name=$OCI_BASE/charts/venafi-kubernetes-agent \
      GITHUB_OUTPUT=release.env
 source release.env
 popd
 
-export USE_GKE_GCLOUD_AUTH_PLUGIN=True
-if ! gcloud container clusters get-credentials "${CLUSTER_NAME}"; then
-  gcloud container clusters create "${CLUSTER_NAME}" \
-    --preemptible \
-    --machine-type e2-small \
-    --num-nodes 3
-fi
+AGENT_IMAGE_WITH_TAG="${REMOTE_AGENT_IMAGE}:${RELEASE_HELM_CHART_VERSION}"
+echo ">>> Successfully pushed image: ${AGENT_IMAGE_WITH_TAG}"
+
 kubectl create ns venafi || true
 
-# Pull secret for Venafi OCI registry
-# IMPORTANT: we pick the first team as the owning team for the registry and
-# workload identity service account as it doesn't matter.
+# Create pull secret for Venafi's OCI registry if it doesn't exist.
 if ! kubectl get secret venafi-image-pull-secret -n venafi; then
+  echo ">>> Creating Venafi OCI registry pull secret..."
   venctl iam service-accounts registry create \
     --api-key $VEN_API_KEY_PULL \
     --no-prompts \
@@ -114,6 +87,15 @@ if ! kubectl get secret venafi-image-pull-secret -n venafi; then
     | kubectl create -n venafi -f -
 fi
 
+echo ">>> Generating temporary Helm values for the custom agent image..."
+cat <<EOF > /tmp/agent-image-values.yaml
+image:
+  repository: ${REMOTE_AGENT_IMAGE}
+  tag: ${RELEASE_HELM_CHART_VERSION}
+  pullPolicy: IfNotPresent
+EOF
+
+echo ">>> Applying Venafi components to the cluster..."
 export VENAFI_KUBERNETES_AGENT_CLIENT_ID="not-used-but-required-by-venctl"
 venctl components kubernetes apply \
   --region $VEN_VCP_REGION \
@@ -123,20 +105,21 @@ venctl components kubernetes apply \
   --venafi-kubernetes-agent \
   --venafi-kubernetes-agent-version "${RELEASE_HELM_CHART_VERSION}" \
   --venafi-kubernetes-agent-values-files "${script_dir}/values.venafi-kubernetes-agent.yaml" \
-  --venafi-kubernetes-agent-custom-image-registry "${OCI_BASE}/images" \
+  --venafi-kubernetes-agent-values-files "/tmp/agent-image-values.yaml" \
   --venafi-kubernetes-agent-custom-chart-repository "oci://${OCI_BASE}/charts"
 
 kubectl apply -n venafi -f venafi-components.yaml
 
+# Configure Workload Identity Federation with Venafi Cloud
+echo ">>> Configuring Workload Identity Federation..."
 subject="system:serviceaccount:venafi:venafi-components"
 audience="https://${VEN_API_HOST}"
-issuerURL="$(kubectl create token -n venafi venafi-components | step crypto jwt inspect --insecure | jq -r '.payload.iss')"
+issuerURL=$(kubectl get --raw /.well-known/openid-configuration | jq -r '.issuer')
 openidDiscoveryURL="${issuerURL}/.well-known/openid-configuration"
 jwksURI=$(curl --fail-with-body -sSL ${openidDiscoveryURL} | jq -r '.jwks_uri')
 
 # Create the Venafi agent service account if one does not already exist
-# IMPORTANT: we pick the first team as the owning team for the registry and
-# workload identity service account as it doesn't matter.
+echo ">>> Ensuring Venafi Cloud service account exists for the agent..."
 while true; do
   tenantID=$(curl --fail-with-body -sSL -H "tppl-api-key: $VEN_API_KEY" https://${VEN_API_HOST}/v1/serviceaccounts \
     | jq -r '.[] | select(.issuerURL==$issuerURL and .subject == $subject) | .companyId' \
@@ -144,9 +127,11 @@ while true; do
       --arg subject "${subject}")
 
   if [[ "${tenantID}" != "" ]]; then
+    echo "Service account already exists."
     break
   fi
 
+  echo "Service account not found, creating it..."
   jq -n '{
       "name": "venafi-kubernetes-agent-e2e-agent-\($random)",
       "authenticationType": "rsaKeyFederated",
@@ -155,7 +140,6 @@ while true; do
       "audience": $audience,
       "issuerURL": $issuerURL,
       "jwksURI": $jwksURI,
-      "applications": [$applications.applications[].id],
       "owner": $owningTeamID
     }' \
     --arg random "${RANDOM}" \
@@ -164,13 +148,14 @@ while true; do
     --arg issuerURL "${issuerURL}" \
     --arg jwksURI "${jwksURI}" \
     --arg owningTeamID "$(curl --fail-with-body -sS "https://${VEN_API_HOST}/v1/teams" -H "tppl-api-key: $VEN_API_KEY" | jq '.teams[0].id' -r)" \
-    --argjson applications "$(curl https://${VEN_API_HOST}/outagedetection/v1/applications --fail-with-body -sSL -H tppl-api-key:\ ${VEN_API_KEY})" \
-    | curl https://${VEN_API_HOST}/v1/serviceaccounts \
+    | curl "https://${VEN_API_HOST}/v1/serviceaccounts" \
       -H "tppl-api-key: $VEN_API_KEY" \
       --fail-with-body \
       -sSL --json @-
 done
 
+# Create the VenafiConnection resource
+echo ">>> Applying VenafiConnection resource..."
 kubectl apply -n venafi -f - <<EOF
 apiVersion: jetstack.io/v1alpha1
 kind: VenafiConnection
@@ -189,23 +174,22 @@ spec:
         tenantID: ${tenantID}
 EOF
 
+# Test certificate issuance
+echo ">>> Testing certificate issuance..."
 envsubst <application-team-1.yaml | kubectl apply -f -
-kubectl -n team-1 wait certificate app-0 --for=condition=Ready
+kubectl -n team-1 wait certificate app-0 --for=condition=Ready --timeout=5m
 
-# Wait 60s for log message indicating success.
-# Parse logs as JSON using jq to ensure logs are all JSON formatted.
-# Disable pipefail to prevent SIGPIPE (141) errors from tee
-# See https://unix.stackexchange.com/questions/274120/pipe-fail-141-when-piping-output-into-tee-why
+# Wait for the agent to successfully send data to Venafi Cloud
+echo ">>> Waiting for agent log message confirming successful data upload..."
 set +o pipefail
 kubectl logs deployments/venafi-kubernetes-agent \
         --follow \
         --namespace venafi \
-    | timeout 60 jq 'if .msg | test("Data sent successfully") then . | halt_error(0) end'
+    | timeout 60s jq 'if .msg | test("Data sent successfully") then . | halt_error(0) end'
 set -o pipefail
 
-# Create a unique TLS Secret and wait for it to appear in the Venafi certificate
-# inventory API. The case conversion is due to macOS' version of uuidgen which
-# prints UUIDs in upper case, but DNS labels need lower case characters.
+# Create a unique TLS secret and verify its discovery by the agent
+echo ">>> Testing discovery of a manually created TLS secret..."
 commonname="venafi-kubernetes-agent-e2e.$(uuidgen | tr '[:upper:]' '[:lower:]')"
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /tmp/tls.key -out /tmp/tls.crt -subj "/CN=$commonname"
 kubectl create secret tls "$commonname" --cert=/tmp/tls.crt --key=/tmp/tls.key -o yaml --dry-run=client | kubectl apply -f -
@@ -231,5 +215,16 @@ getCertificate() {
     | jq 'if .count == 0 then . | halt_error(1) end'
 }
 
-# Wait 5 minutes for the certificate to appear.
-for ((i=0;;i++)); do if getCertificate; then exit 0; fi; sleep 30; done | timeout -v -- 5m cat
+# Wait up to 5 minutes for the certificate to appear in the Venafi inventory
+echo ">>> Waiting for certificate '${commonname}' to appear in Venafi Cloud inventory..."
+for ((i=0;;i++)); do
+    if getCertificate; then
+        echo "Successfully found certificate in Venafi Cloud."
+        exit 0;
+    fi;
+    echo "Certificate not found yet, retrying in 30 seconds..."
+    sleep 30;
+done | timeout -v -- 5m cat
+
+echo "!!! Test Failed: Timed out waiting for certificate to appear in Venafi Cloud."
+exit 1

@@ -11,3 +11,12 @@ authentication:
 extraArgs:
 - --logging-format=json
 - --log-level=4
+
+volumeMounts:
+  - name: coverage-volume
+    mountPath: /coverage
+volumes:
+  - name: coverage-volume
+    hostPath:
+      path: /coverage
+      type: DirectoryOrCreate
