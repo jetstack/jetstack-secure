@@ -7,4 +7,3 @@ volumes:
 volumeMounts:
   - name: coverage-storage
     mountPath: /coverage
-shareProcessNamespace: true
