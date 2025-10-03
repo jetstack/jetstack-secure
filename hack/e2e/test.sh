@@ -203,7 +203,7 @@ spec:
     - vcpOAuth:
         tenantID: ${tenantID}
 EOF
-
+ 
 envsubst <application-team-1.yaml | kubectl apply -f -
 kubectl -n team-1 wait certificate app-0 --for=condition=Ready
 
