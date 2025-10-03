@@ -64,6 +64,12 @@ jobs:
 
       - run: make -j test-unit test-helm
 
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-artifacts
+          path: _bin/artifacts
+
   test-e2e:
     if: contains(github.event.pull_request.labels.*.name, 'test-e2e')
     runs-on: ubuntu-latest
@@ -136,3 +142,16 @@ jobs:
             --project=machineidentitysecurity-jsci-e \
             --zone=europe-west1-b \
             --quiet
+
+#          TODO: REMOVE THIS DEBUGGING!
+      - name: Setup upterm session
+        if: always()
+        uses: owenthereal/action-upterm@v1
+        with:
+          limit-access-to-actor: true
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: _bin/artifacts
