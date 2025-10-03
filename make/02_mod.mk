@@ -60,7 +60,8 @@ shared_generate_targets += generate-crds-venconn
 ## See `hack/e2e/test.sh` for the full test script.
 ## @category Testing
 test-e2e-gke: | kind-cluster $(NEEDS_HELM) $(NEEDS_STEP) $(NEEDS_VENCTL)
-	COVERAGE_HOST_PATH="$(COVERAGE_HOST_PATH)" ./hack/e2e/test_ci.sh
+	#COVERAGE_HOST_PATH="$(COVERAGE_HOST_PATH)" ./hack/e2e/test_ci.sh
+	COVERAGE_HOST_PATH="$(COVERAGE_HOST_PATH)" ./hack/e2e/test.sh
 
 .PHONY: test-helm
 ## Run `helm unittest`.
