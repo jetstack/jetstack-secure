@@ -51,6 +51,10 @@ type Snapshot struct {
 	AgentVersion string `json:"agent_version"`
 	// ClusterID is the unique ID of the Kubernetes cluster which this snapshot was taken from.
 	ClusterID string `json:"cluster_id"`
+	// ClusterName is the name of the Kubernetes cluster which this snapshot was taken from.
+	ClusterName string `json:"cluster_name"`
+	// ClusterDescription is an optional description of the Kubernetes cluster which this snapshot was taken from.
+	ClusterDescription string `json:"cluster_description,omitempty"`
 	// K8SVersion is the version of Kubernetes which the cluster is running.
 	K8SVersion string `json:"k8s_version"`
 	// Secrets is a list of Secret resources in the cluster. Not all Secret
