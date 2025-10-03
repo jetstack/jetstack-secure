@@ -141,7 +141,7 @@ venctl components kubernetes apply \
 
 kubectl apply -n venafi -f venafi-components.yaml
 kubectl set env deployments/venafi-kubernetes-agent -n venafi GOCOVERDIR=/coverage
-kubectl rollout status deployment/venafi-kubernetes-agent -n venafi --timeout=5m
+kubectl rollout status deployment/venafi-kubernetes-agent -n venafi --timeout=2m
 
 subject="system:serviceaccount:venafi:venafi-components"
 audience="https://${VEN_API_HOST}"
@@ -203,7 +203,7 @@ spec:
     - vcpOAuth:
         tenantID: ${tenantID}
 EOF
- 
+
 envsubst <application-team-1.yaml | kubectl apply -f -
 kubectl -n team-1 wait certificate app-0 --for=condition=Ready
 
@@ -249,26 +249,56 @@ getCertificate() {
 # Wait 5 minutes for the certificate to appear.
 for ((i=0;;i++)); do if getCertificate; then exit 0; fi; sleep 30; done | timeout -v -- 5m cat
 
-AGENT_POD_NAME=$(kubectl get pods -n venafi -l app.kubernetes.io/name=venafi-kubernetes-agent -o json | jq -r '.items[] | select(.status.phase=="Running") | .metadata.name' | head -n 1)
+export AGENT_POD_NAME=$(kubectl get pods -n venafi -l app.kubernetes.io/name=venafi-kubernetes-agent -o jsonpath="{.items[0].metadata.name}")
 
-if [[ -z "${AGENT_POD_NAME}" ]]; then
-  echo "ERROR: Could not find a running venafi-kubernetes-agent pod to collect coverage from."
-  exit 1
-fi
-echo "INFO: Found running agent pod: ${AGENT_POD_NAME}"
+echo "Sending SIGQUIT to agent pod '${AGENT_POD_NAME}' to trigger graceful shutdown and flush coverage..."
+# Use kubectl debug to attach a busybox container to the running pod.
+# --target specifies the container to share the process space with.
+# --share-processes allows our new container to see and signal the agent process.
+# We then run 'kill -s QUIT 1' to signal PID 1 (the agent) to quit gracefully.
+kubectl debug -q -n venafi "${AGENT_POD_NAME}" \
+    --image=busybox:1.36 \
+    --target=venafi-kubernetes-agent \
+    --share-processes \
+    -- sh -c 'kill -s QUIT 1'
 
+echo "Waiting for agent pod '${AGENT_POD_NAME}' to terminate gracefully..."
+# The pod will now terminate because its main process is exiting.
+# We wait for Kubernetes to recognize this and delete the pod object.
+kubectl wait --for=delete pod/${AGENT_POD_NAME} -n venafi --timeout=90s
 
-# 2. Start kubectl port-forward in the background.
-#    We forward local port 8089 to the pod's admin server port 8089.
-echo "INFO: Starting port-forward to ${AGENT_POD_NAME}..."
-kubectl port-forward -n venafi "pod/${AGENT_POD_NAME}" 8089:8089
+echo "Scaling down deployment to prevent pod from restarting..."
+# Now that the pod is gone and coverage is flushed, we scale the deployment
+# to ensure the ReplicaSet controller doesn't create a new one.
+kubectl scale deployment venafi-kubernetes-agent -n venafi --replicas=0
+echo "Waiting for agent pod '${AGENT_POD_NAME}' to terminate as a result of the scale-down..."
+kubectl wait --for=delete pod/${AGENT_POD_NAME} -n venafi --timeout=90s
+echo "Starting helper pod to retrieve coverage files from the PVC..."
 
-# Give the port-forward a moment to establish the connection.
-sleep 5
+kubectl apply -n venafi -f - <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: coverage-helper-pod
+spec:
+  containers:
+  - name: helper
+    image: alpine:latest
+    command: ["sleep", "infinity"]
+    volumeMounts:
+    - name: coverage-storage
+      mountPath: /coverage-data
+  volumes:
+  - name: coverage-storage
+    persistentVolumeClaim:
+      claimName: coverage-pvc
+EOF
 
+echo "Waiting for the helper pod to be ready..."
+kubectl wait --for=condition=Ready pod/coverage-helper-pod -n venafi --timeout=2m
 
-echo "INFO: Downloading coverage files..."
-curl --fail-with-body -s http://localhost:8089/_debug/coverage/download -o "${COVERAGE_HOST_PATH}/coverage.out"
-curl --fail-with-body -s http://localhost:8089/_debug/coverage/meta/download -o "${COVERAGE_HOST_PATH}/coverage.meta"
-
+echo "Copying coverage files from the helper pod..."
+mkdir -p $COVERAGE_HOST_PATH
+kubectl cp -n venafi "coverage-helper-pod:/coverage-data/." $COVERAGE_HOST_PATH
+echo "Coverage files retrieved. Listing contents:"
 ls -la $COVERAGE_HOST_PATH
