@@ -1,38 +1,55 @@
 package main
 
 import (
+	"encoding/json" // Import to safely escape error strings
+	"fmt"           // Import to format strings
 	"log"
 	"net/http"
 	"runtime/coverage"
 )
 
 func startCoverageServer() {
-	log.Println("Coverage build detected. Starting private admin server on localhost:8081...")
 	adminMux := http.NewServeMux()
 
 	adminMux.HandleFunc("/_debug/coverage/download", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Received request to download coverage counter data...")
+		// Simple info log as a JSON string
+		log.Println(`{"level":"info","message":"Received request to download coverage counter data"}`)
+
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", `attachment; filename="coverage.out"`)
 
 		if err := coverage.WriteCounters(w); err != nil {
-			log.Printf("Error writing coverage counters to response: %v", err)
+			// Safely marshal the error to escape quotes and special characters
+			escapedError, _ := json.Marshal(err.Error())
+
+			// Construct the final JSON string and log it
+			log.Println(
+				fmt.Sprintf(`{"level":"error","message":"Error writing coverage counters to response","error":%s}`, string(escapedError)),
+			)
 		}
 	})
 
 	adminMux.HandleFunc("/_debug/coverage/meta/download", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Received request to download coverage metadata...")
+		log.Println(`{"level":"info","message":"Received request to download coverage metadata"}`)
+
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", `attachment; filename="coverage.meta"`)
 
 		if err := coverage.WriteMeta(w); err != nil {
-			log.Printf("Error writing coverage metadata to response: %v", err)
+			escapedError, _ := json.Marshal(err.Error())
+			log.Println(
+				fmt.Sprintf(`{"level":"error","message":"Error writing coverage metadata to response","error":%s}`, string(escapedError)),
+			)
 		}
 	})
 
 	go func() {
+		log.Println(`{"level":"info","message":"Starting private admin server","address":"localhost:8089"}`)
 		if err := http.ListenAndServe("localhost:8089", adminMux); err != nil {
-			log.Printf("Admin server failed: %v", err)
+			escapedError, _ := json.Marshal(err.Error())
+			log.Println(
+				fmt.Sprintf(`{"level":"error","message":"Admin server failed","error":%s}`, string(escapedError)),
+			)
 		}
 	}()
 }
