@@ -33,7 +33,7 @@ func startCoverageServer() {
 	})
 
 	go func() {
-		if err := http.ListenAndServe("localhost:8081", adminMux); err != nil {
+		if err := http.ListenAndServe("localhost:8089", adminMux); err != nil {
 			log.Printf("Admin server failed: %v", err)
 		}
 	}()
