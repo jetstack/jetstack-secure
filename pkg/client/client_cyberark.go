@@ -52,17 +52,16 @@ func NewCyberArk(httpClient *http.Client) (*CyberArkClient, error) {
 // It initializes a data upload client with the configured HTTP client and credentials,
 // then uploads a snapshot.
 // The supplied Options are not used by this publisher.
-func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, _ Options) error {
+func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, opts Options) error {
 	log := klog.FromContext(ctx)
-	var snapshot dataupload.Snapshot
+	snapshot := baseSnapshotFromOptions(opts)
+
 	if err := convertDataReadings(defaultExtractorFunctions, readings, &snapshot); err != nil {
 		return fmt.Errorf("while converting data readings: %s", err)
 	}
 
 	// Minimize the snapshot to reduce size and improve privacy
 	minimizeSnapshot(log.V(logs.Debug), &snapshot)
-
-	snapshot.AgentVersion = version.PreflightVersion
 
 	cfg, err := o.configLoader()
 	if err != nil {
@@ -78,6 +77,17 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 		return fmt.Errorf("while uploading snapshot: %s", err)
 	}
 	return nil
+}
+
+// baseSnapshotFromOptions creates a base snapshot with common fields from the provided options.
+// This includes the cluster name, description, and agent version.
+// Other fields like ClusterID and K8SVersion need to be populated separately.
+func baseSnapshotFromOptions(opts Options) dataupload.Snapshot {
+	return dataupload.Snapshot{
+		ClusterName:        opts.ClusterName,
+		ClusterDescription: opts.ClusterDescription,
+		AgentVersion:       version.PreflightVersion,
+	}
 }
 
 // extractClusterIDAndServerVersionFromReading converts the opaque data from a DiscoveryData

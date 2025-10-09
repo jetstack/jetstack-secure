@@ -74,6 +74,7 @@ helm upgrade agent "oci://${ARK_CHART}@${ARK_CHART_DIGEST}" \
      --set pprof.enabled=true \
      --set fullnameOverride=disco-agent \
      --set "image.digest=${ARK_IMAGE_DIGEST}" \
+     --set config.clusterDescription="A temporary cluster for E2E testing. Contact @wallrj-cyberark." \
      --set-json "podLabels={\"disco-agent.cyberark.cloud/test-id\": \"${RANDOM}\"}"
 
 kubectl rollout status deployments/disco-agent --namespace "${NAMESPACE}"

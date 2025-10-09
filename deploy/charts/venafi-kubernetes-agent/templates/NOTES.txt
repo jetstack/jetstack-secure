@@ -1,3 +1,11 @@
+{{- if .Values.config.configmap.name }}
+You are using a custom configuration in the following ConfigMap: {{ .Values.config.configmap.name | quote }}.
+
+DEPRECATION: The `cluster_id` configuration field is deprecated.
+If your configuration contains `cluster_id`, it will continue to work as a
+fallback, but please migrate to `cluster_name` to avoid ambiguity.
+{{- end }}
+
 {{- if .Values.authentication.venafiConnection.enabled }}
 - Check the VenafiConnection exists: "{{ .Values.authentication.venafiConnection.namespace }}/{{ .Values.authentication.venafiConnection.name }}"
 > kubectl get VenafiConnection -n {{ .Values.authentication.venafiConnection.namespace }} {{ .Values.authentication.venafiConnection.name }}

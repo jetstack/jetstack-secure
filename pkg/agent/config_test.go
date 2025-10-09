@@ -253,7 +253,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		got, cl, err := ValidateAndCombineConfig(discardLogs(),
 			withConfig(testutil.Undent(`
 				server: "http://localhost:8080"
-				cluster_id: "the cluster name"
+				cluster_id: "legacy cluster_id as cluster name"
 				period: 1h
 				data-gatherers:
 				- name: d1
@@ -278,7 +278,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			OutputPath:     "/nothome",
 			UploadPath:     "/testing/path",
 			OutputMode:     VenafiCloudKeypair,
-			ClusterID:      "the cluster name",
+			ClusterName:    "legacy cluster_id as cluster name",
 			BackoffMaxTime: 99 * time.Minute,
 			InstallNS:      "venafi",
 		}
@@ -463,13 +463,13 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withConfig(testutil.Undent(`
 				server: https://api.venafi.eu
 				period: 1h
-				cluster_id: the cluster name
+				cluster_id: legacy cluster_id as cluster name
 				venafi-cloud:
 				  upload_path: /foo/bar
 			`)),
 			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", path))
 		require.NoError(t, err)
-		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, OutputMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
+		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, OutputMode: VenafiCloudKeypair, ClusterName: "legacy cluster_id as cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
 		assert.IsType(t, &client.VenafiCloudClient{}, cl)
 	})
 
@@ -485,13 +485,13 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withConfig(testutil.Undent(`
 				server: https://api.venafi.eu
 				period: 1h
-				cluster_id: the cluster name
+				cluster_id: legacy cluster_id as cluster name
 				venafi-cloud:
 				  upload_path: /foo/bar
 			`)),
 			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath))
 		require.NoError(t, err)
-		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, OutputMode: VenafiCloudKeypair, ClusterID: "the cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
+		assert.Equal(t, CombinedConfig{Server: "https://api.venafi.eu", Period: time.Hour, OutputMode: VenafiCloudKeypair, ClusterName: "legacy cluster_id as cluster name", UploadPath: "/foo/bar", BackoffMaxTime: 10 * time.Minute, InstallNS: "venafi"}, got)
 	})
 
 	t.Run("venafi-cloud-keypair-auth: venafi-cloud.upload_path field is required", func(t *testing.T) {
@@ -548,7 +548,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--venafi-cloud", "--credentials-file", credsPath, "--private-key-path", privKeyPath))
 		require.EqualError(t, err, testutil.Undent(`
 			1 error occurred:
-				* cluster_id is required in Venafi Cloud Key Pair Service Account mode
+				* cluster_name or cluster_id is required in Venafi Cloud Key Pair Service Account mode
 
 		`))
 		assert.Equal(t, CombinedConfig{}, got)
@@ -557,17 +557,24 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 	t.Run("venafi-cloud-workload-identity-auth: valid --venafi-connection", func(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
 		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
-		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+		log, gotLogs := recordLogs(t)
+		got, cl, err := ValidateAndCombineConfig(log,
 			withConfig(testutil.Undent(`
 				server: http://should-be-ignored
 				period: 1h
-				cluster_id: the cluster name
+				cluster_id: legacy cluster_id as cluster name
 			`)),
 			withCmdLineFlags("--venafi-connection", "venafi-components"))
 		require.NoError(t, err)
+		assert.Equal(t, testutil.Undent(`
+			INFO Output mode selected venConnName="venafi-components" mode="Venafi Cloud VenafiConnection" reason="--venafi-connection was specified"
+			INFO ignoring the server field specified in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
+			INFO Using cluster_id as cluster_name for backwards compatibility clusterID="legacy cluster_id as cluster name"
+			INFO Using period from config period="1h0m0s"
+		`), gotLogs.String())
 		assert.Equal(t, CombinedConfig{
 			Period:         1 * time.Hour,
-			ClusterID:      "the cluster name",
+			ClusterName:    "legacy cluster_id as cluster name",
 			OutputMode:     VenafiCloudVenafiConnection,
 			VenConnName:    "venafi-components",
 			VenConnNS:      "venafi",
@@ -585,7 +592,8 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withConfig(testutil.Undent(`
 				server: https://api.venafi.eu
 				period: 1h
-				cluster_id: id
+				cluster_name: cluster-1
+				cluster_id: should-be-ignored-and-logged-as-ignored
 				venafi-cloud:
 				  uploader_id: id
 				  upload_path: /path
@@ -598,6 +606,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			INFO ignoring the server field specified in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
 			INFO ignoring the venafi-cloud.upload_path field in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
 			INFO ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in Venafi Cloud VenafiConnection mode.
+			INFO Ignoring the cluster_id field in the config file. This field is not needed in Venafi Cloud VenafiConnection mode.
 			INFO Using period from config period="1h0m0s"
 		`), gotLogs.String())
 		assert.Equal(t, VenafiCloudVenafiConnection, got.OutputMode)
@@ -618,17 +627,39 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		assert.Equal(t, VenafiCloudVenafiConnection, got.OutputMode)
 	})
 
+	const arkUsername = "cluster-1-region-1-cloud-1@cyberark.cloud.123456"
+
 	t.Run("--machine-hub selects MachineHub mode", func(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
 		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
 		t.Setenv("ARK_SUBDOMAIN", "tlspk")
-		t.Setenv("ARK_USERNAME", "first_last@cyberark.cloud.123456")
+		t.Setenv("ARK_USERNAME", arkUsername)
 		t.Setenv("ARK_SECRET", "test-secret")
 		got, cl, err := ValidateAndCombineConfig(discardLogs(),
 			withConfig(""),
 			withCmdLineFlags("--period", "1m", "--machine-hub"))
 		require.NoError(t, err)
 		assert.Equal(t, MachineHub, got.OutputMode)
+		assert.Equal(t, arkUsername, got.ClusterName,
+			"the ClusterName should default to the ARK_USERNAME value if the cluster_name in the config file is empty")
+		assert.IsType(t, &client.CyberArkClient{}, cl)
+	})
+
+	t.Run("--machine-hub with cluster_name override", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
+		t.Setenv("ARK_SUBDOMAIN", "tlspk")
+		t.Setenv("ARK_USERNAME", arkUsername)
+		t.Setenv("ARK_SECRET", "test-secret")
+		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				cluster_name: override-cluster-name
+            `)),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.NoError(t, err)
+		assert.Equal(t, MachineHub, got.OutputMode)
+		assert.Equal(t, "override-cluster-name", got.ClusterName,
+			"the cluster_name in the config file should be used if not empty, even if ARK_USERNAME is set")
 		assert.IsType(t, &client.CyberArkClient{}, cl)
 	})
 
@@ -815,7 +846,7 @@ func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 		_, _, err := ValidateAndCombineConfig(discardLogs(),
 			Config{Server: "http://should-be-ignored", Period: 1 * time.Hour},
 			AgentCmdFlags{VenConnName: "venafi-components", InstallNS: "venafi"})
-		assert.EqualError(t, err, "1 error occurred:\n\t* cluster_id is required in Venafi Cloud VenafiConnection mode\n\n")
+		assert.EqualError(t, err, "1 error occurred:\n\t* cluster_name or cluster_id is required in Venafi Cloud VenafiConnection mode\n\n")
 	})
 
 	t.Run("the server field is ignored when VenafiConnection is used", func(t *testing.T) {
@@ -841,10 +872,10 @@ func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 		testutil.VenConnStartWatching(ctx, t, cl)
 		testutil.TrustCA(t, cl, cert)
 
-		// TODO(mael): the client should keep track of the cluster ID, we
+		// TODO(mael): the client should keep track of the cluster name, we
 		// shouldn't need to pass it as an option to
 		// PostDataReadingsWithOptions.
-		err = cl.PostDataReadingsWithOptions(ctx, nil, client.Options{ClusterName: cfg.ClusterID})
+		err = cl.PostDataReadingsWithOptions(ctx, nil, client.Options{ClusterName: cfg.ClusterName})
 		require.NoError(t, err)
 	})
 }

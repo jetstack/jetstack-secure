@@ -405,7 +405,7 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 	log := klog.FromContext(ctx).WithName("postData")
 	ctx = klog.NewContext(ctx, log)
 	err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
-		ClusterName:        config.ClusterID,
+		ClusterName:        config.ClusterName,
 		ClusterDescription: config.ClusterDescription,
 		// orgID and clusterID are not required for Venafi Cloud auth
 		OrgID:     config.OrganizationID,
