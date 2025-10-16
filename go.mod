@@ -1,3 +1,4 @@
+// TODO(wallrj): Rename the Go module to match the repository name
 module github.com/jetstack/preflight
 
 go 1.24.4

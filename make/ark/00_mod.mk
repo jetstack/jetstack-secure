@@ -2,9 +2,9 @@ build_names += ark
 go_ark_main_dir := ./cmd/ark
 go_ark_mod_dir := .
 go_ark_ldflags := \
-	-X $(repo_name)/pkg/version.PreflightVersion=$(VERSION) \
-	-X $(repo_name)/pkg/version.Commit=$(GITCOMMIT) \
-	-X $(repo_name)/pkg/version.BuildDate=$(shell date "+%F-%T-%Z") \
+	-X $(gomodule_name)/pkg/version.PreflightVersion=$(VERSION) \
+	-X $(gomodule_name)/pkg/version.Commit=$(GITCOMMIT) \
+	-X $(gomodule_name)/pkg/version.BuildDate=$(shell date "+%F-%T-%Z") \
 
 oci_ark_base_image_flavor := static
 oci_ark_image_name := quay.io/jetstack/disco-agent
