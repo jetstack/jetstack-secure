@@ -1,10 +1,13 @@
 repo_name := github.com/jetstack/jetstack-secure
-# TODO(wallrj): This is a hack to allow use the old preflight repo name in the
-# gci section of the golangci-lint config until we can rename the go module.
-# Without this hack, golangci-lint will complain that the
-# github.com/jetstack/preflight imports should be grouped with all the other
-# third-party modules.
-generate-golangci-lint-config: repo_name := github.com/jetstack/preflight
+# This is a work around for the mismatch between the repo name and the go module
+# name. It allows golangci-lint to group the github.com/jetstack/preflight
+# imports correctly. And it allows the version information to be injected into
+# the version package via Go ldflags.
+#
+# TODO(wallrj): Rename the Go module to match the repository name.
+gomodule_name := github.com/jetstack/preflight
+
+generate-golangci-lint-config: repo_name := $(gomodule_name)
 
 license_ignore := gitlab.com/venafi,github.com/jetstack
 
@@ -16,12 +19,12 @@ build_names := preflight
 go_preflight_main_dir := .
 go_preflight_mod_dir := .
 go_preflight_ldflags := \
-	-X $(repo_name)/pkg/version.PreflightVersion=$(VERSION) \
-	-X $(repo_name)/pkg/version.Commit=$(GITCOMMIT) \
-	-X $(repo_name)/pkg/version.BuildDate=$(shell date "+%F-%T-%Z") \
-	-X $(repo_name)/pkg/client.ClientID=k3TrDbfLhCgnpAbOiiT2kIE1AbovKzjo \
-	-X $(repo_name)/pkg/client.ClientSecret=f39w_3KT9Vp0VhzcPzvh-uVbudzqCFmHER3Huj0dvHgJwVrjxsoOQPIw_1SDiCfa \
-	-X $(repo_name)/pkg/client.AuthServerDomain=auth.jetstack.io
+	-X $(gomodule_name)/pkg/version.PreflightVersion=$(VERSION) \
+	-X $(gomodule_name)/pkg/version.Commit=$(GITCOMMIT) \
+	-X $(gomodule_name)/pkg/version.BuildDate=$(shell date "+%F-%T-%Z") \
+	-X $(gomodule_name)/pkg/client.ClientID=k3TrDbfLhCgnpAbOiiT2kIE1AbovKzjo \
+	-X $(gomodule_name)/pkg/client.ClientSecret=f39w_3KT9Vp0VhzcPzvh-uVbudzqCFmHER3Huj0dvHgJwVrjxsoOQPIw_1SDiCfa \
+	-X $(gomodule_name)/pkg/client.AuthServerDomain=auth.jetstack.io
 
 oci_preflight_base_image_flavor := static
 oci_preflight_image_name := quay.io/jetstack/venafi-agent
