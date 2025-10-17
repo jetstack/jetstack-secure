@@ -104,6 +104,12 @@
     "helm-values.config": {
       "additionalProperties": false,
       "properties": {
+        "clusterDescription": {
+          "$ref": "#/$defs/helm-values.config.clusterDescription"
+        },
+        "clusterName": {
+          "$ref": "#/$defs/helm-values.config.clusterName"
+        },
         "excludeAnnotationKeysRegex": {
           "$ref": "#/$defs/helm-values.config.excludeAnnotationKeysRegex"
         },
@@ -115,6 +121,16 @@
         }
       },
       "type": "object"
+    },
+    "helm-values.config.clusterDescription": {
+      "default": "",
+      "description": "A short description of the cluster where the agent is deployed (optional).\n\nThis description will be associated with the data that the agent uploads to the Discovery and Context service. The description may include contact information such as the email address of the cluster administrator, so that any problems and risks identified by the Discovery and Context service can be communicated to the people responsible for the affected secrets.",
+      "type": "string"
+    },
+    "helm-values.config.clusterName": {
+      "default": "",
+      "description": "A human readable name for the cluster where the agent is deployed (optional).\n\nThis cluster name will be associated with the data that the agent uploads to the Discovery and Context service. If empty (the default), the service account name will be used instead.",
+      "type": "string"
     },
     "helm-values.config.excludeAnnotationKeysRegex": {
       "default": [],
