@@ -4,7 +4,7 @@ go_ark_mod_dir := .
 go_ark_ldflags := \
 	-X $(gomodule_name)/pkg/version.PreflightVersion=$(VERSION) \
 	-X $(gomodule_name)/pkg/version.Commit=$(GITCOMMIT) \
-	-X $(gomodule_name)/pkg/version.BuildDate=$(shell date "+%F-%T-%Z") \
+	-X $(gomodule_name)/pkg/version.BuildDate=$(shell date "+%F-%T-%Z")
 
 oci_ark_base_image_flavor := static
 oci_ark_image_name := quay.io/jetstack/disco-agent
