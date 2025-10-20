@@ -25,7 +25,7 @@ var SecretSelectedFields = []FieldPath{
 	{"metadata", "creationTimestamp"},
 	{"metadata", "deletionTimestamp"},
 	{"metadata", "resourceVersion"},
-
+	{"immutable"},
 	{"type"},
 	{"data", "tls.crt"},
 	{"data", "ca.crt"},
