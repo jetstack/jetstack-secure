@@ -69,6 +69,31 @@ func TestSelect(t *testing.T) {
 		},
 	))
 
+	//Confirm select function preserves immutability
+	t.Run("secret-immutable", run_TestSelect(
+		map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"immutable":  true,
+			"metadata": map[string]interface{}{
+				"name":      "with-immutable",
+				"namespace": "example",
+			},
+			"type": "Opaque",
+		},
+		SecretSelectedFields,
+		map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"immutable":  true,
+			"metadata": map[string]interface{}{
+				"name":      "with-immutable",
+				"namespace": "example",
+			},
+			"type": "Opaque",
+		},
+	))
+
 	t.Run("route", run_TestSelect(
 		map[string]interface{}{
 			"apiVersion": "v1",
