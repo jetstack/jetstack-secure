@@ -1,6 +1,14 @@
 include make/test-unit.mk
 include make/ark/02_mod.mk
 
+$(kind_cluster_config): make/config/kind/cluster.yaml | $(bin_dir)/scratch
+	@echo "--- COVERAGE_HOST_PATH is $(COVERAGE_HOST_PATH) ---"
+	mkdir -p $(COVERAGE_HOST_PATH)
+	@cat $< | \
+	sed -e 's|{{KIND_IMAGES}}|$(CURDIR)/$(images_tar_dir)|g' | \
+	sed -e 's|{{COVERAGE_HOST_PATH}}|$(COVERAGE_HOST_PATH)|g' \
+	> $@
+
 GITHUB_OUTPUT ?= /dev/stderr
 .PHONY: release
 ## Publish all release artifacts (image + helm chart)
@@ -51,8 +59,9 @@ shared_generate_targets += generate-crds-venconn
 ## Wait for it to log a message indicating successful data upload.
 ## See `hack/e2e/test.sh` for the full test script.
 ## @category Testing
-test-e2e-gke: | $(NEEDS_HELM) $(NEEDS_STEP) $(NEEDS_VENCTL)
-	./hack/e2e/test.sh
+test-e2e-gke: | kind-cluster $(NEEDS_HELM) $(NEEDS_STEP) $(NEEDS_VENCTL)
+	#COVERAGE_HOST_PATH="$(COVERAGE_HOST_PATH)" ./hack/e2e/test_ci.sh
+	COVERAGE_HOST_PATH="$(COVERAGE_HOST_PATH)" ./hack/e2e/test.sh
 
 .PHONY: test-helm
 ## Run `helm unittest`.

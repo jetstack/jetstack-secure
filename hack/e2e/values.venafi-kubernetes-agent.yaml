@@ -11,3 +11,13 @@ authentication:
 extraArgs:
 - --logging-format=json
 - --log-level=4
+
+podSecurityContext:
+  fsGroup: 2000
+volumes:
+  - name: coverage-storage
+    persistentVolumeClaim:
+      claimName: coverage-pvc
+volumeMounts:
+  - name: coverage-storage
+    mountPath: /coverage

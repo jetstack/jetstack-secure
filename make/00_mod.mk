@@ -13,6 +13,13 @@ kind_cluster_config := $(bin_dir)/scratch/kind_cluster.yaml
 
 build_names := preflight
 
+# HACK: The test-unit and test-e2e targets require the go binary to be built with the -cover flag set.
+# This allows us to do coverage reporting for our end-to-end tests.
+ifeq ($(findstring test-,$(MAKECMDGOALS)),test-)
+go_preflight_flags := -cover
+endif
+COVERAGE_HOST_PATH := $(CURDIR)/$(bin_dir)/artifacts
+
 go_preflight_main_dir := .
 go_preflight_mod_dir := .
 go_preflight_ldflags := \
