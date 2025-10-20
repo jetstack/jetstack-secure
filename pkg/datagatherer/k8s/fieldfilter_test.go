@@ -69,7 +69,7 @@ func TestSelect(t *testing.T) {
 		},
 	))
 
-	//Confirm select function preserves immutability
+	// Confirm select function preserves immutability
 	t.Run("secret-immutable", run_TestSelect(
 		map[string]interface{}{
 			"apiVersion": "v1",
