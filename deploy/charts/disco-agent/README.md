@@ -277,6 +277,24 @@ Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
 > ```yaml
 > []
 > ```
+#### **config.clusterName** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+A human readable name for the cluster where the agent is deployed (optional).  
+  
+This cluster name will be associated with the data that the agent uploads to the Discovery and Context service. If empty (the default), the service account name will be used instead.
+#### **config.clusterDescription** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+A short description of the cluster where the agent is deployed (optional).  
+  
+This description will be associated with the data that the agent uploads to the Discovery and Context service. The description may include contact information such as the email address of the cluster administrator, so that any problems and risks identified by the Discovery and Context service can be communicated to the people responsible for the affected secrets.
 #### **authentication.secretName** ~ `string`
 > Default value:
 > ```yaml

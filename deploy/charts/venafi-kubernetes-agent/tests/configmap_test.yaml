@@ -1,6 +1,7 @@
 suite: test the contents of the config.yaml
 templates:
   - configmap.yaml
+  - NOTES.txt
 release:
   name: test
   namespace: test-ns
@@ -31,3 +32,11 @@ tests:
         purpose: Production workloads
     asserts:
       - matchSnapshot: {}
+
+  - it: custom-configmap
+    set:
+      config:
+        configmap:
+          name: agent-custom-config
+    asserts:
+      - matchSnapshotRaw: {}

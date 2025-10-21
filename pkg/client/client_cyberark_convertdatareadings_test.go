@@ -23,7 +23,39 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/internal/cyberark/dataupload"
+	preflightversion "github.com/jetstack/preflight/pkg/version"
 )
+
+// TestBaseSnapshotFromOptions tests the baseSnapshotFromOptions function.
+func TestBaseSnapshotFromOptions(t *testing.T) {
+	type testCase struct {
+		name    string
+		options Options
+		want    dataupload.Snapshot
+	}
+	tests := []testCase{
+		{
+			name: "ClusterName and ClusterDescription are used, OrgID and ClusterID",
+			options: Options{
+				OrgID:              "unused-org-id",
+				ClusterID:          "unused-cluster-id",
+				ClusterName:        "some-cluster-name",
+				ClusterDescription: "some-cluster-description",
+			},
+			want: dataupload.Snapshot{
+				ClusterName:        "some-cluster-name",
+				ClusterDescription: "some-cluster-description",
+				AgentVersion:       preflightversion.PreflightVersion,
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := baseSnapshotFromOptions(tc.options)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
 
 // TestExtractServerVersionFromReading tests the extractServerVersionFromReading function.
 func TestExtractServerVersionFromReading(t *testing.T) {

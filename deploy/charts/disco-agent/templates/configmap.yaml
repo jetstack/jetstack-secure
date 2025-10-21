@@ -7,6 +7,8 @@ metadata:
     {{- include "disco-agent.labels" . | nindent 4 }}
 data:
   config.yaml: |-
+    cluster_name: {{ .Values.config.clusterName | quote }}
+    cluster_description: {{ .Values.config.clusterDescription | quote }}
     period: {{ .Values.config.period | quote }}
     {{- with .Values.config.excludeAnnotationKeysRegex }}
     exclude-annotation-keys-regex:

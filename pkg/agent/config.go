@@ -48,8 +48,12 @@ type Config struct {
 	// API Token modes.
 	OrganizationID string `yaml:"organization_id"`
 
-	// ClusterID is the cluster that the agent is scanning. Used in all modes.
-	ClusterID          string             `yaml:"cluster_id"`
+	// ClusterID is the cluster that the agent is scanning. Only used in Jetstack Secure modes.
+	ClusterID string `yaml:"cluster_id"`
+	// ClusterName is the name of the Kubernetes cluster where the agent is running.
+	ClusterName string `yaml:"cluster_name"`
+	// ClusterDescription is a short description of the Kubernetes cluster where the
+	// agent is running.
 	ClusterDescription string             `yaml:"cluster_description"`
 	DataGatherers      []DataGatherer     `yaml:"data-gatherers"`
 	VenafiCloud        *VenafiCloudConfig `yaml:"venafi-cloud,omitempty"`
@@ -340,8 +344,8 @@ const (
 	MachineHub                  OutputMode = "MachineHub"
 )
 
-// The command-line flags and the config file are combined into this struct by
-// ValidateAndCombineConfig.
+// The command-line flags and the config file and some environment variables are
+// combined into this struct by ValidateAndCombineConfig.
 type CombinedConfig struct {
 	DataGatherers  []DataGatherer
 	Period         time.Duration
@@ -352,7 +356,7 @@ type CombinedConfig struct {
 
 	OutputMode OutputMode
 
-	// Used by all TLSPK modes.
+	// Only used in JetstackSecure modes.
 	ClusterID string
 
 	// Used by JetstackSecureOAuth, JetstackSecureAPIToken, and
@@ -364,7 +368,14 @@ type CombinedConfig struct {
 	EndpointPath   string // Deprecated.
 
 	// VenafiCloudKeypair mode only.
-	UploadPath         string
+	UploadPath string
+
+	// ClusterName is the name of the Kubernetes cluster where the agent is
+	// running.
+	ClusterName string
+
+	// ClusterDescription is a short description of the Kubernetes cluster where
+	// the agent is running.
 	ClusterDescription string
 
 	// VenafiCloudVenafiConnection mode only.
@@ -537,16 +548,29 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		}
 	}
 
-	// Validation of `cluster_id` and `organization_id`.
+	// Validation of `cluster_name`, `cluster_id` and `organization_id`.
 	{
-		var clusterID string
+		var clusterName string    // Required by venafi cloud modes. Optional for MachineHub mode.
+		var clusterID string      // Required by the old jetstack-secure mode deprecated for venafi cloud modes.
 		var organizationID string // Only used by the old jetstack-secure mode.
 		switch res.OutputMode {   // nolint:exhaustive
 		case VenafiCloudKeypair, VenafiCloudVenafiConnection:
-			if cfg.ClusterID == "" {
-				errs = multierror.Append(errs, fmt.Errorf("cluster_id is required in %s mode", res.OutputMode))
+			// For backwards compatibility, use the agent config's `cluster_id` as
+			// ClusterName if `cluster_name` is not set.
+			if cfg.ClusterName == "" && cfg.ClusterID == "" {
+				errs = multierror.Append(errs, fmt.Errorf("cluster_name or cluster_id is required in %s mode", res.OutputMode))
 			}
-			clusterID = cfg.ClusterID
+			if cfg.ClusterName != "" && cfg.ClusterID != "" {
+				log.Info(fmt.Sprintf(`Ignoring the cluster_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
+			}
+			clusterName = cfg.ClusterName
+			if clusterName == "" {
+				log.Info("Using cluster_id as cluster_name for backwards compatibility", "clusterID", cfg.ClusterID)
+				clusterName = cfg.ClusterID
+			}
+			if cfg.OrganizationID != "" {
+				log.Info(fmt.Sprintf(`Ignoring the organization_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
+			}
 		case JetstackSecureOAuth, JetstackSecureAPIToken:
 			if cfg.OrganizationID == "" {
 				errs = multierror.Append(errs, fmt.Errorf("organization_id is required"))
@@ -557,15 +581,23 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			organizationID = cfg.OrganizationID
 			clusterID = cfg.ClusterID
 		case MachineHub:
-			if cfg.ClusterID != "" {
-				log.Info(fmt.Sprintf(`Ignoring the cluster_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
+			clusterName = cfg.ClusterName
+			if clusterName == "" {
+				if arkUsername, found := os.LookupEnv("ARK_USERNAME"); found {
+					log.Info("Using ARK_USERNAME environment variable as cluster name", "clusterName", arkUsername)
+					clusterName = arkUsername
+				}
 			}
 			if cfg.OrganizationID != "" {
 				log.Info(fmt.Sprintf(`Ignoring the organization_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
 			}
+			if cfg.ClusterID != "" {
+				log.Info(fmt.Sprintf(`Ignoring the cluster_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
+			}
 		}
 		res.OrganizationID = organizationID
 		res.ClusterID = clusterID
+		res.ClusterName = clusterName
 		res.ClusterDescription = cfg.ClusterDescription
 	}
 

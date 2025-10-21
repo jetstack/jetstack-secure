@@ -18,11 +18,10 @@ type (
 		// Only used with Jetstack Secure.
 		ClusterID string
 
-		// Only used with Venafi Cloud. The convention is to use the agent
-		// config's `cluster_id` as ClusterName.
+		// Used for Venafi Cloud and MachineHub mode.
 		ClusterName string
 
-		// Only used with Venafi Cloud.
+		// Used for Venafi Cloud and MachineHub mode.
 		ClusterDescription string
 	}
 
