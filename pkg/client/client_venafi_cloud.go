@@ -317,7 +317,7 @@ func (c *VenafiCloudClient) sendHTTPRequest(request *http.Request, responseObjec
 
 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(response.Body)
-		return fmt.Errorf("failed to execute http request to the Control Plane. Request %s, status code: %d, body: [%s]", request.URL, response.StatusCode, body)
+		return fmt.Errorf("failed to execute http request to CyberArk Certificate Manager Control Plane. Request %s, status code: %d, body: [%s]", request.URL, response.StatusCode, body)
 	}
 
 	body, err := io.ReadAll(response.Body)

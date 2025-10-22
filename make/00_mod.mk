@@ -36,7 +36,7 @@ oci_preflight_build_args := \
 	--image-annotation="org.opencontainers.image.vendor"="CyberArk Software Ltd." \
 	--image-annotation="org.opencontainers.image.licenses"="EULA - https://www.cyberark.com/contract-terms/" \
 	--image-annotation="org.opencontainers.image.authors"="support@venafi.cloud" \
-	--image-annotation="org.opencontainers.image.title"="Venafi Kubernetes Agent" \
+	--image-annotation="org.opencontainers.image.title"="Discovery Agent for CyberArk Certificate Manager" \
 	--image-annotation="org.opencontainers.image.description"="Gathers machine identity data from Kubernetes clusters." \
 	--image-annotation="org.opencontainers.image.url"="https://www.cyberark.com/products/certificate-manager-for-kubernetes/" \
 	--image-annotation="org.opencontainers.image.documentation"="https://docs.venafi.cloud/vaas/k8s-components/c-tlspk-agent-overview/" \

@@ -131,7 +131,7 @@
     },
     "helm-values.authentication.venafiConnection.enabled": {
       "default": false,
-      "description": "When set to true, the Discovery Agent will authenticate to. Venafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the\nDiscovery Agent Pod.",
+      "description": "When set to true, the Discovery Agent will authenticate to. CyberArk Certificate Manager using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the\nDiscovery Agent Pod.",
       "type": "boolean"
     },
     "helm-values.authentication.venafiConnection.name": {
@@ -264,7 +264,7 @@
     },
     "helm-values.config.server": {
       "default": "https://api.venafi.cloud/",
-      "description": "API URL of the CyberArk Certificate Manager API. For EU tenants, set this value to https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the\nVenafiConnection resource instead.",
+      "description": "API URL of the CyberArk Certificate Manager Control Plane API. For EU tenants, set this value to https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the\nVenafiConnection resource instead.",
       "type": "string"
     },
     "helm-values.crds": {

@@ -3,12 +3,12 @@ name: venafi-kubernetes-agent
 type: application
 
 description: |-
-  The Discovery Agent connects your Kubernetes or OpenShift cluster to the CyberArk Certificate Manager.
+  The Discovery Agent for CyberArk Certificate Manager in Kubernetes and OpenShift Environments connects your Kubernetes or OpenShift cluster to the CyberArk Control Plane.
 
 maintainers:
-  - name: Venafi
-    email: support@venafi.cloud
-    url: https://venafi.com
+  - name: CyberArk
+    email: support@cyberark.com
+    url: https://www.cyberark.com
 
 sources:
   - https://github.com/jetstack/jetstack-secure

@@ -201,7 +201,7 @@ authentication:
   # Configure VenafiConnection authentication
   venafiConnection:
     # When set to true, the Discovery Agent will authenticate to
-    # Venafi using the configuration in a VenafiConnection resource.
+    # CyberArk Certificate Manager using the configuration in a VenafiConnection resource.
     # Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/).
     # When set to true, the `authentication.secret` values will be ignored and the
     # Secret with `authentication.secretName` will _not_ be mounted into the
@@ -216,7 +216,7 @@ authentication:
 
 # Configuration section for the Discovery Agent itself
 config:
-  # API URL of the CyberArk Certificate Manager API. For EU tenants, set this value to
+  # API URL of the CyberArk Certificate Manager Control Plane API. For EU tenants, set this value to
   # https://api.venafi.eu/. If you are using the VenafiConnection authentication
   # method, you must set the API URL using the field `spec.vcp.url` on the
   # VenafiConnection resource instead.

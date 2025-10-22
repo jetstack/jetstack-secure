@@ -1,13 +1,13 @@
-# venafi-kubernetes-agent
+# discovery-agent-for-cyberark-certificate-manager-in-kubernetes-and-openshift-environments
 
-The Discovery Agent connects your Kubernetes or OpenShift cluster to the CyberArk Certificate Manager (formerly Venafi Control Plane).
+The Discovery Agent connects your Kubernetes or OpenShift cluster to the CyberArk Certificate Manager Control Plane.
 You will require a CyberArk Certificate Manager account to connect your cluster.
 If you do not have one, you can sign up for a free trial now at:
 
 - https://venafi.com/try-venafi/tls-protect/
 
-> 📖 Read the [Discovery Agent documentation](https://docs.venafi.cloud/vaas/k8s-components/c-tlspk-agent-overview/),
-> to learn how install and configure this Helm chart.
+> 📖 Read the Discovery Agent documentation for CyberArk Certificate Manager (formerly Venafi Kubernetes Agent):
+> https://docs.venafi.cloud/vaas/k8s-components/c-tlspk-agent-overview/
 
 ## Values
 
@@ -343,7 +343,7 @@ Configure VenafiConnection authentication
 > false
 > ```
 
-When set to true, the Discovery Agent will authenticate to. Venafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the  
+When set to true, the Discovery Agent will authenticate to. CyberArk Certificate Manager using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the  
 Discovery Agent Pod.
 #### **authentication.venafiConnection.name** ~ `string`
 > Default value:
@@ -365,7 +365,7 @@ The namespace of a VenafiConnection resource which contains the configuration fo
 > https://api.venafi.cloud/
 > ```
 
-API URL of the CyberArk Certificate Manager API. For EU tenants, set this value to https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the  
+API URL of the CyberArk Certificate Manager Control Plane API. For EU tenants, set this value to https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the  
 VenafiConnection resource instead.
 #### **config.clientId** ~ `string`
 > Default value:

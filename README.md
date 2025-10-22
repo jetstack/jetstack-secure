@@ -1,4 +1,4 @@
-# Discovery Agent
+# Discovery Agent for CyberArk Certificate Manager in Kubernetes and OpenShift Environments
 
 [![tests](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml/badge.svg?branch=master&event=push)](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/jetstack/jetstack-secure.svg)](https://pkg.go.dev/github.com/jetstack/jetstack-secure)
@@ -8,7 +8,7 @@
 
 ## Installation
 
-Please [review the documentation](https://docs.venafi.cloud/vaas/k8s-components/c-tlspk-agent-overview/) for the agent.
+Please [review the documentation](https://docs.venafi.cloud/vaas/k8s-components/c-tlspk-agent-overview/) for the Discovery Agent for CyberArk Certificate Manager in Kubernetes and OpenShift Environments (formerly Venafi Kubernetes Agent).
 
 Detailed installation instructions are available for a variety of methods.
 
@@ -47,7 +47,7 @@ The agent exposes its metrics through a Prometheus server, on port 8081.
 
 The Prometheus server is disabled by default but can be enabled by passing the `--enable-metrics` flag to the agent binary.
 
-If you deploy the agent using the venafi-kubernetes-agent Helm chart, the metrics server will be enabled by default, on port 8081.
+If you deploy the agent using the venafi-kubernetes-agent Helm chart (Discovery Agent), the metrics server will be enabled by default, on port 8081.
 
 If you use the Prometheus Operator, you can use `--set metrics.podmonitor.enabled=true` to deploy a `PodMonitor` resource,
 which will add the venafi-kubernetes-agent metrics to your Prometheus server.
