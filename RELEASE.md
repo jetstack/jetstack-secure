@@ -59,7 +59,7 @@ The release process is semi-automated.
 
 7. Publish the release.
 
-8. Inform the `#venctl` channel that a new version of Venafi Kubernetes Agent has been
+8. Inform the `#venctl` channel that a new version of the Discovery Agent for CyberArk Certificate Manager in Kubernetes and OpenShift Environments has been
    released. Make sure to share any breaking change that may affect `venctl connect`
    or `venctl generate`.
 

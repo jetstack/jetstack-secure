@@ -131,7 +131,7 @@
     },
     "helm-values.authentication.venafiConnection.enabled": {
       "default": false,
-      "description": "When set to true, the Venafi Kubernetes Agent will authenticate to. Venafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the\nVenafi Kubernetes Agent Pod.",
+  "description": "When set to true, the Discovery Agent will authenticate to CyberArk Certificate Manager using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the Secret with `authentication.secretName` will _not_ be mounted into the Discovery Agent Pod.",
       "type": "boolean"
     },
     "helm-values.authentication.venafiConnection.name": {
@@ -214,7 +214,7 @@
     "helm-values.config.configmap.name": {},
     "helm-values.config.excludeAnnotationKeysRegex": {
       "default": [],
-      "description": "You can configure Venafi Kubernetes Agent to exclude some annotations or labels from being pushed to the Venafi Control Plane. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being sent to the Venafi Control Plane.\n\nDots is the only character that needs to be escaped in the regex. Use either double quotes with escaped single quotes or unquoted strings for the regex to avoid YAML parsing issues with `\\.`.\n\nExample: excludeAnnotationKeysRegex: ['^kapp\\.k14s\\.io/original.*']",
+  "description": "You can configure Discovery Agent to exclude some annotations or labels from being pushed to the CyberArk Certificate Manager Control Plane. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being sent to the CyberArk Certificate Manager Control Plane.\n\nDots is the only character that needs to be escaped in the regex. Use either double quotes with escaped single quotes or unquoted strings for the regex to avoid YAML parsing issues with `\\.`.\n\nExample: excludeAnnotationKeysRegex: ['^kapp\\.k14s\\.io/original.*']",
       "items": {},
       "type": "array"
     },
@@ -264,7 +264,7 @@
     },
     "helm-values.config.server": {
       "default": "https://api.venafi.cloud/",
-      "description": "API URL of the Venafi Control Plane API. For EU tenants, set this value to https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the\nVenafiConnection resource instead.",
+  "description": "API URL of the CyberArk Certificate Manager Control Plane API. For EU tenants, set this value to https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the\nVenafiConnection resource instead.",
       "type": "string"
     },
     "helm-values.crds": {

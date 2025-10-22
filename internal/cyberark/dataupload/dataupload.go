@@ -47,7 +47,7 @@ func New(httpClient *http.Client, baseURL string, authenticateRequest func(req *
 // Snapshot is the JSON that the CyberArk Discovery and Context API expects to
 // be uploaded to the AWS presigned URL.
 type Snapshot struct {
-	// AgentVersion is the version of the Venafi Kubernetes Agent which is uploading this snapshot.
+	// AgentVersion is the version of the Discovery Agent which is uploading this snapshot.
 	AgentVersion string `json:"agent_version"`
 	// ClusterID is the unique ID of the Kubernetes cluster which this snapshot was taken from.
 	ClusterID string `json:"cluster_id"`
