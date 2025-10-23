@@ -21,7 +21,7 @@ func init() {
 	versionCmd.PersistentFlags().BoolVarP(
 		&verbose,
 		"verbose",
-		"v",
+		"V", // a lowercase v was causing a panic: unable to redefine 'v' shorthand in "version" flagset: it's already used for "verbose" flag
 		false,
 		"If enabled, displays the additional information about this built.",
 	)
