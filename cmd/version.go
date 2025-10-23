@@ -18,11 +18,10 @@ var versionCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(versionCmd)
-	versionCmd.PersistentFlags().BoolVarP(
+	versionCmd.PersistentFlags().BoolVar(
 		&verbose,
 		"verbose",
-		"v",
 		false,
-		"If enabled, displays the additional information about this built.",
+		"If enabled, displays the additional information about this build.",
 	)
 }
