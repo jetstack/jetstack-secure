@@ -18,11 +18,10 @@ var versionCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(versionCmd)
-	versionCmd.PersistentFlags().BoolVarP(
+	versionCmd.PersistentFlags().BoolVar(
 		&verbose,
 		"verbose",
-		"V", // a lowercase v was causing a panic: unable to redefine 'v' shorthand in "version" flagset: it's already used for "verbose" flag
 		false,
-		"If enabled, displays the additional information about this built.",
+		"If enabled, displays the additional information about this build.",
 	)
 }
