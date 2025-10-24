@@ -22,6 +22,9 @@ go run main.go agent --agent-config-file ./path/to/agent/config/file.yaml -p 0h1
 
 You can configure the agent to perform one data gathering loop and output the data to a local file:
 
+
+
+
 ```bash
 go run . agent \
    --agent-config-file examples/one-shot-secret.yaml \
