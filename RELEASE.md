@@ -10,6 +10,7 @@ The release process is semi-automated.
 > [!NOTE]
 >
 > Upon pushing the tag, a GitHub Action will do the following:
+>
 > - Build and publish the container image: `quay.io/jetstack/venafi-agent`,
 > - Build and publish the Helm chart: `oci://quay.io/jetstack/charts/venafi-kubernetes-agent`,
 > - Build and publish the container image: `quay.io/jetstack/disco-agent`,
@@ -20,28 +21,30 @@ The release process is semi-automated.
 
    You will need to install `go-mod-upgrade`:
 
-    ```bash
-    go install github.com/oligot/go-mod-upgrade@latest
-    ```
+   ```bash
+   go install github.com/oligot/go-mod-upgrade@latest
+   ```
 
-    Then, run the following:
+   Then, run the following:
 
-    ```bash
-    go-mod-upgrade
-    make generate
-    ```
+   ```bash
+   go-mod-upgrade
+   make generate
+   ```
 
-    Finally, create a PR with the changes and merge it.
+   Finally, create a PR with the changes and merge it.
 
 2. Open the [tests GitHub Actions workflow][tests-workflow]
    and verify that it succeeds on the master branch.
 
 3. Run govulncheck:
+
    ```bash
    make verify-govulncheck
    ```
 
 4. Create a tag for the new release:
+
    ```sh
    export VERSION=v1.1.0
    git tag --annotate --message="Release ${VERSION}" "${VERSION}"
@@ -51,6 +54,7 @@ The release process is semi-automated.
 5. Wait until the GitHub Actions finishes.
 
 6. Navigate to the GitHub Releases page and select the draft release to edit.
+
    1. Click on “Generate release notes” to automatically compile the changelog.
    2. Review and refine the generated notes to ensure they’re clear and useful
       for end users.
@@ -59,7 +63,7 @@ The release process is semi-automated.
 
 7. Publish the release.
 
-8. Inform the `#venctl` channel that a new version of Venafi Kubernetes Agent has been
+8. Inform the `#venctl` channel that a new version of Discovery Agent has been
    released. Make sure to share any breaking change that may affect `venctl connect`
    or `venctl generate`.
 
@@ -73,7 +77,7 @@ The release process is semi-automated.
 For context, the new tag will create the following images:
 
 | Image                                                     | Automation                                                                                   |
-|-----------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `quay.io/jetstack/venafi-agent`                           | Automatically built by the [release action](.github/workflows/release.yml) on Git tag pushes |
 | `quay.io/jetstack/disco-agent`                            | Automatically built by the [release action](.github/workflows/release.yml) on Git tag pushes |
 | `registry.venafi.cloud/venafi-agent/venafi-agent`         | Automatically mirrored by Harbor Replication rule                                            |
@@ -83,7 +87,7 @@ For context, the new tag will create the following images:
 and the following OCI Helm charts:
 
 | Helm Chart                                                           | Automation                                                                                   |
-|----------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `oci://quay.io/jetstack/charts/venafi-kubernetes-agent`              | Automatically built by the [release action](.github/workflows/release.yml) on Git tag pushes |
 | `oci://quay.io/jetstack/charts/disco-agent`                          | Automatically built by the [release action](.github/workflows/release.yml) on Git tag pushes |
 | `oci://registry.venafi.cloud/charts/venafi-kubernetes-agent`         | Automatically mirrored by Harbor Replication rule                                            |

@@ -104,7 +104,7 @@ spec:
                     accessToken:
                       description: |-
                         The list of steps to retrieve the Access Token that will be used to connect
-                        to Firefly.
+                        to CyberArk Workload Identity Manager.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -172,8 +172,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (TPP, username and password): imagining that you have stored
-                                  the username and password for TPP under the keys "username" and
+                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -244,29 +244,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the Venafi TPP instance. The two URLs
+                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  TPP configuration.
+                                  Control Plane, Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -278,7 +278,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with VCP.
+                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
                                 type: string
                             type: object
                         type: object
@@ -289,7 +289,7 @@ spec:
                       type: array
                       x-kubernetes-list-type: atomic
                     url:
-                      description: The URL to connect to the Venafi Firefly instance.
+                      description: The URL to connect to the Venafi CyberArk Workload Identity Manager instance.
                       type: string
                   required:
                     - url
@@ -297,7 +297,7 @@ spec:
                 tpp:
                   properties:
                     accessToken:
-                      description: The list of steps to retrieve a TPP access token.
+                      description: The list of steps to retrieve a Control Plane, Self-Hosted access token.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -365,8 +365,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (TPP, username and password): imagining that you have stored
-                                  the username and password for TPP under the keys "username" and
+                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -437,29 +437,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the Venafi TPP instance. The two URLs
+                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  TPP configuration.
+                                  Control Plane, Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -471,7 +471,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with VCP.
+                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
                                 type: string
                             type: object
                         type: object
@@ -483,7 +483,7 @@ spec:
                       x-kubernetes-list-type: atomic
                     url:
                       description: |-
-                        The URL to connect to the Venafi TPP instance. The two URLs
+                        The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
                         https://tpp.example.com and https://tpp.example.com/vedsdk are
                         equivalent. The ending `/vedsdk` is optional and is stripped out by
                         venafi-connection-lib.
@@ -497,7 +497,7 @@ spec:
                     accessToken:
                       description: |-
                         The list of steps to retrieve the Access Token that will be used to connect
-                        to VCP.
+                        to Control Plane, SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -565,8 +565,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (TPP, username and password): imagining that you have stored
-                                  the username and password for TPP under the keys "username" and
+                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -637,29 +637,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the Venafi TPP instance. The two URLs
+                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  TPP configuration.
+                                  Control Plane, Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -671,7 +671,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with VCP.
+                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
                                 type: string
                             type: object
                         type: object
@@ -684,7 +684,7 @@ spec:
                     apiKey:
                       description: |-
                         The list of steps to retrieve the API key that will be used to connect to
-                        VCP.
+                        Control Plane, SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -752,8 +752,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (TPP, username and password): imagining that you have stored
-                                  the username and password for TPP under the keys "username" and
+                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -824,29 +824,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the Venafi TPP instance. The two URLs
+                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  TPP configuration.
+                                  Control Plane, Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -858,7 +858,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with VCP.
+                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
                                 type: string
                             type: object
                         type: object
@@ -870,7 +870,7 @@ spec:
                       x-kubernetes-list-type: atomic
                     url:
                       description: |-
-                        The URL to connect to the Venafi VCP instance. If not set, the default
+                        The URL to connect to the Control Plane, SaaS instance. If not set, the default
                         value https://api.venafi.cloud is used.
                       type: string
                   type: object
@@ -882,7 +882,7 @@ spec:
                     accessToken:
                       description: |-
                         The list of steps to retrieve the Access Token that will be used to connect
-                        to VCP.
+                        to Control Plane, SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -950,8 +950,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (TPP, username and password): imagining that you have stored
-                                  the username and password for TPP under the keys "username" and
+                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -1022,29 +1022,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the Venafi TPP instance. The two URLs
+                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  TPP configuration.
+                                  Control Plane, Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -1056,7 +1056,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with VCP.
+                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
                                 type: string
                             type: object
                         type: object
@@ -1069,7 +1069,7 @@ spec:
                     apiKey:
                       description: |-
                         The list of steps to retrieve the API key that will be used to connect to
-                        VCP.
+                        Control Plane, SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -1137,8 +1137,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (TPP, username and password): imagining that you have stored
-                                  the username and password for TPP under the keys "username" and
+                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -1209,29 +1209,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the Venafi TPP instance. The two URLs
+                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  TPP configuration.
+                                  Control Plane, Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -1243,7 +1243,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with VCP.
+                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
                                 type: string
                             type: object
                         type: object
@@ -1255,7 +1255,7 @@ spec:
                       x-kubernetes-list-type: atomic
                     url:
                       description: |-
-                        The URL to connect to the Venafi VCP instance. If not set, the default
+                        The URL to connect to the Control Plane, SaaS instance. If not set, the default
                         value https://api.venafi.cloud is used.
                       type: string
                   type: object
@@ -1333,3 +1333,4 @@ spec:
         status: {}
 {{ end }}
 {{ end }}
+ 

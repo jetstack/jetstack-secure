@@ -1,11 +1,12 @@
 # venafi-kubernetes-agent
 
-The Venafi Kubernetes Agent connects your Kubernetes or OpenShift cluster to the Venafi Control Plane.
-You will require a Venafi Control Plane account to connect your cluster.
+The Discovery Agent connects your Kubernetes or OpenShift cluster to the CyberArk Certificate Manager (formerly Venafi Control Plane).
+You will require a CyberArk Certificate Manager account to connect your cluster.
 If you do not have one, you can sign up for a free trial now at:
+
 - https://venafi.com/try-venafi/tls-protect/
 
-> 📖 Read the [Venafi Kubernetes Agent documentation](https://docs.venafi.cloud/vaas/k8s-components/c-tlspk-agent-overview/),
+> 📖 Read the [Discovery Agent documentation](https://docs.venafi.cloud/vaas/k8s-components/c-tlspk-agent-overview/),
 > to learn how install and configure this Helm chart.
 
 ## Values
@@ -104,7 +105,7 @@ default replicas, do not scale up
 > registry.venafi.cloud/venafi-agent/venafi-agent
 > ```
 
-The container image for the Venafi Enhanced Issuer manager.
+The container image for the Enterprise Issuer manager.
 #### **image.pullPolicy** ~ `string`
 > Default value:
 > ```yaml
@@ -282,7 +283,7 @@ extraArgs:
 > []
 > ```
 
-Additional volumes to add to the Venafi Kubernetes Agent container. This is useful for mounting a custom CA bundle. For example:
+Additional volumes to add to the Discovery Agent container. This is useful for mounting a custom CA bundle. For example:
 
 ```yaml
 volumes:
@@ -303,7 +304,7 @@ In order to create the ConfigMap, you can use the following command:
 > []
 > ```
 
-Additional volume mounts to add to the Venafi Kubernetes Agent container. This is useful for mounting a custom CA bundle. Any PEM certificate mounted under /etc/ssl/certs will be loaded by the Venafi Kubernetes Agent. For
+Additional volume mounts to add to the Discovery Agent container. This is useful for mounting a custom CA bundle. Any PEM certificate mounted under /etc/ssl/certs will be loaded by the Discovery Agent. For
 
 ```yaml
 example:
@@ -342,8 +343,8 @@ Configure VenafiConnection authentication
 > false
 > ```
 
-When set to true, the Venafi Kubernetes Agent will authenticate to. Venafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the  
-Venafi Kubernetes Agent Pod.
+When set to true, the Discovery Agent will authenticate to. Venafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the  
+Discovery Agent Pod.
 #### **authentication.venafiConnection.name** ~ `string`
 > Default value:
 > ```yaml
@@ -364,7 +365,7 @@ The namespace of a VenafiConnection resource which contains the configuration fo
 > https://api.venafi.cloud/
 > ```
 
-API URL of the Venafi Control Plane API. For EU tenants, set this value to https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the  
+API URL of the CyberArk Certificate Manager API. For EU tenants, set this value to https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the  
 VenafiConnection resource instead.
 #### **config.clientId** ~ `string`
 > Default value:
@@ -373,7 +374,7 @@ VenafiConnection resource instead.
 > ```
 
 The client-id to be used for authenticating with the Venafi Control. Plane. Only useful when using a Key Pair Service Account in the Venafi. Control Plane. You can obtain the cliend ID by creating a Key Pair Service  
-Account in the Venafi Control Plane.
+Account in the CyberArk Certificate Manager.
 #### **config.period** ~ `string`
 > Default value:
 > ```yaml
@@ -438,7 +439,7 @@ Control Plane.
 > []
 > ```
 
-You can configure Venafi Kubernetes Agent to exclude some annotations or labels from being pushed to the Venafi Control Plane. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being sent to the Venafi Control Plane.  
+You can configure Discovery Agent to exclude some annotations or labels from being pushed to the CyberArk Certificate Manager. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being sent to the CyberArk Certificate Manager.  
   
 Dots is the only character that needs to be escaped in the regex. Use either double quotes with escaped single quotes or unquoted strings for the regex to avoid YAML parsing issues with `\.`.  
   

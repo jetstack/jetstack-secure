@@ -3,7 +3,7 @@ name: venafi-kubernetes-agent
 type: application
 
 description: |-
-  The Venafi Kubernetes Agent connects your Kubernetes or Openshift cluster to the Venafi Control Plane.
+  The Discovery Agent connects your Kubernetes or Openshift cluster to the CyberArk Certificate Manager (formerly Venafi Control Plane).
 
 maintainers:
   - name: Venafi

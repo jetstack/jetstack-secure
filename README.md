@@ -1,4 +1,4 @@
-# Venafi Kubernetes Agent
+# Discovery Agent
 
 [![tests](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml/badge.svg?branch=master&event=push)](https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/jetstack/jetstack-secure.svg)](https://pkg.go.dev/github.com/jetstack/jetstack-secure)
@@ -30,6 +30,7 @@ go run . agent \
 ```
 
 > Some examples of agent configuration files:
+>
 > - [./agent.yaml](./agent.yaml).
 > - [./examples/one-shot-secret.yaml](./examples/one-shot-secret.yaml).
 > - [./examples/cert-manager-agent.yaml](./examples/cert-manager-agent.yaml).
@@ -61,5 +62,5 @@ The following metrics are collected:
 
 An end to end test script is available in the [./hack/e2e/test.sh](./hack/e2e/test.sh) directory. It is configured to run in CI
 in the tests.yaml GitHub Actions workflow. To run the script you will need to add the `test-e2e` label to the PR.
-The script creates a cluster in GKE and cleanups after itself unless the `keep-e2e-cluster` label is set on the PR. Adding that 
+The script creates a cluster in GKE and cleanups after itself unless the `keep-e2e-cluster` label is set on the PR. Adding that
 label will leave the cluster running for further debugging but it will incur costs so manually delete the cluster when done.
