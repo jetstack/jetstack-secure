@@ -172,8 +172,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
+                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -244,29 +244,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
+                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Control Plane, Self-Hosted configuration.
+                                  Certificate Manager Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -278,7 +278,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
                                 type: string
                             type: object
                         type: object
@@ -294,7 +294,7 @@ spec:
                 tpp:
                   properties:
                     accessToken:
-                      description: The list of steps to retrieve a Control Plane, Self-Hosted access token.
+                      description: The list of steps to retrieve a Certificate Manager Self-Hosted access token.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -362,8 +362,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
+                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -434,29 +434,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
+                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Control Plane, Self-Hosted configuration.
+                                  Certificate Manager Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -468,7 +468,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
                                 type: string
                             type: object
                         type: object
@@ -477,7 +477,7 @@ spec:
                       x-kubernetes-list-type: atomic
                     url:
                       description: |-
-                        The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
+                        The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
                         https://tpp.example.com and https://tpp.example.com/vedsdk are
                         equivalent. The ending `/vedsdk` is optional and is stripped out by
                         venafi-connection-lib.
@@ -491,7 +491,7 @@ spec:
                     accessToken:
                       description: |-
                         The list of steps to retrieve the Access Token that will be used to connect
-                        to Control Plane, SaaS.
+                        to Certificate Manager SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -559,8 +559,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
+                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -631,29 +631,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
+                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Control Plane, Self-Hosted configuration.
+                                  Certificate Manager Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -665,7 +665,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
                                 type: string
                             type: object
                         type: object
@@ -675,7 +675,7 @@ spec:
                     apiKey:
                       description: |-
                         The list of steps to retrieve the API key that will be used to connect to
-                        Control Plane, SaaS.
+                        Certificate Manager SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -743,8 +743,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
+                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -815,29 +815,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
+                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Control Plane, Self-Hosted configuration.
+                                  Certificate Manager Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -849,7 +849,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
                                 type: string
                             type: object
                         type: object
@@ -858,7 +858,7 @@ spec:
                       x-kubernetes-list-type: atomic
                     url:
                       description: |-
-                        The URL to connect to the Control Plane, SaaS instance. If not set, the default
+                        The URL to connect to the Certificate Manager SaaS instance. If not set, the default
                         value https://api.venafi.cloud is used.
                       type: string
                   type: object
@@ -867,7 +867,7 @@ spec:
                     accessToken:
                       description: |-
                         The list of steps to retrieve the Access Token that will be used to connect
-                        to Control Plane, SaaS.
+                        to Certificate Manager SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -935,8 +935,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
+                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -1007,29 +1007,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
+                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Control Plane, Self-Hosted configuration.
+                                  Certificate Manager Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -1041,7 +1041,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
                                 type: string
                             type: object
                         type: object
@@ -1051,7 +1051,7 @@ spec:
                     apiKey:
                       description: |-
                         The list of steps to retrieve the API key that will be used to connect to
-                        Control Plane, SaaS.
+                        Certificate Manager SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -1119,8 +1119,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Control Plane, Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Control Plane, Self-Hosted under the keys "username" and
+                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
+                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -1191,29 +1191,29 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Control Plane, Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Control Plane, Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Control Plane, Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Control Plane, Self-Hosted instance. The two URLs
+                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Control Plane, Self-Hosted configuration.
+                                  Certificate Manager Self-Hosted configuration.
                                 type: string
                             required:
                               - authInputType
@@ -1225,7 +1225,7 @@ spec:
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Control Plane, SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
                                 type: string
                             type: object
                         type: object
@@ -1234,7 +1234,7 @@ spec:
                       x-kubernetes-list-type: atomic
                     url:
                       description: |-
-                        The URL to connect to the Control Plane, SaaS instance. If not set, the default
+                        The URL to connect to the Certificate Manager SaaS instance. If not set, the default
                         value https://api.venafi.cloud is used.
                       type: string
                   type: object
