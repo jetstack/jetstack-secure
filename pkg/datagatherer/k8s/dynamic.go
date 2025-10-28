@@ -1,5 +1,37 @@
 package k8s
 
+// The venafi-kubernetes-agent has a requirement that **all** resources should
+// be uploaded, even short-lived secrets, which are created and deleted
+// in-between data uploads. A cache was added to the datagatherer code, to
+// satisfy this requirement. The cache stores all resources for 5 minutes. And
+// the informer event handlers (onAdd, onUpdate, onDelete) update the cache
+// accordingly. The onDelete handler does not remove the object from the cache,
+// but instead marks the object as deleted by setting the DeletedAt field on the
+// GatheredResource. This ensures that deleted resources are still present in
+// the cache for the duration of the cache expiry time.
+//
+// The cache expiry is hard coded to 5 minutes, which is longer than the
+// venafi-kubernetes-agent default upload interval of 1 minute. This means that
+// even if a resource is created and deleted in-between data gatherer runs, it
+// will still be present in the cache when the data gatherer runs.
+//
+// TODO(wallrj): When the agent is deployed as CyberArk disco-agent, the deleted
+// items are currently discarded before upload. If this remains the case, then the cache is unnecessary
+// and should be disabled to save memory.
+// If, in the future, the CyberArk Discovery and Context service does want to
+// see deleted items, the "deleted resource reporting mechanism" will need to be
+// redesigned, so that deleted items are retained for the duration of the upload
+// interval.
+//
+// TODO(wallrj): When the agent is deployed as CyberArk disco-agent, the upload
+// interval is 12 hours by default, so the 5 minute cache expiry is not
+// sufficient.
+//
+// TODO(wallrj): The shared informer is configured to refresh all relist all
+// resources every 1 minute, which will cause unnecessary load on the apiserver.
+// We need to look back at the Git history and understand whether this was done
+// for good reason or due to some misunderstanding.
+
 import (
 	"context"
 	"errors"
@@ -197,6 +229,8 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 
 	if informerFunc, ok := kubernetesNativeResources[c.GroupVersionResource]; ok {
 		factory := informers.NewSharedInformerFactoryWithOptions(clientset,
+			// TODO(wallrj): This causes all resources to be relisted every 1
+			// minute which will cause unnecessary load on the apiserver.
 			60*time.Second,
 			informers.WithNamespace(metav1.NamespaceAll),
 			informers.WithTweakListOptions(func(options *metav1.ListOptions) {
@@ -207,6 +241,8 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	} else {
 		factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 			cl,
+			// TODO(wallrj): This causes all resources to be relisted every 1
+			// minute which will cause unnecessary load on the apiserver.
 			60*time.Second,
 			metav1.NamespaceAll,
 			func(options *metav1.ListOptions) {
