@@ -48,6 +48,7 @@ func NewCyberArk(httpClient *http.Client) (*CyberArkClient, error) {
 
 // PostDataReadingsWithOptions uploads data readings to CyberArk.
 // It converts the supplied data readings into a snapshot format expected by CyberArk.
+// Deleted resources are excluded from the snapshot because they are not needed by CyberArk.
 // It then minimizes the snapshot to avoid uploading unnecessary data.
 // It initializes a data upload client with the configured HTTP client and credentials,
 // then uploads a snapshot.
@@ -112,6 +113,8 @@ func extractClusterIDAndServerVersionFromReading(reading *api.DataReading, targe
 // extractResourceListFromReading converts the opaque data from a DynamicData
 // data reading to runtime.Object resources, to allow access to the metadata and
 // other kubernetes API fields.
+// Deleted resources are skipped because the CyberArk Discovery and Context service
+// does not need to see resources that no longer exist.
 func extractResourceListFromReading(reading *api.DataReading, target *[]runtime.Object) error {
 	if reading == nil {
 		return fmt.Errorf("programmer mistake: the DataReading must not be nil")
@@ -122,10 +125,13 @@ func extractResourceListFromReading(reading *api.DataReading, target *[]runtime.
 			"programmer mistake: the DataReading must have data type *api.DynamicData. "+
 				"This DataReading (%s) has data type %T", reading.DataGatherer, reading.Data)
 	}
-	resources := make([]runtime.Object, len(data.Items))
+	resources := make([]runtime.Object, 0, len(data.Items))
 	for i, item := range data.Items {
+		if !item.DeletedAt.IsZero() {
+			continue
+		}
 		if resource, ok := item.Resource.(runtime.Object); ok {
-			resources[i] = resource
+			resources = append(resources, resource)
 		} else {
 			return fmt.Errorf(
 				"programmer mistake: the DynamicData items must have Resource type runtime.Object. "+
@@ -136,6 +142,11 @@ func extractResourceListFromReading(reading *api.DataReading, target *[]runtime.
 	return nil
 }
 
+// defaultExtractorFunctions maps data gatherer names to functions that extract
+// their data from DataReadings into the appropriate fields of a Snapshot.
+// Each function takes a DataReading and a pointer to a Snapshot,
+// and populates the relevant field(s) of the Snapshot based on the DataReading's data.
+// Deleted resources are excluded from the snapshot because they are not needed by CyberArk.
 var defaultExtractorFunctions = map[string]func(*api.DataReading, *dataupload.Snapshot) error{
 	"ark/discovery": extractClusterIDAndServerVersionFromReading,
 	"ark/secrets": func(r *api.DataReading, s *dataupload.Snapshot) error {
@@ -184,6 +195,7 @@ var defaultExtractorFunctions = map[string]func(*api.DataReading, *dataupload.Sn
 // The extractorFunctions map should contain functions for each expected
 // DataGatherer name, which will be called with the corresponding DataReading
 // and the target snapshot to populate the relevant fields.
+// Deleted resources are excluded from the snapshot because they are not needed by CyberArk.
 func convertDataReadings(
 	extractorFunctions map[string]func(*api.DataReading, *dataupload.Snapshot) error,
 	readings []*api.DataReading,

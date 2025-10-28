@@ -21,6 +21,17 @@
                             "namespace": "team-1"
                         }
                     }
+                },
+                {
+                    "deleted_at": "2024-06-10T12:00:00Z",
+                    "resource": {
+                        "kind": "Secret",
+                        "apiVersion": "v1",
+                        "metadata": {
+                            "name": "deleted-secret-1",
+                            "namespace": "team-2"
+                        }
+                    }
                 }
             ]
         }
@@ -36,6 +47,17 @@
                         "metadata": {
                             "name": "app-1-pod-1",
                             "namespace": "team-1"
+                        }
+                    }
+                },
+                {
+                    "deleted_at": "2024-06-10T12:00:00Z",
+                    "resource": {
+                        "kind": "Pod",
+                        "apiVersion": "v1",
+                        "metadata": {
+                            "name": "deleted-pod-1",
+                            "namespace": "team-2"
                         }
                     }
                 }

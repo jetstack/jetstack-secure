@@ -218,6 +218,19 @@ func TestExtractResourceListFromReading(t *testing.T) {
 								},
 							},
 						},
+						// Deleted resource should be ignored
+						{
+							DeletedAt: api.Time{Time: time.Now()},
+							Resource: &unstructured.Unstructured{
+								Object: map[string]interface{}{
+									"kind": "Namespace",
+									"metadata": map[string]interface{}{
+										"name": "kube-system",
+										"uid":  "uid-kube-system",
+									},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -266,6 +279,16 @@ func TestConvertDataReadings(t *testing.T) {
 						Resource: &corev1.Secret{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:      "app-1",
+								Namespace: "team-1",
+							},
+						},
+					},
+					// Deleted secret should be ignored
+					{
+						DeletedAt: api.Time{Time: time.Now()},
+						Resource: &corev1.Secret{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "deleted-1",
 								Namespace: "team-1",
 							},
 						},
