@@ -146,7 +146,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
+                                description: "Deprecated: This field does nothing and will be removed in the future."
                                 type: string
                               role:
                                 description: |-
@@ -284,7 +284,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
+                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -339,7 +339,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
+                                description: "Deprecated: This field does nothing and will be removed in the future."
                                 type: string
                               role:
                                 description: |-
@@ -477,7 +477,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
+                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -492,7 +492,7 @@ spec:
                     - url
                   type: object
                 vaas:
-                  description: 'Deprecated: The ''vaas'' field is deprecated use the field called ''vcp'' instead.'
+                  description: "Deprecated: The 'vaas' field is deprecated use the field called 'vcp' instead."
                   properties:
                     accessToken:
                       description: |-
@@ -539,7 +539,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
+                                description: "Deprecated: This field does nothing and will be removed in the future."
                                 type: string
                               role:
                                 description: |-
@@ -677,7 +677,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
+                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -726,7 +726,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
+                                description: "Deprecated: This field does nothing and will be removed in the future."
                                 type: string
                               role:
                                 description: |-
@@ -864,7 +864,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
+                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -875,8 +875,8 @@ spec:
                       type: string
                   type: object
                   x-kubernetes-validations:
-                    - message: 'must have exactly ONE of the following fields set: apiKey or accessToken'
-                      rule: '(has(self.apiKey) ? 1 : 0) + (has(self.accessToken) ? 1 : 0) == 1'
+                    - message: "must have exactly ONE of the following fields set: apiKey or accessToken"
+                      rule: "(has(self.apiKey) ? 1 : 0) + (has(self.accessToken) ? 1 : 0) == 1"
                 vcp:
                   properties:
                     accessToken:
@@ -924,7 +924,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
+                                description: "Deprecated: This field does nothing and will be removed in the future."
                                 type: string
                               role:
                                 description: |-
@@ -1062,7 +1062,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
+                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -1111,7 +1111,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
+                                description: "Deprecated: This field does nothing and will be removed in the future."
                                 type: string
                               role:
                                 description: |-
@@ -1249,7 +1249,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
+                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -1260,12 +1260,12 @@ spec:
                       type: string
                   type: object
                   x-kubernetes-validations:
-                    - message: 'must have exactly ONE of the following fields set: apiKey or accessToken'
-                      rule: '(has(self.apiKey) ? 1 : 0) + (has(self.accessToken) ? 1 : 0) == 1'
+                    - message: "must have exactly ONE of the following fields set: apiKey or accessToken"
+                      rule: "(has(self.apiKey) ? 1 : 0) + (has(self.accessToken) ? 1 : 0) == 1"
               type: object
               x-kubernetes-validations:
-                - message: 'must have exactly ONE of the following fields set: tpp or vcp'
-                  rule: '(has(self.tpp) ? 1 : 0) + (has(self.vaas) ? 1 : 0) + (has(self.vcp) ? 1 : 0) + (has(self.firefly) ? 1 : 0) == 1'
+                - message: "must have exactly ONE of the following fields set: tpp or vcp"
+                  rule: "(has(self.tpp) ? 1 : 0) + (has(self.vaas) ? 1 : 0) + (has(self.vcp) ? 1 : 0) + (has(self.firefly) ? 1 : 0) == 1"
             status:
               properties:
                 conditions:
@@ -1333,4 +1333,3 @@ spec:
         status: {}
 {{ end }}
 {{ end }}
- 
