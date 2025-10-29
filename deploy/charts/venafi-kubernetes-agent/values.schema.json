@@ -350,7 +350,7 @@
     },
     "helm-values.image.repository": {
       "default": "registry.venafi.cloud/venafi-agent/venafi-agent",
-      "description": "The container image for the Enterprise Issuer manager.",
+      "description": "The container image for the Enterprise Issuer.",
       "type": "string"
     },
     "helm-values.image.tag": {

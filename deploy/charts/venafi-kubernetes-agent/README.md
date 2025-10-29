@@ -105,7 +105,7 @@ default replicas, do not scale up
 > registry.venafi.cloud/venafi-agent/venafi-agent
 > ```
 
-The container image for the Enterprise Issuer manager.
+The container image for the Enterprise Issuer.
 #### **image.pullPolicy** ~ `string`
 > Default value:
 > ```yaml
