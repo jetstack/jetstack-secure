@@ -9,7 +9,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/jetstack/venafi-connection-lib v0.5.0
+	github.com/jetstack/venafi-connection-lib v0.5.1
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pmylund/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.23.2
@@ -39,6 +39,7 @@ require (
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go418/concurrentcache v0.6.0 // indirect
 	github.com/go418/concurrentcache/logger v0.0.0-20250207095056-c0b7f8cc8bc2 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/cel-go v0.26.0 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
@@ -106,6 +107,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
-	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 // indirect
+	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 )

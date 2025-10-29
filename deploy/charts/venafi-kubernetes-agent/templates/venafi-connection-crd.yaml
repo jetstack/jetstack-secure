@@ -104,7 +104,7 @@ spec:
                     accessToken:
                       description: |-
                         The list of steps to retrieve the Access Token that will be used to connect
-                        to CyberArk Workload Identity Manager.
+                        to Firefly.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -146,7 +146,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: "Deprecated: This field does nothing and will be removed in the future."
+                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -172,8 +172,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -244,52 +244,52 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with TPP.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
+                                  The URL to connect to the Certificate Manager, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Certificate Manager Self-Hosted configuration.
+                                  TPP configuration.
                                 type: string
                             required:
                               - authInputType
                             type: object
                           vcpOAuth:
                             description: |-
-                              VCPOAuth is a SecretSource step that authenticates to the Venafi Control
-                              Plane. This step is meant to be the last step and requires a prior step
+                              VCPOAuth is a SecretSource step that authenticates to the
+                              Certificate Manager, SaaS. This step is meant to be the last step and requires a prior step
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager, SaaS.
                                 type: string
                             type: object
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
+                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
                     url:
-                      description: The URL to connect to the Venafi CyberArk Workload Identity Manager instance.
+                      description: The URL to connect to the Workload Identity Manager instance.
                       type: string
                   required:
                     - url
@@ -297,7 +297,7 @@ spec:
                 tpp:
                   properties:
                     accessToken:
-                      description: The list of steps to retrieve a Certificate Manager Self-Hosted access token.
+                      description: The list of steps to retrieve a TPP access token.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -339,7 +339,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: "Deprecated: This field does nothing and will be removed in the future."
+                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -365,8 +365,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -437,53 +437,53 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with TPP.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
+                                  The URL to connect to the Certificate Manager, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Certificate Manager Self-Hosted configuration.
+                                  TPP configuration.
                                 type: string
                             required:
                               - authInputType
                             type: object
                           vcpOAuth:
                             description: |-
-                              VCPOAuth is a SecretSource step that authenticates to the Venafi Control
-                              Plane. This step is meant to be the last step and requires a prior step
+                              VCPOAuth is a SecretSource step that authenticates to the
+                              Certificate Manager, SaaS. This step is meant to be the last step and requires a prior step
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager, SaaS.
                                 type: string
                             type: object
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
+                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
                     url:
                       description: |-
-                        The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
+                        The URL to connect to the Certificate Manager Self-Hosted instance. The two URLs
                         https://tpp.example.com and https://tpp.example.com/vedsdk are
                         equivalent. The ending `/vedsdk` is optional and is stripped out by
                         venafi-connection-lib.
@@ -492,12 +492,12 @@ spec:
                     - url
                   type: object
                 vaas:
-                  description: "Deprecated: The 'vaas' field is deprecated use the field called 'vcp' instead."
+                  description: 'Deprecated: The ''vaas'' field is deprecated use the field called ''vcp'' instead.'
                   properties:
                     accessToken:
                       description: |-
                         The list of steps to retrieve the Access Token that will be used to connect
-                        to Certificate Manager SaaS.
+                        to Certificate Manager, SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -539,7 +539,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: "Deprecated: This field does nothing and will be removed in the future."
+                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -565,8 +565,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -637,54 +637,54 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with TPP.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
+                                  The URL to connect to the Certificate Manager, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Certificate Manager Self-Hosted configuration.
+                                  TPP configuration.
                                 type: string
                             required:
                               - authInputType
                             type: object
                           vcpOAuth:
                             description: |-
-                              VCPOAuth is a SecretSource step that authenticates to the Venafi Control
-                              Plane. This step is meant to be the last step and requires a prior step
+                              VCPOAuth is a SecretSource step that authenticates to the
+                              Certificate Manager, SaaS. This step is meant to be the last step and requires a prior step
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager, SaaS.
                                 type: string
                             type: object
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
+                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
                     apiKey:
                       description: |-
                         The list of steps to retrieve the API key that will be used to connect to
-                        Certificate Manager SaaS.
+                        Certificate Manager, SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -726,7 +726,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: "Deprecated: This field does nothing and will be removed in the future."
+                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -752,8 +752,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -824,65 +824,65 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with TPP.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
+                                  The URL to connect to the Certificate Manager, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Certificate Manager Self-Hosted configuration.
+                                  TPP configuration.
                                 type: string
                             required:
                               - authInputType
                             type: object
                           vcpOAuth:
                             description: |-
-                              VCPOAuth is a SecretSource step that authenticates to the Venafi Control
-                              Plane. This step is meant to be the last step and requires a prior step
+                              VCPOAuth is a SecretSource step that authenticates to the
+                              Certificate Manager, SaaS. This step is meant to be the last step and requires a prior step
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager, SaaS.
                                 type: string
                             type: object
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
+                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
                     url:
                       description: |-
-                        The URL to connect to the Certificate Manager SaaS instance. If not set, the default
+                        The URL to connect to the Certificate Manager, SaaS instance. If not set, the default
                         value https://api.venafi.cloud is used.
                       type: string
                   type: object
                   x-kubernetes-validations:
-                    - message: "must have exactly ONE of the following fields set: apiKey or accessToken"
-                      rule: "(has(self.apiKey) ? 1 : 0) + (has(self.accessToken) ? 1 : 0) == 1"
+                    - message: 'must have exactly ONE of the following fields set: apiKey or accessToken'
+                      rule: '(has(self.apiKey) ? 1 : 0) + (has(self.accessToken) ? 1 : 0) == 1'
                 vcp:
                   properties:
                     accessToken:
                       description: |-
                         The list of steps to retrieve the Access Token that will be used to connect
-                        to Certificate Manager SaaS.
+                        to Certificate Manager, SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -924,7 +924,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: "Deprecated: This field does nothing and will be removed in the future."
+                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -950,8 +950,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -1022,54 +1022,54 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with TPP.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
+                                  The URL to connect to the Certificate Manager, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Certificate Manager Self-Hosted configuration.
+                                  TPP configuration.
                                 type: string
                             required:
                               - authInputType
                             type: object
                           vcpOAuth:
                             description: |-
-                              VCPOAuth is a SecretSource step that authenticates to the Venafi Control
-                              Plane. This step is meant to be the last step and requires a prior step
+                              VCPOAuth is a SecretSource step that authenticates to the
+                              Certificate Manager, SaaS. This step is meant to be the last step and requires a prior step
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager, SaaS.
                                 type: string
                             type: object
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
+                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
                     apiKey:
                       description: |-
                         The list of steps to retrieve the API key that will be used to connect to
-                        Certificate Manager SaaS.
+                        Certificate Manager, SaaS.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -1111,7 +1111,7 @@ spec:
                                   /v1/auth/oidc/login
                                 type: string
                               clientId:
-                                description: "Deprecated: This field does nothing and will be removed in the future."
+                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -1137,8 +1137,8 @@ spec:
                                   The fields are Vault keys pointing to the secrets passed to the next
                                   SecretSource step.
 
-                                  Example 1 (Certificate Manager Self-Hosted, username and password): imagining that you have stored
-                                  the username and password for Certificate Manager Self-Hosted under the keys "username" and
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
                                   "password", you will want to set this field to `["username",
                                   "password"]`. The username is expected to be given first, the password
                                   second.
@@ -1209,63 +1209,63 @@ spec:
                             type: object
                           tppOAuth:
                             description: |-
-                              TPPOAuth is a SecretSource step that authenticates to a Certificate Manager Self-Hosted server (formerly TPP). This
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
                               step is meant to be the last step and requires a prior step that depends
                               on the `authInputType`.
                             properties:
                               authInputType:
                                 description: |-
                                   AuthInputType is the authentication method to be used to authenticate
-                                  with Certificate Manager Self-Hosted. The supported values are "UsernamePassword" and "JWT".
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
                                 enum:
                                   - UsernamePassword
                                   - JWT
                                 type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with Certificate Manager Self-Hosted.
+                                description: ClientID is the clientId used to authenticate with TPP.
                                 type: string
                               url:
                                 description: |-
-                                  The URL to connect to the CyberArk Certificate Manager Self-Hosted instance. The two URLs
+                                  The URL to connect to the Certificate Manager, Self-Hosted instance. The two URLs
                                   https://tpp.example.com and https://tpp.example.com/vedsdk are
                                   equivalent. The ending `/vedsdk` is optional and is stripped out
                                   by our client.
                                   If not set, defaults to the URL defined at the top-level of the
-                                  Certificate Manager Self-Hosted configuration.
+                                  TPP configuration.
                                 type: string
                             required:
                               - authInputType
                             type: object
                           vcpOAuth:
                             description: |-
-                              VCPOAuth is a SecretSource step that authenticates to the Venafi Control
-                              Plane. This step is meant to be the last step and requires a prior step
+                              VCPOAuth is a SecretSource step that authenticates to the
+                              Certificate Manager, SaaS. This step is meant to be the last step and requires a prior step
                               that outputs a JWT token.
                             properties:
                               tenantID:
-                                description: TenantID is the tenant ID used to authenticate with Certificate Manager SaaS.
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager, SaaS.
                                 type: string
                             type: object
                         type: object
                         x-kubernetes-validations:
                           - message: must have exactly one field set
-                            rule: "((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1"
+                            rule: '((has(self.secret) ? 1 : 0) + (has(self.serviceAccountToken) ? 1 : 0) + (has(self.hashicorpVaultOAuth) ? 1 : 0) + (has(self.hashicorpVaultSecret) ? 1 : 0) + (has(self.hashicorpVaultLDAP) ? 1 : 0) + (has(self.tppOAuth) ? 1 : 0) + (has(self.vcpOAuth) ? 1 : 0)) == 1'
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
                     url:
                       description: |-
-                        The URL to connect to the Certificate Manager SaaS instance. If not set, the default
+                        The URL to connect to the Certificate Manager, SaaS instance. If not set, the default
                         value https://api.venafi.cloud is used.
                       type: string
                   type: object
                   x-kubernetes-validations:
-                    - message: "must have exactly ONE of the following fields set: apiKey or accessToken"
-                      rule: "(has(self.apiKey) ? 1 : 0) + (has(self.accessToken) ? 1 : 0) == 1"
+                    - message: 'must have exactly ONE of the following fields set: apiKey or accessToken'
+                      rule: '(has(self.apiKey) ? 1 : 0) + (has(self.accessToken) ? 1 : 0) == 1'
               type: object
               x-kubernetes-validations:
-                - message: "must have exactly ONE of the following fields set: tpp or vcp"
-                  rule: "(has(self.tpp) ? 1 : 0) + (has(self.vaas) ? 1 : 0) + (has(self.vcp) ? 1 : 0) + (has(self.firefly) ? 1 : 0) == 1"
+                - message: 'must have exactly ONE of the following fields set: tpp or vcp'
+                  rule: '(has(self.tpp) ? 1 : 0) + (has(self.vaas) ? 1 : 0) + (has(self.vcp) ? 1 : 0) + (has(self.firefly) ? 1 : 0) == 1'
             status:
               properties:
                 conditions:
@@ -1307,8 +1307,8 @@ spec:
                         type: string
                       tokenValidUntil:
                         description: |-
-                          The ValidUntil time of the token used to authenticate with the Venafi
-                          Control Plane server.
+                          The ValidUntil time of the token used to authenticate with the
+                          Certificate Manager, SaaS.
                         format: date-time
                         type: string
                       type:
