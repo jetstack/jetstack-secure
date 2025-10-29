@@ -51,7 +51,7 @@ metrics:
 replicaCount: 1
 
 image:
-  # The container image for the Enterprise Issuer manager.
+  # The container image for the Enterprise Issuer.
   repository: registry.venafi.cloud/venafi-agent/venafi-agent
 
   # Kubernetes imagePullPolicy on Deployment.
