@@ -131,7 +131,7 @@
     },
     "helm-values.authentication.venafiConnection.enabled": {
       "default": false,
-      "description": "When set to true, the Venafi Kubernetes Agent will authenticate to. Venafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the\nVenafi Kubernetes Agent Pod.",
+      "description": "When set to true, the Discovery Agent will authenticate to. Venafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the\nDiscovery Agent Pod.",
       "type": "boolean"
     },
     "helm-values.authentication.venafiConnection.name": {
@@ -185,7 +185,7 @@
     },
     "helm-values.config.clientId": {
       "default": "",
-      "description": "The client-id to be used for authenticating with the Venafi Control. Plane. Only useful when using a Key Pair Service Account in the Venafi. Control Plane. You can obtain the cliend ID by creating a Key Pair Service\nAccount in the Venafi Control Plane.",
+      "description": "The client-id to be used for authenticating with the Venafi Control. Plane. Only useful when using a Key Pair Service Account in the Venafi. Control Plane. You can obtain the cliend ID by creating a Key Pair Service\nAccount in the CyberArk Certificate Manager.",
       "type": "string"
     },
     "helm-values.config.clusterDescription": {
@@ -214,7 +214,7 @@
     "helm-values.config.configmap.name": {},
     "helm-values.config.excludeAnnotationKeysRegex": {
       "default": [],
-      "description": "You can configure Venafi Kubernetes Agent to exclude some annotations or labels from being pushed to the Venafi Control Plane. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being sent to the Venafi Control Plane.\n\nDots is the only character that needs to be escaped in the regex. Use either double quotes with escaped single quotes or unquoted strings for the regex to avoid YAML parsing issues with `\\.`.\n\nExample: excludeAnnotationKeysRegex: ['^kapp\\.k14s\\.io/original.*']",
+      "description": "You can configure Discovery Agent to exclude some annotations or labels from being pushed to the CyberArk Certificate Manager. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being sent to the CyberArk Certificate Manager.\n\nDots is the only character that needs to be escaped in the regex. Use either double quotes with escaped single quotes or unquoted strings for the regex to avoid YAML parsing issues with `\\.`.\n\nExample: excludeAnnotationKeysRegex: ['^kapp\\.k14s\\.io/original.*']",
       "items": {},
       "type": "array"
     },
@@ -264,7 +264,7 @@
     },
     "helm-values.config.server": {
       "default": "https://api.venafi.cloud/",
-      "description": "API URL of the Venafi Control Plane API. For EU tenants, set this value to https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the\nVenafiConnection resource instead.",
+      "description": "API URL of the CyberArk Certificate Manager API. For EU tenants, set this value to https://api.venafi.eu/. If you are using the VenafiConnection authentication method, you must set the API URL using the field `spec.vcp.url` on the\nVenafiConnection resource instead.",
       "type": "string"
     },
     "helm-values.crds": {
@@ -350,7 +350,7 @@
     },
     "helm-values.image.repository": {
       "default": "registry.venafi.cloud/venafi-agent/venafi-agent",
-      "description": "The container image for the Venafi Enhanced Issuer manager.",
+      "description": "The container image for the Discovery Agent.",
       "type": "string"
     },
     "helm-values.image.tag": {
@@ -583,13 +583,13 @@
     },
     "helm-values.volumeMounts": {
       "default": [],
-      "description": "Additional volume mounts to add to the Venafi Kubernetes Agent container. This is useful for mounting a custom CA bundle. Any PEM certificate mounted under /etc/ssl/certs will be loaded by the Venafi Kubernetes Agent. For\nexample:\n\nvolumeMounts:\n  - name: cabundle\n    mountPath: /etc/ssl/certs/cabundle\n    subPath: cabundle\n    readOnly: true",
+      "description": "Additional volume mounts to add to the Discovery Agent container. This is useful for mounting a custom CA bundle. Any PEM certificate mounted under /etc/ssl/certs will be loaded by the Discovery Agent. For\nexample:\n\nvolumeMounts:\n  - name: cabundle\n    mountPath: /etc/ssl/certs/cabundle\n    subPath: cabundle\n    readOnly: true",
       "items": {},
       "type": "array"
     },
     "helm-values.volumes": {
       "default": [],
-      "description": "Additional volumes to add to the Venafi Kubernetes Agent container. This is useful for mounting a custom CA bundle. For example:\nvolumes:\n  - name: cabundle\n    configMap:\n      name: cabundle\n      optional: false\n      defaultMode: 0644\nIn order to create the ConfigMap, you can use the following command:\n\n    kubectl create configmap cabundle \\\n      --from-file=cabundle=./your/custom/ca/bundle.pem",
+      "description": "Additional volumes to add to the Discovery Agent container. This is useful for mounting a custom CA bundle. For example:\nvolumes:\n  - name: cabundle\n    configMap:\n      name: cabundle\n      optional: false\n      defaultMode: 0644\nIn order to create the ConfigMap, you can use the following command:\n\n    kubectl create configmap cabundle \\\n      --from-file=cabundle=./your/custom/ca/bundle.pem",
       "items": {},
       "type": "array"
     }

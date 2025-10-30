@@ -61,6 +61,7 @@ github.com/go418/concurrentcache,Apache-2.0
 github.com/go418/concurrentcache/logger,Apache-2.0
 github.com/gogo/protobuf,BSD-3-Clause
 github.com/golang-jwt/jwt/v4,MIT
+github.com/golang-jwt/jwt/v5,MIT
 github.com/google/btree,Apache-2.0
 github.com/google/cel-go,Apache-2.0
 github.com/google/cel-go,BSD-3-Clause

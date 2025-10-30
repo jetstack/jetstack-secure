@@ -51,7 +51,7 @@ metrics:
 replicaCount: 1
 
 image:
-  # The container image for the Venafi Enhanced Issuer manager.
+  # The container image for the Discovery Agent.
   repository: registry.venafi.cloud/venafi-agent/venafi-agent
 
   # Kubernetes imagePullPolicy on Deployment.
@@ -162,7 +162,7 @@ command: []
 #  - --log-level=6 # To enable HTTP request logging
 extraArgs: []
 
-# Additional volumes to add to the Venafi Kubernetes Agent container. This is
+# Additional volumes to add to the Discovery Agent container. This is
 # useful for mounting a custom CA bundle. For example:
 #
 #     volumes:
@@ -178,9 +178,9 @@ extraArgs: []
 #       --from-file=cabundle=./your/custom/ca/bundle.pem
 volumes: []
 
-# Additional volume mounts to add to the Venafi Kubernetes Agent container.
+# Additional volume mounts to add to the Discovery Agent container.
 # This is useful for mounting a custom CA bundle. Any PEM certificate mounted
-# under /etc/ssl/certs will be loaded by the Venafi Kubernetes Agent. For
+# under /etc/ssl/certs will be loaded by the Discovery Agent. For
 # example:
 #
 #     volumeMounts:
@@ -190,7 +190,7 @@ volumes: []
 #         readOnly: true
 volumeMounts: []
 
-# Authentication details for the Venafi Kubernetes Agent
+# Authentication details for the Discovery Agent
 authentication:
   # Name of the secret containing the private key
   secretName: agent-credentials
@@ -200,12 +200,12 @@ authentication:
   # +docs:section=Venafi Connection
   # Configure VenafiConnection authentication
   venafiConnection:
-    # When set to true, the Venafi Kubernetes Agent will authenticate to
+    # When set to true, the Discovery Agent will authenticate to
     # Venafi using the configuration in a VenafiConnection resource.
     # Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/).
     # When set to true, the `authentication.secret` values will be ignored and the
     # Secret with `authentication.secretName` will _not_ be mounted into the
-    # Venafi Kubernetes Agent Pod.
+    # Discovery Agent Pod.
     enabled: false
     # The name of a VenafiConnection resource which contains the configuration
     # for authenticating to Venafi.
@@ -214,9 +214,9 @@ authentication:
     # configuration for authenticating to Venafi.
     namespace: venafi
 
-# Configuration section for the Venafi Kubernetes Agent itself
+# Configuration section for the Discovery Agent itself
 config:
-  # API URL of the Venafi Control Plane API. For EU tenants, set this value to
+  # API URL of the CyberArk Certificate Manager API. For EU tenants, set this value to
   # https://api.venafi.eu/. If you are using the VenafiConnection authentication
   # method, you must set the API URL using the field `spec.vcp.url` on the
   # VenafiConnection resource instead.
@@ -224,7 +224,7 @@ config:
   # The client-id to be used for authenticating with the Venafi Control
   # Plane. Only useful when using a Key Pair Service Account in the Venafi
   # Control Plane. You can obtain the cliend ID by creating a Key Pair Service
-  # Account in the Venafi Control Plane.
+  # Account in the CyberArk Certificate Manager.
   clientId: ""
   # Send data back to the platform every minute unless changed.
   period: "0h1m0s"
@@ -251,10 +251,10 @@ config:
     - bootstrap.kubernetes.io/token
     - helm.sh/release.v1
 
-  # You can configure Venafi Kubernetes Agent to exclude some annotations or
-  # labels from being pushed to the Venafi Control Plane. All Kubernetes objects
+  # You can configure Discovery Agent to exclude some annotations or
+  # labels from being pushed to the CyberArk Certificate Manager. All Kubernetes objects
   # are affected. The objects are still pushed, but the specified annotations
-  # and labels are removed before being sent to the Venafi Control Plane.
+  # and labels are removed before being sent to the CyberArk Certificate Manager.
   #
   # Dots is the only character that needs to be escaped in the regex. Use either
   # double quotes with escaped single quotes or unquoted strings for the regex
