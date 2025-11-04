@@ -15,7 +15,6 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/transport"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
@@ -815,7 +814,6 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			rootCAs *x509.CertPool
 		)
 		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
-		httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
 		outputClient, err = client.NewCyberArk(httpClient)
 		if err != nil {
 			errs = multierror.Append(errs, err)

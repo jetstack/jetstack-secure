@@ -8,7 +8,6 @@ import (
 	"github.com/jetstack/venafi-connection-lib/http_client"
 	"github.com/stretchr/testify/require"
 	k8sversion "k8s.io/apimachinery/pkg/version"
-	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
@@ -59,7 +58,6 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 
 		var rootCAs *x509.CertPool
 		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
-		httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
 
 		c, err := client.NewCyberArk(httpClient)
 		if err != nil {

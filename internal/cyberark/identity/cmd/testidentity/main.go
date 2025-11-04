@@ -9,7 +9,6 @@ import (
 	"os/signal"
 
 	"github.com/jetstack/venafi-connection-lib/http_client"
-	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/internal/cyberark/identity"
@@ -50,7 +49,6 @@ func run(ctx context.Context) error {
 
 	var rootCAs *x509.CertPool
 	httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
-	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
 
 	sdClient := servicediscovery.New(httpClient)
 	services, err := sdClient.DiscoverServices(ctx, subdomain)
