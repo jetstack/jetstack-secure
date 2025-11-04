@@ -7,7 +7,6 @@ import (
 
 	"github.com/jetstack/venafi-connection-lib/http_client"
 	"github.com/stretchr/testify/require"
-	"k8s.io/client-go/transport"
 	"k8s.io/klog/v2"
 	"k8s.io/klog/v2/ktesting"
 
@@ -61,7 +60,6 @@ func TestCyberArkClient_PutSnapshot_RealAPI(t *testing.T) {
 
 	var rootCAs *x509.CertPool
 	httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
-	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
 
 	cfg, err := cyberark.LoadClientConfigFromEnvironment()
 	if err != nil {

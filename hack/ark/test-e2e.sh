@@ -71,6 +71,7 @@ helm upgrade agent "oci://${ARK_CHART}@${ARK_CHART_DIGEST}" \
      --wait \
      --create-namespace \
      --namespace "$NAMESPACE" \
+     --set-json extraArgs='["--log-level=6"]' \
      --set pprof.enabled=true \
      --set fullnameOverride=disco-agent \
      --set "image.digest=${ARK_IMAGE_DIGEST}" \
