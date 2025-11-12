@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/microcosm-cc/bluemonday"
 	"k8s.io/client-go/transport"
+	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/version"
@@ -204,6 +205,14 @@ func (c *VenafiCloudClient) PostDataReadingsWithOptions(ctx context.Context, rea
 		query.Add("description", base64.RawURLEncoding.EncodeToString([]byte(stripHTML.Sanitize(opts.ClusterDescription))))
 	}
 	venafiCloudUploadURL.RawQuery = query.Encode()
+
+	klog.FromContext(ctx).V(2).Info(
+		"uploading data readings",
+		"url", venafiCloudUploadURL.String(),
+		"cluster_name", opts.ClusterName,
+		"data_readings_count", len(readings),
+		"data_size_bytes", len(data),
+	)
 
 	res, err := c.post(ctx, venafiCloudUploadURL.String(), bytes.NewBuffer(data))
 	if err != nil {

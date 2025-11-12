@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	"github.com/jetstack/preflight/api"
@@ -154,18 +155,23 @@ func (c *VenConnClient) PostDataReadingsWithOptions(ctx context.Context, reading
 		DataGatherTime: time.Now().UTC(),
 		DataReadings:   readings,
 	}
-
-	encodedBody := &bytes.Buffer{}
-
-	err = json.NewEncoder(encodedBody).Encode(payload)
+	data, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
+	klog.FromContext(ctx).V(2).Info(
+		"uploading data readings",
+		"url", fullURL(details.VCP.URL, "/v1/tlspk/upload/clusterdata/no"),
+		"cluster_name", opts.ClusterName,
+		"data_readings_count", len(readings),
+		"data_size_bytes", len(data),
+	)
+
 	// The path parameter "no" is a dummy parameter to make the Venafi Cloud
 	// backend happy. This parameter, named `uploaderID` in the backend, is not
 	// actually used by the backend.
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL(details.VCP.URL, "/v1/tlspk/upload/clusterdata/no"), encodedBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL(details.VCP.URL, "/v1/tlspk/upload/clusterdata/no"), bytes.NewReader(data))
 	if err != nil {
 		return err
 	}
