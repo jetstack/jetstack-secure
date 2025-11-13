@@ -335,7 +335,10 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 		})
 
 		post := func() (any, error) {
-			return struct{}{}, postData(klog.NewContext(ctx, log), config, preflightClient, readings)
+			postCtx, cancel := context.WithTimeout(ctx, config.BackoffMaxTime)
+			defer cancel()
+
+			return struct{}{}, postData(klog.NewContext(postCtx, log), config, preflightClient, readings)
 		}
 
 		group.Go(func() error {
