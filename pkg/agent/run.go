@@ -331,11 +331,14 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 
 		notificationFunc := backoff.Notify(func(err error, t time.Duration) {
 			eventf("Warning", "PushingErr", "retrying in %v after error: %s", t, err)
-			log.Info("Warning: PushingErr: retrying", "in", t, "reason", err)
+			log.Error(err, "Warning: PushingErr: will retry", "retry_after", t)
 		})
 
 		post := func() (any, error) {
-			return struct{}{}, postData(klog.NewContext(ctx, log), config, preflightClient, readings)
+			postCtx, cancel := context.WithTimeout(ctx, config.BackoffMaxTime)
+			defer cancel()
+
+			return struct{}{}, postData(klog.NewContext(postCtx, log), config, preflightClient, readings)
 		}
 
 		group.Go(func() error {
