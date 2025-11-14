@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"k8s.io/client-go/transport"
+	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/version"
@@ -63,6 +64,14 @@ func (c *APITokenClient) postDataReadings(ctx context.Context, orgID, clusterID 
 	if err != nil {
 		return err
 	}
+
+	klog.FromContext(ctx).V(2).Info(
+		"uploading data readings",
+		"url", filepath.Join("/api/v1/org", orgID, "datareadings", clusterID),
+		"cluster_id", clusterID,
+		"data_readings_count", len(readings),
+		"data_size_bytes", len(data),
+	)
 
 	res, err := c.post(ctx, filepath.Join("/api/v1/org", orgID, "datareadings", clusterID), bytes.NewBuffer(data))
 	if err != nil {
