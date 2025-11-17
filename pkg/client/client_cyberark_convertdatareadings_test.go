@@ -198,9 +198,9 @@ func TestExtractResourceListFromReading(t *testing.T) {
 					Items: []*api.GatheredResource{
 						{
 							Resource: &unstructured.Unstructured{
-								Object: map[string]interface{}{
+								Object: map[string]any{
 									"kind": "Namespace",
-									"metadata": map[string]interface{}{
+									"metadata": map[string]any{
 										"name": "default",
 										"uid":  "uid-default",
 									},
@@ -209,9 +209,9 @@ func TestExtractResourceListFromReading(t *testing.T) {
 						},
 						{
 							Resource: &unstructured.Unstructured{
-								Object: map[string]interface{}{
+								Object: map[string]any{
 									"kind": "Namespace",
-									"metadata": map[string]interface{}{
+									"metadata": map[string]any{
 										"name": "kube-system",
 										"uid":  "uid-kube-system",
 									},
@@ -222,9 +222,9 @@ func TestExtractResourceListFromReading(t *testing.T) {
 						{
 							DeletedAt: api.Time{Time: time.Now()},
 							Resource: &unstructured.Unstructured{
-								Object: map[string]interface{}{
+								Object: map[string]any{
 									"kind": "Namespace",
-									"metadata": map[string]interface{}{
+									"metadata": map[string]any{
 										"name": "kube-system",
 										"uid":  "uid-kube-system",
 									},
@@ -384,10 +384,10 @@ func TestMinimizeSnapshot(t *testing.T) {
 	secretWithoutClientCert := newTLSSecret("tls-secret-without-client", sampleCertificateChain(t, x509.ExtKeyUsageServerAuth))
 	opaqueSecret := newOpaqueSecret("opaque-secret")
 	serviceAccount := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "ServiceAccount",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "my-service-account",
 				"namespace": "default",
 			},
@@ -491,10 +491,10 @@ func TestIsExcludableSecret(t *testing.T) {
 		{
 			name: "Non-secret",
 			secret: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "cert-manager/v1",
 					"kind":       "Certificate",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "non-secret",
 						"namespace": "default",
 					},
@@ -541,16 +541,16 @@ func TestIsExcludableSecret(t *testing.T) {
 
 // newTLSSecret creates a Kubernetes TLS secret with the given name and certificate data.
 // If crt is nil, the secret will not contain a "tls.crt" entry.
-func newTLSSecret(name string, crt interface{}) *unstructured.Unstructured {
-	data := map[string]interface{}{"tls.key": "dummy-key"}
+func newTLSSecret(name string, crt any) *unstructured.Unstructured {
+	data := map[string]any{"tls.key": "dummy-key"}
 	if crt != nil {
 		data["tls.crt"] = crt
 	}
 	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      name,
 				"namespace": "default",
 			},
@@ -563,15 +563,15 @@ func newTLSSecret(name string, crt interface{}) *unstructured.Unstructured {
 // newOpaqueSecret creates a Kubernetes Opaque secret with the given name.
 func newOpaqueSecret(name string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      name,
 				"namespace": "default",
 			},
 			"type": "Opaque",
-			"data": map[string]interface{}{
+			"data": map[string]any{
 				"key": "value",
 			},
 		},

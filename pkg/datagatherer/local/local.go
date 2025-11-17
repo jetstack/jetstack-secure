@@ -49,7 +49,7 @@ func (g *DataGatherer) WaitForCacheSync(ctx context.Context) error {
 }
 
 // Fetch loads and returns the data from the LocalDatagatherer's dataPath
-func (g *DataGatherer) Fetch() (interface{}, int, error) {
+func (g *DataGatherer) Fetch() (any, int, error) {
 	dataBytes, err := os.ReadFile(g.dataPath)
 	if err != nil {
 		return nil, -1, err

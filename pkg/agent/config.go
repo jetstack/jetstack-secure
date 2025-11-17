@@ -860,7 +860,7 @@ func getInClusterNamespace() (string, error) {
 	return "", fmt.Errorf("POD_NAMESPACE env var not set, meaning that you are probably not running in cluster. Please use --install-namespace or POD_NAMESPACE to specify the namespace in which the agent is running.")
 }
 
-func reMarshal(rawConfig interface{}, config datagatherer.Config) error {
+func reMarshal(rawConfig any, config datagatherer.Config) error {
 	bb, err := yaml.Marshal(rawConfig)
 	if err != nil {
 		return nil
@@ -875,12 +875,12 @@ func reMarshal(rawConfig interface{}, config datagatherer.Config) error {
 }
 
 // UnmarshalYAML unmarshals a dataGatherer resolving the type according to Kind.
-func (dg *DataGatherer) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (dg *DataGatherer) UnmarshalYAML(unmarshal func(any) error) error {
 	aux := struct {
-		Kind      string      `yaml:"kind"`
-		Name      string      `yaml:"name"`
-		DataPath  string      `yaml:"data-path,omitempty"`
-		RawConfig interface{} `yaml:"config"`
+		Kind      string `yaml:"kind"`
+		Name      string `yaml:"name"`
+		DataPath  string `yaml:"data-path,omitempty"`
+		RawConfig any    `yaml:"config"`
 	}{}
 	err := unmarshal(&aux)
 	if err != nil {

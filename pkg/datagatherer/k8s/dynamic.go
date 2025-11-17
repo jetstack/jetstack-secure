@@ -37,6 +37,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -78,7 +79,7 @@ type ConfigDynamic struct {
 }
 
 // UnmarshalYAML unmarshals the ConfigDynamic resolving GroupVersionResource.
-func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(any) error) error {
 	aux := struct {
 		KubeConfigPath string `yaml:"kubeconfig"`
 		ResourceType   struct {
@@ -253,13 +254,13 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	}
 
 	registration, err := newDataGatherer.informer.AddEventHandlerWithOptions(k8scache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			onAdd(log, obj, dgCache)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			onUpdate(log, oldObj, newObj, dgCache)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			onDelete(log, obj, dgCache)
 		},
 	}, k8scache.HandlerOptions{
@@ -345,7 +346,7 @@ func (g *DataGathererDynamic) WaitForCacheSync(ctx context.Context) error {
 
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
-func (g *DataGathererDynamic) Fetch() (interface{}, int, error) {
+func (g *DataGathererDynamic) Fetch() (any, int, error) {
 	if g.groupVersionResource.String() == "" {
 		return nil, -1, fmt.Errorf("resource type must be specified")
 	}
@@ -527,7 +528,7 @@ func RemoveUnstructuredKeys(excludeKeys []*regexp.Regexp, obj *unstructured.Unst
 	// map[string]interface{}. That's because the yaml.Unmarshal func is used
 	// with an empty map[string]interface{} object, which means all nested
 	// objects will be unmarshalled to a map[string]interface{}.
-	annots, ok := annotsRaw.(map[string]interface{})
+	annots, ok := annotsRaw.(map[string]any)
 	if !ok {
 		return
 	}
@@ -558,12 +559,7 @@ func isIncludedNamespace(namespace string, namespaces []string) bool {
 	if namespaces[0] == metav1.NamespaceAll {
 		return true
 	}
-	for _, current := range namespaces {
-		if namespace == current {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(namespaces, namespace)
 }
 
 func isNativeResource(gvr schema.GroupVersionResource) bool {

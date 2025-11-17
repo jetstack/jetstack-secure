@@ -22,11 +22,11 @@ type DataReadingsPost struct {
 type DataReading struct {
 	// ClusterID is optional as it can be inferred from the agent
 	// token when using basic authentication.
-	ClusterID     string      `json:"cluster_id,omitempty"`
-	DataGatherer  string      `json:"data-gatherer"`
-	Timestamp     Time        `json:"timestamp"`
-	Data          interface{} `json:"data"`
-	SchemaVersion string      `json:"schema_version"`
+	ClusterID     string `json:"cluster_id,omitempty"`
+	DataGatherer  string `json:"data-gatherer"`
+	Timestamp     Time   `json:"timestamp"`
+	Data          any    `json:"data"`
+	SchemaVersion string `json:"schema_version"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface for DataReading.
@@ -61,11 +61,11 @@ func (o *DataReading) UnmarshalJSON(data []byte) error {
 
 	// Define a list of decoding attempts with prioritized types
 	dataTypes := []struct {
-		target interface{}
-		assign func(interface{})
+		target any
+		assign func(any)
 	}{
-		{&DiscoveryData{}, func(v interface{}) { o.Data = v.(*DiscoveryData) }},
-		{&DynamicData{}, func(v interface{}) { o.Data = v.(*DynamicData) }},
+		{&DiscoveryData{}, func(v any) { o.Data = v.(*DiscoveryData) }},
+		{&DynamicData{}, func(v any) { o.Data = v.(*DynamicData) }},
 	}
 
 	// Attempt to decode the Data field into each type
@@ -82,7 +82,7 @@ func (o *DataReading) UnmarshalJSON(data []byte) error {
 
 // jsonUnmarshalStrict unmarshals JSON data into the provided interface,
 // disallowing unknown fields to ensure strict adherence to the expected structure.
-func jsonUnmarshalStrict(data []byte, v interface{}) error {
+func jsonUnmarshalStrict(data []byte, v any) error {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	return decoder.Decode(v)
@@ -92,8 +92,8 @@ func jsonUnmarshalStrict(data []byte, v interface{}) error {
 type GatheredResource struct {
 	// Resource is a reference to a k8s object that was found by the informer
 	// should be of type unstructured.Unstructured, raw Object
-	Resource  interface{} `json:"resource"`
-	DeletedAt Time        `json:"deleted_at,omitempty"`
+	Resource  any
+	DeletedAt Time
 }
 
 func (v GatheredResource) MarshalJSON() ([]byte, error) {
@@ -103,8 +103,8 @@ func (v GatheredResource) MarshalJSON() ([]byte, error) {
 	}
 
 	data := struct {
-		Resource  interface{} `json:"resource"`
-		DeletedAt string      `json:"deleted_at,omitempty"`
+		Resource  any    `json:"resource"`
+		DeletedAt string `json:"deleted_at,omitempty"`
 	}{
 		Resource:  v.Resource,
 		DeletedAt: dateString,
@@ -116,7 +116,7 @@ func (v GatheredResource) MarshalJSON() ([]byte, error) {
 func (v *GatheredResource) UnmarshalJSON(data []byte) error {
 	var tmpResource struct {
 		Resource  *unstructured.Unstructured `json:"resource"`
-		DeletedAt Time                       `json:"deleted_at,omitempty"`
+		DeletedAt Time                       `json:"deleted_at"`
 	}
 
 	d := json.NewDecoder(bytes.NewReader(data))

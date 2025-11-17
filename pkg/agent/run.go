@@ -271,7 +271,7 @@ func newEventf(log logr.Logger) (Eventf, error) {
 			"reason", "The agent does not appear to be running in a Kubernetes cluster.",
 			"detail", "When running in a Kubernetes cluster the following environment variables must be set: POD_NAME, POD_NODE, POD_UID, POD_NAMESPACE",
 		)
-		return func(eventType, reason, msg string, args ...interface{}) {}, nil
+		return func(eventType, reason, msg string, args ...any) {}, nil
 	}
 	restcfg, err := kubeconfig.LoadRESTConfig("")
 	if err != nil {
@@ -289,7 +289,7 @@ func newEventf(log logr.Logger) (Eventf, error) {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(&clientgocorev1.EventSinkImpl{Interface: eventClient.CoreV1().Events(podNamespace)})
 	eventRec := broadcaster.NewRecorder(scheme, corev1.EventSource{Component: "venafi-kubernetes-agent", Host: podNode})
-	eventf = func(eventType, reason, msg string, args ...interface{}) {
+	eventf = func(eventType, reason, msg string, args ...any) {
 		eventRec.Eventf(&corev1.Pod{ObjectMeta: v1.ObjectMeta{Name: podName, Namespace: podNamespace, UID: types.UID(podUID)}}, eventType, reason, msg, args...)
 
 	}
@@ -298,7 +298,7 @@ func newEventf(log logr.Logger) (Eventf, error) {
 }
 
 // Like Printf but for sending events to the agent's Pod object.
-type Eventf func(eventType, reason, msg string, args ...interface{})
+type Eventf func(eventType, reason, msg string, args ...any)
 
 func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConfig, preflightClient client.Client, dataGatherers map[string]datagatherer.DataGatherer) error {
 	log := klog.FromContext(ctx).WithName("gatherAndOutputData")

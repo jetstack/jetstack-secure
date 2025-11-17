@@ -24,7 +24,7 @@ func TestOnAddCache(t *testing.T) {
 	tcs := map[string]struct {
 		inputObjects []runtime.Object
 		eventObjects []runtime.Object
-		eventFunc    func(log logr.Logger, old, obj interface{}, dgCache *cache.Cache)
+		eventFunc    func(log logr.Logger, old, obj any, dgCache *cache.Cache)
 		expected     []*api.GatheredResource
 	}{
 		"add all objects": {
@@ -51,7 +51,7 @@ func TestOnAddCache(t *testing.T) {
 				getObject("v1", "Service", "testservice", "testns", false),
 				getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
 			},
-			eventFunc: func(log logr.Logger, oldObj, newObj interface{}, dgCache *cache.Cache) {
+			eventFunc: func(log logr.Logger, oldObj, newObj any, dgCache *cache.Cache) {
 				onDelete(log, oldObj, dgCache)
 			},
 			expected: []*api.GatheredResource{
