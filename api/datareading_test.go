@@ -43,7 +43,7 @@ func TestDataReading_UnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        string
-		wantDataType interface{}
+		wantDataType any
 		expectError  string
 	}{
 		{

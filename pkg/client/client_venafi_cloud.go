@@ -307,7 +307,7 @@ func (c *VenafiCloudClient) updateAccessToken(ctx context.Context) error {
 	return nil
 }
 
-func (c *VenafiCloudClient) sendHTTPRequest(request *http.Request, responseObject interface{}) error {
+func (c *VenafiCloudClient) sendHTTPRequest(request *http.Request, responseObject any) error {
 	response, err := c.Client.Do(request)
 	if err != nil {
 		return err

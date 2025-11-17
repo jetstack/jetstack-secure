@@ -80,7 +80,7 @@ type FieldPath []string
 // Select removes all but the supplied fields from the resource
 func Select(fields []FieldPath, resource *unstructured.Unstructured) error {
 	newResource := unstructured.Unstructured{
-		Object: map[string]interface{}{},
+		Object: map[string]any{},
 	}
 
 	for _, field := range fields {

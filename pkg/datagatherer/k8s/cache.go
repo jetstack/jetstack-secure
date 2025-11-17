@@ -31,7 +31,7 @@ type cacheResource interface {
 	GetNamespace() string
 }
 
-func logCacheUpdateFailure(log logr.Logger, obj interface{}, operation string) {
+func logCacheUpdateFailure(log logr.Logger, obj any, operation string) {
 	// We use WithCallStackHelper to ensure the correct caller line numbers in the log messages
 	helper, log := log.WithCallStackHelper()
 	helper()
@@ -41,7 +41,7 @@ func logCacheUpdateFailure(log logr.Logger, obj interface{}, operation string) {
 
 // onAdd handles the informer creation events, adding the created runtime.Object
 // to the data gatherer's cache. The cache key is the uid of the object
-func onAdd(log logr.Logger, obj interface{}, dgCache *cache.Cache) {
+func onAdd(log logr.Logger, obj any, dgCache *cache.Cache) {
 	item, ok := obj.(cacheResource)
 	if ok {
 		cacheObject := &api.GatheredResource{
@@ -56,7 +56,7 @@ func onAdd(log logr.Logger, obj interface{}, dgCache *cache.Cache) {
 // onUpdate handles the informer update events, replacing the old object with the new one
 // if it's present in the data gatherer's cache, (if the object isn't present, it gets added).
 // The cache key is the uid of the object
-func onUpdate(log logr.Logger, oldObj, newObj interface{}, dgCache *cache.Cache) {
+func onUpdate(log logr.Logger, oldObj, newObj any, dgCache *cache.Cache) {
 	item, ok := oldObj.(cacheResource)
 	if ok {
 		cacheObject := updateCacheGatheredResource(string(item.GetUID()), newObj, dgCache)
@@ -69,7 +69,7 @@ func onUpdate(log logr.Logger, oldObj, newObj interface{}, dgCache *cache.Cache)
 // onDelete handles the informer deletion events, updating the object's properties with the deletion
 // time of the object (but not removing the object from the cache).
 // The cache key is the uid of the object
-func onDelete(log logr.Logger, obj interface{}, dgCache *cache.Cache) {
+func onDelete(log logr.Logger, obj any, dgCache *cache.Cache) {
 	item, ok := obj.(cacheResource)
 	if ok {
 		cacheObject := updateCacheGatheredResource(string(item.GetUID()), obj, dgCache)
@@ -83,7 +83,7 @@ func onDelete(log logr.Logger, obj interface{}, dgCache *cache.Cache) {
 // creates a new updated instance of a cache object, with the resource
 // argument. If the object is present in the cache it fetches the object's
 // properties.
-func updateCacheGatheredResource(cacheKey string, resource interface{}, dgCache *cache.Cache) *api.GatheredResource {
+func updateCacheGatheredResource(cacheKey string, resource any, dgCache *cache.Cache) *api.GatheredResource {
 	// updated cache object
 	cacheObject := &api.GatheredResource{
 		Resource: resource,

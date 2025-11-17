@@ -14,7 +14,7 @@ type DataGatherer interface {
 	// Fetch retrieves data.
 	// count is the number of items that were discovered. A negative count means the number
 	// of items was indeterminate.
-	Fetch() (data interface{}, count int, err error)
+	Fetch() (data any, count int, err error)
 	// Run starts the data gatherer's informers for resource collection.
 	// Returns error if the data gatherer informer wasn't initialized
 	Run(ctx context.Context) error

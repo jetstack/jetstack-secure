@@ -29,7 +29,7 @@ import (
 )
 
 func getObject(version, kind, name, namespace string, withManagedFields bool) *unstructured.Unstructured {
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"name":      name,
 		"namespace": namespace,
 		"uid":       fmt.Sprintf("%s1", name),
@@ -41,7 +41,7 @@ func getObject(version, kind, name, namespace string, withManagedFields bool) *u
 		metadata["managedFields"] = "set"
 	}
 
-	object := map[string]interface{}{
+	object := map[string]any{
 		"apiVersion": version,
 		"kind":       kind,
 		"metadata":   metadata,
@@ -52,12 +52,12 @@ func getObject(version, kind, name, namespace string, withManagedFields bool) *u
 	}
 }
 
-func getObjectAnnot(version, kind, name, namespace string, annotations, labels map[string]interface{}) *unstructured.Unstructured {
+func getObjectAnnot(version, kind, name, namespace string, annotations, labels map[string]any) *unstructured.Unstructured {
 	obj := getObject(version, kind, name, namespace, false)
 
-	metadata, _ := obj.Object["metadata"].(map[string]interface{})
+	metadata, _ := obj.Object["metadata"].(map[string]any)
 	if annotations == nil {
-		annotations = make(map[string]interface{})
+		annotations = make(map[string]any)
 	}
 	metadata["annotations"] = annotations
 	metadata["labels"] = labels
@@ -65,7 +65,7 @@ func getObjectAnnot(version, kind, name, namespace string, annotations, labels m
 	return obj
 }
 
-func getSecret(name, namespace string, data map[string]interface{}, isTLS bool, withLastApplied bool) *unstructured.Unstructured {
+func getSecret(name, namespace string, data map[string]any, isTLS bool, withLastApplied bool) *unstructured.Unstructured {
 	object := getObject("v1", "Secret", name, namespace, false)
 
 	if data != nil {
@@ -77,8 +77,8 @@ func getSecret(name, namespace string, data map[string]interface{}, isTLS bool, 
 		object.Object["type"] = "kubernetes.io/tls"
 	}
 
-	metadata, _ := object.Object["metadata"].(map[string]interface{})
-	annotations := make(map[string]interface{})
+	metadata, _ := object.Object["metadata"].(map[string]any)
+	annotations := make(map[string]any)
 
 	// if we're creating a 'raw' secret as scraped that was applied by kubectl
 	if withLastApplied {
@@ -391,10 +391,10 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			expected: []*api.GatheredResource{
 				{
 					Resource: &unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": "v1",
 							"kind":       "Namespace",
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"name": "default",
 								"uid":  "default1",
 							},
@@ -542,10 +542,10 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
 			},
 			addObjects: []runtime.Object{
-				getSecret("testsecret", "testns1", map[string]interface{}{
+				getSecret("testsecret", "testns1", map[string]any{
 					"secretKey": "secretValue",
 				}, false, true),
-				getSecret("anothertestsecret", "testns2", map[string]interface{}{
+				getSecret("anothertestsecret", "testns2", map[string]any{
 					"secretNumber": "12345",
 				}, false, true),
 			},
@@ -564,12 +564,12 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
 			},
 			addObjects: []runtime.Object{
-				getSecret("testsecret", "testns1", map[string]interface{}{
+				getSecret("testsecret", "testns1", map[string]any{
 					"tls.key": "secretValue",
 					"tls.crt": "value",
 					"ca.crt":  "value",
 				}, true, true),
-				getSecret("anothertestsecret", "testns2", map[string]interface{}{
+				getSecret("anothertestsecret", "testns2", map[string]any{
 					"example.key": "secretValue",
 					"example.crt": "value",
 				}, true, true),
@@ -577,7 +577,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			expected: []*api.GatheredResource{
 				{
 					// only tls.crt and ca.cert remain
-					Resource: getSecret("testsecret", "testns1", map[string]interface{}{
+					Resource: getSecret("testsecret", "testns1", map[string]any{
 						"tls.crt": "value",
 						"ca.crt":  "value",
 					}, true, false),
@@ -624,12 +624,12 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			excludeLabelKeys: []string{`^company\.com/employee-id$`},
 
 			addObjects: []runtime.Object{getObjectAnnot("v1", "Secret", "s0", "n1",
-				map[string]interface{}{"kapp.k14s.io/original": "foo", "kapp.k14s.io/original-diff": "bar", "normal": "true"},
-				map[string]interface{}{`company.com/employee-id`: "12345", "prod": "true"},
+				map[string]any{"kapp.k14s.io/original": "foo", "kapp.k14s.io/original-diff": "bar", "normal": "true"},
+				map[string]any{`company.com/employee-id`: "12345", "prod": "true"},
 			)},
 			expected: []*api.GatheredResource{{Resource: getObjectAnnot("v1", "Secret", "s0", "n1",
-				map[string]interface{}{"normal": "true"},
-				map[string]interface{}{"prod": "true"},
+				map[string]any{"normal": "true"},
+				map[string]any{"prod": "true"},
 			)}},
 		},
 	}
@@ -659,11 +659,11 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			resourceInformer := factory.ForResource(tc.config.GroupVersionResource)
 			testInformer := resourceInformer.Informer()
 			_, err = testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
-				DeleteFunc: func(obj interface{}) {
+				DeleteFunc: func(obj any) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
-				UpdateFunc: func(oldObj, newObj interface{}) {
+				UpdateFunc: func(oldObj, newObj any) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
@@ -973,11 +973,11 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 				informers.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 			testInformer := factory.Core().V1().Pods().Informer()
 			_, err = testInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
-				DeleteFunc: func(obj interface{}) {
+				DeleteFunc: func(obj any) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
-				UpdateFunc: func(oldObj, newObj interface{}) {
+				UpdateFunc: func(oldObj, newObj any) {
 					defer wg.Done()
 					time.Sleep(100 * time.Millisecond)
 				},
@@ -1078,17 +1078,17 @@ func TestRemoveUnstructuredKeys(t *testing.T) {
 	t.Run("remove single key", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath:    []string{"metadata", "annotations"},
 		givenExclude: []string{"^toexclude$"},
-		givenObj: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"annotations": map[string]interface{}{
+		givenObj: map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]any{
 					"toexclude": "foo",
 					"tokeep":    "bar",
 				},
 			},
 		},
-		expectObj: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"annotations": map[string]interface{}{
+		expectObj: map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]any{
 					"tokeep": "bar",
 				},
 			},
@@ -1098,34 +1098,34 @@ func TestRemoveUnstructuredKeys(t *testing.T) {
 	t.Run("remove keys using multiple regexes", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath:    []string{"metadata", "annotations"},
 		givenExclude: []string{"^toexclude1$", "^toexclude2$"},
-		givenObj: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"annotations": map[string]interface{}{
+		givenObj: map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]any{
 					"toexclude1": "foo",
 					"toexclude2": "bar",
 				},
 			},
 		},
-		expectObj: map[string]interface{}{
-			"metadata": map[string]interface{}{"annotations": map[string]interface{}{}},
+		expectObj: map[string]any{
+			"metadata": map[string]any{"annotations": map[string]any{}},
 		},
 	}))
 
 	t.Run("remove multiple keys with a single regex", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath:    []string{"metadata", "annotations"},
 		givenExclude: []string{"toexclude.*"},
-		givenObj: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"annotations": map[string]interface{}{
+		givenObj: map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]any{
 					"toexclude1": "foo",
 					"toexclude2": "bar",
 					"tokeep":     "baz",
 				},
 			},
 		},
-		expectObj: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"annotations": map[string]interface{}{
+		expectObj: map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]any{
 					"tokeep": "baz",
 				},
 			},
@@ -1135,16 +1135,16 @@ func TestRemoveUnstructuredKeys(t *testing.T) {
 	t.Run("with no regex, the object is untouched", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath:    []string{"metadata", "annotations"},
 		givenExclude: []string{},
-		givenObj: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"annotations": map[string]interface{}{
+		givenObj: map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]any{
 					"tokeep1": "foo",
 				},
 			},
 		},
-		expectObj: map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"annotations": map[string]interface{}{
+		expectObj: map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]any{
 					"tokeep1": "foo",
 				},
 			},
@@ -1157,21 +1157,21 @@ func TestRemoveUnstructuredKeys(t *testing.T) {
 		givenPath:    []string{"metadata", "annotations"},
 		givenExclude: []string{},
 
-		givenObj:  map[string]interface{}{"metadata": map[string]interface{}{}},
-		expectObj: map[string]interface{}{"metadata": map[string]interface{}{}},
+		givenObj:  map[string]any{"metadata": map[string]any{}},
+		expectObj: map[string]any{"metadata": map[string]any{}},
 	}))
 
 	t.Run("works when the leaf field is nil", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath:    []string{"metadata", "annotations"},
 		givenExclude: []string{},
-		givenObj:     map[string]interface{}{"metadata": map[string]interface{}{"annotations": nil}},
-		expectObj:    map[string]interface{}{"metadata": map[string]interface{}{"annotations": nil}},
+		givenObj:     map[string]any{"metadata": map[string]any{"annotations": nil}},
+		expectObj:    map[string]any{"metadata": map[string]any{"annotations": nil}},
 	}))
 
 	t.Run("works when leaf field is unexpectedly not nil and not a known map", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath: []string{"metadata", "annotations"},
-		givenObj:  map[string]interface{}{"metadata": map[string]interface{}{"annotations": 42}},
-		expectObj: map[string]interface{}{"metadata": map[string]interface{}{"annotations": 42}},
+		givenObj:  map[string]any{"metadata": map[string]any{"annotations": 42}},
+		expectObj: map[string]any{"metadata": map[string]any{"annotations": 42}},
 	}))
 
 	// The "intermediate" field is the field that is not at the end of the path.
@@ -1179,28 +1179,28 @@ func TestRemoveUnstructuredKeys(t *testing.T) {
 	// metadata.annotations.
 	t.Run("works when the intermediate field doesn't exist", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath: []string{"metadata", "annotations"},
-		givenObj:  map[string]interface{}{},
-		expectObj: map[string]interface{}{},
+		givenObj:  map[string]any{},
+		expectObj: map[string]any{},
 	}))
 
 	t.Run("works when the intermediate field is nil", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath: []string{"metadata", "annotations"},
-		givenObj:  map[string]interface{}{"metadata": nil},
-		expectObj: map[string]interface{}{"metadata": nil},
+		givenObj:  map[string]any{"metadata": nil},
+		expectObj: map[string]any{"metadata": nil},
 	}))
 
 	t.Run("works when the intermediate field is unexpectedly not nil and not a map", run_TestRemoveUnstructuredKeys(tc_RemoveUnstructuredKeys{
 		givenPath: []string{"metadata", "annotations"},
-		givenObj:  map[string]interface{}{"metadata": 42},
-		expectObj: map[string]interface{}{"metadata": 42},
+		givenObj:  map[string]any{"metadata": 42},
+		expectObj: map[string]any{"metadata": 42},
 	}))
 }
 
 type tc_RemoveUnstructuredKeys struct {
 	givenExclude []string
-	givenObj     map[string]interface{}
+	givenObj     map[string]any
 	givenPath    []string
-	expectObj    map[string]interface{}
+	expectObj    map[string]any
 }
 
 func run_TestRemoveUnstructuredKeys(tc tc_RemoveUnstructuredKeys) func(*testing.T) {

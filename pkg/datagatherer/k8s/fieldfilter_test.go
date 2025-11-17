@@ -13,16 +13,16 @@ import (
 
 func TestSelect(t *testing.T) {
 	t.Run("secret", run_TestSelect(
-		map[string]interface{}{
+		map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "example",
 				"namespace": "example",
-				"annotations": map[string]interface{}{
+				"annotations": map[string]any{
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
 				},
-				"labels": map[string]interface{}{
+				"labels": map[string]any{
 					"foo": "bar",
 				},
 				"resourceVersion":   "fake-resource-version",
@@ -34,7 +34,7 @@ func TestSelect(t *testing.T) {
 				"generation":                 11,
 			},
 			"type": "kubernetes.io/tls",
-			"data": map[string]interface{}{
+			"data": map[string]any{
 				"tls.crt":    "cert data",
 				"tls.key":    "secret",
 				"extra":      "should be removed",
@@ -42,18 +42,18 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		SecretSelectedFields,
-		map[string]interface{}{
+		map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "example",
 				"namespace": "example",
-				"annotations": map[string]interface{}{
+				"annotations": map[string]any{
 					// The "last-applied-configuration" isn't ignored in
 					// "Select". "Redact" removes it.
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
 				},
-				"labels": map[string]interface{}{
+				"labels": map[string]any{
 					"foo": "bar",
 				},
 				"resourceVersion":   "fake-resource-version",
@@ -61,7 +61,7 @@ func TestSelect(t *testing.T) {
 				"deletionTimestamp": "2025-08-15T00:00:02Z",
 			},
 			"type": "kubernetes.io/tls",
-			"data": map[string]interface{}{
+			"data": map[string]any{
 				// The "tls.key" is ignored.
 				"tls.crt":    "cert data",
 				"conjur-map": "should be kept",
@@ -71,22 +71,22 @@ func TestSelect(t *testing.T) {
 
 	// Confirm select function preserves immutability
 	t.Run("secret-immutable", run_TestSelect(
-		map[string]interface{}{
+		map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
 			"immutable":  true,
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "with-immutable",
 				"namespace": "example",
 			},
 			"type": "Opaque",
 		},
 		SecretSelectedFields,
-		map[string]interface{}{
+		map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
 			"immutable":  true,
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "with-immutable",
 				"namespace": "example",
 			},
@@ -95,22 +95,22 @@ func TestSelect(t *testing.T) {
 	))
 
 	t.Run("secret-immutable-false", run_TestSelect(
-		map[string]interface{}{
+		map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
 			"immutable":  false,
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "with-immutable-false",
 				"namespace": "example",
 			},
 			"type": "Opaque",
 		},
 		SecretSelectedFields,
-		map[string]interface{}{
+		map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
 			"immutable":  false,
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "with-immutable-false",
 				"namespace": "example",
 			},
@@ -119,20 +119,20 @@ func TestSelect(t *testing.T) {
 	))
 
 	t.Run("secret-immutable-absent", run_TestSelect(
-		map[string]interface{}{
+		map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "immutable-absent",
 				"namespace": "example",
 			},
 			"type": "Opaque",
 		},
 		SecretSelectedFields,
-		map[string]interface{}{
+		map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "immutable-absent",
 				"namespace": "example",
 			},
@@ -141,15 +141,15 @@ func TestSelect(t *testing.T) {
 	))
 
 	t.Run("route", run_TestSelect(
-		map[string]interface{}{
+		map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Route",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name": "example",
-				"annotations": map[string]interface{}{
+				"annotations": map[string]any{
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
 				},
-				"labels": map[string]interface{}{
+				"labels": map[string]any{
 					"foo": "bar",
 				},
 				"resourceVersion":   "fake-resource-version",
@@ -160,13 +160,13 @@ func TestSelect(t *testing.T) {
 				"finalizers":                 []string{"example.com/fake-finalizer"},
 				"generation":                 11,
 			},
-			"spec": map[string]interface{}{
+			"spec": map[string]any{
 				"host": "www.example.com",
-				"to": map[string]interface{}{
+				"to": map[string]any{
 					"kind": "Service",
 					"name": "frontend",
 				},
-				"tls": map[string]interface{}{
+				"tls": map[string]any{
 					"termination":              "reencrypt",
 					"key":                      "secret",
 					"certificate":              "cert data",
@@ -175,12 +175,12 @@ func TestSelect(t *testing.T) {
 				},
 			},
 		}, RouteSelectedFields,
-		map[string]interface{}{
+		map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Route",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name": "example",
-				"annotations": map[string]interface{}{
+				"annotations": map[string]any{
 					// The "last-applied-configuration" isn't ignored in
 					// "Select". "Redact" removes it.
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
@@ -189,13 +189,13 @@ func TestSelect(t *testing.T) {
 				"creationTimestamp": "2025-08-15T00:00:01Z",
 				"deletionTimestamp": "2025-08-15T00:00:02Z",
 			},
-			"spec": map[string]interface{}{
+			"spec": map[string]any{
 				"host": "www.example.com",
-				"to": map[string]interface{}{
+				"to": map[string]any{
 					"kind": "Service",
 					"name": "frontend",
 				},
-				"tls": map[string]interface{}{
+				"tls": map[string]any{
 					"termination": "reencrypt",
 					// The "key" field is ignored.
 					"certificate":              "cert data",
@@ -207,7 +207,7 @@ func TestSelect(t *testing.T) {
 	))
 }
 
-func run_TestSelect(given map[string]interface{}, givenSelect []FieldPath, expect map[string]interface{}) func(*testing.T) {
+func run_TestSelect(given map[string]any, givenSelect []FieldPath, expect map[string]any) func(*testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 		givenPtr := unstructured.Unstructured{Object: given}
@@ -220,7 +220,7 @@ func run_TestSelect(given map[string]interface{}, givenSelect []FieldPath, expec
 
 func TestSelectMissingSelectedField(t *testing.T) {
 	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"kind": "Secret",
 		},
 	}
@@ -244,19 +244,19 @@ func TestSelectMissingSelectedField(t *testing.T) {
 
 func TestRedactSecret(t *testing.T) {
 	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Secret",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "example",
 				"namespace": "example",
-				"annotations": map[string]interface{}{
+				"annotations": map[string]any{
 					"kubectl.kubernetes.io/last-applied-configuration": "secret",
 				},
 				"managedFields": nil,
 			},
 			"type": "kubernetes.io/tls",
-			"data": map[string]interface{}{
+			"data": map[string]any{
 				"tls.crt": "cert data",
 				"tls.key": "secret",
 			},
@@ -292,15 +292,15 @@ func TestRedactSecret(t *testing.T) {
 
 func TestRedactPod(t *testing.T) {
 	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Pod",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":          "example",
 				"namespace":     "example",
-				"managedFields": []interface{}{},
+				"managedFields": []any{},
 			},
-			"spec": map[string]interface{}{
+			"spec": map[string]any{
 				"serviceAccountName": "example",
 			},
 		},
@@ -331,7 +331,7 @@ func TestRedactPod(t *testing.T) {
 
 func TestRedactMissingField(t *testing.T) {
 	resource := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"kind": "Secret",
 		},
 	}

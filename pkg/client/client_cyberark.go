@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -304,7 +305,7 @@ func isExcludableSecret(log logr.Logger, obj runtime.Object) bool {
 // isExcludableTLSSecret checks if a TLS Secret contains a client certificate.
 // It returns true if the Secret is a TLS Secret and its tls.crt does not
 // contain a client certificate.
-func isExcludableTLSSecret(log logr.Logger, dataMap map[string]interface{}) bool {
+func isExcludableTLSSecret(log logr.Logger, dataMap map[string]any) bool {
 	tlsCrtRaw, found := dataMap[corev1.TLSCertKey]
 	if !found {
 		log.Info("TLS Secret does not contain tls.crt key")
@@ -378,10 +379,5 @@ func isClientCertificate(cert *x509.Certificate) bool {
 		return false
 	}
 	// Check if the certificate has the ClientAuth EKU
-	for _, eku := range cert.ExtKeyUsage {
-		if eku == x509.ExtKeyUsageClientAuth {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(cert.ExtKeyUsage, x509.ExtKeyUsageClientAuth)
 }
