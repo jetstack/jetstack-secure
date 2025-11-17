@@ -92,8 +92,8 @@ func jsonUnmarshalStrict(data []byte, v any) error {
 type GatheredResource struct {
 	// Resource is a reference to a k8s object that was found by the informer
 	// should be of type unstructured.Unstructured, raw Object
-	Resource  any  `json:"resource"`
-	DeletedAt Time `json:"deleted_at,omitempty"`
+	Resource  any
+	DeletedAt Time
 }
 
 func (v GatheredResource) MarshalJSON() ([]byte, error) {
@@ -116,7 +116,7 @@ func (v GatheredResource) MarshalJSON() ([]byte, error) {
 func (v *GatheredResource) UnmarshalJSON(data []byte) error {
 	var tmpResource struct {
 		Resource  *unstructured.Unstructured `json:"resource"`
-		DeletedAt Time                       `json:"deleted_at,omitempty"`
+		DeletedAt Time                       `json:"deleted_at"`
 	}
 
 	d := json.NewDecoder(bytes.NewReader(data))
