@@ -9,9 +9,11 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        # Adding `fetch-depth: 0` makes sure tags are also fetched. We need
+        # the tags so `git describe` returns a valid version.
+        # see https://github.com/actions/checkout/issues/701 for extra info about this option
+        with: { fetch-depth: 0 }
 
       - uses: ./.github/actions/repo_access
         with:
@@ -21,11 +23,11 @@ jobs:
         run: |
           make print-go-version >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ steps.go-version.outputs.result }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: _bin/downloaded
           key: downloaded-${{ runner.os }}-${{ hashFiles('klone.yaml') }}-verify
@@ -41,9 +43,11 @@ jobs:
       id-token: write # needed for google auth
 
     steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        # Adding `fetch-depth: 0` makes sure tags are also fetched. We need
+        # the tags so `git describe` returns a valid version.
+        # see https://github.com/actions/checkout/issues/701 for extra info about this option
+        with: { fetch-depth: 0 }
 
       - uses: ./.github/actions/repo_access
         with:
@@ -53,11 +57,11 @@ jobs:
         run: |
           make print-go-version >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ steps.go-version.outputs.result }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: _bin/downloaded
           key: downloaded-${{ runner.os }}-${{ hashFiles('klone.yaml') }}-test-unit
@@ -68,23 +72,23 @@ jobs:
     if: contains(github.event.pull_request.labels.*.name, 'test-e2e')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        # Adding `fetch-depth: 0` makes sure tags are also fetched. We need
+        # the tags so `git describe` returns a valid version.
+        # see https://github.com/actions/checkout/issues/701 for extra info about this option
+        with: { fetch-depth: 0 }
 
       - uses: ./.github/actions/repo_access
         with:
           DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
 
       - name: Authenticate to Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       - name: Set up gcloud
-        id: setup-gcloud
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
         with:
           install_components: "gke-gcloud-auth-plugin"
           project_id: machineidentitysecurity-jsci-e
@@ -96,7 +100,7 @@ jobs:
         run: |
           make print-go-version >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: ${{ steps.go-version.outputs.result }}
 
