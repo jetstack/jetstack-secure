@@ -37,8 +37,12 @@ checkhash_script := $(dir $(lastword $(MAKEFILE_LIST)))/util/checkhash.sh
 lock_script := $(dir $(lastword $(MAKEFILE_LIST)))/util/lock.sh
 
 # $outfile is a variable in the lock script
+# Escape the dollar sign so it's passed literally to the shell script, not expanded by make
 outfile := $$outfile
 
+# Helper function to iterate over key=value pairs and call a function for each pair
+# Usage: $(call for_each_kv,function_name,list_of_key=value_pairs)
+# For each item, splits on "=" and calls function_name with key as $1 and value as $2
 for_each_kv = $(foreach item,$2,$(eval $(call $1,$(word 1,$(subst =, ,$(item))),$(word 2,$(subst =, ,$(item))))))
 
 # To make sure we use the right version of each tool, we put symlink in
@@ -62,43 +66,43 @@ NEEDS_CTR = __require-ctr
 tools :=
 # https://github.com/helm/helm/releases
 # renovate: datasource=github-releases packageName=helm/helm
-tools += helm=v3.19.2
+tools += helm=v4.0.1
 # https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
 # renovate: datasource=github-releases packageName=kubernetes/kubernetes
-tools += kubectl=v1.34.2
+tools += kubectl=v1.34.3
 # https://github.com/kubernetes-sigs/kind/releases
 # renovate: datasource=github-releases packageName=kubernetes-sigs/kind
 tools += kind=v0.30.0
 # https://www.vaultproject.io/downloads
 # renovate: datasource=github-releases packageName=hashicorp/vault
-tools += vault=v1.21.0
+tools += vault=v1.21.1
 # https://github.com/Azure/azure-workload-identity/releases
 # renovate: datasource=github-releases packageName=Azure/azure-workload-identity
 tools += azwi=v1.5.1
 # https://github.com/kyverno/kyverno/releases
 # renovate: datasource=github-releases packageName=kyverno/kyverno
-tools += kyverno=v1.16.0
+tools += kyverno=v1.16.1
 # https://github.com/mikefarah/yq/releases
 # renovate: datasource=github-releases packageName=mikefarah/yq
-tools += yq=v4.48.2
+tools += yq=v4.49.2
 # https://github.com/ko-build/ko/releases
 # renovate: datasource=github-releases packageName=ko-build/ko
 tools += ko=0.18.0
 # https://github.com/protocolbuffers/protobuf/releases
 # renovate: datasource=github-releases packageName=protocolbuffers/protobuf
-tools += protoc=v33.1
+tools += protoc=v33.2
 # https://github.com/aquasecurity/trivy/releases
 # renovate: datasource=github-releases packageName=aquasecurity/trivy
-tools += trivy=v0.67.2
+tools += trivy=v0.68.1
 # https://github.com/vmware-tanzu/carvel-ytt/releases
 # renovate: datasource=github-releases packageName=vmware-tanzu/carvel-ytt
 tools += ytt=v0.52.1
 # https://github.com/rclone/rclone/releases
 # renovate: datasource=github-releases packageName=rclone/rclone
-tools += rclone=v1.71.2
+tools += rclone=v1.72.0
 # https://github.com/istio/istio/releases
 # renovate: datasource=github-releases packageName=istio/istio
-tools += istioctl=1.28.0
+tools += istioctl=1.28.1
 
 ### go packages
 # https://pkg.go.dev/sigs.k8s.io/controller-tools/cmd/controller-gen?tab=versions
@@ -106,7 +110,7 @@ tools += istioctl=1.28.0
 tools += controller-gen=v0.19.0
 # https://pkg.go.dev/golang.org/x/tools/cmd/goimports?tab=versions
 # renovate: datasource=go packageName=golang.org/x/tools
-tools += goimports=v0.39.0
+tools += goimports=v0.40.0
 # https://pkg.go.dev/github.com/google/go-licenses/v2?tab=versions
 # renovate: datasource=go packageName=github.com/inteon/go-licenses/v2
 tools += go-licenses=v2.0.0-20250821024731-e4be79958780
@@ -118,10 +122,10 @@ tools += gotestsum=v1.13.0
 tools += kustomize=v5.8.0
 # https://pkg.go.dev/github.com/itchyny/gojq?tab=versions
 # renovate: datasource=go packageName=github.com/itchyny/gojq
-tools += gojq=v0.12.17
+tools += gojq=v0.12.18
 # https://pkg.go.dev/github.com/google/go-containerregistry/pkg/crane?tab=versions
 # renovate: datasource=go packageName=github.com/google/go-containerregistry
-tools += crane=v0.20.6
+tools += crane=v0.20.7
 # https://pkg.go.dev/google.golang.org/protobuf/cmd/protoc-gen-go?tab=versions
 # renovate: datasource=go packageName=google.golang.org/protobuf
 tools += protoc-gen-go=v1.36.10
@@ -149,10 +153,10 @@ tools += ginkgo=$(detected_ginkgo_version)
 tools += klone=v0.2.0
 # https://pkg.go.dev/github.com/goreleaser/goreleaser/v2?tab=versions
 # renovate: datasource=go packageName=github.com/goreleaser/goreleaser/v2
-tools += goreleaser=v2.12.7
+tools += goreleaser=v2.13.1
 # https://pkg.go.dev/github.com/anchore/syft/cmd/syft?tab=versions
 # renovate: datasource=go packageName=github.com/anchore/syft
-tools += syft=v1.37.0
+tools += syft=v1.38.2
 # https://github.com/cert-manager/helm-tool/releases
 # renovate: datasource=github-releases packageName=cert-manager/helm-tool
 tools += helm-tool=v0.5.3
@@ -161,13 +165,13 @@ tools += helm-tool=v0.5.3
 tools += image-tool=v0.1.0
 # https://github.com/cert-manager/cmctl/releases
 # renovate: datasource=github-releases packageName=cert-manager/cmctl
-tools += cmctl=v2.3.0
+tools += cmctl=v2.4.0
 # https://pkg.go.dev/github.com/cert-manager/release/cmd/cmrel?tab=versions
 # renovate: datasource=go packageName=github.com/cert-manager/release
 tools += cmrel=v1.12.15-0.20241121151736-e3cbe5171488
 # https://pkg.go.dev/github.com/golangci/golangci-lint/v2/cmd/golangci-lint?tab=versions
 # renovate: datasource=go packageName=github.com/golangci/golangci-lint/v2
-tools += golangci-lint=v2.6.2
+tools += golangci-lint=v2.7.2
 # https://pkg.go.dev/golang.org/x/vuln?tab=versions
 # renovate: datasource=go packageName=golang.org/x/vuln
 tools += govulncheck=v1.1.4
@@ -179,7 +183,7 @@ tools += operator-sdk=v1.42.0
 tools += gh=v2.83.1
 # https://github.com/redhat-openshift-ecosystem/openshift-preflight/releases
 # renovate: datasource=github-releases packageName=redhat-openshift-ecosystem/openshift-preflight
-tools += preflight=1.14.1
+tools += preflight=1.15.2
 # https://github.com/daixiang0/gci/releases
 # renovate: datasource=github-releases packageName=daixiang0/gci
 tools += gci=v0.13.7
@@ -193,7 +197,7 @@ tools += kubeconform=v0.7.0
 # FIXME(erikgb): cert-manager needs the ability to override the version set here
 # https://pkg.go.dev/k8s.io/code-generator/cmd?tab=versions
 # renovate: datasource=go packageName=k8s.io/code-generator
-K8S_CODEGEN_VERSION ?= v0.34.2
+K8S_CODEGEN_VERSION ?= v0.34.3
 tools += client-gen=$(K8S_CODEGEN_VERSION)
 tools += deepcopy-gen=$(K8S_CODEGEN_VERSION)
 tools += informer-gen=$(K8S_CODEGEN_VERSION)
@@ -203,7 +207,7 @@ tools += defaulter-gen=$(K8S_CODEGEN_VERSION)
 tools += conversion-gen=$(K8S_CODEGEN_VERSION)
 # https://github.com/kubernetes/kube-openapi
 # renovate: datasource=go packageName=k8s.io/kube-openapi
-tools += openapi-gen=v0.0.0-20250910181357-589584f1c912
+tools += openapi-gen=v0.0.0-20251125145642-4e65d59e963e
 
 # https://raw.githubusercontent.com/kubernetes-sigs/controller-tools/master/envtest-releases.yaml
 # FIXME: Find a way to configure Renovate to suggest upgrades
@@ -217,7 +221,7 @@ tools += $(ADDITIONAL_TOOLS)
 
 # https://go.dev/dl/
 # renovate: datasource=golang-version packageName=go
-VENDORED_GO_VERSION := 1.25.4
+VENDORED_GO_VERSION := 1.25.5
 
 # Print the go version which can be used in GH actions
 .PHONY: print-go-version
@@ -226,6 +230,8 @@ print-go-version:
 
 # When switching branches which use different versions of the tools, we
 # need a way to re-trigger the symlinking from $(bin_dir)/downloaded to $(bin_dir)/tools.
+# This pattern rule creates a version stamp file that tracks the tool version.
+# If the version changes (or file doesn't exist), update the stamp file to trigger rebuild.
 $(bin_dir)/scratch/%_VERSION: FORCE | $(bin_dir)/scratch
 	@test "$($*_VERSION)" == "$(shell cat $@ 2>/dev/null)" || echo $($*_VERSION) > $@
 
@@ -247,7 +253,11 @@ CURL := curl --silent --show-error --fail --location --retry 10 --retry-connrefu
 # -n = If destination already exists, replace it, don't use it as a directory to create a new link inside
 LN := ln -fsn
 
+# Mapping of lowercase to uppercase letters for the uc (uppercase) function
 upper_map := a:A b:B c:C d:D e:E f:F g:G h:H i:I j:J k:K l:L m:M n:N o:O p:P q:Q r:R s:S t:T u:U v:V w:W x:X y:Y z:Z
+# Function to convert a string to uppercase (e.g., "helm" -> "HELM")
+# Works by iterating through upper_map and substituting each lowercase letter with uppercase
+# Used to create variable names like HELM_VERSION from tool names like "helm"
 uc = $(strip \
 		$(eval __upper := $1) \
 		$(foreach p,$(upper_map), \
@@ -281,11 +291,16 @@ $(call uc,$1)_VERSION ?= $2
 NEEDS_$(call uc,$1) := $$(bin_dir)/tools/$1
 $(call uc,$1) := $$(CURDIR)/$$(bin_dir)/tools/$1
 
+# Create symlink from $(bin_dir)/tools/$1 to the versioned binary in $(DOWNLOAD_DIR)
 $$(bin_dir)/tools/$1: $$(bin_dir)/scratch/$(call uc,$1)_VERSION | $$(DOWNLOAD_DIR)/tools/$1@$$($(call uc,$1)_VERSION)_$$(HOST_OS)_$$(HOST_ARCH) $$(bin_dir)/tools
+	@# cd into tools dir and create relative symlink (e.g., ../downloaded/tools/helm@v4.0.1_darwin_arm64)
+	@# patsubst converts absolute path to relative by replacing $(bin_dir) with ..
 	@cd $$(dir $$@) && $$(LN) $$(patsubst $$(bin_dir)/%,../%,$$(word 1,$$|)) $$(notdir $$@)
 	@touch $$@ # making sure the target of the symlink is newer than *_VERSION
 endef
 
+# For each tool in the tools list (e.g., "helm=v4.0.1"), split on "=" and call tool_defs
+# with the tool name as first arg and version as second arg
 $(foreach tool,$(tools),$(eval $(call tool_defs,$(word 1,$(subst =, ,$(tool))),$(word 2,$(subst =, ,$(tool))))))
 
 ######
@@ -303,6 +318,9 @@ $(foreach tool,$(tools),$(eval $(call tool_defs,$(word 1,$(subst =, ,$(tool))),$
 # to $(bin_dir)/tools/go, since $(bin_dir)/tools/go is a prerequisite of
 # any target depending on Go when "make vendor-go" was run.
 
+# Auto-detect if Go vendoring should be enabled:
+# - Set if "vendor-go" is in the make command goals, OR
+# - Set if $(bin_dir)/tools/go already exists (vendoring was previously run)
 detected_vendoring := $(findstring vendor-go,$(MAKECMDGOALS))$(shell [ -f $(bin_dir)/tools/go ] && echo yes)
 export VENDOR_GO ?= $(detected_vendoring)
 
@@ -346,16 +364,22 @@ which-go: | $(NEEDS_GO)
 	@echo "go binary used for above version information: $(GO)"
 
 $(bin_dir)/tools/go: $(bin_dir)/scratch/VENDORED_GO_VERSION | $(bin_dir)/tools/goroot $(bin_dir)/tools
+	@# Create symlink to the go binary inside the goroot
 	@cd $(dir $@) && $(LN) ./goroot/bin/go $(notdir $@)
 	@touch $@ # making sure the target of the symlink is newer than *_VERSION
 
 # The "_" in "_bin" prevents "go mod tidy" from trying to tidy the vendored goroot.
 $(bin_dir)/tools/goroot: $(bin_dir)/scratch/VENDORED_GO_VERSION | $(GOVENDOR_DIR)/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH)/goroot $(bin_dir)/tools
+	@# Create relative symlink from $(bin_dir)/tools/goroot to $(GOVENDOR_DIR)/...
+	@# patsubst converts the absolute path to relative (e.g., ../../go_vendor/go@1.25.4_darwin_arm64/goroot)
 	@cd $(dir $@) && $(LN) $(patsubst $(bin_dir)/%,../%,$(word 1,$|)) $(notdir $@)
 	@touch $@ # making sure the target of the symlink is newer than *_VERSION
 
 # Extract the tar to the $(GOVENDOR_DIR) directory, this directory is not cached across CI runs.
 $(GOVENDOR_DIR)/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH)/goroot: | $(DOWNLOAD_DIR)/tools/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz
+	@# 1. Use lock script to prevent concurrent extraction
+	@# 2. Extract tar.gz to temp directory (creates "go" folder inside)
+	@# 3. Rename the extracted "go" directory to final location
 	@source $(lock_script) $@; \
 		mkdir -p $(outfile).dir; \
 		tar xzf $| -C $(outfile).dir; \
@@ -425,9 +449,13 @@ $(call for_each_kv,go_tags_defs,$(go_tags))
 
 go_tool_names :=
 
+# Template for building Go-based tools from source using "go install"
 define go_dependency
 go_tool_names += $1
 $$(DOWNLOAD_DIR)/tools/$1@$($(call uc,$1)_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $$(NEEDS_GO) $$(DOWNLOAD_DIR)/tools
+	@# 1. Use lock script to prevent concurrent builds of the same tool
+	@# 2. Install to temp dir using GOBIN, with GOWORK=off to ignore workspace files
+	@# 3. Move the binary to final location
 	@source $$(lock_script) $$@; \
 		mkdir -p $$(outfile).dir; \
 		GOWORK=off GOBIN=$$(outfile).dir $$(GO) install --tags "$(strip $(go_tags_$1))" $2@$($(call uc,$1)_VERSION); \
@@ -440,10 +468,10 @@ $(call for_each_kv,go_dependency,$(go_dependencies))
 # File downloads #
 ##################
 
-go_linux_amd64_SHA256SUM=9fa5ffeda4170de60f67f3aa0f824e426421ba724c21e133c1e35d6159ca1bec
-go_linux_arm64_SHA256SUM=a68e86d4b72c2c2fecf7dfed667680b6c2a071221bbdb6913cf83ce3f80d9ff0
-go_darwin_amd64_SHA256SUM=33ba03ff9973f5bd26d516eea35328832a9525ecc4d169b15937ffe2ce66a7d8
-go_darwin_arm64_SHA256SUM=c1b04e74251fe1dfbc5382e73d0c6d96f49642d8aebb7ee10a7ecd4cae36ebd2
+go_linux_amd64_SHA256SUM=9e9b755d63b36acf30c12a9a3fc379243714c1c6d3dd72861da637f336ebb35b
+go_linux_arm64_SHA256SUM=b00b694903d126c588c378e72d3545549935d3982635ba3f7a964c9fa23fe3b9
+go_darwin_amd64_SHA256SUM=b69d51bce599e5381a94ce15263ae644ec84667a5ce23d58dc2e63e2c12a9f56
+go_darwin_arm64_SHA256SUM=bed8ebe824e3d3b27e8471d1307f803fc6ab8e1d0eb7a4ae196979bd9b801dd3
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz
 $(DOWNLOAD_DIR)/tools/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz: | $(DOWNLOAD_DIR)/tools
@@ -451,10 +479,10 @@ $(DOWNLOAD_DIR)/tools/go@$(VENDORED_GO_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz: 
 		$(CURL) https://go.dev/dl/go$(VENDORED_GO_VERSION).$(HOST_OS)-$(HOST_ARCH).tar.gz -o $(outfile); \
 		$(checkhash_script) $(outfile) $(go_$(HOST_OS)_$(HOST_ARCH)_SHA256SUM)
 
-helm_linux_amd64_SHA256SUM=2114c9dea2844dce6d0ee2d792a9aae846be8cf53d5b19dc2988b5a0e8fec26e
-helm_linux_arm64_SHA256SUM=566e9f3a5a83a81e4b03503ae37e368edd52d699619e8a9bb1fdf21561ae0e88
-helm_darwin_amd64_SHA256SUM=7ef4416cdef4c2d78a09e1c8f07a51e945dc0343c883a46b1f628deab52690b7
-helm_darwin_arm64_SHA256SUM=f0847f899479b66a6dd8d9fcd452e8db2562e4cf3f7de28103f9fcf2b824f1d5
+helm_linux_amd64_SHA256SUM=e0365548f01ed52a58a1181ad310b604a3244f59257425bb1739499372bdff60
+helm_linux_arm64_SHA256SUM=959fa52d34e2e1f0154e3220ed5f22263c8593447647a43af07890bba4b004d1
+helm_darwin_amd64_SHA256SUM=a8d1ca46c3ff5484b2b635dfc25832add4f36fdd09cf2a36fb709829c05b4112
+helm_darwin_arm64_SHA256SUM=8e0b9615cf72a62faaa0cfc0e22115f05bcddfd3d7ee58406ef97bc1ba563ae8
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/helm@$(HELM_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/helm@$(HELM_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
@@ -465,10 +493,10 @@ $(DOWNLOAD_DIR)/tools/helm@$(HELM_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD
 		chmod +x $(outfile); \
 		rm -f $(outfile).tar.gz
 
-kubectl_linux_amd64_SHA256SUM=9591f3d75e1581f3f7392e6ad119aab2f28ae7d6c6e083dc5d22469667f27253
-kubectl_linux_arm64_SHA256SUM=95df604e914941f3172a93fa8feeb1a1a50f4011dfbe0c01e01b660afc8f9b85
-kubectl_darwin_amd64_SHA256SUM=d2a71bb7dd7238287f2ba4efefbad4f98584170063f7d9e6c842f772d9255d45
-kubectl_darwin_arm64_SHA256SUM=8f38d3a38ae317b00ebf90254dc274dd28d8c6eea4a4b30c5cb12d3d27017b6d
+kubectl_linux_amd64_SHA256SUM=ab60ca5f0fd60c1eb81b52909e67060e3ba0bd27e55a8ac147cbc2172ff14212
+kubectl_linux_arm64_SHA256SUM=46913a7aa0327f6cc2e1cc2775d53c4a2af5e52f7fd8dacbfbfd098e757f19e9
+kubectl_darwin_amd64_SHA256SUM=657afbd0e653c4ce3af1b5a645a4eaba282cf8eb2bcda7191ff60866e50e4d7f
+kubectl_darwin_arm64_SHA256SUM=e51367d2107d605f4edd7c2fb25897b0c0695a7de1a9f9d04cd6c9356b890b14
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/kubectl@$(KUBECTL_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/kubectl@$(KUBECTL_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
@@ -489,10 +517,10 @@ $(DOWNLOAD_DIR)/tools/kind@$(KIND_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD
 		$(checkhash_script) $(outfile) $(kind_$(HOST_OS)_$(HOST_ARCH)_SHA256SUM); \
 		chmod +x $(outfile)
 
-vault_linux_amd64_SHA256SUM=5a91c93a9949ed8863ee4b91cfc30640bc49ab04225f0b1c5a0650c4d6e10171
-vault_linux_arm64_SHA256SUM=0083b02005ad89f6a01773866c6a892194ba27867b5f26ee374a0dfbbfb84c07
-vault_darwin_amd64_SHA256SUM=2e00e327be8141751f7bcc840aad93c8a5428908a4131f17d02d22eab444bcf2
-vault_darwin_arm64_SHA256SUM=fd1b26fcbc78c04c2d76d35a13a9564d450074f2547871b2046ddb95bbd7ea9c
+vault_linux_amd64_SHA256SUM=4088617653eba4ea341b6166130239fcbe42edc7839c7f7c6209d280948769c7
+vault_linux_arm64_SHA256SUM=f83f541e4293289bf1cc3f1e62e41a29a9ce20aeb9a152ada2b00ca42e7e856d
+vault_darwin_amd64_SHA256SUM=d33bb27a0ad194e79c2bed9cad198a1f1319d8ca68bc6c4e6f68212c734cda09
+vault_darwin_arm64_SHA256SUM=add728e2ca2101826de030b4da6de77cee5a61f3c9cde74f5628d63332bea0ab
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/vault@$(VAULT_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/vault@$(VAULT_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
@@ -528,20 +556,23 @@ $(DOWNLOAD_DIR)/tools/kubebuilder_tools_$(KUBEBUILDER_ASSETS_VERSION)_$(HOST_OS)
 		$(checkhash_script) $(outfile) $(kubebuilder_tools_$(HOST_OS)_$(HOST_ARCH)_SHA256SUM)
 
 $(DOWNLOAD_DIR)/tools/etcd@$(KUBEBUILDER_ASSETS_VERSION)_$(HOST_OS)_$(HOST_ARCH): $(DOWNLOAD_DIR)/tools/kubebuilder_tools_$(KUBEBUILDER_ASSETS_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz | $(DOWNLOAD_DIR)/tools
+	@# Extract specific file from tarball using tar's -O flag (output to stdout)
 	@source $(lock_script) $@; \
 		tar xfO $< controller-tools/envtest/etcd > $(outfile) && chmod 775 $(outfile)
 
 $(DOWNLOAD_DIR)/tools/kube-apiserver@$(KUBEBUILDER_ASSETS_VERSION)_$(HOST_OS)_$(HOST_ARCH): $(DOWNLOAD_DIR)/tools/kubebuilder_tools_$(KUBEBUILDER_ASSETS_VERSION)_$(HOST_OS)_$(HOST_ARCH).tar.gz | $(DOWNLOAD_DIR)/tools
+	@# Extract specific file from tarball using tar's -O flag (output to stdout)
 	@source $(lock_script) $@; \
 		tar xfO $< controller-tools/envtest/kube-apiserver > $(outfile) && chmod 775 $(outfile)
 
-kyverno_linux_amd64_SHA256SUM=edb9ec84406704a39e6eced5089df2da75c81dde3d8422255af294bd5e0bc52f
-kyverno_linux_arm64_SHA256SUM=c7897ad466917f0c5a3cc5bb39142929388f739e20bb9e7e3cd422ef90214973
-kyverno_darwin_amd64_SHA256SUM=c6f7052569527498728d8c19551fa985378107c785391c6d601d1aa452bbb101
-kyverno_darwin_arm64_SHA256SUM=cac8aefd5de5e23431dc8f1a7d0acf8233ce66462446f23f2d5575cafedcf7b8
+kyverno_linux_amd64_SHA256SUM=0c0216e4c3bb535eaf94ea1c2e13e4d66f7be2ec6446c37aee6c3133650167e7
+kyverno_linux_arm64_SHA256SUM=c1d349a272c2adf1bc9d2caf23a354ff4edc10687664c7a04da6fb84ce502c20
+kyverno_darwin_amd64_SHA256SUM=7985d522952e88adf7f21058439099b0e27c099baab0589b3a501862daebe842
+kyverno_darwin_arm64_SHA256SUM=25a704a74683a3da5bb50cb9e7a11a4df686121674d1271f49c0261618c94f1d
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/kyverno@$(KYVERNO_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/kyverno@$(KYVERNO_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
+	@# Kyverno uses x86_64 instead of amd64 in download URLs, so translate the architecture
 	$(eval ARCH := $(subst amd64,x86_64,$(HOST_ARCH)))
 
 	@source $(lock_script) $@; \
@@ -551,10 +582,10 @@ $(DOWNLOAD_DIR)/tools/kyverno@$(KYVERNO_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DO
 		chmod +x $(outfile); \
 		rm -f $(outfile).tar.gz
 
-yq_linux_amd64_SHA256SUM=0ffc35320180d4911bc3a772934da508715e08af444cb33d4d43660065e25bcc
-yq_linux_arm64_SHA256SUM=3c21630fda217239a5b7d718d08f08e02503098230b3abd49195d315a6dcfe45
-yq_darwin_amd64_SHA256SUM=ca06dea96304cbfb1482a177e41e535c87d721f45c553873c97f51c339767c40
-yq_darwin_arm64_SHA256SUM=b3a77a428fda2daced121c937be7f5dfb8107fc62ec506064f1d23bc09415dcb
+yq_linux_amd64_SHA256SUM=be2c0ddcf426b6a231648610ec5d1666ae50e9f6473e82f6486f9f4cb6e3e2f7
+yq_linux_arm64_SHA256SUM=783aa3c3beedcf2bf4aaf6262eca38b92a16d3ea31e2218ca80ba8ec7226b248
+yq_darwin_amd64_SHA256SUM=c14cd4ae68d42074e58463f5ebdbc3c49ec27c6de6a23b4af58a483bc3f15aa0
+yq_darwin_arm64_SHA256SUM=b0b70ede2b392ba02091b8137b42db819a7968cf232d595dd7394ac5668b4a0b
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/yq@$(YQ_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/yq@$(YQ_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
@@ -570,6 +601,7 @@ ko_darwin_arm64_SHA256SUM=2efa5796986e38994a3a233641b98404fa071a76456e3c99b3c00d
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/ko@$(KO_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/ko@$(KO_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
+	@# Ko uses capitalized OS names (Linux/Darwin) and x86_64 instead of amd64
 	$(eval OS := $(subst linux,Linux,$(subst darwin,Darwin,$(HOST_OS))))
 	$(eval ARCH := $(subst amd64,x86_64,$(HOST_ARCH)))
 
@@ -580,13 +612,14 @@ $(DOWNLOAD_DIR)/tools/ko@$(KO_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR
 		chmod +x $(outfile); \
 		rm -f $(outfile).tar.gz
 
-protoc_linux_amd64_SHA256SUM=f3340e28a83d1c637d8bafdeed92b9f7db6a384c26bca880a6e5217b40a4328b
-protoc_linux_arm64_SHA256SUM=6018147740548e0e0f764408c87f4cd040e6e1c1203e13aeacaf811892b604f3
-protoc_darwin_amd64_SHA256SUM=e20b5f930e886da85e7402776a4959efb1ed60c57e72794bcade765e67abaa82
-protoc_darwin_arm64_SHA256SUM=db7e66ff7f9080614d0f5505a6b0ac488cf89a15621b6a361672d1332ec2e14e
+protoc_linux_amd64_SHA256SUM=b24b53f87c151bfd48b112fe4c3a6e6574e5198874f38036aff41df3456b8caf
+protoc_linux_arm64_SHA256SUM=706662a332683aa2fffe1c4ea61588279d31679cd42d91c7d60a69651768edb8
+protoc_darwin_amd64_SHA256SUM=dba51cfcc85076d56e7de01a647865c5a7f995c3dce427d5215b53e50b7be43f
+protoc_darwin_arm64_SHA256SUM=5be1427127788c9f7dd7d606c3e69843dd3587327dea993917ffcb77e7234b44
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/protoc@$(PROTOC_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/protoc@$(PROTOC_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
+	@# Protoc uses different naming: darwin->osx, amd64->x86_64, arm64->aarch_64
 	$(eval OS := $(subst darwin,osx,$(HOST_OS)))
 	$(eval ARCH := $(subst arm64,aarch_64,$(subst amd64,x86_64,$(HOST_ARCH))))
 
@@ -597,13 +630,14 @@ $(DOWNLOAD_DIR)/tools/protoc@$(PROTOC_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWN
 		chmod +x $(outfile); \
 		rm -f $(outfile).zip
 
-trivy_linux_amd64_SHA256SUM=546511a5514afc813c0b72e4abeea2c16a32228a13a1e5114d927c190e76b1f9
-trivy_linux_arm64_SHA256SUM=e4f28390b06cdaaed94f8c49cce2c4c847938b5188aefdeb82453f2e933e57cb
-trivy_darwin_amd64_SHA256SUM=4a5b936a8d89b508ecdc6edd65933b6fe3e9a368796cbdf917fd0df393f26542
-trivy_darwin_arm64_SHA256SUM=6b3163667f29fc608a2ed647c1bd42023af5779349286148190a168c5b3f28f1
+trivy_linux_amd64_SHA256SUM=63e37242088e418651931f891963c19554faa19f0591fe6b40b606152051df2f
+trivy_linux_arm64_SHA256SUM=b29ea550f573afbcae3c86fb2b5e0ebba76b7cb0965e3787c4e8cb884d2c1d57
+trivy_darwin_amd64_SHA256SUM=d5b5bd3b3c3626d223c3981cc40f4709f00a6327a681b588d2fc64a3aa9d02c5
+trivy_darwin_arm64_SHA256SUM=4dd3d2e74e1b6f6f7fd5fbf55489727698f586d6a6a0cff3421031a05b80bcac
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/trivy@$(TRIVY_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/trivy@$(TRIVY_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
+	@# Trivy uses unusual naming: Linux/macOS for OS, 64bit/ARM64 for architecture
 	$(eval OS := $(subst linux,Linux,$(subst darwin,macOS,$(HOST_OS))))
 	$(eval ARCH := $(subst amd64,64bit,$(subst arm64,ARM64,$(HOST_ARCH))))
 
@@ -626,13 +660,14 @@ $(DOWNLOAD_DIR)/tools/ytt@$(YTT_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_D
 		$(checkhash_script) $(outfile) $(ytt_$(HOST_OS)_$(HOST_ARCH)_SHA256SUM); \
 		chmod +x $(outfile)
 
-rclone_linux_amd64_SHA256SUM=ab9fa5877cee91c64fdfd61a27028a458cf618b39259e5c371dc2ec34a12e415
-rclone_linux_arm64_SHA256SUM=e2e2efc7ed143026352d60216ef0d46d3fa4fe9d647eff1bd929e6fea498e6f1
-rclone_darwin_amd64_SHA256SUM=37e50641cd736de296b8aca8149e607b9923b357d79abb902e89c4cdb1fcc790
-rclone_darwin_arm64_SHA256SUM=d1cea838b618f9b4f15984748502232684e92ff0b90e3c4c8bd91ac21f4d8695
+rclone_linux_amd64_SHA256SUM=f3757aa829828c0f3359301bea25eef4d4fd62de735c47546ee6866c5b5545e2
+rclone_linux_arm64_SHA256SUM=c1669ef42d4ad65e3bb3f2cf0b2acf76cf0cbffefe463349a4f2244d8dbed701
+rclone_darwin_amd64_SHA256SUM=b1abd9e0287b19db435b7182faa0bc05478d6d412b839d7f819dee7ec4d9e5d0
+rclone_darwin_arm64_SHA256SUM=8396a06f793668da6cf0d8cf2e6a2da4c971bcbc7584286ffda7e3bf87f40148
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/rclone@$(RCLONE_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/rclone@$(RCLONE_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
+	@# Rclone uses "osx" instead of "darwin" in download URLs
 	$(eval OS := $(subst darwin,osx,$(HOST_OS)))
 
 	@source $(lock_script) $@; \
@@ -642,13 +677,14 @@ $(DOWNLOAD_DIR)/tools/rclone@$(RCLONE_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWN
 		chmod +x $(outfile); \
 		rm -f $(outfile).zip
 
-istioctl_linux_amd64_SHA256SUM=31ba3429f6527e085a5b3630bb732f876e8ff8a433947abae2cdd886c9e59271
-istioctl_linux_arm64_SHA256SUM=f1eff3bcc86dcd72ee473d8a7fbfe9eafd2337b946c9c3fd40f0c9d0e20e2561
-istioctl_darwin_amd64_SHA256SUM=5cbe5c4bf72bf5e447d39626d69874e25b96578a19c40c420ec9af09eae71ccd
-istioctl_darwin_arm64_SHA256SUM=593f8d58571ff4cddcd069041d2c398da4e0d6fc8055890715cad95feec09aeb
+istioctl_linux_amd64_SHA256SUM=4e5d96f1efacd2186cd2ed664055e3ad90e8652a56f0303f812705c577c84f87
+istioctl_linux_arm64_SHA256SUM=1e156834e757b09a5048e50c50e177b05637f83a470eecf0878addd3ede0d09f
+istioctl_darwin_amd64_SHA256SUM=656e1f504d38cd209572dfdce9cb744f1122f248ed496feaddea9206f5a93c1b
+istioctl_darwin_arm64_SHA256SUM=24557042710431346d78a81c43881b3f54865b66f323c468c4d08398624fe1c3
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/istioctl@$(ISTIOCTL_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/istioctl@$(ISTIOCTL_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
+	@# Istio uses "osx" instead of "darwin" in download URLs
 	$(eval OS := $(subst darwin,osx,$(HOST_OS)))
 
 	@source $(lock_script) $@; \
@@ -658,10 +694,10 @@ $(DOWNLOAD_DIR)/tools/istioctl@$(ISTIOCTL_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(
 		chmod +x $(outfile); \
 		rm $(outfile).tar.gz
 
-preflight_linux_amd64_SHA256SUM=cd1b6143fb511433d07f29075b4840b712933d7d4d4fc6353b079b59c1cb06cd
-preflight_linux_arm64_SHA256SUM=cd29e198bd54cec46b219fc151b1b9c8fe71c33e7fdab7814862736a309a2a7c
-preflight_darwin_amd64_SHA256SUM=7e03a564cfb1697a6a3179c5d2f6f0a861a14bf4443f553d946f92ac06376b98
-preflight_darwin_arm64_SHA256SUM=216b5f8846b6d3292bb798765a63f935627c36285fcba649ddab535973e70914
+preflight_linux_amd64_SHA256SUM=803684554991d64f8a06ccc7bfdd1f7c7f702921322297adab01da3e9886e5a8
+preflight_linux_arm64_SHA256SUM=d9bf232aa0ad44847e1f5d58143b4699aaa3d136f00a8418aef1404235a2e15a
+preflight_darwin_amd64_SHA256SUM=9b948767e70a973d1e8aa6c8c3f8529582c7cebc8d47b07605626b9552a50633
+preflight_darwin_arm64_SHA256SUM=4d397b6a70c3dc7358bfe669c29efcec334debfa589d6ae68296552094f77dc2
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/preflight@$(PREFLIGHT_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/preflight@$(PREFLIGHT_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
@@ -695,6 +731,9 @@ $(DOWNLOAD_DIR)/tools/operator-sdk@$(OPERATOR-SDK_VERSION)_$(HOST_OS)_$(HOST_ARC
 # about go being missing even though abc itself depends on vendor-go!
 # That means we need to pass vendor-go at the top level if go is not installed (i.e. "make vendor-go abc")
 
+# Check for required system tools by testing if each command exists
+# If a command is missing, echo its name. The && chains mean all tests run,
+# and "missing" will contain a space-separated list of any missing tools.
 missing=$(shell (command -v curl >/dev/null || echo curl) \
              && (command -v sha256sum >/dev/null || command -v shasum >/dev/null || echo sha256sum) \
              && (command -v git >/dev/null || echo git) \
