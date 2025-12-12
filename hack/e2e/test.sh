@@ -10,7 +10,7 @@
 #
 # Prerequisites:
 # * kubectl: https://kubernetes.io/docs/tasks/tools/#kubectl
-# * venctl: https://docs.venafi.cloud/vaas/venctl/t-venctl-install/
+# * venctl: https://docs.cyberark.com/mis-saas/vaas/venctl/t-venctl-install/
 # * jq: https://jqlang.github.io/jq/download/
 # * step: https://smallstep.com/docs/step-cli/installation/
 # * curl: https://www.man7.org/linux/man-pages/man1/curl.1.html

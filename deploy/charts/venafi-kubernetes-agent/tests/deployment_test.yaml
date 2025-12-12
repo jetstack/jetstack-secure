@@ -101,7 +101,7 @@ tests:
                 path: ca-certificates.crt
 
   # Check proxy settings are additive not overriding and set to correct values.
-  # Values from our documentation: https://docs.venafi.cloud/vaas/k8s-components/c-vcp-network-requirements/#modifying-network-settings-for-kubernetes
+  # Values from our documentation: https://docs.cyberark.com/mis-saas/vaas/k8s-components/c-vcp-network-requirements/#modifying-network-settings-for-kubernetes
   - it: All environment variables present when all proxy settings are supplied
     set:
       http_proxy: "http://<proxy server>:<port>"

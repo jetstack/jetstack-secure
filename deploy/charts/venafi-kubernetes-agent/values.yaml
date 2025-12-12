@@ -124,7 +124,7 @@ securityContext:
 # Set resource requests and limits for the pod.
 #
 # Read [Venafi Kubernetes components deployment best
-# practices](https://docs.venafi.cloud/vaas/k8s-components/c-k8s-components-best-practice/#scaling)
+# practices](https://docs.cyberark.com/mis-saas/vaas/k8s-components/c-k8s-components-best-practice/#scaling)
 # to learn how to choose suitable CPU and memory resource requests and limits.
 # +docs:property
 resources:
@@ -200,9 +200,9 @@ authentication:
   # +docs:section=Venafi Connection
   # Configure VenafiConnection authentication
   venafiConnection:
-    # When set to true, the Discovery Agent will authenticate to
-    # Venafi using the configuration in a VenafiConnection resource.
-    # Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/).
+    # When set to true, the Discovery Agent will authenticate to CyberArk Certificate Manager
+    # using the configuration in a VenafiConnection resource.
+    # Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.cyberark.com/mis-saas/vaas/k8s-components/t-install-tlspk-agent/).
     # When set to true, the `authentication.secret` values will be ignored and the
     # Secret with `authentication.secretName` will _not_ be mounted into the
     # Discovery Agent Pod.
@@ -239,7 +239,7 @@ config:
   # API server by omitting various common Secret types when listing Secrets.
   # These Secret types will be added to a "type!=<type>" field selector in the
   # agent config.
-  # * https://docs.venafi.cloud/vaas/k8s-components/t-cfg-tlspk-agent/#configuration
+  # * https://docs.cyberark.com/mis-saas/vaas/k8s-components/t-cfg-tlspk-agent/#configuration
   # * https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
   # * https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/#list-of-supported-fields
   ignoredSecretTypes:
