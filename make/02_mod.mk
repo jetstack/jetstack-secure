@@ -76,7 +76,7 @@ helm-plugins: $(NEEDS_HELM)
 		echo "helm-diff plugin already installed"; \
 	fi
 
-# https://docs.venafi.cloud/vaas/venctl/c-venctl-releases/
+# https://docs.cyberark.com/mis-saas/vaas/venctl/c-venctl-releases/
 venctl_linux_amd64_SHA256SUM=26e7b7a7e134f1cf1f3ffacf4ae53ec6849058db5007ce4088d51f404ededb4a
 venctl_darwin_amd64_SHA256SUM=2e76693901abcb2c018f66d3a10558c66ca09d1a3be912258bcd6c58e89aae80
 venctl_darwin_arm64_SHA256SUM=4350912d67683773302655e2a0151320514d1ccf82ee99c895e6780f86b6f031

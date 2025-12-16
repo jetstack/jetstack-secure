@@ -131,7 +131,7 @@
     },
     "helm-values.authentication.venafiConnection.enabled": {
       "default": false,
-      "description": "When set to true, the Discovery Agent will authenticate to. Venafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the\nDiscovery Agent Pod.",
+      "description": "When set to true, the Discovery Agent will authenticate to CyberArk Certificate Manager using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.cyberark.com/mis-saas/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the\nDiscovery Agent Pod.",
       "type": "boolean"
     },
     "helm-values.authentication.venafiConnection.name": {
@@ -525,7 +525,7 @@
           "memory": "200Mi"
         }
       },
-      "description": "Set resource requests and limits for the pod.\n\nRead [Venafi Kubernetes components deployment best practices](https://docs.venafi.cloud/vaas/k8s-components/c-k8s-components-best-practice/#scaling) to learn how to choose suitable CPU and memory resource requests and limits.",
+      "description": "Set resource requests and limits for the pod.\n\nRead [Venafi Kubernetes components deployment best practices](https://docs.cyberark.com/mis-saas/vaas/k8s-components/c-k8s-components-best-practice/#scaling) to learn how to choose suitable CPU and memory resource requests and limits.",
       "type": "object"
     },
     "helm-values.securityContext": {

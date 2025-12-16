@@ -4,9 +4,9 @@ The Discovery Agent connects your Kubernetes or OpenShift cluster to the CyberAr
 You will require a CyberArk Certificate Manager account to connect your cluster.
 If you do not have one, you can sign up for a free trial now at:
 
-- https://venafi.com/try-venafi/tls-protect/
+- https://www.cyberark.com/try-buy/certificate-manager-saas-trial/
 
-> 📖 Read the [Discovery Agent documentation](https://docs.venafi.cloud/vaas/k8s-components/c-tlspk-agent-overview/),
+> 📖 Read the [Discovery Agent documentation](https://docs.cyberark.com/mis-saas/vaas/k8s-components/c-tlspk-agent-overview/),
 > to learn how install and configure this Helm chart.
 
 ## Values
@@ -226,7 +226,7 @@ Add Container specific SecurityContext settings to the container. Takes preceden
 
 Set resource requests and limits for the pod.  
   
-Read [Venafi Kubernetes components deployment best practices](https://docs.venafi.cloud/vaas/k8s-components/c-k8s-components-best-practice/#scaling) to learn how to choose suitable CPU and memory resource requests and limits.
+Read [Venafi Kubernetes components deployment best practices](https://docs.cyberark.com/mis-saas/vaas/k8s-components/c-k8s-components-best-practice/#scaling) to learn how to choose suitable CPU and memory resource requests and limits.
 
 #### **nodeSelector** ~ `object`
 > Default value:
@@ -343,7 +343,7 @@ Configure VenafiConnection authentication
 > false
 > ```
 
-When set to true, the Discovery Agent will authenticate to. Venafi using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.venafi.cloud/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the  
+When set to true, the Discovery Agent will authenticate to CyberArk Certificate Manager using the configuration in a VenafiConnection resource. Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.cyberark.com/mis-saas/vaas/k8s-components/t-install-tlspk-agent/). When set to true, the `authentication.secret` values will be ignored and the. Secret with `authentication.secretName` will _not_ be mounted into the  
 Discovery Agent Pod.
 #### **authentication.venafiConnection.name** ~ `string`
 > Default value:

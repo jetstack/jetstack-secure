@@ -8,7 +8,7 @@
 
 ## Installation
 
-Please [review the documentation](https://docs.venafi.cloud/vaas/k8s-components/c-tlspk-agent-overview/) for the agent.
+Please [review the documentation](https://docs.cyberark.com/mis-saas/vaas/k8s-components/c-tlspk-agent-overview/) for the agent.
 
 Detailed installation instructions are available for a variety of methods.
 

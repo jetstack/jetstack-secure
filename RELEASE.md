@@ -68,7 +68,7 @@ The release process is semi-automated.
    or `venctl generate`.
 
 9. Inform Michael McLoughlin of the new release so he can update the
-   documentation at <https://docs.venafi.cloud/>.
+   documentation at <https://docs.cyberark.com/>.
 
 [tests-workflow]: https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml?query=branch%3Amaster
 
