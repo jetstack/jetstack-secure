@@ -107,7 +107,7 @@ func fakeReadings() []*api.DataReading {
 		{
 			DataGatherer: "ark/discovery",
 			Data: &api.DiscoveryData{
-				ClusterID: "success-cluster-id",
+				ClusterID: "ffffffff-ffff-ffff-ffff-ffffffffffff",
 				ServerVersion: &k8sversion.Info{
 					GitVersion: "v1.21.0",
 				},
