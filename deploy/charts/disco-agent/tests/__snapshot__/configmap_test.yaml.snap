@@ -95,6 +95,12 @@ custom-cluster-description:
             resource-type:
               version: v1
               resource: pods
+        - kind: k8s-dynamic
+          name: ark/configmaps
+          config:
+            resource-type:
+              version: v1
+              resource: configmaps
     kind: ConfigMap
     metadata:
       labels:
@@ -202,6 +208,12 @@ custom-cluster-name:
             resource-type:
               version: v1
               resource: pods
+        - kind: k8s-dynamic
+          name: ark/configmaps
+          config:
+            resource-type:
+              version: v1
+              resource: configmaps
     kind: ConfigMap
     metadata:
       labels:
@@ -309,6 +321,12 @@ custom-period:
             resource-type:
               version: v1
               resource: pods
+        - kind: k8s-dynamic
+          name: ark/configmaps
+          config:
+            resource-type:
+              version: v1
+              resource: configmaps
     kind: ConfigMap
     metadata:
       labels:
@@ -416,6 +434,12 @@ defaults:
             resource-type:
               version: v1
               resource: pods
+        - kind: k8s-dynamic
+          name: ark/configmaps
+          config:
+            resource-type:
+              version: v1
+              resource: configmaps
     kind: ConfigMap
     metadata:
       labels:

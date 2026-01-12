@@ -125,3 +125,11 @@ data-gatherers:
     resource-type:
       version: v1
       resource: pods
+
+# Gather Kubernetes configmaps
+- name: ark/configmaps
+  kind: "k8s-dynamic"
+  config:
+    resource-type:
+      version: v1
+      resource: configmaps

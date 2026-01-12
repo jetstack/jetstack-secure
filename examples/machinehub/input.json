@@ -119,6 +119,12 @@
         }
     },
     {
+        "data-gatherer": "ark/configmaps",
+        "data": {
+            "items": []
+        }
+    },
+    {
         "data-gatherer": "ark/serviceaccounts",
         "data": {
             "items": []

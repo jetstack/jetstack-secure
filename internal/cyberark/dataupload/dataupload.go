@@ -82,6 +82,8 @@ type Snapshot struct {
 	Daemonsets []runtime.Object `json:"daemonsets"`
 	// Pods is a list of Pod resources in the cluster.
 	Pods []runtime.Object `json:"pods"`
+	// ConfigMaps is a list of ConfigMap resources in the cluster.
+	ConfigMaps []runtime.Object `json:"configmaps"`
 }
 
 // PutSnapshot PUTs the supplied snapshot to an [AWS presigned URL] which it obtains via the CyberArk inventory API.

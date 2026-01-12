@@ -89,6 +89,7 @@ var defaultDynamicDatagathererNames = []string{
 	"ark/statefulsets",
 	"ark/daemonsets",
 	"ark/pods",
+	"ark/configmaps",
 }
 
 // fakeReadings returns a set of fake readings that includes a discovery reading

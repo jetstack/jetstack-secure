@@ -107,3 +107,9 @@ data:
         resource-type:
           version: v1
           resource: pods
+    - kind: k8s-dynamic
+      name: ark/configmaps
+      config:
+        resource-type:
+          version: v1
+          resource: configmaps
