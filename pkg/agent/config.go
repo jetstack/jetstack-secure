@@ -19,7 +19,8 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
-	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8sdiscovery"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8sdynamic"
 	"github.com/jetstack/preflight/pkg/datagatherer/local"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
 	"github.com/jetstack/preflight/pkg/logs"
@@ -895,11 +896,11 @@ func (dg *DataGatherer) UnmarshalYAML(unmarshal func(any) error) error {
 
 	switch dg.Kind {
 	case "k8s":
-		cfg = &k8s.ConfigDynamic{}
+		cfg = &k8sdynamic.ConfigDynamic{}
 	case "k8s-dynamic":
-		cfg = &k8s.ConfigDynamic{}
+		cfg = &k8sdynamic.ConfigDynamic{}
 	case "k8s-discovery":
-		cfg = &k8s.ConfigDiscovery{}
+		cfg = &k8sdiscovery.ConfigDiscovery{}
 	case "local":
 		cfg = &local.Config{}
 	// dummy dataGatherer is just used for testing

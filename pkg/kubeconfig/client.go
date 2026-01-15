@@ -1,19 +1,16 @@
-// Package k8s provides datagatherers for different parts of the Kubernetes API.
-package k8s
+package kubeconfig
 
 import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/jetstack/preflight/pkg/kubeconfig"
 )
 
 // NewDynamicClient creates a new 'dynamic' clientset using the provided kubeconfig.
 // If kubeconfigPath is not set/empty, it will attempt to load configuration using
 // the default loading rules.
 func NewDynamicClient(kubeconfigPath string) (dynamic.Interface, error) {
-	cfg, err := kubeconfig.LoadRESTConfig(kubeconfigPath)
+	cfg, err := LoadRESTConfig(kubeconfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +27,7 @@ func NewDynamicClient(kubeconfigPath string) (dynamic.Interface, error) {
 // kubeconfig.  If kubeconfigPath is not set/empty, it will attempt to load
 // configuration using the default loading rules.
 func NewDiscoveryClient(kubeconfigPath string) (*discovery.DiscoveryClient, error) {
-	cfg, err := kubeconfig.LoadRESTConfig(kubeconfigPath)
+	cfg, err := LoadRESTConfig(kubeconfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +44,7 @@ func NewDiscoveryClient(kubeconfigPath string) (*discovery.DiscoveryClient, erro
 // If kubeconfigPath is not set/empty, it will attempt to load configuration using
 // the default loading rules.
 func NewClientSet(kubeconfigPath string) (kubernetes.Interface, error) {
-	cfg, err := kubeconfig.LoadRESTConfig(kubeconfigPath)
+	cfg, err := LoadRESTConfig(kubeconfigPath)
 	if err != nil {
 		return nil, err
 	}
