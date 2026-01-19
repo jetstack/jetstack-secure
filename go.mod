@@ -4,6 +4,7 @@ module github.com/jetstack/preflight
 go 1.24.4
 
 require (
+	filippo.io/hpke v0.4.0
 	github.com/Venafi/vcert/v5 v5.12.2
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/fatih/color v1.18.0
