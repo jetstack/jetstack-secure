@@ -1483,8 +1483,8 @@ func TestDynamicGatherer_Fetch_WithLabelFilters(t *testing.T) {
 	}{
 		"include labels - key and value match for conjur.org/name": {
 			config: ConfigDynamic{
-				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
-				IncludeResourcesByLabels:        map[string]string{"conjur.org/name": "conjur-connect-configmap"},
+				GroupVersionResource:     schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				IncludeResourcesByLabels: map[string]string{"conjur.org/name": "conjur-connect-configmap"},
 			},
 			addObjects: []runtime.Object{
 				getObjectAnnot("test.io/v1", "TestResource", "res-with-matching-label", "default", nil, map[string]any{"conjur.org/name": "conjur-connect-configmap"}),
@@ -1500,8 +1500,8 @@ func TestDynamicGatherer_Fetch_WithLabelFilters(t *testing.T) {
 		},
 		"include labels - key and value match": {
 			config: ConfigDynamic{
-				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
-				IncludeResourcesByLabels:        map[string]string{"app": "myapp"},
+				GroupVersionResource:     schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				IncludeResourcesByLabels: map[string]string{"app": "myapp"},
 			},
 			addObjects: []runtime.Object{
 				getObjectAnnot("test.io/v1", "TestResource", "res-app-myapp", "default", nil, map[string]any{"app": "myapp"}),
@@ -1516,8 +1516,8 @@ func TestDynamicGatherer_Fetch_WithLabelFilters(t *testing.T) {
 		},
 		"exclude labels - key only match": {
 			config: ConfigDynamic{
-				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
-				ExcludeResourcesByLabels:        map[string]string{"internal": ""},
+				GroupVersionResource:     schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				ExcludeResourcesByLabels: map[string]string{"internal": ""},
 			},
 			addObjects: []runtime.Object{
 				getObjectAnnot("test.io/v1", "TestResource", "res-internal", "default", nil, map[string]any{"internal": "true"}),
@@ -1532,8 +1532,8 @@ func TestDynamicGatherer_Fetch_WithLabelFilters(t *testing.T) {
 		},
 		"exclude labels - key and value match": {
 			config: ConfigDynamic{
-				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
-				ExcludeResourcesByLabels:        map[string]string{"env": "test"},
+				GroupVersionResource:     schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				ExcludeResourcesByLabels: map[string]string{"env": "test"},
 			},
 			addObjects: []runtime.Object{
 				getObjectAnnot("test.io/v1", "TestResource", "res-env-test", "default", nil, map[string]any{"env": "test"}),
@@ -1598,8 +1598,8 @@ func TestDynamicGatherer_Fetch_WithAnnotationFilters(t *testing.T) {
 	}{
 		"include annotations - key only match": {
 			config: ConfigDynamic{
-				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
-				IncludeResourcesByAnnotations:   map[string]string{"prometheus.io/scrape": ""},
+				GroupVersionResource:          schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				IncludeResourcesByAnnotations: map[string]string{"prometheus.io/scrape": ""},
 			},
 			addObjects: []runtime.Object{
 				getObjectAnnot("test.io/v1", "TestResource", "res-with-annot", "default", map[string]any{"prometheus.io/scrape": "true"}, nil),
@@ -1609,8 +1609,8 @@ func TestDynamicGatherer_Fetch_WithAnnotationFilters(t *testing.T) {
 		},
 		"exclude annotations - key and value match": {
 			config: ConfigDynamic{
-				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
-				ExcludeResourcesByAnnotations:   map[string]string{"deprecated": "true"},
+				GroupVersionResource:          schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				ExcludeResourcesByAnnotations: map[string]string{"deprecated": "true"},
 			},
 			addObjects: []runtime.Object{
 				getObjectAnnot("test.io/v1", "TestResource", "res-deprecated", "default", map[string]any{"deprecated": "true"}, nil),
