@@ -1,13 +1,5 @@
 package envelope
 
-import "crypto/rsa"
-
-// Encryptor provides envelope encryption using RSA for key wrapping
-// and AES-256-GCM for data encryption.
-type Encryptor struct {
-	rsaPublicKey *rsa.PublicKey
-}
-
 // EncryptedData contains the result of envelope encryption.
 // It includes the encrypted data, the encrypted AES key which was used for encrypting the original data,
 // and the nonce needed for AES-GCM decryption.

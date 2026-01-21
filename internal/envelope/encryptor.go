@@ -11,19 +11,19 @@ import (
 
 const (
 	// aesKeySize is the size of the AES-256 key in bytes; aes.NewCipher generates cipher.Block based
-	// on the size of key passed in
+	// on the size of key passed in, and 32 bytes corresponds to a 256-bit AES key
 	aesKeySize = 32
 
-	// nonceSize is the size of the AES-GCM nonce in bytes. NB: Nonce sizes can be security critical.
-	// Reusing a nonce with the same key breaks AES-256 GCM completely.
-	// Due to the birthday paradox, the risk of reusing (randomly-generated) nonces can be quite high.
-	// This package is assumed to be used in contexts where a new key is generated for each encryption operation,
-	// so the nonce size doesn't matter.
-	nonceSize = 12
-
 	// minRSAKeySize is the minimum RSA key size in bits; we'd expect that keys will be larger but 2048 is a sane floor
+	// to enforce to ensure that a weak key can't accidentally be used
 	minRSAKeySize = 2048
 )
+
+// Encryptor provides envelope encryption using RSA for key wrapping
+// and AES-256-GCM for data encryption.
+type Encryptor struct {
+	rsaPublicKey *rsa.PublicKey
+}
 
 // NewEncryptor creates a new Encryptor with the provided RSA public key.
 // The RSA key must be at least minRSAKeySize bits
@@ -56,6 +56,14 @@ func (e *Encryptor) Encrypt(data []byte) (*EncryptedData, error) {
 		return nil, fmt.Errorf("failed to generate AES key: %w", err)
 	}
 
+	// zero the key from memory before the function returns
+	// TODO: in go1.26+, consider using secret.Do in this function
+	defer func() {
+		for i := range aesKey {
+			aesKey[i] = 0
+		}
+	}()
+
 	block, err := aes.NewCipher(aesKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AES cipher: %w", err)
@@ -69,17 +77,26 @@ func (e *Encryptor) Encrypt(data []byte) (*EncryptedData, error) {
 	encryptedData := &EncryptedData{
 		EncryptedKey:  nil,
 		EncryptedData: nil,
-		Nonce:         make([]byte, nonceSize),
+		Nonce:         make([]byte, gcm.NonceSize()),
 	}
 
-	// Generate random nonce
+	// Generate a random nonce for AES-GCM.
+	// Security: Nonces must never be re-used for a given key. Since we generate a new AES key for each encryption,
+	// the risk of nonce reuse is not a concern here.
 	if _, err := rand.Read(encryptedData.Nonce); err != nil {
 		return nil, fmt.Errorf("failed to generate nonce: %w", err)
 	}
 
+	// Seal encrypts and authenticates the data. This could include additional authenticated data,
+	// but we don't make use of that here.
+	// First nil: allocate new slice for output.
+	// Last nil: no additional authenticated data (AAD) needed.
+
 	encryptedData.EncryptedData = gcm.Seal(nil, encryptedData.Nonce, data, nil)
 
-	// Encrypt AES key with RSA-OAEP-SHA256
+	// Encrypt AES key with RSA-OAEP-SHA256. The nil parameter means no additional
+	// context data is mixed into the hash; this could be used to disambiguate different uses of the same key,
+	// but we only have one use for the key here.
 	encryptedData.EncryptedKey, err = rsa.EncryptOAEP(
 		sha256.New(),
 		rand.Reader,
