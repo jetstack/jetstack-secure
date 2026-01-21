@@ -1264,3 +1264,387 @@ func toRegexps(keys []string) []*regexp.Regexp {
 	}
 	return regexps
 }
+
+func TestConfigDynamicValidate_LabelAndAnnotationFilters(t *testing.T) {
+	tests := []struct {
+		Config        ConfigDynamic
+		ExpectedError string
+	}{
+		{
+			Config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Group:    "",
+					Version:  "v1",
+					Resource: "configmaps",
+				},
+				IncludeResourcesByLabels: map[string]string{"app": "test"},
+				ExcludeResourcesByLabels: map[string]string{"env": "prod"},
+			},
+			ExpectedError: "cannot use both include-resources-by-labels and exclude-resources-by-labels",
+		},
+		{
+			Config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Group:    "",
+					Version:  "v1",
+					Resource: "configmaps",
+				},
+				IncludeResourcesByAnnotations: map[string]string{"app": "test"},
+				ExcludeResourcesByAnnotations: map[string]string{"env": "prod"},
+			},
+			ExpectedError: "cannot use both include-resources-by-annotations and exclude-resources-by-annotations",
+		},
+		{
+			Config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Group:    "",
+					Version:  "v1",
+					Resource: "configmaps",
+				},
+				IncludeResourcesByLabels: map[string]string{"app": "test"},
+			},
+			ExpectedError: "",
+		},
+		{
+			Config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Group:    "",
+					Version:  "v1",
+					Resource: "configmaps",
+				},
+				ExcludeResourcesByLabels: map[string]string{"app": "test"},
+			},
+			ExpectedError: "",
+		},
+	}
+
+	for _, test := range tests {
+		err := test.Config.validate()
+		if err == nil && test.ExpectedError != "" {
+			t.Errorf("expected error: %q, got: nil", test.ExpectedError)
+		}
+		if err != nil && test.ExpectedError == "" {
+			t.Errorf("expected no error, got: %s", err.Error())
+		}
+		if err != nil && test.ExpectedError != "" && !strings.Contains(err.Error(), test.ExpectedError) {
+			t.Errorf("expected %s, got %s", test.ExpectedError, err.Error())
+		}
+	}
+}
+
+func TestMatchesLabelFilter(t *testing.T) {
+	tests := map[string]struct {
+		resourceLabels map[string]string
+		includeLabels  map[string]string
+		excludeLabels  map[string]string
+		expected       bool
+	}{
+		"no filters - should match": {
+			resourceLabels: map[string]string{"app": "test"},
+			includeLabels:  nil,
+			excludeLabels:  nil,
+			expected:       true,
+		},
+		"include label with exact match": {
+			resourceLabels: map[string]string{"app": "test", "version": "1.0"},
+			includeLabels:  map[string]string{"app": "test"},
+			excludeLabels:  nil,
+			expected:       true,
+		},
+		"include label key exists with empty value (key-only match)": {
+			resourceLabels: map[string]string{"conjur.org/name": "my-secret", "app": "test"},
+			includeLabels:  map[string]string{"conjur.org/name": ""},
+			excludeLabels:  nil,
+			expected:       true,
+		},
+		"include label key missing": {
+			resourceLabels: map[string]string{"app": "test"},
+			includeLabels:  map[string]string{"env": "prod"},
+			excludeLabels:  nil,
+			expected:       false,
+		},
+		"include label value mismatch": {
+			resourceLabels: map[string]string{"app": "test"},
+			includeLabels:  map[string]string{"app": "prod"},
+			excludeLabels:  nil,
+			expected:       false,
+		},
+		"exclude label with exact match": {
+			resourceLabels: map[string]string{"app": "test", "env": "prod"},
+			includeLabels:  nil,
+			excludeLabels:  map[string]string{"env": "prod"},
+			expected:       false,
+		},
+		"exclude label key exists with empty value (key-only match)": {
+			resourceLabels: map[string]string{"internal": "true"},
+			includeLabels:  nil,
+			excludeLabels:  map[string]string{"internal": ""},
+			expected:       false,
+		},
+		"exclude label key missing": {
+			resourceLabels: map[string]string{"app": "test"},
+			includeLabels:  nil,
+			excludeLabels:  map[string]string{"env": "prod"},
+			expected:       true,
+		},
+		"exclude label value mismatch": {
+			resourceLabels: map[string]string{"app": "test"},
+			includeLabels:  nil,
+			excludeLabels:  map[string]string{"app": "prod"},
+			expected:       true,
+		},
+		"multiple include labels all match": {
+			resourceLabels: map[string]string{"app": "test", "env": "prod", "version": "1.0"},
+			includeLabels:  map[string]string{"app": "test", "env": "prod"},
+			excludeLabels:  nil,
+			expected:       true,
+		},
+		"multiple include labels one missing": {
+			resourceLabels: map[string]string{"app": "test"},
+			includeLabels:  map[string]string{"app": "test", "env": "prod"},
+			excludeLabels:  nil,
+			expected:       false,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			result := matchesLabelFilter(tc.resourceLabels, tc.includeLabels, tc.excludeLabels)
+			if result != tc.expected {
+				t.Errorf("expected %v, got %v", tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestMatchesAnnotationFilter(t *testing.T) {
+	tests := map[string]struct {
+		resourceAnnotations map[string]string
+		includeAnnotations  map[string]string
+		excludeAnnotations  map[string]string
+		expected            bool
+	}{
+		"no filters - should match": {
+			resourceAnnotations: map[string]string{"description": "test"},
+			includeAnnotations:  nil,
+			excludeAnnotations:  nil,
+			expected:            true,
+		},
+		"include annotation with exact match": {
+			resourceAnnotations: map[string]string{"description": "test", "owner": "team"},
+			includeAnnotations:  map[string]string{"description": "test"},
+			excludeAnnotations:  nil,
+			expected:            true,
+		},
+		"include annotation key exists with empty value (key-only match)": {
+			resourceAnnotations: map[string]string{"prometheus.io/scrape": "true"},
+			includeAnnotations:  map[string]string{"prometheus.io/scrape": ""},
+			excludeAnnotations:  nil,
+			expected:            true,
+		},
+		"include annotation key missing": {
+			resourceAnnotations: map[string]string{"description": "test"},
+			includeAnnotations:  map[string]string{"owner": "team"},
+			excludeAnnotations:  nil,
+			expected:            false,
+		},
+		"exclude annotation with exact match": {
+			resourceAnnotations: map[string]string{"description": "test", "internal": "true"},
+			includeAnnotations:  nil,
+			excludeAnnotations:  map[string]string{"internal": "true"},
+			expected:            false,
+		},
+		"exclude annotation key exists with empty value (key-only match)": {
+			resourceAnnotations: map[string]string{"deprecated": "yes"},
+			includeAnnotations:  nil,
+			excludeAnnotations:  map[string]string{"deprecated": ""},
+			expected:            false,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			result := matchesAnnotationFilter(tc.resourceAnnotations, tc.includeAnnotations, tc.excludeAnnotations)
+			if result != tc.expected {
+				t.Errorf("expected %v, got %v", tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestDynamicGatherer_Fetch_WithLabelFilters(t *testing.T) {
+	ctx := t.Context()
+
+	tests := map[string]struct {
+		config        ConfigDynamic
+		addObjects    []runtime.Object
+		expected      []*api.GatheredResource
+		expectedCount int
+	}{
+		"include labels - key and value match for conjur.org/name": {
+			config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				IncludeResourcesByLabels:        map[string]string{"conjur.org/name": "conjur-connect-configmap"},
+			},
+			addObjects: []runtime.Object{
+				getObjectAnnot("test.io/v1", "TestResource", "res-with-matching-label", "default", nil, map[string]any{"conjur.org/name": "conjur-connect-configmap"}),
+				getObjectAnnot("test.io/v1", "TestResource", "res-with-different-value", "default", nil, map[string]any{"conjur.org/name": "other-value"}),
+				getObjectAnnot("test.io/v1", "TestResource", "res-without-label", "default", nil, map[string]any{"app": "test"}),
+			},
+			expectedCount: 1,
+			expected: []*api.GatheredResource{
+				{
+					Resource: getObjectAnnot("test.io/v1", "TestResource", "res-with-matching-label", "default", nil, map[string]any{"conjur.org/name": "conjur-connect-configmap"}),
+				},
+			},
+		},
+		"include labels - key and value match": {
+			config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				IncludeResourcesByLabels:        map[string]string{"app": "myapp"},
+			},
+			addObjects: []runtime.Object{
+				getObjectAnnot("test.io/v1", "TestResource", "res-app-myapp", "default", nil, map[string]any{"app": "myapp"}),
+				getObjectAnnot("test.io/v1", "TestResource", "res-app-other", "default", nil, map[string]any{"app": "other"}),
+			},
+			expectedCount: 1,
+			expected: []*api.GatheredResource{
+				{
+					Resource: getObjectAnnot("test.io/v1", "TestResource", "res-app-myapp", "default", nil, map[string]any{"app": "myapp"}),
+				},
+			},
+		},
+		"exclude labels - key only match": {
+			config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				ExcludeResourcesByLabels:        map[string]string{"internal": ""},
+			},
+			addObjects: []runtime.Object{
+				getObjectAnnot("test.io/v1", "TestResource", "res-internal", "default", nil, map[string]any{"internal": "true"}),
+				getObjectAnnot("test.io/v1", "TestResource", "res-public", "default", nil, map[string]any{"public": "true"}),
+			},
+			expectedCount: 1,
+			expected: []*api.GatheredResource{
+				{
+					Resource: getObjectAnnot("test.io/v1", "TestResource", "res-public", "default", nil, map[string]any{"public": "true"}),
+				},
+			},
+		},
+		"exclude labels - key and value match": {
+			config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				ExcludeResourcesByLabels:        map[string]string{"env": "test"},
+			},
+			addObjects: []runtime.Object{
+				getObjectAnnot("test.io/v1", "TestResource", "res-env-test", "default", nil, map[string]any{"env": "test"}),
+				getObjectAnnot("test.io/v1", "TestResource", "res-env-prod", "default", nil, map[string]any{"env": "prod"}),
+			},
+			expectedCount: 1,
+			expected: []*api.GatheredResource{
+				{
+					Resource: getObjectAnnot("test.io/v1", "TestResource", "res-env-prod", "default", nil, map[string]any{"env": "prod"}),
+				},
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cl := fake.NewSimpleDynamicClient(runtime.NewScheme(), tc.addObjects...)
+			dg, err := tc.config.newDataGathererWithClient(ctx, cl, nil)
+			require.NoError(t, err)
+
+			dgd := dg.(*DataGathererDynamic)
+
+			// Start the data gatherer
+			go func() {
+				if err = dgd.Run(ctx); err != nil {
+					t.Errorf("unexpected client error: %+v", err)
+				}
+			}()
+
+			err = dgd.WaitForCacheSync(ctx)
+			require.NoError(t, err)
+
+			// Give some time for the cache to populate
+			time.Sleep(200 * time.Millisecond)
+
+			res, count, err := dgd.Fetch()
+			require.NoError(t, err)
+
+			dynamicData := res.(*api.DynamicData)
+			assert.Equal(t, tc.expectedCount, count)
+			assert.Len(t, dynamicData.Items, tc.expectedCount)
+
+			sortGatheredResources(dynamicData.Items)
+			sortGatheredResources(tc.expected)
+
+			for i, item := range dynamicData.Items {
+				expectedItem := tc.expected[i]
+				assert.Equal(t, expectedItem.Resource.(*unstructured.Unstructured).GetName(),
+					item.Resource.(*unstructured.Unstructured).GetName())
+			}
+		})
+	}
+}
+
+func TestDynamicGatherer_Fetch_WithAnnotationFilters(t *testing.T) {
+	ctx := t.Context()
+
+	tests := map[string]struct {
+		config        ConfigDynamic
+		addObjects    []runtime.Object
+		expectedCount int
+	}{
+		"include annotations - key only match": {
+			config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				IncludeResourcesByAnnotations:   map[string]string{"prometheus.io/scrape": ""},
+			},
+			addObjects: []runtime.Object{
+				getObjectAnnot("test.io/v1", "TestResource", "res-with-annot", "default", map[string]any{"prometheus.io/scrape": "true"}, nil),
+				getObjectAnnot("test.io/v1", "TestResource", "res-without-annot", "default", map[string]any{"description": "test"}, nil),
+			},
+			expectedCount: 1,
+		},
+		"exclude annotations - key and value match": {
+			config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				ExcludeResourcesByAnnotations:   map[string]string{"deprecated": "true"},
+			},
+			addObjects: []runtime.Object{
+				getObjectAnnot("test.io/v1", "TestResource", "res-deprecated", "default", map[string]any{"deprecated": "true"}, nil),
+				getObjectAnnot("test.io/v1", "TestResource", "res-active", "default", map[string]any{"active": "true"}, nil),
+			},
+			expectedCount: 1,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cl := fake.NewSimpleDynamicClient(runtime.NewScheme(), tc.addObjects...)
+			dg, err := tc.config.newDataGathererWithClient(ctx, cl, nil)
+			require.NoError(t, err)
+
+			dgd := dg.(*DataGathererDynamic)
+
+			// Start the data gatherer
+			go func() {
+				if err = dgd.Run(ctx); err != nil {
+					t.Errorf("unexpected client error: %+v", err)
+				}
+			}()
+
+			err = dgd.WaitForCacheSync(ctx)
+			require.NoError(t, err)
+
+			// Give some time for the cache to populate
+			time.Sleep(200 * time.Millisecond)
+
+			_, count, err := dgd.Fetch()
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.expectedCount, count)
+		})
+	}
+}

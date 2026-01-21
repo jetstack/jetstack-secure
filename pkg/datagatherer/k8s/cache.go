@@ -29,6 +29,8 @@ func (*realTime) now() time.Time {
 type cacheResource interface {
 	GetUID() types.UID
 	GetNamespace() string
+	GetLabels() map[string]string
+	GetAnnotations() map[string]string
 }
 
 func logCacheUpdateFailure(log logr.Logger, obj any, operation string) {

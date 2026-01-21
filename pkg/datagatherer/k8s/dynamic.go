@@ -76,6 +76,18 @@ type ConfigDynamic struct {
 	IncludeNamespaces []string `yaml:"include-namespaces"`
 	// FieldSelectors is a list of field selectors to use when listing this resource
 	FieldSelectors []string `yaml:"field-selectors"`
+	// IncludeResourcesByLabels filters to include only resources that have all of the specified labels.
+	// This controls which resources are collected, not which labels are included.
+	IncludeResourcesByLabels map[string]string `yaml:"include-resources-by-labels"`
+	// ExcludeResourcesByLabels filters to exclude resources that have any of the specified labels.
+	// This controls which resources are collected, not which labels are excluded.
+	ExcludeResourcesByLabels map[string]string `yaml:"exclude-resources-by-labels"`
+	// IncludeResourcesByAnnotations filters to include only resources that have all of the specified annotations.
+	// This controls which resources are collected, not which annotations are included.
+	IncludeResourcesByAnnotations map[string]string `yaml:"include-resources-by-annotations"`
+	// ExcludeResourcesByAnnotations filters to exclude resources that have any of the specified annotations.
+	// This controls which resources are collected, not which annotations are excluded.
+	ExcludeResourcesByAnnotations map[string]string `yaml:"exclude-resources-by-annotations"`
 }
 
 // UnmarshalYAML unmarshals the ConfigDynamic resolving GroupVersionResource.
@@ -87,9 +99,13 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(any) error) error {
 			Version  string `yaml:"version"`
 			Resource string `yaml:"resource"`
 		} `yaml:"resource-type"`
-		ExcludeNamespaces []string `yaml:"exclude-namespaces"`
-		IncludeNamespaces []string `yaml:"include-namespaces"`
-		FieldSelectors    []string `yaml:"field-selectors"`
+		ExcludeNamespaces             []string          `yaml:"exclude-namespaces"`
+		IncludeNamespaces             []string          `yaml:"include-namespaces"`
+		FieldSelectors                []string          `yaml:"field-selectors"`
+		IncludeResourcesByLabels      map[string]string `yaml:"include-resources-by-labels"`
+		ExcludeResourcesByLabels      map[string]string `yaml:"exclude-resources-by-labels"`
+		IncludeResourcesByAnnotations map[string]string `yaml:"include-resources-by-annotations"`
+		ExcludeResourcesByAnnotations map[string]string `yaml:"exclude-resources-by-annotations"`
 	}{}
 	err := unmarshal(&aux)
 	if err != nil {
@@ -103,6 +119,10 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(any) error) error {
 	c.ExcludeNamespaces = aux.ExcludeNamespaces
 	c.IncludeNamespaces = aux.IncludeNamespaces
 	c.FieldSelectors = aux.FieldSelectors
+	c.IncludeResourcesByLabels = aux.IncludeResourcesByLabels
+	c.ExcludeResourcesByLabels = aux.ExcludeResourcesByLabels
+	c.IncludeResourcesByAnnotations = aux.IncludeResourcesByAnnotations
+	c.ExcludeResourcesByAnnotations = aux.ExcludeResourcesByAnnotations
 
 	return nil
 }
@@ -112,6 +132,14 @@ func (c *ConfigDynamic) validate() error {
 	var errs []string
 	if len(c.ExcludeNamespaces) > 0 && len(c.IncludeNamespaces) > 0 {
 		errs = append(errs, "cannot set excluded and included namespaces")
+	}
+
+	if len(c.ExcludeResourcesByLabels) > 0 && len(c.IncludeResourcesByLabels) > 0 {
+		errs = append(errs, "cannot use both include-resources-by-labels and exclude-resources-by-labels")
+	}
+
+	if len(c.ExcludeResourcesByAnnotations) > 0 && len(c.IncludeResourcesByAnnotations) > 0 {
+		errs = append(errs, "cannot use both include-resources-by-annotations and exclude-resources-by-annotations")
 	}
 
 	if c.GroupVersionResource.Resource == "" {
@@ -221,6 +249,10 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		fieldSelector:        fieldSelector.String(),
 		namespaces:           c.IncludeNamespaces,
 		cache:                dgCache,
+		includeLabels:        c.IncludeResourcesByLabels,
+		excludeLabels:        c.ExcludeResourcesByLabels,
+		includeAnnotations:   c.IncludeResourcesByAnnotations,
+		excludeAnnotations:   c.ExcludeResourcesByAnnotations,
 	}
 
 	// In order to reduce memory usage that might come from using Dynamic Informers
@@ -304,6 +336,13 @@ type DataGathererDynamic struct {
 
 	ExcludeAnnotKeys []*regexp.Regexp
 	ExcludeLabelKeys []*regexp.Regexp
+
+	// includeLabels and excludeLabels filter resources based on their labels
+	includeLabels map[string]string
+	excludeLabels map[string]string
+	// includeAnnotations and excludeAnnotations filter resources based on their annotations
+	includeAnnotations map[string]string
+	excludeAnnotations map[string]string
 }
 
 // Run starts the dynamic data gatherer's informers for resource collection.
@@ -369,9 +408,23 @@ func (g *DataGathererDynamic) Fetch() (any, int, error) {
 		cacheObject := item.Object.(*api.GatheredResource)
 		if resource, ok := cacheObject.Resource.(cacheResource); ok {
 			namespace := resource.GetNamespace()
-			if isIncludedNamespace(namespace, fetchNamespaces) {
-				items = append(items, cacheObject)
+			if !isIncludedNamespace(namespace, fetchNamespaces) {
+				continue
 			}
+
+			// filter by labels
+			labels := resource.GetLabels()
+			if !matchesLabelFilter(labels, g.includeLabels, g.excludeLabels) {
+				continue
+			}
+
+			// filter by annotations
+			annotations := resource.GetAnnotations()
+			if !matchesAnnotationFilter(annotations, g.includeAnnotations, g.excludeAnnotations) {
+				continue
+			}
+
+			items = append(items, cacheObject)
 			continue
 		}
 		return nil, -1, fmt.Errorf("failed to parse cached resource")
@@ -563,6 +616,80 @@ func isIncludedNamespace(namespace string, namespaces []string) bool {
 		return true
 	}
 	return slices.Contains(namespaces, namespace)
+}
+
+// matchesLabelFilter checks if the resource labels match the include/exclude filters.
+// If includeLabels is set, all key-value pairs must match for the resource to be included.
+// An empty string value means "match any value for this key" (key-only matching).
+// If excludeLabels is set, any matching key-value pair will exclude the resource.
+func matchesLabelFilter(resourceLabels, includeLabels, excludeLabels map[string]string) bool {
+	// Check exclude labels first
+	if len(excludeLabels) > 0 {
+		for key, value := range excludeLabels {
+			if resourceValue, exists := resourceLabels[key]; exists {
+				// If exclude value is empty, exclude any resource with this key
+				// Otherwise, only exclude if the value also matches
+				if value == "" || resourceValue == value {
+					return false
+				}
+			}
+		}
+	}
+
+	// Check include labels
+	if len(includeLabels) > 0 {
+		for key, value := range includeLabels {
+			resourceValue, exists := resourceLabels[key]
+			if !exists {
+				// Required label key is missing, filter it out
+				return false
+			}
+			// If include value is empty, we only care that the key exists
+			// Otherwise, the value must also match
+			if value != "" && resourceValue != value {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// matchesAnnotationFilter checks if the resource annotations match the include/exclude filters.
+// If includeAnnotations is set, all key-value pairs must match for the resource to be included.
+// An empty string value means "match any value for this key" (key-only matching).
+// If excludeAnnotations is set, any matching key-value pair will exclude the resource.
+func matchesAnnotationFilter(resourceAnnotations, includeAnnotations, excludeAnnotations map[string]string) bool {
+	// Check exclude annotations first
+	if len(excludeAnnotations) > 0 {
+		for key, value := range excludeAnnotations {
+			if resourceValue, exists := resourceAnnotations[key]; exists {
+				// If exclude value is empty, exclude any resource with this key
+				// Otherwise, only exclude if the value also matches
+				if value == "" || resourceValue == value {
+					return false
+				}
+			}
+		}
+	}
+
+	// Check include annotations
+	if len(includeAnnotations) > 0 {
+		for key, value := range includeAnnotations {
+			resourceValue, exists := resourceAnnotations[key]
+			if !exists {
+				// Required annotation key is missing, filter it out
+				return false
+			}
+			// If include value is empty, we only care that the key exists
+			// Otherwise, the value must also match
+			if value != "" && resourceValue != value {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 func isNativeResource(gvr schema.GroupVersionResource) bool {
