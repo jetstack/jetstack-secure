@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/jetstack/preflight/pkg/agent"
-	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8sdynamic"
 )
 
 func TestGenerateAgentRBACManifestsString(t *testing.T) {
@@ -24,7 +24,7 @@ func TestGenerateAgentRBACManifestsString(t *testing.T) {
 				{
 					Name: "k8s/pods",
 					Kind: "k8s-dynamic",
-					Config: &k8s.ConfigDynamic{
+					Config: &k8sdynamic.ConfigDynamic{
 						GroupVersionResource: schema.GroupVersionResource{
 							Version:  "v1",
 							Resource: "pods",
@@ -66,7 +66,7 @@ subjects:
 				{
 					Name: "k8s/pods",
 					Kind: "k8s-dynamic",
-					Config: &k8s.ConfigDynamic{
+					Config: &k8sdynamic.ConfigDynamic{
 						IncludeNamespaces: []string{"foobar"},
 						GroupVersionResource: schema.GroupVersionResource{
 							Version:  "v1",
@@ -110,7 +110,7 @@ subjects:
 				{
 					Name: "k8s/pods",
 					Kind: "k8s-dynamic",
-					Config: &k8s.ConfigDynamic{
+					Config: &k8sdynamic.ConfigDynamic{
 						GroupVersionResource: schema.GroupVersionResource{
 							Version:  "v1",
 							Resource: "pods",
@@ -120,7 +120,7 @@ subjects:
 				{
 					Name: "k8s/nodes",
 					Kind: "k8s-dynamic",
-					Config: &k8s.ConfigDynamic{
+					Config: &k8sdynamic.ConfigDynamic{
 						GroupVersionResource: schema.GroupVersionResource{
 							Version:  "v1",
 							Resource: "nodes",
@@ -205,7 +205,7 @@ func TestGenerateAgentRBACManifests(t *testing.T) {
 				{
 					Name: "k8s/pods",
 					Kind: "k8s-dynamic",
-					Config: &k8s.ConfigDynamic{
+					Config: &k8sdynamic.ConfigDynamic{
 						GroupVersionResource: schema.GroupVersionResource{
 							Version:  "v1",
 							Resource: "pods",
@@ -263,7 +263,7 @@ func TestGenerateAgentRBACManifests(t *testing.T) {
 				{
 					Name: "k8s/pods",
 					Kind: "k8s-dynamic",
-					Config: &k8s.ConfigDynamic{
+					Config: &k8sdynamic.ConfigDynamic{
 						GroupVersionResource: schema.GroupVersionResource{
 							Version:  "v1",
 							Resource: "pods",

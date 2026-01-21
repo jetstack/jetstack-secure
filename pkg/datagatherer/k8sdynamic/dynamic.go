@@ -1,4 +1,4 @@
-package k8s
+package k8sdynamic
 
 // The venafi-kubernetes-agent has a requirement that **all** resources should
 // be uploaded, even short-lived secrets, which are created and deleted
@@ -61,6 +61,7 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/kubeconfig"
 	"github.com/jetstack/preflight/pkg/logs"
 )
 
@@ -210,14 +211,14 @@ var kubernetesNativeResources = map[schema.GroupVersionResource]sharedInformerFu
 // NewDataGatherer constructs a new instance of the generic K8s data-gatherer for the provided
 func (c *ConfigDynamic) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
 	if isNativeResource(c.GroupVersionResource) {
-		clientset, err := NewClientSet(c.KubeConfigPath)
+		clientset, err := kubeconfig.NewClientSet(c.KubeConfigPath)
 		if err != nil {
 			return nil, err
 		}
 
 		return c.newDataGathererWithClient(ctx, nil, clientset)
 	} else {
-		cl, err := NewDynamicClient(c.KubeConfigPath)
+		cl, err := kubeconfig.NewDynamicClient(c.KubeConfigPath)
 		if err != nil {
 			return nil, err
 		}

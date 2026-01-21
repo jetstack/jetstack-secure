@@ -1,4 +1,4 @@
-package k8s
+package k8sdiscovery
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
+	"github.com/jetstack/preflight/pkg/kubeconfig"
 )
 
 // ConfigDiscovery contains the configuration for the k8s-discovery data-gatherer
@@ -38,11 +39,11 @@ func (c *ConfigDiscovery) UnmarshalYAML(unmarshal func(any) error) error {
 // The UID is assumed to be stable for the lifetime of the cluster.
 // - https://github.com/kubernetes/kubernetes/issues/77487#issuecomment-489786023
 func (c *ConfigDiscovery) NewDataGatherer(ctx context.Context) (datagatherer.DataGatherer, error) {
-	cl, err := NewDiscoveryClient(c.KubeConfigPath)
+	cl, err := kubeconfig.NewDiscoveryClient(c.KubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
-	cs, err := NewClientSet(c.KubeConfigPath)
+	cs, err := kubeconfig.NewClientSet(c.KubeConfigPath)
 	if err != nil {
 		return nil, fmt.Errorf("while creating new clientset: %s", err)
 	}

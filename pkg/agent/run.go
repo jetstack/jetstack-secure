@@ -33,7 +33,7 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
-	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8sdynamic"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
@@ -176,7 +176,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 			return fmt.Errorf("failed to instantiate %q data gatherer  %q: %v", kind, dgConfig.Name, err)
 		}
 
-		dynDg, isDynamicGatherer := newDg.(*k8s.DataGathererDynamic)
+		dynDg, isDynamicGatherer := newDg.(*k8sdynamic.DataGathererDynamic)
 		if isDynamicGatherer {
 			dynDg.ExcludeAnnotKeys = config.ExcludeAnnotationKeysRegex
 			dynDg.ExcludeLabelKeys = config.ExcludeLabelKeysRegex
@@ -222,7 +222,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		// the run.
 		if err := dg.WaitForCacheSync(bootCtx); err != nil {
 			// log sync failure, this might recover in future
-			if errors.Is(err, k8s.ErrCacheSyncTimeout) {
+			if errors.Is(err, k8sdynamic.ErrCacheSyncTimeout) {
 				timedoutDGs = append(timedoutDGs, dgConfig.Name)
 			} else {
 				log.V(logs.Info).Info("Failed to sync cache for datagatherer", "kind", dgConfig.Kind, "name", dgConfig.Name, "error", err)
