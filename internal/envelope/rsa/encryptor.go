@@ -1,4 +1,4 @@
-package envelope
+package rsa
 
 import (
 	"crypto/aes"
@@ -7,6 +7,8 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"fmt"
+
+	"github.com/jetstack/preflight/internal/envelope"
 )
 
 const (
@@ -17,17 +19,24 @@ const (
 	// minRSAKeySize is the minimum RSA key size in bits; we'd expect that keys will be larger but 2048 is a sane floor
 	// to enforce to ensure that a weak key can't accidentally be used
 	minRSAKeySize = 2048
+
+	// keyAlgorithmIdentifier is set in EncryptedData to identify the key wrapping algorithm used in this package
+	keyAlgorithmIdentifier = "RSA-OAEP-SHA256"
 )
+
+// Compile-time check that Encryptor implements envelope.Encryptor
+var _ envelope.Encryptor = (*Encryptor)(nil)
 
 // Encryptor provides envelope encryption using RSA for key wrapping
 // and AES-256-GCM for data encryption.
 type Encryptor struct {
+	keyID        string
 	rsaPublicKey *rsa.PublicKey
 }
 
 // NewEncryptor creates a new Encryptor with the provided RSA public key.
 // The RSA key must be at least minRSAKeySize bits
-func NewEncryptor(publicKey *rsa.PublicKey) (*Encryptor, error) {
+func NewEncryptor(keyID string, publicKey *rsa.PublicKey) (*Encryptor, error) {
 	if publicKey == nil {
 		return nil, fmt.Errorf("RSA public key cannot be nil")
 	}
@@ -38,7 +47,12 @@ func NewEncryptor(publicKey *rsa.PublicKey) (*Encryptor, error) {
 		return nil, fmt.Errorf("RSA key size must be at least %d bits, got %d bits", minRSAKeySize, keySize)
 	}
 
+	if len(keyID) == 0 {
+		return nil, fmt.Errorf("keyID cannot be empty")
+	}
+
 	return &Encryptor{
+		keyID:        keyID,
 		rsaPublicKey: publicKey,
 	}, nil
 }
@@ -46,7 +60,7 @@ func NewEncryptor(publicKey *rsa.PublicKey) (*Encryptor, error) {
 // Encrypt performs envelope encryption on the provided data.
 // It generates a random AES-256 key, encrypts the data with AES-256-GCM,
 // then encrypts the AES key with RSA-OAEP-SHA256.
-func (e *Encryptor) Encrypt(data []byte) (*EncryptedData, error) {
+func (e *Encryptor) Encrypt(data []byte) (*envelope.EncryptedData, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("data to encrypt cannot be empty")
 	}
@@ -74,7 +88,9 @@ func (e *Encryptor) Encrypt(data []byte) (*EncryptedData, error) {
 		return nil, fmt.Errorf("failed to create GCM cipher: %w", err)
 	}
 
-	encryptedData := &EncryptedData{
+	encryptedData := &envelope.EncryptedData{
+		KeyID:         e.keyID,
+		KeyAlgorithm:  keyAlgorithmIdentifier,
 		EncryptedKey:  nil,
 		EncryptedData: nil,
 		Nonce:         make([]byte, gcm.NonceSize()),

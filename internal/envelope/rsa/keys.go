@@ -1,4 +1,4 @@
-package envelope
+package rsa
 
 import (
 	"crypto/rsa"

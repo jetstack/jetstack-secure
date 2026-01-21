@@ -1,4 +1,4 @@
-package envelope_test
+package rsa_test
 
 import (
 	"crypto/ecdsa"
@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/jetstack/preflight/internal/envelope"
+	internalrsa "github.com/jetstack/preflight/internal/envelope/rsa"
 )
 
 func generateTestKeyPEM(t *testing.T, keySize int, pemType string) []byte {
@@ -49,7 +49,7 @@ func generateTestKeyPEM(t *testing.T, keySize int, pemType string) []byte {
 func TestLoadPublicKeyFromPEM_PKIX(t *testing.T) {
 	pemBytes := generateTestKeyPEM(t, 2048, "PUBLIC KEY")
 
-	key, err := envelope.LoadPublicKeyFromPEM(pemBytes)
+	key, err := internalrsa.LoadPublicKeyFromPEM(pemBytes)
 	require.NoError(t, err)
 	require.NotNil(t, key)
 	require.Equal(t, 2048, key.N.BitLen())
@@ -58,7 +58,7 @@ func TestLoadPublicKeyFromPEM_PKIX(t *testing.T) {
 func TestLoadPublicKeyFromPEM_PKCS1(t *testing.T) {
 	pemBytes := generateTestKeyPEM(t, 2048, "RSA PUBLIC KEY")
 
-	key, err := envelope.LoadPublicKeyFromPEM(pemBytes)
+	key, err := internalrsa.LoadPublicKeyFromPEM(pemBytes)
 	require.NoError(t, err)
 	require.NotNil(t, key)
 	require.Equal(t, 2048, key.N.BitLen())
@@ -67,7 +67,7 @@ func TestLoadPublicKeyFromPEM_PKCS1(t *testing.T) {
 func TestLoadPublicKeyFromPEM_InvalidPEM(t *testing.T) {
 	invalidPEM := []byte("this is not a valid PEM")
 
-	key, err := envelope.LoadPublicKeyFromPEM(invalidPEM)
+	key, err := internalrsa.LoadPublicKeyFromPEM(invalidPEM)
 	require.Error(t, err)
 	require.Nil(t, key)
 	require.Contains(t, err.Error(), "failed to decode PEM block")
@@ -84,7 +84,7 @@ func TestLoadPublicKeyFromPEM_WrongPEMType(t *testing.T) {
 		Bytes: privateKeyBytes,
 	})
 
-	key, err := envelope.LoadPublicKeyFromPEM(pemBytes)
+	key, err := internalrsa.LoadPublicKeyFromPEM(pemBytes)
 	require.Error(t, err)
 	require.Nil(t, key)
 	require.Contains(t, err.Error(), "unsupported PEM block type")
@@ -104,7 +104,7 @@ func TestLoadPublicKeyFromPEM_NonRSAKey(t *testing.T) {
 		Bytes: publicKeyBytes,
 	})
 
-	key, err := envelope.LoadPublicKeyFromPEM(pemBytes)
+	key, err := internalrsa.LoadPublicKeyFromPEM(pemBytes)
 	require.Error(t, err)
 	require.Nil(t, key)
 	require.Contains(t, err.Error(), "not an RSA public key")
@@ -118,14 +118,14 @@ func TestLoadPublicKeyFromPEMFile_ValidFile(t *testing.T) {
 	err := os.WriteFile(keyPath, pemBytes, 0600)
 	require.NoError(t, err)
 
-	key, err := envelope.LoadPublicKeyFromPEMFile(keyPath)
+	key, err := internalrsa.LoadPublicKeyFromPEMFile(keyPath)
 	require.NoError(t, err)
 	require.NotNil(t, key)
 	require.Equal(t, 2048, key.N.BitLen())
 }
 
 func TestLoadPublicKeyFromPEMFile_MissingFile(t *testing.T) {
-	key, err := envelope.LoadPublicKeyFromPEMFile("/nonexistent/path/key.pem")
+	key, err := internalrsa.LoadPublicKeyFromPEMFile("/nonexistent/path/key.pem")
 	require.Error(t, err)
 	require.Nil(t, key)
 	require.Contains(t, err.Error(), "failed to read PEM file")
@@ -138,7 +138,7 @@ func TestLoadPublicKeyFromPEMFile_InvalidContent(t *testing.T) {
 	err := os.WriteFile(keyPath, []byte("not a valid PEM"), 0600)
 	require.NoError(t, err)
 
-	key, err := envelope.LoadPublicKeyFromPEMFile(keyPath)
+	key, err := internalrsa.LoadPublicKeyFromPEMFile(keyPath)
 	require.Error(t, err)
 	require.Nil(t, key)
 }
