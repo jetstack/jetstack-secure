@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/jetstack/preflight/pkg/agent"
-	"github.com/jetstack/preflight/pkg/datagatherer/k8s"
+	"github.com/jetstack/preflight/pkg/datagatherer/k8sdynamic"
 )
 
 // AgentRBACManifests is a wrapper around the various RBAC structs needed to grant the agent fine-grained permissions as per its dg configs
@@ -34,7 +34,7 @@ func GenerateAgentRBACManifests(dataGatherers []agent.DataGatherer) AgentRBACMan
 			continue
 		}
 
-		dyConfig := dg.Config.(*k8s.ConfigDynamic)
+		dyConfig := dg.Config.(*k8sdynamic.ConfigDynamic)
 		metadataName := fmt.Sprintf("%s-agent-%s-reader", agentNamespace, dyConfig.GroupVersionResource.Resource)
 
 		AgentRBACManifests.ClusterRoles = append(AgentRBACManifests.ClusterRoles, rbac.ClusterRole{
