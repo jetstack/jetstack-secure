@@ -476,6 +476,13 @@ Cannot be used if `maxUnavailable` is set.
 Configure the maximum unavailable pods for disruptions. Can either be set to an integer (e.g. 1) or a percentage value (e.g. 25%).  
 Cannot be used if `minAvailable` is set.
 
+#### **venafiConnection.include** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+When set to false, the rendered output does not contain the. VenafiConnection CRDs and RBAC. This is useful for when the. Venafi Connection resources are already installed separately.
 ### CRDs
 
 
@@ -494,12 +501,5 @@ The 'x-kubernetes-validations' annotation is not supported in Kubernetes 1.22 an
 > ```
 
 This option makes it so that the "helm.sh/resource-policy": keep annotation is added to the CRD. This will prevent Helm from uninstalling the CRD when the Helm release is uninstalled.
-#### **crds.venafiConnection.include** ~ `bool`
-> Default value:
-> ```yaml
-> false
-> ```
-
-When set to false, the rendered output does not contain the. VenafiConnection CRDs and RBAC. This is useful for when the. Venafi Connection resources are already installed separately.
 
 <!-- /AUTO-GENERATED -->
