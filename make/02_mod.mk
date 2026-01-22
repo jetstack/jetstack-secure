@@ -77,9 +77,9 @@ helm-plugins: $(NEEDS_HELM)
 	fi
 
 # https://docs.cyberark.com/mis-saas/vaas/venctl/c-venctl-releases/
-venctl_linux_amd64_SHA256SUM=26e7b7a7e134f1cf1f3ffacf4ae53ec6849058db5007ce4088d51f404ededb4a
-venctl_darwin_amd64_SHA256SUM=2e76693901abcb2c018f66d3a10558c66ca09d1a3be912258bcd6c58e89aae80
-venctl_darwin_arm64_SHA256SUM=4350912d67683773302655e2a0151320514d1ccf82ee99c895e6780f86b6f031
+venctl_linux_amd64_SHA256SUM=f1027056ec243c7ea9183fe410d5daf99cd4fa18cff9149d64749a106832595a
+venctl_darwin_amd64_SHA256SUM=4f75900c7b3256cc786004bd5d6193f95f505521e761a9917b3c3d243440f77e
+venctl_darwin_arm64_SHA256SUM=1648b17020291f90b8c1195be8b963d96f7be31a6e43ba944dd104729f16d1c5
 
 .PRECIOUS: $(DOWNLOAD_DIR)/tools/venctl@$(VENCTL_VERSION)_$(HOST_OS)_$(HOST_ARCH)
 $(DOWNLOAD_DIR)/tools/venctl@$(VENCTL_VERSION)_$(HOST_OS)_$(HOST_ARCH): | $(DOWNLOAD_DIR)/tools
