@@ -71,7 +71,7 @@ test-helm-snapshot: | $(NEEDS_HELM-UNITTEST)
 helm-plugins: $(NEEDS_HELM)
 	@if ! $(HELM) plugin list | grep -q diff; then \
 		echo ">>> Installing helm-diff plugin"; \
-		$(HELM) plugin install https://github.com/databus23/helm-diff; \
+		$(HELM) plugin install https://github.com/databus23/helm-diff --verify=false; \
 	else \
 		echo "helm-diff plugin already installed"; \
 	fi
