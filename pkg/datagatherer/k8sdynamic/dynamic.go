@@ -415,13 +415,13 @@ func (g *DataGathererDynamic) Fetch() (any, int, error) {
 
 			// filter by labels
 			labels := resource.GetLabels()
-			if !matchesLabelFilter(labels, g.includeLabels, g.excludeLabels) {
+			if !matchesFilter(labels, g.includeLabels, g.excludeLabels) {
 				continue
 			}
 
 			// filter by annotations
 			annotations := resource.GetAnnotations()
-			if !matchesAnnotationFilter(annotations, g.includeAnnotations, g.excludeAnnotations) {
+			if !matchesFilter(annotations, g.includeAnnotations, g.excludeAnnotations) {
 				continue
 			}
 
@@ -619,15 +619,15 @@ func isIncludedNamespace(namespace string, namespaces []string) bool {
 	return slices.Contains(namespaces, namespace)
 }
 
-// matchesLabelFilter checks if the resource labels match the include/exclude filters.
-// If includeLabels is set, all key-value pairs must match for the resource to be included.
+// matchesFilter checks if the resource metadata (labels or annotations) match the include/exclude filters.
+// If includeFilters is set, all key-value pairs must match for the resource to be included.
 // An empty string value means "match any value for this key" (key-only matching).
-// If excludeLabels is set, any matching key-value pair will exclude the resource.
-func matchesLabelFilter(resourceLabels, includeLabels, excludeLabels map[string]string) bool {
-	// Check exclude labels first
-	if len(excludeLabels) > 0 {
-		for key, value := range excludeLabels {
-			if resourceValue, exists := resourceLabels[key]; exists {
+// If excludeFilters is set, any matching key-value pair will exclude the resource.
+func matchesFilter(resourceMetadata, includeFilters, excludeFilters map[string]string) bool {
+	// Check exclude filters first
+	if len(excludeFilters) > 0 {
+		for key, value := range excludeFilters {
+			if resourceValue, exists := resourceMetadata[key]; exists {
 				// If exclude value is empty, exclude any resource with this key
 				// Otherwise, only exclude if the value also matches
 				if value == "" || resourceValue == value {
@@ -637,49 +637,12 @@ func matchesLabelFilter(resourceLabels, includeLabels, excludeLabels map[string]
 		}
 	}
 
-	// Check include labels
-	if len(includeLabels) > 0 {
-		for key, value := range includeLabels {
-			resourceValue, exists := resourceLabels[key]
+	// Check include filters
+	if len(includeFilters) > 0 {
+		for key, value := range includeFilters {
+			resourceValue, exists := resourceMetadata[key]
 			if !exists {
-				// Required label key is missing, filter it out
-				return false
-			}
-			// If include value is empty, we only care that the key exists
-			// Otherwise, the value must also match
-			if value != "" && resourceValue != value {
-				return false
-			}
-		}
-	}
-
-	return true
-}
-
-// matchesAnnotationFilter checks if the resource annotations match the include/exclude filters.
-// If includeAnnotations is set, all key-value pairs must match for the resource to be included.
-// An empty string value means "match any value for this key" (key-only matching).
-// If excludeAnnotations is set, any matching key-value pair will exclude the resource.
-func matchesAnnotationFilter(resourceAnnotations, includeAnnotations, excludeAnnotations map[string]string) bool {
-	// Check exclude annotations first
-	if len(excludeAnnotations) > 0 {
-		for key, value := range excludeAnnotations {
-			if resourceValue, exists := resourceAnnotations[key]; exists {
-				// If exclude value is empty, exclude any resource with this key
-				// Otherwise, only exclude if the value also matches
-				if value == "" || resourceValue == value {
-					return false
-				}
-			}
-		}
-	}
-
-	// Check include annotations
-	if len(includeAnnotations) > 0 {
-		for key, value := range includeAnnotations {
-			resourceValue, exists := resourceAnnotations[key]
-			if !exists {
-				// Required annotation key is missing, filter it out
+				// Required key is missing, filter it out
 				return false
 			}
 			// If include value is empty, we only care that the key exists

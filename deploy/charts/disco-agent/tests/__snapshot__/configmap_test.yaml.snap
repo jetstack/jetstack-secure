@@ -97,12 +97,12 @@ custom-cluster-description:
               resource: pods
         - kind: k8s-dynamic
           name: ark/configmaps
-          include-resources-by-labels:
-            conjur.org/name: "conjur-connect-configmap"
           config:
             resource-type:
               version: v1
               resource: configmaps
+            include-resources-by-labels:
+              conjur.org/name: "conjur-connect-configmap"
     kind: ConfigMap
     metadata:
       labels:
@@ -212,12 +212,12 @@ custom-cluster-name:
               resource: pods
         - kind: k8s-dynamic
           name: ark/configmaps
-          include-resources-by-labels:
-            conjur.org/name: "conjur-connect-configmap"
           config:
             resource-type:
               version: v1
               resource: configmaps
+            include-resources-by-labels:
+              conjur.org/name: "conjur-connect-configmap"
     kind: ConfigMap
     metadata:
       labels:
@@ -327,12 +327,12 @@ custom-period:
               resource: pods
         - kind: k8s-dynamic
           name: ark/configmaps
-          include-resources-by-labels:
-            conjur.org/name: "conjur-connect-configmap"
           config:
             resource-type:
               version: v1
               resource: configmaps
+            include-resources-by-labels:
+              conjur.org/name: "conjur-connect-configmap"
     kind: ConfigMap
     metadata:
       labels:
@@ -442,12 +442,12 @@ defaults:
               resource: pods
         - kind: k8s-dynamic
           name: ark/configmaps
-          include-resources-by-labels:
-            conjur.org/name: "conjur-connect-configmap"
           config:
             resource-type:
               version: v1
               resource: configmaps
+            include-resources-by-labels:
+              conjur.org/name: "conjur-connect-configmap"
     kind: ConfigMap
     metadata:
       labels:

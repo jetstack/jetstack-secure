@@ -133,3 +133,5 @@ data-gatherers:
     resource-type:
       version: v1
       resource: configmaps
+    include-resources-by-labels:
+      conjur.org/name: "conjur-connect-configmap"

@@ -1409,7 +1409,7 @@ func TestMatchesLabelFilter(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			result := matchesLabelFilter(tc.resourceLabels, tc.includeLabels, tc.excludeLabels)
+			result := matchesFilter(tc.resourceLabels, tc.includeLabels, tc.excludeLabels)
 			if result != tc.expected {
 				t.Errorf("expected %v, got %v", tc.expected, result)
 			}
@@ -1464,7 +1464,7 @@ func TestMatchesAnnotationFilter(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			result := matchesAnnotationFilter(tc.resourceAnnotations, tc.includeAnnotations, tc.excludeAnnotations)
+			result := matchesFilter(tc.resourceAnnotations, tc.includeAnnotations, tc.excludeAnnotations)
 			if result != tc.expected {
 				t.Errorf("expected %v, got %v", tc.expected, result)
 			}
@@ -1645,6 +1645,236 @@ func TestDynamicGatherer_Fetch_WithAnnotationFilters(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.expectedCount, count)
+		})
+	}
+}
+
+func TestDynamicGatherer_Fetch_WithCombinedFilters(t *testing.T) {
+	ctx := t.Context()
+
+	tests := map[string]struct {
+		config        ConfigDynamic
+		addObjects    []runtime.Object
+		expectedCount int
+		expectedNames []string
+	}{
+		"include labels AND include annotations - both must match": {
+			config: ConfigDynamic{
+				GroupVersionResource:          schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				IncludeResourcesByLabels:      map[string]string{"app": "myapp"},
+				IncludeResourcesByAnnotations: map[string]string{"prometheus.io/scrape": "true"},
+			},
+			addObjects: []runtime.Object{
+				// Has both label and annotation - should be included
+				getObjectAnnot("test.io/v1", "TestResource", "res-both", "default",
+					map[string]any{"prometheus.io/scrape": "true"},
+					map[string]any{"app": "myapp"}),
+				// Has label but not annotation - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-label-only", "default",
+					map[string]any{"description": "test"},
+					map[string]any{"app": "myapp"}),
+				// Has annotation but not label - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-annot-only", "default",
+					map[string]any{"prometheus.io/scrape": "true"},
+					map[string]any{"app": "other"}),
+				// Has neither - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-none", "default",
+					map[string]any{"description": "test"},
+					map[string]any{"env": "prod"}),
+			},
+			expectedCount: 1,
+			expectedNames: []string{"res-both"},
+		},
+		"include labels AND exclude annotations - label must match, annotation must not": {
+			config: ConfigDynamic{
+				GroupVersionResource:          schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				IncludeResourcesByLabels:      map[string]string{"app": "myapp"},
+				ExcludeResourcesByAnnotations: map[string]string{"deprecated": "true"},
+			},
+			addObjects: []runtime.Object{
+				// Has label and no deprecated annotation - should be included
+				getObjectAnnot("test.io/v1", "TestResource", "res-good", "default",
+					map[string]any{"description": "test"},
+					map[string]any{"app": "myapp"}),
+				// Has label but also deprecated - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-deprecated", "default",
+					map[string]any{"deprecated": "true"},
+					map[string]any{"app": "myapp"}),
+				// No label - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-no-label", "default",
+					map[string]any{"description": "test"},
+					map[string]any{"app": "other"}),
+			},
+			expectedCount: 1,
+			expectedNames: []string{"res-good"},
+		},
+		"exclude labels AND include annotations - annotation must match, label must not": {
+			config: ConfigDynamic{
+				GroupVersionResource:          schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				ExcludeResourcesByLabels:      map[string]string{"env": "test"},
+				IncludeResourcesByAnnotations: map[string]string{"monitor": "true"},
+			},
+			addObjects: []runtime.Object{
+				// Has annotation and no excluded label - should be included
+				getObjectAnnot("test.io/v1", "TestResource", "res-good", "default",
+					map[string]any{"monitor": "true"},
+					map[string]any{"env": "prod"}),
+				// Has annotation but also excluded label - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-excluded", "default",
+					map[string]any{"monitor": "true"},
+					map[string]any{"env": "test"}),
+				// No annotation - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-no-annot", "default",
+					map[string]any{"description": "test"},
+					map[string]any{"env": "prod"}),
+			},
+			expectedCount: 1,
+			expectedNames: []string{"res-good"},
+		},
+		"exclude labels AND exclude annotations - either exclusion applies": {
+			config: ConfigDynamic{
+				GroupVersionResource:          schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				ExcludeResourcesByLabels:      map[string]string{"env": "test"},
+				ExcludeResourcesByAnnotations: map[string]string{"deprecated": "true"},
+			},
+			addObjects: []runtime.Object{
+				// Has neither exclusion - should be included
+				getObjectAnnot("test.io/v1", "TestResource", "res-good", "default",
+					map[string]any{"description": "test"},
+					map[string]any{"env": "prod"}),
+				// Has excluded label - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-label-excluded", "default",
+					map[string]any{"description": "test"},
+					map[string]any{"env": "test"}),
+				// Has excluded annotation - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-annot-excluded", "default",
+					map[string]any{"deprecated": "true"},
+					map[string]any{"env": "prod"}),
+				// Has both exclusions - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-both-excluded", "default",
+					map[string]any{"deprecated": "true"},
+					map[string]any{"env": "test"}),
+			},
+			expectedCount: 1,
+			expectedNames: []string{"res-good"},
+		},
+		"include labels with key-only match AND include annotations with key-only match": {
+			config: ConfigDynamic{
+				GroupVersionResource:          schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				IncludeResourcesByLabels:      map[string]string{"conjur.org/name": ""},
+				IncludeResourcesByAnnotations: map[string]string{"managed-by": ""},
+			},
+			addObjects: []runtime.Object{
+				// Has both keys with any value - should be included
+				getObjectAnnot("test.io/v1", "TestResource", "res-both", "default",
+					map[string]any{"managed-by": "operator"},
+					map[string]any{"conjur.org/name": "my-config"}),
+				// Has label key but not annotation key - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-label-only", "default",
+					map[string]any{"description": "test"},
+					map[string]any{"conjur.org/name": "my-config"}),
+				// Has annotation key but not label key - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-annot-only", "default",
+					map[string]any{"managed-by": "operator"},
+					map[string]any{"app": "other"}),
+			},
+			expectedCount: 1,
+			expectedNames: []string{"res-both"},
+		},
+		"multiple include labels AND multiple include annotations": {
+			config: ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				IncludeResourcesByLabels: map[string]string{
+					"app":     "myapp",
+					"version": "v1",
+				},
+				IncludeResourcesByAnnotations: map[string]string{
+					"prometheus.io/scrape": "true",
+					"prometheus.io/port":   "8080",
+				},
+			},
+			addObjects: []runtime.Object{
+				// Has all required labels and annotations - should be included
+				getObjectAnnot("test.io/v1", "TestResource", "res-all", "default",
+					map[string]any{"prometheus.io/scrape": "true", "prometheus.io/port": "8080"},
+					map[string]any{"app": "myapp", "version": "v1"}),
+				// Missing one label - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-missing-label", "default",
+					map[string]any{"prometheus.io/scrape": "true", "prometheus.io/port": "8080"},
+					map[string]any{"app": "myapp"}),
+				// Missing one annotation - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-missing-annot", "default",
+					map[string]any{"prometheus.io/scrape": "true"},
+					map[string]any{"app": "myapp", "version": "v1"}),
+			},
+			expectedCount: 1,
+			expectedNames: []string{"res-all"},
+		},
+		"exclude labels with key-only AND exclude annotations with key-only": {
+			config: ConfigDynamic{
+				GroupVersionResource:          schema.GroupVersionResource{Group: "test.io", Version: "v1", Resource: "testresources"},
+				ExcludeResourcesByLabels:      map[string]string{"internal": ""},
+				ExcludeResourcesByAnnotations: map[string]string{"deprecated": ""},
+			},
+			addObjects: []runtime.Object{
+				// Has neither exclusion key - should be included
+				getObjectAnnot("test.io/v1", "TestResource", "res-good", "default",
+					map[string]any{"description": "test"},
+					map[string]any{"app": "myapp"}),
+				// Has excluded label key (any value) - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-internal", "default",
+					map[string]any{"description": "test"},
+					map[string]any{"internal": "yes"}),
+				// Has excluded annotation key (any value) - should be excluded
+				getObjectAnnot("test.io/v1", "TestResource", "res-deprecated", "default",
+					map[string]any{"deprecated": "yes"},
+					map[string]any{"app": "myapp"}),
+			},
+			expectedCount: 1,
+			expectedNames: []string{"res-good"},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cl := fake.NewSimpleDynamicClient(runtime.NewScheme(), tc.addObjects...)
+			dg, err := tc.config.newDataGathererWithClient(ctx, cl, nil)
+			require.NoError(t, err)
+
+			dgd := dg.(*DataGathererDynamic)
+
+			// Start the data gatherer
+			go func() {
+				if err = dgd.Run(ctx); err != nil {
+					t.Errorf("unexpected client error: %+v", err)
+				}
+			}()
+
+			err = dgd.WaitForCacheSync(ctx)
+			require.NoError(t, err)
+
+			// Give some time for the cache to populate
+			time.Sleep(200 * time.Millisecond)
+
+			data, count, err := dgd.Fetch()
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.expectedCount, count)
+
+			if len(tc.expectedNames) > 0 {
+				dynamicData, ok := data.(*api.DynamicData)
+				require.True(t, ok, "data should be *api.DynamicData")
+
+				actualNames := make([]string, 0, len(dynamicData.Items))
+				for _, item := range dynamicData.Items {
+					if !item.DeletedAt.IsZero() {
+						continue
+					}
+					actualNames = append(actualNames, item.Resource.(*unstructured.Unstructured).GetName())
+				}
+
+				assert.ElementsMatch(t, tc.expectedNames, actualNames)
+			}
 		})
 	}
 }
