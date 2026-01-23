@@ -65,8 +65,9 @@ kubectl create secret generic agent-credentials \
         --from-literal=ARK_SUBDOMAIN=$ARK_SUBDOMAIN \
         --from-literal=ARK_DISCOVERY_API=$ARK_DISCOVERY_API
 
-helm upgrade agent "oci://${ARK_CHART}@${ARK_CHART_DIGEST}" \
-     --version "${ARK_CHART_TAG}" \
+# We use a non-existent tag and omit the `--version` flag, to work around a Helm
+# v4 bug. See: https://github.com/helm/helm/issues/31600
+helm upgrade agent "oci://${ARK_CHART}:NON_EXISTENT_TAG@${ARK_CHART_DIGEST}" \
      --install \
      --wait \
      --create-namespace \
