@@ -36,7 +36,7 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	err = cl.PutSnapshot(ctx, dataupload.Snapshot{
-		ClusterID:    "success-cluster-id",
+		ClusterID:    "ffffffff-ffff-ffff-ffff-ffffffffffff",
 		AgentVersion: version.PreflightVersion,
 	})
 	require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestCyberArkClient_PutSnapshot_RealAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	err = cl.PutSnapshot(ctx, dataupload.Snapshot{
-		ClusterID:    "bb068932-c80d-460d-88df-34bc7f3f3297",
+		ClusterID:    "ffffffff-ffff-ffff-ffff-ffffffffffff",
 		AgentVersion: version.PreflightVersion,
 	})
 	require.NoError(t, err)

@@ -22,7 +22,7 @@ import (
 const (
 	successBearerToken = "success-token"
 
-	successClusterID = "success-cluster-id"
+	successClusterID = "ffffffff-ffff-ffff-ffff-ffffffffffff"
 )
 
 type mockDataUploadServer struct {

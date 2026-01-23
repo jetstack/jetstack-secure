@@ -65,6 +65,15 @@ kubectl create secret generic agent-credentials \
         --from-literal=ARK_SUBDOMAIN=$ARK_SUBDOMAIN \
         --from-literal=ARK_DISCOVERY_API=$ARK_DISCOVERY_API
 
+# Create a sample secret in the cluster
+#
+# TODO(wallrj): See if there's an API for checking that this secret has been
+# imported by the backend. For now we have to log into the Disco web UI and
+# search for this secret.
+kubectl create secret generic e2e-sample-secret-$(date '+%s') \
+        --namespace default \
+        --from-literal=username=${RANDOM}
+
 # We use a non-existent tag and omit the `--version` flag, to work around a Helm
 # v4 bug. See: https://github.com/helm/helm/issues/31600
 helm upgrade agent "oci://${ARK_CHART}:NON_EXISTENT_TAG@${ARK_CHART_DIGEST}" \
@@ -76,7 +85,9 @@ helm upgrade agent "oci://${ARK_CHART}:NON_EXISTENT_TAG@${ARK_CHART_DIGEST}" \
      --set pprof.enabled=true \
      --set fullnameOverride=disco-agent \
      --set "image.digest=${ARK_IMAGE_DIGEST}" \
+     --set config.clusterName="e2e-test-cluster" \
      --set config.clusterDescription="A temporary cluster for E2E testing. Contact @wallrj-cyberark." \
+     --set config.period=60s \
      --set-json "podLabels={\"disco-agent.cyberark.cloud/test-id\": \"${RANDOM}\"}"
 
 kubectl rollout status deployments/disco-agent --namespace "${NAMESPACE}"
