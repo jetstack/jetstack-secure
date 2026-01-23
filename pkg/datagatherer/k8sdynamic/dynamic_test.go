@@ -1405,6 +1405,30 @@ func TestMatchesLabelFilter(t *testing.T) {
 			excludeLabels:  nil,
 			expected:       false,
 		},
+		"case sensitive - include label key case mismatch": {
+			resourceLabels: map[string]string{"App": "test"},
+			includeLabels:  map[string]string{"app": "test"},
+			excludeLabels:  nil,
+			expected:       false,
+		},
+		"case sensitive - include label value case mismatch": {
+			resourceLabels: map[string]string{"app": "Test"},
+			includeLabels:  map[string]string{"app": "test"},
+			excludeLabels:  nil,
+			expected:       false,
+		},
+		"case sensitive - exclude label key case mismatch": {
+			resourceLabels: map[string]string{"App": "prod"},
+			includeLabels:  nil,
+			excludeLabels:  map[string]string{"app": "prod"},
+			expected:       true,
+		},
+		"case sensitive - exclude label value case mismatch": {
+			resourceLabels: map[string]string{"app": "Prod"},
+			includeLabels:  nil,
+			excludeLabels:  map[string]string{"app": "prod"},
+			expected:       true,
+		},
 	}
 
 	for name, tc := range tests {
@@ -1459,6 +1483,30 @@ func TestMatchesAnnotationFilter(t *testing.T) {
 			includeAnnotations:  nil,
 			excludeAnnotations:  map[string]string{"deprecated": ""},
 			expected:            false,
+		},
+		"case sensitive - include annotation key case mismatch": {
+			resourceAnnotations: map[string]string{"Description": "test"},
+			includeAnnotations:  map[string]string{"description": "test"},
+			excludeAnnotations:  nil,
+			expected:            false,
+		},
+		"case sensitive - include annotation value case mismatch": {
+			resourceAnnotations: map[string]string{"description": "Test"},
+			includeAnnotations:  map[string]string{"description": "test"},
+			excludeAnnotations:  nil,
+			expected:            false,
+		},
+		"case sensitive - exclude annotation key case mismatch": {
+			resourceAnnotations: map[string]string{"Internal": "true"},
+			includeAnnotations:  nil,
+			excludeAnnotations:  map[string]string{"internal": "true"},
+			expected:            true,
+		},
+		"case sensitive - exclude annotation value case mismatch": {
+			resourceAnnotations: map[string]string{"internal": "True"},
+			includeAnnotations:  nil,
+			excludeAnnotations:  map[string]string{"internal": "true"},
+			expected:            true,
 		},
 	}
 
@@ -1871,6 +1919,144 @@ func TestDynamicGatherer_Fetch_WithCombinedFilters(t *testing.T) {
 						continue
 					}
 					actualNames = append(actualNames, item.Resource.(*unstructured.Unstructured).GetName())
+				}
+
+				assert.ElementsMatch(t, tc.expectedNames, actualNames)
+			}
+		})
+	}
+}
+
+func TestDynamicGatherer_Fetch_WithLabelFilters_NativeResources(t *testing.T) {
+	ctx := t.Context()
+
+	tests := map[string]struct {
+		config        ConfigDynamic
+		addObjects    []runtime.Object
+		expectedCount int
+		expectedNames []string
+	}{
+		"include labels on Pods - match by app label": {
+			config: ConfigDynamic{
+				GroupVersionResource:     schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+				IncludeResourcesByLabels: map[string]string{"app": "nginx"},
+			},
+			addObjects: []runtime.Object{
+				&corev1.Pod{
+					TypeMeta:   metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "nginx-pod", Namespace: "default", UID: "uid-nginx", Labels: map[string]string{"app": "nginx"}},
+				},
+				&corev1.Pod{
+					TypeMeta:   metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "apache-pod", Namespace: "default", UID: "uid-apache", Labels: map[string]string{"app": "apache"}},
+				},
+				&corev1.Pod{
+					TypeMeta:   metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "no-label-pod", Namespace: "default", UID: "uid-no-label"},
+				},
+			},
+			expectedCount: 1,
+			expectedNames: []string{"nginx-pod"},
+		},
+		"exclude labels on Pods - exclude test environment": {
+			config: ConfigDynamic{
+				GroupVersionResource:     schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+				ExcludeResourcesByLabels: map[string]string{"env": "test"},
+			},
+			addObjects: []runtime.Object{
+				&corev1.Pod{
+					TypeMeta:   metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "prod-pod", Namespace: "default", UID: "uid-prod", Labels: map[string]string{"env": "prod"}},
+				},
+				&corev1.Pod{
+					TypeMeta:   metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "test-pod", Namespace: "default", UID: "uid-test", Labels: map[string]string{"env": "test"}},
+				},
+			},
+			expectedCount: 1,
+			expectedNames: []string{"prod-pod"},
+		},
+		"include labels on ConfigMaps - multiple label match": {
+			config: ConfigDynamic{
+				GroupVersionResource:     schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"},
+				IncludeResourcesByLabels: map[string]string{"app": "web", "tier": "frontend"},
+			},
+			addObjects: []runtime.Object{
+				&corev1.ConfigMap{
+					TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "frontend-cm", Namespace: "default", UID: "uid-frontend", Labels: map[string]string{"app": "web", "tier": "frontend"}},
+				},
+				&corev1.ConfigMap{
+					TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "backend-cm", Namespace: "default", UID: "uid-backend", Labels: map[string]string{"app": "api", "tier": "backend"}},
+				},
+				&corev1.ConfigMap{
+					TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "partial-cm", Namespace: "default", UID: "uid-partial", Labels: map[string]string{"app": "web"}},
+				},
+			},
+			expectedCount: 1,
+			expectedNames: []string{"frontend-cm"},
+		},
+		"exclude labels on ConfigMaps - exclude by key only": {
+			config: ConfigDynamic{
+				GroupVersionResource:     schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"},
+				ExcludeResourcesByLabels: map[string]string{"temporary": ""},
+			},
+			addObjects: []runtime.Object{
+				&corev1.ConfigMap{
+					TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "app-config", Namespace: "default", UID: "uid-app-config", Labels: map[string]string{"app": "myapp"}},
+				},
+				&corev1.ConfigMap{
+					TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
+					ObjectMeta: metav1.ObjectMeta{Name: "temp-config", Namespace: "default", UID: "uid-temp", Labels: map[string]string{"temporary": "true"}},
+				},
+			},
+			expectedCount: 1,
+			expectedNames: []string{"app-config"},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			clientset := fakeclientset.NewSimpleClientset(tc.addObjects...)
+			dg, err := tc.config.newDataGathererWithClient(ctx, nil, clientset)
+			require.NoError(t, err)
+
+			dgd := dg.(*DataGathererDynamic)
+
+			// Start the data gatherer
+			go func() {
+				if err = dgd.Run(ctx); err != nil {
+					t.Errorf("unexpected client error: %+v", err)
+				}
+			}()
+
+			err = dgd.WaitForCacheSync(ctx)
+			require.NoError(t, err)
+
+			// Give some time for the cache to populate
+			time.Sleep(200 * time.Millisecond)
+
+			data, count, err := dgd.Fetch()
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.expectedCount, count)
+
+			if len(tc.expectedNames) > 0 {
+				dynamicData, ok := data.(*api.DynamicData)
+				require.True(t, ok, "data should be *api.DynamicData")
+
+				actualNames := make([]string, 0, len(dynamicData.Items))
+				for _, item := range dynamicData.Items {
+					if !item.DeletedAt.IsZero() {
+						continue
+					}
+					// For native resources, extract name from typed objects
+					if typedObj, ok := item.Resource.(metav1.Object); ok {
+						actualNames = append(actualNames, typedObj.GetName())
+					}
 				}
 
 				assert.ElementsMatch(t, tc.expectedNames, actualNames)
