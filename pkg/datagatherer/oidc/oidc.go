@@ -48,6 +48,8 @@ type DataGathererOIDC struct {
 	cl rest.Interface
 }
 
+var _ datagatherer.DataGatherer = &DataGathererOIDC{}
+
 func (g *DataGathererOIDC) Run(ctx context.Context) error {
 	return nil
 }
@@ -57,7 +59,7 @@ func (g *DataGathererOIDC) WaitForCacheSync(ctx context.Context) error {
 	return nil
 }
 
-// Fetch will fetch discovery data from the apiserver, or return an error
+// Fetch will fetch the OIDC discovery document and JWKS from the cluster API server.
 func (g *DataGathererOIDC) Fetch() (any, int, error) {
 	ctx := context.Background()
 
@@ -76,7 +78,7 @@ func (g *DataGathererOIDC) Fetch() (any, int, error) {
 		OIDCConfigError: errToString(oidcErr),
 		JWKS:            jwksResponse,
 		JWKSError:       errToString(jwksErr),
-	}, 1, nil
+	}, 1 /* we have 1 result, so return 1 as count */, nil
 }
 
 type OIDCDiscoveryData struct {
@@ -87,6 +89,7 @@ type OIDCDiscoveryData struct {
 }
 
 func (g *DataGathererOIDC) fetchOIDCConfig(ctx context.Context) (map[string]any, error) {
+	// Fetch the OIDC discovery document from the well-known endpoint.
 	bytes, err := g.cl.Get().AbsPath("/.well-known/openid-configuration").Do(ctx).Raw()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OIDC discovery document: %v", err)
@@ -101,6 +104,12 @@ func (g *DataGathererOIDC) fetchOIDCConfig(ctx context.Context) (map[string]any,
 }
 
 func (g *DataGathererOIDC) fetchJWKS(ctx context.Context) (map[string]any, error) {
+	// Fetch the JWKS from the default /openid/v1/jwks endpoint.
+	// We are not using the jwks_uri from the OIDC config because:
+	//  - on hybrid OpenShift clusters, we saw it pointed to a non-existent URL
+	//  - on fully private AWS EKS clusters, the URL is still public and might not
+	//    be reachable from within the cluster (https://github.com/aws/containers-roadmap/issues/2038)
+	// So we are using the default path instead, which we think should work in most cases.
 	bytes, err := g.cl.Get().AbsPath("/openid/v1/jwks").Do(ctx).Raw()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get JWKS from jwks_uri: %v", err)
