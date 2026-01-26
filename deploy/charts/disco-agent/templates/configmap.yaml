@@ -19,8 +19,6 @@ data:
       {{- . | toYaml | nindent 6 }}
     {{- end }}
     data-gatherers:
-    - kind: oidc
-      name: ark/oidc
     - kind: k8s-discovery
       name: ark/discovery
     - kind: k8s-dynamic
