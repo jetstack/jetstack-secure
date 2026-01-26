@@ -124,6 +124,10 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 			"type!=kubernetes.io/service-account-token",
 			"type!=kubernetes.io/dockercfg",
 		},
+		LabelSelectors: []string{
+			"conjur.org/name=conjur-connect-configmap",
+			"app=my-app",
+		},
 	}
 	cl := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	dg, err := config.newDataGathererWithClient(ctx, cl, nil)
@@ -138,6 +142,7 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 		// during initialization
 		namespaces:    config.IncludeNamespaces,
 		fieldSelector: "metadata.namespace!=kube-system,type!=kubernetes.io/service-account-token,type!=kubernetes.io/dockercfg",
+		labelSelector: "app=my-app,conjur.org/name=conjur-connect-configmap",
 	}
 
 	gatherer := dg.(*DataGathererDynamic)
@@ -160,6 +165,9 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 	if !reflect.DeepEqual(gatherer.fieldSelector, expected.fieldSelector) {
 		t.Errorf("expected %v, got %v", expected.fieldSelector, gatherer.fieldSelector)
 	}
+	if !reflect.DeepEqual(gatherer.labelSelector, expected.labelSelector) {
+		t.Errorf("expected %v, got %v", expected.labelSelector, gatherer.labelSelector)
+	}
 }
 
 func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
@@ -167,6 +175,10 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 	config := ConfigDynamic{
 		IncludeNamespaces:    []string{"a"},
 		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+		LabelSelectors: []string{
+			"app=my-app",
+			"version=v1",
+		},
 	}
 	clientset := fakeclientset.NewSimpleClientset()
 	dg, err := config.newDataGathererWithClient(ctx, nil, clientset)
@@ -178,7 +190,8 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 		groupVersionResource: config.GroupVersionResource,
 		// it's important that the namespaces are set as the IncludeNamespaces
 		// during initialization
-		namespaces: config.IncludeNamespaces,
+		namespaces:    config.IncludeNamespaces,
+		labelSelector: "app=my-app,version=v1",
 	}
 
 	gatherer := dg.(*DataGathererDynamic)
@@ -197,6 +210,9 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 	}
 	if gatherer.registration == nil {
 		t.Errorf("unexpected event handler registration value: %v", nil)
+	}
+	if !reflect.DeepEqual(gatherer.labelSelector, expected.labelSelector) {
+		t.Errorf("expected %v, got %v", expected.labelSelector, gatherer.labelSelector)
 	}
 }
 
@@ -217,6 +233,9 @@ include-namespaces:
 - default
 field-selectors:
 - type!=kubernetes.io/service-account-token
+label-selectors:
+- conjur.org/name=conjur-connect-configmap
+- app=my-app
 `
 
 	expectedGVR := schema.GroupVersionResource{
@@ -234,6 +253,11 @@ field-selectors:
 
 	expectedFieldSelectors := []string{
 		"type!=kubernetes.io/service-account-token",
+	}
+
+	expectedLabelSelectors := []string{
+		"conjur.org/name=conjur-connect-configmap",
+		"app=my-app",
 	}
 
 	cfg := ConfigDynamic{}
@@ -258,6 +282,9 @@ field-selectors:
 	}
 	if got, want := cfg.FieldSelectors, expectedFieldSelectors; !reflect.DeepEqual(got, want) {
 		t.Errorf("FieldSelectors does not match: got=%+v want=%+v", got, want)
+	}
+	if got, want := cfg.LabelSelectors, expectedLabelSelectors; !reflect.DeepEqual(got, want) {
+		t.Errorf("LabelSelectors does not match: got=%+v want=%+v", got, want)
 	}
 }
 

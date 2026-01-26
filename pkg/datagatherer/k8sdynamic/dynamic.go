@@ -166,6 +166,9 @@ var kubernetesNativeResources = map[schema.GroupVersionResource]sharedInformerFu
 	corev1.SchemeGroupVersion.WithResource("services"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
 		return sharedFactory.Core().V1().Services().Informer()
 	},
+	corev1.SchemeGroupVersion.WithResource("configmaps"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
+		return sharedFactory.Core().V1().ConfigMaps().Informer()
+	},
 	appsv1.SchemeGroupVersion.WithResource("deployments"): func(sharedFactory informers.SharedInformerFactory) k8scache.SharedIndexInformer {
 		return sharedFactory.Apps().V1().Deployments().Informer()
 	},
