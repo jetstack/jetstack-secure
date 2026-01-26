@@ -123,5 +123,11 @@
         "data": {
             "items": []
         }
+    },
+    {
+        "data-gatherer": "ark/configmaps",
+        "data": {
+            "items": []
+        }
     }
 ]
