@@ -7,6 +7,8 @@ custom-cluster-description:
         cluster_description: "A cloud hosted Kubernetes cluster hosting production workloads.\n\nteam: team-1\nemail: team-1@example.com\npurpose: Production workloads\n"
         period: "12h0m0s"
         data-gatherers:
+        - kind: oidc
+          name: ark/oidc
         - kind: k8s-discovery
           name: ark/discovery
         - kind: k8s-dynamic
@@ -114,6 +116,8 @@ custom-cluster-name:
         cluster_description: ""
         period: "12h0m0s"
         data-gatherers:
+        - kind: oidc
+          name: ark/oidc
         - kind: k8s-discovery
           name: ark/discovery
         - kind: k8s-dynamic
@@ -221,6 +225,8 @@ custom-period:
         cluster_description: ""
         period: "1m"
         data-gatherers:
+        - kind: oidc
+          name: ark/oidc
         - kind: k8s-discovery
           name: ark/discovery
         - kind: k8s-dynamic
@@ -328,6 +334,8 @@ defaults:
         cluster_description: ""
         period: "12h0m0s"
         data-gatherers:
+        - kind: oidc
+          name: ark/oidc
         - kind: k8s-discovery
           name: ark/discovery
         - kind: k8s-dynamic
