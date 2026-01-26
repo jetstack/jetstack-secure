@@ -74,7 +74,7 @@ func (g *DataGathererOIDC) Fetch() (any, int, error) {
 		return ""
 	}
 
-	return api.OIDCDiscoveryData{
+	return &api.OIDCDiscoveryData{
 		OIDCConfig:      oidcResponse,
 		OIDCConfigError: errToString(oidcErr),
 		JWKS:            jwksResponse,

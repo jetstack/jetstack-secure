@@ -64,6 +64,7 @@ func (o *DataReading) UnmarshalJSON(data []byte) error {
 		target any
 		assign func(any)
 	}{
+		{&OIDCDiscoveryData{}, func(v any) { o.Data = v.(*OIDCDiscoveryData) }},
 		{&DiscoveryData{}, func(v any) { o.Data = v.(*DiscoveryData) }},
 		{&DynamicData{}, func(v any) { o.Data = v.(*DynamicData) }},
 	}

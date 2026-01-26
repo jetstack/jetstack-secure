@@ -57,7 +57,7 @@ func TestFetch_Success(t *testing.T) {
 		t.Fatalf("expected count 1, got %d", count)
 	}
 
-	res, ok := anyRes.(api.OIDCDiscoveryData)
+	res, ok := anyRes.(*api.OIDCDiscoveryData)
 	if !ok {
 		t.Fatalf("unexpected result type: %T", anyRes)
 	}
@@ -101,7 +101,7 @@ func TestFetch_Errors(t *testing.T) {
 		t.Fatalf("Fetch returned error: %v", err)
 	}
 
-	res, ok := anyRes.(api.OIDCDiscoveryData)
+	res, ok := anyRes.(*api.OIDCDiscoveryData)
 	if !ok {
 		t.Fatalf("unexpected result type: %T", anyRes)
 	}
