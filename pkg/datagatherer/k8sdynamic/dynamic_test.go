@@ -1264,3 +1264,215 @@ func toRegexps(keys []string) []*regexp.Regexp {
 	}
 	return regexps
 }
+
+// TestValidate_LabelSelectors tests validation of label selectors.
+func TestValidate_LabelSelectors(t *testing.T) {
+	tests := []struct {
+		name           string
+		labelSelectors []string
+		expectError    bool
+		errorContains  string
+	}{
+		{
+			name:           "valid simple label selector",
+			labelSelectors: []string{"app=myapp"},
+			expectError:    false,
+		},
+		{
+			name:           "valid label selector with dot notation",
+			labelSelectors: []string{"conjur.org/name=conjur-connect-configmap"},
+			expectError:    false,
+		},
+		{
+			name:           "valid negative label selector",
+			labelSelectors: []string{"app!=test"},
+			expectError:    false,
+		},
+		{
+			name:           "valid multiple label selectors",
+			labelSelectors: []string{"app=myapp", "environment=production"},
+			expectError:    false,
+		},
+		{
+			name:           "valid label existence check",
+			labelSelectors: []string{"app"},
+			expectError:    false,
+		},
+		{
+			name:           "valid label non-existence check",
+			labelSelectors: []string{"!app"},
+			expectError:    false,
+		},
+		{
+			name:           "valid set-based selector",
+			labelSelectors: []string{"environment in (production, staging)"},
+			expectError:    false,
+		},
+		{
+			name:           "valid negative set-based selector",
+			labelSelectors: []string{"environment notin (dev, test)"},
+			expectError:    false,
+		},
+		{
+			name:           "empty label selector",
+			labelSelectors: []string{""},
+			expectError:    true,
+			errorContains:  "must not be empty",
+		},
+		{
+			name:           "invalid label selector syntax",
+			labelSelectors: []string{"invalid===syntax"},
+			expectError:    true,
+			errorContains:  "invalid label selector",
+		},
+		{
+			name:           "multiple selectors with one invalid",
+			labelSelectors: []string{"app=valid", "invalid==="},
+			expectError:    true,
+			errorContains:  "invalid label selector 1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Version:  "v1",
+					Resource: "configmaps",
+				},
+				LabelSelectors: tt.labelSelectors,
+			}
+
+			err := config.validate()
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestValidate_FieldSelectors tests validation of field selectors.
+func TestValidate_FieldSelectors(t *testing.T) {
+	tests := []struct {
+		name           string
+		fieldSelectors []string
+		expectError    bool
+		errorContains  string
+	}{
+		{
+			name:           "valid field selector",
+			fieldSelectors: []string{"metadata.name=test"},
+			expectError:    false,
+		},
+		{
+			name:           "valid negative field selector",
+			fieldSelectors: []string{"type!=kubernetes.io/dockercfg"},
+			expectError:    false,
+		},
+		{
+			name:           "multiple valid field selectors",
+			fieldSelectors: []string{"metadata.namespace=default", "type!=Opaque"},
+			expectError:    false,
+		},
+		{
+			name:           "empty field selector",
+			fieldSelectors: []string{""},
+			expectError:    true,
+			errorContains:  "must not be empty",
+		},
+		{
+			name:           "invalid field selector syntax",
+			fieldSelectors: []string{"invalid===field"},
+			expectError:    true,
+			errorContains:  "invalid field selector",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Version:  "v1",
+					Resource: "secrets",
+				},
+				FieldSelectors: tt.fieldSelectors,
+			}
+
+			err := config.validate()
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestValidate_CombinedSelectors tests validation with both field and label selectors.
+func TestValidate_CombinedSelectors(t *testing.T) {
+	tests := []struct {
+		name           string
+		fieldSelectors []string
+		labelSelectors []string
+		expectError    bool
+		errorContains  string
+	}{
+		{
+			name:           "valid field and label selectors",
+			fieldSelectors: []string{"type!=kubernetes.io/dockercfg"},
+			labelSelectors: []string{"app=myapp"},
+			expectError:    false,
+		},
+		{
+			name:           "invalid field selector with valid label selector",
+			fieldSelectors: []string{"invalid==="},
+			labelSelectors: []string{"app=myapp"},
+			expectError:    true,
+			errorContains:  "invalid field selector",
+		},
+		{
+			name:           "valid field selector with invalid label selector",
+			fieldSelectors: []string{"type!=Opaque"},
+			labelSelectors: []string{"invalid==="},
+			expectError:    true,
+			errorContains:  "invalid label selector",
+		},
+		{
+			name:           "both selectors invalid",
+			fieldSelectors: []string{"bad===field"},
+			labelSelectors: []string{"bad===label"},
+			expectError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Version:  "v1",
+					Resource: "configmaps",
+				},
+				FieldSelectors: tt.fieldSelectors,
+				LabelSelectors: tt.labelSelectors,
+			}
+
+			err := config.validate()
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

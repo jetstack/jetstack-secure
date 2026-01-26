@@ -39,6 +39,14 @@ data:
           resource: serviceaccounts
           version: v1
     - kind: k8s-dynamic
+      name: ark/configmaps
+      config:
+        resource-type:
+          resource: configmaps
+          version: v1
+        label-selectors:
+        - conjur.org/name=conjur-connect-configmap
+    - kind: k8s-dynamic
       name: ark/roles
       config:
         resource-type:
