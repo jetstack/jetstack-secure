@@ -126,6 +126,70 @@ func TestExtractServerVersionFromReading(t *testing.T) {
 	}
 }
 
+// TestExtractOIDCFromReading tests the extractOIDCFromReading function.
+func TestExtractOIDCFromReading(t *testing.T) {
+	type testCase struct {
+		name             string
+		reading          *api.DataReading
+		expectedSnapshot dataupload.Snapshot
+		expectError      string
+	}
+	tests := []testCase{
+		{
+			name:        "nil reading",
+			expectError: `programmer mistake: the DataReading must not be nil`,
+		},
+		{
+			name: "nil data",
+			reading: &api.DataReading{
+				DataGatherer: "ark/oidc",
+				Data:         nil,
+			},
+			expectError: `programmer mistake: the DataReading must have data type *api.OIDCDiscoveryData. This DataReading (ark/oidc) has data type <nil>`,
+		},
+		{
+			name: "wrong data type",
+			reading: &api.DataReading{
+				DataGatherer: "ark/oidc",
+				Data:         &api.DiscoveryData{},
+			},
+			expectError: `programmer mistake: the DataReading must have data type *api.OIDCDiscoveryData. This DataReading (ark/oidc) has data type *api.DiscoveryData`,
+		},
+		{
+			name: "happy path",
+			reading: &api.DataReading{
+				DataGatherer: "ark/oidc",
+				Data: &api.OIDCDiscoveryData{
+					OIDCConfig:      map[string]any{"issuer": "https://example.com"},
+					OIDCConfigError: "oidc-err",
+					JWKS:            map[string]any{"keys": []any{}},
+					JWKSError:       "jwks-err",
+				},
+			},
+			expectedSnapshot: dataupload.Snapshot{
+				OIDCConfig:      map[string]any{"issuer": "https://example.com"},
+				OIDCConfigError: "oidc-err",
+				JWKS:            map[string]any{"keys": []any{}},
+				JWKSError:       "jwks-err",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var snapshot dataupload.Snapshot
+			err := extractOIDCFromReading(test.reading, &snapshot)
+			if test.expectError != "" {
+				assert.EqualError(t, err, test.expectError)
+				assert.Equal(t, dataupload.Snapshot{}, snapshot)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, test.expectedSnapshot, snapshot)
+		})
+	}
+}
+
 // TestExtractResourceListFromReading tests the extractResourceListFromReading function.
 func TestExtractResourceListFromReading(t *testing.T) {
 	type testCase struct {

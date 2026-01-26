@@ -76,6 +76,20 @@ func TestDataReading_UnmarshalJSON(t *testing.T) {
 			wantDataType: &DynamicData{},
 		},
 		{
+			name: "OIDCDiscoveryData type",
+			input: `{
+				"cluster_id": "11111111-2222-3333-4444-555555555555",
+				"data-gatherer": "oidc",
+				"timestamp": "2024-06-01T12:00:00Z",
+				"data": {
+					"openid_configuration": {"issuer": "https://example.com"},
+					"jwks": {"keys": []}
+				},
+				"schema_version": "v1"
+			}`,
+			wantDataType: &OIDCDiscoveryData{},
+		},
+		{
 			name:        "Invalid JSON",
 			input:       `not a json`,
 			expectError: "failed to parse DataReading: invalid character 'o' in literal null (expecting 'u')",
