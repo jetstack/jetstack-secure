@@ -1,5 +1,35 @@
 [
     {
+        "data-gatherer": "ark/oidc",
+        "data": {
+            "openid_configuration": {
+                "id_token_signing_alg_values_supported": [
+                    "RS256"
+                ],
+                "issuer": "https://kubernetes.default.svc.cluster.local",
+                "jwks_uri": "https://10.10.1.2:6443/openid/v1/jwks",
+                "response_types_supported": [
+                    "id_token"
+                ],
+                "subject_types_supported": [
+                    "public"
+                ]
+            },
+            "jwks": {
+                "keys": [
+                    {
+                        "alg": "RS256",
+                        "e": "AQAB",
+                        "kid": "C-2916LkMJqepqULK2nqhq6uzVB6So_yyGnqyuor71Q",
+                        "kty": "RSA",
+                        "n": "sYh6rDpl5DyzBk8qlnYXo6Sf9WbplnXJv3tPxWTvhCFsVu9G5oWjknkafVDq5UOJrlybJJNjBmUyiEi1wbdnuhceJS7rZ3sRnNp3aNoS0omCR6iHJCOuoboSlcaPuRmYw4oWXlVUXlKyw8PYPVbNCcTLuq9nqf8y33mIqe7XJsf5-Z5P05WbK9Rzj-SJvlZLQ4dSFtIiwqLkm_2fpRLj0d8Af1F6vuztnhhUE2_PDsfIWdl_kJKkrK3B5x7k5tgTyFrNQPzlRBgK9jmK0HskwAFIDaLKb7FUWuUiQjn94rjKCED4iy201YPAoZBKIHFDlFVkQ_S3quwPcRyOS18r7w",
+                        "use": "sig"
+                    }
+                ]
+            }
+        }
+    },
+    {
         "data-gatherer": "ark/discovery",
         "data": {
             "cluster_id": "0e069229-d83b-4075-a4c8-95838ff5c437",
