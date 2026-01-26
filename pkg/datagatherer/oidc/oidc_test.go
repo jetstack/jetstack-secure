@@ -8,6 +8,8 @@ import (
 
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
+
+	"github.com/jetstack/preflight/api"
 )
 
 func makeRESTClient(t *testing.T, ts *httptest.Server) rest.Interface {
@@ -55,7 +57,7 @@ func TestFetch_Success(t *testing.T) {
 		t.Fatalf("expected count 1, got %d", count)
 	}
 
-	res, ok := anyRes.(OIDCDiscoveryData)
+	res, ok := anyRes.(api.OIDCDiscoveryData)
 	if !ok {
 		t.Fatalf("unexpected result type: %T", anyRes)
 	}
@@ -99,7 +101,7 @@ func TestFetch_Errors(t *testing.T) {
 		t.Fatalf("Fetch returned error: %v", err)
 	}
 
-	res, ok := anyRes.(OIDCDiscoveryData)
+	res, ok := anyRes.(api.OIDCDiscoveryData)
 	if !ok {
 		t.Fatalf("unexpected result type: %T", anyRes)
 	}

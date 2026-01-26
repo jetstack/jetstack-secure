@@ -7,6 +7,7 @@ import (
 
 	"k8s.io/client-go/rest"
 
+	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
 )
@@ -73,19 +74,12 @@ func (g *DataGathererOIDC) Fetch() (any, int, error) {
 		return ""
 	}
 
-	return OIDCDiscoveryData{
+	return api.OIDCDiscoveryData{
 		OIDCConfig:      oidcResponse,
 		OIDCConfigError: errToString(oidcErr),
 		JWKS:            jwksResponse,
 		JWKSError:       errToString(jwksErr),
 	}, 1 /* we have 1 result, so return 1 as count */, nil
-}
-
-type OIDCDiscoveryData struct {
-	OIDCConfig      map[string]any `json:"openid_configuration,omitempty"`
-	OIDCConfigError string         `json:"openid_configuration_error,omitempty"`
-	JWKS            map[string]any `json:"jwks,omitempty"`
-	JWKSError       string         `json:"jwks_error,omitempty"`
 }
 
 func (g *DataGathererOIDC) fetchOIDCConfig(ctx context.Context) (map[string]any, error) {
