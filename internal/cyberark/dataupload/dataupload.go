@@ -57,6 +57,15 @@ type Snapshot struct {
 	ClusterDescription string `json:"cluster_description,omitempty"`
 	// K8SVersion is the version of Kubernetes which the cluster is running.
 	K8SVersion string `json:"k8s_version"`
+	// OIDCConfig contains OIDC configuration data from the API server's
+	// `/.well-known/openid-configuration` endpoint
+	OIDCConfig map[string]any `json:"openid_configuration,omitempty"`
+	// OIDCConfigError contains any error encountered while fetching the OIDC configuration
+	OIDCConfigError string `json:"openid_configuration_error,omitempty"`
+	// JWKS contains JWKS data from the API server's `/openid/v1/jwks` endpoint
+	JWKS map[string]any `json:"jwks,omitempty"`
+	// JWKSError contains any error encountered while fetching the JWKS
+	JWKSError string `json:"jwks_error,omitempty"`
 	// Secrets is a list of Secret resources in the cluster. Not all Secret
 	// types are included and only a subset of the Secret data is included.
 	Secrets []runtime.Object `json:"secrets"`
