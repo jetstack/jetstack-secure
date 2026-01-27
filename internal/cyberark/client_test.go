@@ -32,9 +32,9 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 		Secret:    "somepassword",
 	}
 
-	discoveryClient := servicediscovery.New(httpClient)
+	discoveryClient := servicediscovery.New(httpClient, cfg.Subdomain)
 
-	serviceMap, tenantUUID, err := discoveryClient.DiscoverServices(t.Context(), cfg.Subdomain)
+	serviceMap, tenantUUID, err := discoveryClient.DiscoverServices(t.Context())
 	if err != nil {
 		t.Fatalf("failed to discover mock services: %v", err)
 	}
@@ -76,9 +76,9 @@ func TestCyberArkClient_PutSnapshot_RealAPI(t *testing.T) {
 	cfg, err := cyberark.LoadClientConfigFromEnvironment()
 	require.NoError(t, err)
 
-	discoveryClient := servicediscovery.New(httpClient)
+	discoveryClient := servicediscovery.New(httpClient, cfg.Subdomain)
 
-	serviceMap, tenantUUID, err := discoveryClient.DiscoverServices(t.Context(), cfg.Subdomain)
+	serviceMap, tenantUUID, err := discoveryClient.DiscoverServices(t.Context())
 	if err != nil {
 		t.Fatalf("failed to discover services: %v", err)
 	}

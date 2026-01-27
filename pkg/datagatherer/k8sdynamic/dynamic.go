@@ -469,7 +469,7 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 					// If encryption is enabled, we encrypt the data and preserve it, but we still need to redact later.
 					// If encryption is enabled and _fails_, we MUST still redact the data field to avoid leaking sensitive information.
 					if g.Encryptor != nil {
-						err := g.encryptDataField(resource)
+						err := g.encryptDataField(ctx, resource)
 						if err != nil {
 							// WARNING: We CAN NOT return an error here, as that would leak the secret data
 							log := klog.FromContext(ctx).WithName("encryptDataField")
@@ -544,7 +544,7 @@ var encryptedDataField = FieldPath{encryptedDataFieldName}
 // in a new field with the name of [encryptedDataFieldName]. The original `data` field is left unchanged, on the
 // assumption that it will be redacted after the encryption step.
 // This function does not check that the given resource is actually a Secret; that is the caller's responsibility.
-func (g *DataGathererDynamic) encryptDataField(secret *unstructured.Unstructured) error {
+func (g *DataGathererDynamic) encryptDataField(ctx context.Context, secret *unstructured.Unstructured) error {
 	if g.Encryptor == nil {
 		return nil
 	}
@@ -569,7 +569,7 @@ func (g *DataGathererDynamic) encryptDataField(secret *unstructured.Unstructured
 		return fmt.Errorf("failed to marshal secret data field for encryption: %w", err)
 	}
 
-	encryptedData, err := g.Encryptor.Encrypt(plaintextData)
+	encryptedData, err := g.Encryptor.Encrypt(ctx, plaintextData)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt secret data during redaction: %w", err)
 	}
