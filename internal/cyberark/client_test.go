@@ -32,13 +32,21 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 		Secret:    "somepassword",
 	}
 
-	cl, err := cyberark.NewDatauploadClient(ctx, httpClient, cfg)
+	discoveryClient := servicediscovery.New(httpClient)
+
+	serviceMap, err := discoveryClient.DiscoverServices(t.Context(), cfg.Subdomain)
+	if err != nil {
+		t.Fatalf("failed to discover mock services: %v", err)
+	}
+
+	cl, err := cyberark.NewDatauploadClient(ctx, httpClient, serviceMap, cfg)
 	require.NoError(t, err)
 
 	err = cl.PutSnapshot(ctx, dataupload.Snapshot{
 		ClusterID:    "ffffffff-ffff-ffff-ffff-ffffffffffff",
 		AgentVersion: version.PreflightVersion,
 	})
+
 	require.NoError(t, err)
 }
 
@@ -66,15 +74,24 @@ func TestCyberArkClient_PutSnapshot_RealAPI(t *testing.T) {
 		if errors.Is(err, cyberark.ErrMissingEnvironmentVariables) {
 			t.Skipf("Skipping: %s", err)
 		}
+
 		require.NoError(t, err)
 	}
 
-	cl, err := cyberark.NewDatauploadClient(ctx, httpClient, cfg)
+	discoveryClient := servicediscovery.New(httpClient)
+
+	serviceMap, err := discoveryClient.DiscoverServices(t.Context(), cfg.Subdomain)
+	if err != nil {
+		t.Fatalf("failed to discover services: %v", err)
+	}
+
+	cl, err := cyberark.NewDatauploadClient(ctx, httpClient, serviceMap, cfg)
 	require.NoError(t, err)
 
 	err = cl.PutSnapshot(ctx, dataupload.Snapshot{
 		ClusterID:    "ffffffff-ffff-ffff-ffff-ffffffffffff",
 		AgentVersion: version.PreflightVersion,
 	})
+
 	require.NoError(t, err)
 }
