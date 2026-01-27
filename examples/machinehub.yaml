@@ -37,7 +37,7 @@ data-gatherers:
       resource: serviceaccounts
       version: v1
 
-# Gather Kubernetes config maps with specific label
+# Gather Kubernetes config maps with specific conjur.org label
 - name: ark/configmaps
   kind: k8s-dynamic
   config:
