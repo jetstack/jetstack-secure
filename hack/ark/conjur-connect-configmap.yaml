@@ -15,6 +15,7 @@ data:
   CONJUR_ACCOUNT: myConjurAccount
   CONJUR_APPLIANCE_URL: https://conjur.conjur-ns.svc.cluster.local
   CONJUR_AUTHN_URL: https://conjur.conjur-ns.svc.cluster.local/authn-k8s/my-authenticator-id
+  CONJUR_AUTHENTICATOR_ID: my-authenticator-id
   CONJUR_SSL_CERTIFICATE: |
     -----BEGIN CERTIFICATE-----
     MIIDYTCCAkmgAwIBAgIUTXBJk7Fm+M9kVD5x66jPiwU2JfcwDQYJKoZIhvcNAQEL
