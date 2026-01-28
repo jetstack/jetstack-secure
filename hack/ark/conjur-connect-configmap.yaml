@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: conjur-connect-configmap
+  namespace: default
+  labels:
+    conjur.org/name: conjur-connect-configmap
+    app.kubernetes.io/name: authn-k8s
+    app.kubernetes.io/component: conjur-conn-configmap
+    app.kubernetes.io/instance: pet-store-authn-k8s
+    app.kubernetes.io/part-of: app-namespace-config
+    app.kubernetes.io/managed-by: helm
+    helm.sh/chart: authn-k8s-namespace-prep-1.0.0
+data:
+  CONJUR_ACCOUNT: myConjurAccount
+  CONJUR_APPLIANCE_URL: https://conjur.conjur-ns.svc.cluster.local
+  CONJUR_AUTHN_URL: https://conjur.conjur-ns.svc.cluster.local/authn-k8s/my-authenticator-id
+  CONJUR_SSL_CERTIFICATE: |
+    -----BEGIN CERTIFICATE-----
+    MIIDYTCCAkmgAwIBAgIUTXBJk7Fm+M9kVD5x66jPiwU2JfcwDQYJKoZIhvcNAQEL
+    BQAwQDErMCkGA1UEAwwiY29uanVyLmNvbmp1ci1ucy5zdmMuY2x1c3Rlci5sb2Nh
+    bDERMA8GA1UECgwIRTJFIFRlc3QwHhcNMjYwMTI4MTMwNzA5WhcNMzYwMTI2MTMw
+    NzA5WjBAMSswKQYDVQQDDCJjb25qdXIuY29uanVyLW5zLnN2Yy5jbHVzdGVyLmxv
+    Y2FsMREwDwYDVQQKDAhFMkUgVGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
+    AQoCggEBALdJ9InvV4oOy5LzP/JfZ7iAuM7RIQzeD1fDjm1EEfQcLqSgobH2yZtA
+    YETlj/c2bfJ8Cc2dTJMoTefwofwjA6iR43SBf0e78raKsGSmR3ors9BqaulvgII5
+    Tk3y5jdZxty7UNIGOJP9QoJ4kPQHu37HhSfaA517yQJNCOa4NSLkpHWK155o6Cvf
+    k03M6Szzs5uL7GTK/8IJnl0WSXJezC7lQ8Q+0VVCR6Cq4CzAKm2ZoVCPGkYDZb+Y
+    2i0aGe8ideO0JgTOsHzXiv5x1DzaEdX0+DhV+aQKbRJYENa2w5LCG0b1Z6Hpyvm6
+    uT0LobEgNLxJ8fOxa3LEq2IryzHFZjUCAwEAAaNTMFEwHQYDVR0OBBYEFHuXVFoC
+    IaF7T3Iic7fKxyKwVhpkMB8GA1UdIwQYMBaAFHuXVFoCIaF7T3Iic7fKxyKwVhpk
+    MA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAF/7DwNERFTpucWi
+    roDVME2SH1kTKiemcKzguoeOkDBZd70GbLejy64gWF9nIbcQ9WYxRIuqSI2h0j8d
+    ED9SGQ66nic3uw16GN5IJk21ucFwAJstgQG3kvWPBbSrxMO9TB0pounRozZ5DkZe
+    ZI+vZ4BNOZDT9TAE08xXLrzVhzVDM8DGAydzXUlvscfhYpTe77Cm7yMxmItO7QTA
+    xTrBaamgxM1XYbx+DiS8nTm1U2G3UVACCv9zH6MXDe2DDREBuX1U3skqqbJlsypf
+    68ckx8fzdxIU5OLx0LZ4QZOR66cHyambDtngoD3iKqDcR1L8EdXajq+IaPRZfcD6
+    VLEtA4Y=
+    -----END CERTIFICATE-----
