@@ -2,7 +2,6 @@ package cyberark_test
 
 import (
 	"crypto/x509"
-	"errors"
 	"testing"
 
 	"github.com/jetstack/venafi-connection-lib/http_client"
@@ -13,6 +12,7 @@ import (
 	"github.com/jetstack/preflight/internal/cyberark"
 	"github.com/jetstack/preflight/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/internal/cyberark/servicediscovery"
+	arktesting "github.com/jetstack/preflight/internal/cyberark/testing"
 	"github.com/jetstack/preflight/pkg/testutil"
 	"github.com/jetstack/preflight/pkg/version"
 
@@ -63,6 +63,10 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 //	go test ./internal/cyberark \
 //	  -v -count 1 -run TestCyberArkClient_PutSnapshot_RealAPI -args -testing.v 6
 func TestCyberArkClient_PutSnapshot_RealAPI(t *testing.T) {
+	arktesting.SkipIfNoEnv(t)
+
+	t.Log("This test runs against a live service and has been known to flake. If you see timeout issues it's possible that the test is flaking and it could be unrelated to your changes.")
+
 	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 	ctx := klog.NewContext(t.Context(), logger)
 
@@ -70,13 +74,7 @@ func TestCyberArkClient_PutSnapshot_RealAPI(t *testing.T) {
 	httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
 
 	cfg, err := cyberark.LoadClientConfigFromEnvironment()
-	if err != nil {
-		if errors.Is(err, cyberark.ErrMissingEnvironmentVariables) {
-			t.Skipf("Skipping: %s", err)
-		}
-
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 
 	discoveryClient := servicediscovery.New(httpClient)
 

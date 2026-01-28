@@ -33,6 +33,9 @@ func TestOutputModes(t *testing.T) {
 
 	t.Run("machinehub", func(t *testing.T) {
 		arktesting.SkipIfNoEnv(t)
+
+		t.Log("This test runs against a live service and has been known to flake. If you see timeout issues it's possible that the test is flaking and it could be unrelated to your changes.")
+
 		runSubprocess(t, repoRoot, []string{
 			"--agent-config-file", filepath.Join(repoRoot, "examples/machinehub/config.yaml"),
 			"--input-path", filepath.Join(repoRoot, "examples/machinehub/input.json"),
