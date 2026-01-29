@@ -57,7 +57,7 @@ func TestFetch_Success(t *testing.T) {
 		t.Fatalf("expected count 1, got %d", count)
 	}
 
-	res, ok := anyRes.(api.OIDCDiscoveryData)
+	res, ok := anyRes.(*api.OIDCDiscoveryData)
 	if !ok {
 		t.Fatalf("unexpected result type: %T", anyRes)
 	}
@@ -101,7 +101,7 @@ func TestFetch_Errors(t *testing.T) {
 		t.Fatalf("Fetch returned error: %v", err)
 	}
 
-	res, ok := anyRes.(api.OIDCDiscoveryData)
+	res, ok := anyRes.(*api.OIDCDiscoveryData)
 	if !ok {
 		t.Fatalf("unexpected result type: %T", anyRes)
 	}
@@ -109,7 +109,7 @@ func TestFetch_Errors(t *testing.T) {
 	if res.OIDCConfig != nil {
 		t.Fatalf("expected nil OIDCConfig on error, got %#v", res.OIDCConfig)
 	}
-	if res.OIDCConfigError != "failed to get OIDC discovery document: an error on the server (\"boom\") has prevented the request from succeeding" {
+	if res.OIDCConfigError != "failed to get OIDC discovery document: Error from server (InternalError): an error on the server (\"boom\") has prevented the request from succeeding" {
 		t.Fatalf("unexpected OIDCConfigError: %q", res.OIDCConfigError)
 	}
 	if res.JWKS != nil {
