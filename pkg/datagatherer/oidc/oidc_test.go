@@ -109,7 +109,7 @@ func TestFetch_Errors(t *testing.T) {
 	if res.OIDCConfig != nil {
 		t.Fatalf("expected nil OIDCConfig on error, got %#v", res.OIDCConfig)
 	}
-	if res.OIDCConfigError != "failed to get OIDC discovery document: an error on the server (\"boom\") has prevented the request from succeeding" {
+	if res.OIDCConfigError != "failed to get OIDC discovery document: Error from server (InternalError): an error on the server (\"boom\") has prevented the request from succeeding" {
 		t.Fatalf("unexpected OIDCConfigError: %q", res.OIDCConfigError)
 	}
 	if res.JWKS != nil {
