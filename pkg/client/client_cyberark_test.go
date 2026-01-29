@@ -79,6 +79,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 var defaultDynamicDatagathererNames = []string{
 	"ark/secrets",
 	"ark/serviceaccounts",
+	"ark/configmaps",
 	"ark/roles",
 	"ark/clusterroles",
 	"ark/rolebindings",

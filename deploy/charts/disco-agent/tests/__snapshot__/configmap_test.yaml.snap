@@ -27,6 +27,14 @@ custom-cluster-description:
               resource: serviceaccounts
               version: v1
         - kind: k8s-dynamic
+          name: ark/configmaps
+          config:
+            resource-type:
+              resource: configmaps
+              version: v1
+            label-selectors:
+            - conjur.org/name=conjur-connect-configmap
+        - kind: k8s-dynamic
           name: ark/roles
           config:
             resource-type:
@@ -133,6 +141,14 @@ custom-cluster-name:
             resource-type:
               resource: serviceaccounts
               version: v1
+        - kind: k8s-dynamic
+          name: ark/configmaps
+          config:
+            resource-type:
+              resource: configmaps
+              version: v1
+            label-selectors:
+            - conjur.org/name=conjur-connect-configmap
         - kind: k8s-dynamic
           name: ark/roles
           config:
@@ -241,6 +257,14 @@ custom-period:
               resource: serviceaccounts
               version: v1
         - kind: k8s-dynamic
+          name: ark/configmaps
+          config:
+            resource-type:
+              resource: configmaps
+              version: v1
+            label-selectors:
+            - conjur.org/name=conjur-connect-configmap
+        - kind: k8s-dynamic
           name: ark/roles
           config:
             resource-type:
@@ -347,6 +371,14 @@ defaults:
             resource-type:
               resource: serviceaccounts
               version: v1
+        - kind: k8s-dynamic
+          name: ark/configmaps
+          config:
+            resource-type:
+              resource: configmaps
+              version: v1
+            label-selectors:
+            - conjur.org/name=conjur-connect-configmap
         - kind: k8s-dynamic
           name: ark/roles
           config:

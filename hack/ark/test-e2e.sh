@@ -74,6 +74,12 @@ kubectl create secret generic e2e-sample-secret-$(date '+%s') \
         --namespace default \
         --from-literal=username=${RANDOM}
 
+# Create a sample ConfigMap in the cluster that will be discovered by the agent
+#
+# This ConfigMap has the label that matches the default label-selector configured
+# in the ark/configmaps data gatherer (conjur.org/name=conjur-connect-configmap).
+kubectl apply -f "${root_dir}/hack/ark/conjur-connect-configmap.yaml"
+
 # We use a non-existent tag and omit the `--version` flag, to work around a Helm
 # v4 bug. See: https://github.com/helm/helm/issues/31600
 helm upgrade agent "oci://${ARK_CHART}:NON_EXISTENT_TAG@${ARK_CHART_DIGEST}" \
