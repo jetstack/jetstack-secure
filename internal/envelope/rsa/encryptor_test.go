@@ -3,13 +3,31 @@ package rsa
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
+	"strings"
 	"sync"
 	"testing"
 
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwe"
 	"github.com/stretchr/testify/require"
 )
 
 const testKeyID = "test-key-id"
+
+// smallRSAKey1024 is a hardcoded 1024-bit RSA public key in PEM format (PKIX)
+// used for testing key size validation. This key is intentionally weak and should
+// only be used for testing purposes.
+// This is hardcoded rather than generated in order to save compute, and also on the
+// assumption that future Go releases might restrict the ability to generate such small keys.
+const smallRSAKey1024 = `-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDCNDoCM0OBt4HFxFxyU50FYsuZ
+gK+lgel/Jlzb+ghkWpCL1Vk3Au7aet4KxNxQh5dFRxtMU7pe6fC5eZtdL3+0TCUu
+XAUVgMhTRn3ZXlEmJXosuiFQ2y4+3nbWL51OxXRf3jsieSVqr4fbceakuOKXp4vX
+wgiguV3/XqaysHs1uwIDAQAB
+-----END PUBLIC KEY-----`
 
 var (
 	testKeyOnce     sync.Once
@@ -54,10 +72,19 @@ func TestNewEncryptor_ValidKeys(t *testing.T) {
 }
 
 func TestNewEncryptor_RejectsSmallKeys(t *testing.T) {
-	key, err := rsa.GenerateKey(rand.Reader, 1024)
-	require.NoError(t, err)
+	// Parse the hardcoded 1024-bit RSA public key from PEM format
+	block, _ := pem.Decode([]byte(smallRSAKey1024))
+	require.NotNil(t, block, "failed to decode PEM block")
 
-	enc, err := NewEncryptor(testKeyID, &key.PublicKey)
+	// NB: a future Go update might restrict the ability to parse small keys;
+	// if that happens, this test will need to be removed or changed.
+	pubKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	require.NoError(t, err, "failed to parse RSA public key")
+
+	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
+	require.True(t, ok, "key should be an RSA public key")
+
+	enc, err := NewEncryptor(testKeyID, rsaPubKey)
 	require.Error(t, err)
 	require.Nil(t, enc)
 	require.Contains(t, err.Error(), "must be at least 2048 bits")
@@ -103,21 +130,23 @@ func TestEncrypt_VariousDataSizes(t *testing.T) {
 			result, err := enc.Encrypt(data)
 			require.NoError(t, err)
 			require.NotNil(t, result)
+			require.Equal(t, EncryptionType, result.Type, "Type should be JWE-RSA")
 
-			// Verify all fields are populated
-			require.NotEmpty(t, result.EncryptedKey)
-			require.NotEmpty(t, result.EncryptedData)
-			require.NotEmpty(t, result.Nonce)
+			// Verify JWE Compact Serialization format (5 base64url parts separated by dots)
+			jweString := string(result.Data)
+			parts := strings.Split(jweString, ".")
+			require.Len(t, parts, 5, "JWE Compact Serialization should have 5 parts")
 
-			// Verify KeyID and KeyAlgorithm are set correctly
-			require.Equal(t, testKeyID, result.KeyID)
-			require.Equal(t, keyAlgorithmIdentifier, result.KeyAlgorithm)
+			// Verify each part is non-empty
+			for i, part := range parts {
+				require.NotEmpty(t, part, "JWE part %d should not be empty", i)
 
-			// Verify nonce is correct size (12 bytes for GCM)
-			require.Len(t, result.Nonce, 12)
+				_, err = base64.RawURLEncoding.DecodeString(part)
+				require.NoError(t, err, "JWE part %d should be valid base64url: %s", i, part)
+			}
 
-			// Verify encrypted data differs from input
-			require.NotEqual(t, data, result.EncryptedData)
+			// Verify the result differs from input
+			require.NotEqual(t, data, result.Data)
 		})
 	}
 }
@@ -145,27 +174,17 @@ func TestEncrypt_NonDeterministic(t *testing.T) {
 	// Encrypt the same data twice
 	result1, err := enc.Encrypt(data)
 	require.NoError(t, err)
+	require.Equal(t, EncryptionType, result1.Type, "Type should be JWE-RSA")
 
 	result2, err := enc.Encrypt(data)
 	require.NoError(t, err)
+	require.Equal(t, EncryptionType, result2.Type, "Type should be JWE-RSA")
 
-	// Verify KeyID and KeyAlgorithm are set correctly in both results
-	require.Equal(t, testKeyID, result1.KeyID)
-	require.Equal(t, keyAlgorithmIdentifier, result1.KeyAlgorithm)
-	require.Equal(t, testKeyID, result2.KeyID)
-	require.Equal(t, keyAlgorithmIdentifier, result2.KeyAlgorithm)
-
-	// Nonces should be different (random)
-	require.NotEqual(t, result1.Nonce, result2.Nonce)
-
-	// Encrypted data should be different due to different nonces
-	require.NotEqual(t, result1.EncryptedData, result2.EncryptedData)
-
-	// Encrypted keys should be different due to RSA-OAEP randomness
-	require.NotEqual(t, result1.EncryptedKey, result2.EncryptedKey)
+	// Results should be different due to random nonces and RSA-OAEP randomness
+	require.NotEqual(t, result1.Data, result2.Data, "Encrypting the same data twice should produce different JWE outputs")
 }
 
-func TestEncrypt_AllFieldsPopulated(t *testing.T) {
+func TestEncrypt_JWEFormat(t *testing.T) {
 	key := testKey()
 
 	enc, err := NewEncryptor(testKeyID, &key.PublicKey)
@@ -174,16 +193,40 @@ func TestEncrypt_AllFieldsPopulated(t *testing.T) {
 	data := []byte("test data")
 	result, err := enc.Encrypt(data)
 	require.NoError(t, err)
+	require.Equal(t, EncryptionType, result.Type, "Type should be JWE-RSA")
 
-	require.NotNil(t, result)
-	require.NotEmpty(t, result.EncryptedKey, "EncryptedKey should be populated")
-	require.NotEmpty(t, result.EncryptedData, "EncryptedData should be populated")
-	require.NotEmpty(t, result.Nonce, "Nonce should be populated")
+	// Parse and decrypt the JWE to verify format and algorithms
+	decrypted, err := jwe.Decrypt(result.Data, jwe.WithKey(jwa.RSA_OAEP_256(), key), jwe.WithContext(t.Context()))
+	require.NoError(t, err, "Result should be valid JWE with RSA-OAEP-256 and A256GCM, and should decrypt successfully")
+	require.Equal(t, data, decrypted, "Decrypted data should match original")
+}
 
-	// Verify KeyID and KeyAlgorithm are set correctly
-	require.Equal(t, testKeyID, result.KeyID, "KeyID should match the encryptor's keyID")
-	require.Equal(t, keyAlgorithmIdentifier, result.KeyAlgorithm, "KeyAlgorithm should be the value of keyAlgorithmIdentifier")
+func TestEncrypt_DecryptRoundtrip(t *testing.T) {
+	key := testKey()
 
-	// Verify encrypted key size is appropriate for RSA 2048
-	require.Equal(t, 256, len(result.EncryptedKey), "EncryptedKey should be 256 bytes for RSA 2048")
+	enc, err := NewEncryptor(testKeyID, &key.PublicKey)
+	require.NoError(t, err)
+
+	originalData := []byte("test data for roundtrip encryption and decryption")
+
+	// Encrypt the data
+	encrypted, err := enc.Encrypt(originalData)
+	require.NoError(t, err)
+	require.Equal(t, EncryptionType, encrypted.Type, "Type should be JWE-RSA")
+
+	msg, err := jwe.Parse(encrypted.Data)
+	require.NoError(t, err)
+
+	headers := msg.ProtectedHeaders()
+
+	kidHeader, ok := headers.KeyID()
+	require.True(t, ok, "JWE should contain 'kid' header")
+	require.Equal(t, testKeyID, kidHeader, "JWE 'kid' header should match the encryptor's key ID")
+
+	// Decrypt using the private key
+	decrypted, err := jwe.Decrypt(encrypted.Data, jwe.WithKey(jwa.RSA_OAEP_256(), key), jwe.WithContext(t.Context()))
+	require.NoError(t, err, "Decryption should succeed with the correct private key")
+
+	// Verify the decrypted data matches the original
+	require.Equal(t, originalData, decrypted, "Decrypted data should match original data")
 }
