@@ -73,6 +73,11 @@ github.com/hashicorp/errwrap,MPL-2.0
 github.com/hashicorp/go-multierror,MPL-2.0
 github.com/josharian/intern,MIT
 github.com/json-iterator/go,MIT
+github.com/lestrrat-go/blackmagic,MIT
+github.com/lestrrat-go/httpcc,MIT
+github.com/lestrrat-go/httprc/v3,MIT
+github.com/lestrrat-go/jwx/v3,MIT
+github.com/lestrrat-go/option/v2,MIT
 github.com/mailru/easyjson,MIT
 github.com/mattn/go-colorable,MIT
 github.com/mattn/go-isatty,MIT
