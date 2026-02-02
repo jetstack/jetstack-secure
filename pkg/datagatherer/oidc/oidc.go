@@ -17,7 +17,7 @@ import (
 	"github.com/jetstack/preflight/pkg/kubeconfig"
 )
 
-// OIDCDiscovery contains the configuration for the k8s-discovery data-gatherer
+// OIDCDiscovery contains the configuration for the oidc data-gatherer.
 type OIDCDiscovery struct {
 	// KubeConfigPath is the path to the kubeconfig file. If empty, will assume it runs in-cluster.
 	KubeConfigPath string `yaml:"kubeconfig"`
@@ -49,7 +49,7 @@ func (c *OIDCDiscovery) NewDataGatherer(ctx context.Context) (datagatherer.DataG
 	}, nil
 }
 
-// DataGathererOIDC stores the config for a k8s-discovery datagatherer
+// DataGathererOIDC stores the config for an oidc datagatherer.
 type DataGathererOIDC struct {
 	cl rest.Interface
 }
@@ -79,6 +79,13 @@ func (g *DataGathererOIDC) Fetch() (any, int, error) {
 		return ""
 	}
 
+	if oidcErr != nil {
+		klog.FromContext(ctx).V(4).Error(oidcErr, "Failed to fetch OIDC configuration")
+	}
+	if jwksErr != nil {
+		klog.FromContext(ctx).V(4).Error(jwksErr, "Failed to fetch JWKS")
+	}
+
 	return &api.OIDCDiscoveryData{
 		OIDCConfig:      oidcResponse,
 		OIDCConfigError: errToString(oidcErr),
@@ -97,7 +104,7 @@ func (g *DataGathererOIDC) fetchOIDCConfig(ctx context.Context) (map[string]any,
 	bytes, _ := result.Raw() // we already checked result.Error(), so there is no error here
 	var oidcResponse map[string]any
 	if err := json.Unmarshal(bytes, &oidcResponse); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal OIDC discovery document: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal OIDC discovery document: %v (raw: %q)", err, stringFirstN(string(bytes), 80))
 	}
 
 	return oidcResponse, nil
@@ -118,10 +125,17 @@ func (g *DataGathererOIDC) fetchJWKS(ctx context.Context) (map[string]any, error
 	bytes, _ := result.Raw() // we already checked result.Error(), so there is no error here
 	var jwksResponse map[string]any
 	if err := json.Unmarshal(bytes, &jwksResponse); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JWKS response: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal JWKS response: %v (raw: %q)", err, stringFirstN(string(bytes), 80))
 	}
 
 	return jwksResponse, nil
+}
+
+func stringFirstN(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
 }
 
 // based on https://github.com/kubernetes/kubectl/blob/a64ceaeab69eed1f11a9e1bd91cf2c1446de811c/pkg/cmd/util/helpers.go#L244
@@ -142,7 +156,6 @@ func k8sErrorMessage(err error) string {
 	}
 
 	if t, isURL := err.(*url.Error); isURL {
-		klog.V(4).Infof("Connection error: %s %s: %v", t.Op, t.URL, t.Err)
 		if strings.Contains(t.Err.Error(), "connection refused") {
 			host := t.URL
 			if server, err := url.Parse(t.URL); err == nil {

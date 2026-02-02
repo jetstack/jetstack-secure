@@ -1,16 +1,17 @@
 package oidc
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 
 	"github.com/jetstack/preflight/api"
-	"github.com/stretchr/testify/require"
 )
 
 func makeRESTClient(t *testing.T, ts *httptest.Server) rest.Interface {
@@ -94,13 +95,14 @@ func TestFetch_Errors(t *testing.T) {
 			},
 			jwksResponse: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(`}0`))
+				_, _ = w.Write([]byte(`}`))
+				_, _ = w.Write(bytes.Repeat([]byte{'0'}, 5000))
 			},
-			expOIDCConfigError: "failed to unmarshal OIDC discovery document: invalid character '}' looking for beginning of value",
-			expJWKSError:       "failed to unmarshal JWKS response: invalid character '}' looking for beginning of value",
+			expOIDCConfigError: `failed to unmarshal OIDC discovery document: invalid character '}' looking for beginning of value (raw: "}{")`,
+			expJWKSError:       `failed to unmarshal JWKS response: invalid character '}' looking for beginning of value (raw: "}0000000000000000000000000000000000000000000000000000000000000000000000000000000")`,
 		},
 		{
-			name: "permission error (no body)",
+			name: "Forbidden error (no body)",
 			openidConfigurationResponse: func(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "forbidden", http.StatusForbidden)
 			},
@@ -111,7 +113,7 @@ func TestFetch_Errors(t *testing.T) {
 			expJWKSError:       "failed to get /openid/v1/jwks: Error from server (Forbidden): forbidden",
 		},
 		{
-			name: "permission error (*metav1.Status body)",
+			name: "Forbidden error (*metav1.Status body)",
 			openidConfigurationResponse: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusForbidden)
@@ -142,6 +144,37 @@ func TestFetch_Errors(t *testing.T) {
 			},
 			expOIDCConfigError: `failed to get /.well-known/openid-configuration: Error from server (Forbidden): forbidden: User "system:serviceaccount:default:test" cannot get path "/.well-known/openid-configuration"`,
 			expJWKSError:       `failed to get /openid/v1/jwks: Error from server (Forbidden): forbidden: User "system:serviceaccount:default:test" cannot get path "/openid/v1/jwks"`,
+		},
+		{
+			name: "Unauthorized error (*metav1.Status body)",
+			openidConfigurationResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`{
+					"kind": "Status",
+					"apiVersion": "v1",
+					"metadata": {},
+					"status": "Failure",
+					"message": "Unauthorized",
+					"reason": "Unauthorized",
+					"code": 401
+				}`))
+			},
+			jwksResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`{
+					"kind": "Status",
+					"apiVersion": "v1",
+					"metadata": {},
+					"status": "Failure",
+					"message": "Unauthorized",
+					"reason": "Unauthorized",
+					"code": 401
+				}`))
+			},
+			expOIDCConfigError: `failed to get /.well-known/openid-configuration: error: You must be logged in to the server (Unauthorized)`,
+			expJWKSError:       `failed to get /openid/v1/jwks: error: You must be logged in to the server (Unauthorized)`,
 		},
 	}
 
