@@ -118,6 +118,9 @@
         },
         "period": {
           "$ref": "#/$defs/helm-values.config.period"
+        },
+        "sendSecrets": {
+          "$ref": "#/$defs/helm-values.config.sendSecrets"
         }
       },
       "type": "object"
@@ -147,6 +150,11 @@
       "default": "12h0m0s",
       "description": "Push data every 12 hours unless changed.",
       "type": "string"
+    },
+    "helm-values.config.sendSecrets": {
+      "default": false,
+      "description": "Enable sending of Secret data to CyberArk, in addition to the metadata. When enabled, Secret data is encrypted using envelope encryption using a key managed by CyberArk. Default: false (but default will change to true for a future release)",
+      "type": "boolean"
     },
     "helm-values.extraArgs": {
       "default": [],

@@ -35,6 +35,8 @@ var _ Client = &CyberArkClient{}
 // NewCyberArk initializes a CyberArk client using configuration from environment variables.
 // It requires an HTTP client to be provided, which will be used for making requests.
 // The environment variables ARK_SUBDOMAIN, ARK_USERNAME, and ARK_SECRET must be set for authentication.
+// Sending secrets is controlled by the ARK_SEND_SECRETS environment variable (defaults to "false").
+// If sending secrets is enabled, the hardcoded public key will be loaded and an encryptor will be created.
 // If the configuration is invalid or missing, an error is returned.
 func NewCyberArk(httpClient *http.Client) (*CyberArkClient, error) {
 	configLoader := cyberark.LoadClientConfigFromEnvironment

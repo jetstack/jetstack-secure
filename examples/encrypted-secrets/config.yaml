@@ -1,0 +1,41 @@
+# encrypted-secrets config.yaml
+#
+# An example configuration file demonstrating how to use the disco agent
+# to send encrypted secrets to CyberArk Discovery & Context.
+#
+# The agent will:
+# 1. Discover Kubernetes secrets in the cluster
+# 2. Encrypt the secret data fields using RSA envelope encryption (JWE format)
+# 3. Upload the encrypted secrets to CyberArk Discovery & Context
+#
+# Example usage:
+#
+#  export ARK_SUBDOMAIN="your-subdomain"
+#  export ARK_USERNAME="your-username"
+#  export ARK_SECRET="your-secret"
+#  export ARK_SEND_SECRETS="true"
+#
+#  go run . agent \
+#     --agent-config-file examples/encrypted-secrets/config.yaml \
+#     --one-shot \
+#     --output-path output.json
+#
+organization_id: "my-organization"
+cluster_id: "my_cluster"
+period: 1m
+data-gatherers:
+- kind: "k8s-dynamic"
+  name: "k8s/secrets"
+  config:
+    resource-type:
+      version: v1
+      resource: secrets
+    # Filter out common system secret types to focus on application secrets
+    field-selectors:
+    - type!=kubernetes.io/service-account-token
+    - type!=kubernetes.io/dockercfg
+    - type!=kubernetes.io/dockerconfigjson
+    - type!=kubernetes.io/basic-auth
+    - type!=kubernetes.io/ssh-auth
+    - type!=bootstrap.kubernetes.io/token
+    - type!=helm.sh/release.v1
