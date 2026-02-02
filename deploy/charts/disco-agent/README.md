@@ -295,6 +295,13 @@ This cluster name will be associated with the data that the agent uploads to the
 A short description of the cluster where the agent is deployed (optional).  
   
 This description will be associated with the data that the agent uploads to the Discovery and Context service. The description may include contact information such as the email address of the cluster administrator, so that any problems and risks identified by the Discovery and Context service can be communicated to the people responsible for the affected secrets.
+#### **config.sendSecrets** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+Enable sending of Secret data to CyberArk, in addition to the metadata. When enabled, Secret data is encrypted using envelope encryption using a key managed by CyberArk. Default: false (but default will change to true for a future release)
 #### **authentication.secretName** ~ `string`
 > Default value:
 > ```yaml

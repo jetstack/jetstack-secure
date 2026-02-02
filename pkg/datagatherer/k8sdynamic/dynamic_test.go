@@ -1,16 +1,21 @@
 package k8sdynamic
 
 import (
+	"crypto/rand"
+	stdrsa "crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwe"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
@@ -26,6 +31,8 @@ import (
 	k8scache "k8s.io/client-go/tools/cache"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/internal/envelope"
+	"github.com/jetstack/preflight/internal/envelope/rsa"
 )
 
 func getObject(version, kind, name, namespace string, withManagedFields bool) *unstructured.Unstructured {
@@ -91,28 +98,31 @@ func getSecret(name, namespace string, data map[string]any, isTLS bool, withLast
 	return object
 }
 
-func sortGatheredResources(list []*api.GatheredResource) {
-	if len(list) > 1 {
-		sort.SliceStable(list, func(i, j int) bool {
-			var itemA, itemB string
-			// unstructured
-			if item, ok := list[i].Resource.(*unstructured.Unstructured); ok {
-				itemA = item.GetName()
-			}
-			if item, ok := list[j].Resource.(*unstructured.Unstructured); ok {
-				itemB = item.GetName()
-			}
+func sortResourcesByName(list []*unstructured.Unstructured) {
+	slices.SortStableFunc(list, func(a, b *unstructured.Unstructured) int {
+		return strings.Compare(a.GetName(), b.GetName())
+	})
+}
 
-			// pods
-			if item, ok := list[i].Resource.(*corev1.Pod); ok {
-				itemA = item.GetName()
-			}
-			if item, ok := list[j].Resource.(*corev1.Pod); ok {
-				itemB = item.GetName()
-			}
-			return itemA < itemB
-		})
+func sortGatheredResources(list []*api.GatheredResource) {
+	type namer interface {
+		GetName() string
 	}
+
+	slices.SortStableFunc(list, func(a, b *api.GatheredResource) int {
+		aNamer, ok := a.Resource.(namer)
+		if !ok {
+			panic("got unexpected resource type")
+		}
+
+		bNamer, ok := b.Resource.(namer)
+		if !ok {
+			panic("got unexpected resource type")
+		}
+
+		return strings.Compare(aNamer.GetName(), bNamer.GetName())
+	})
+
 }
 
 func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
@@ -393,7 +403,23 @@ func init() {
 	clock = &fakeTime{}
 }
 
+type failEncryptor struct{}
+
+func (fe *failEncryptor) Encrypt(plaintext []byte) (*envelope.EncryptedData, error) {
+	return nil, fmt.Errorf("encryption failed")
+}
+
 func TestDynamicGatherer_Fetch(t *testing.T) {
+	privKey, err := stdrsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	keyID := "test-key-id"
+
+	encryptor, err := rsa.NewEncryptor(keyID, privKey.Public().(*stdrsa.PublicKey))
+	if err != nil {
+		t.Fatalf("failed to create encryptor: %v", err)
+	}
+
 	// start a k8s client
 	// init the datagatherer's informer with the client
 	// add/delete resources watched by the data gatherer
@@ -402,14 +428,18 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 		config            ConfigDynamic
 		excludeAnnotsKeys []string
 		excludeLabelKeys  []string
-		addObjects        []runtime.Object
+		addObjects        []*unstructured.Unstructured
 		deleteObjects     map[string]string
 		updateObjects     map[string]runtime.Object
 		expected          []*api.GatheredResource
-		err               bool
+
+		encryptor               envelope.Encryptor
+		expectEncryptionFailure bool
+
+		err bool
 	}{
 		"fetches the default namespace": {
-			addObjects: []runtime.Object{
+			addObjects: []*unstructured.Unstructured{
 				getObject("v1", "Namespace", "default", "", false),
 			},
 			config: ConfigDynamic{
@@ -432,7 +462,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			},
 		},
 		"only a Foo should be returned if GVR selects foos": {
-			addObjects: []runtime.Object{
+			addObjects: []*unstructured.Unstructured{
 				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
 				getObject("v1", "Service", "testservice", "testns", false),
 				getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
@@ -448,7 +478,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			},
 		},
 		"delete a Foo resource from the testns, the cache should have a Foo with deletedAt set to now()": {
-			addObjects: []runtime.Object{
+			addObjects: []*unstructured.Unstructured{
 				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
 				getObject("v1", "Service", "testservice", "testns", false),
 				getObject("foobar/v1", "NotFoo", "notfoo", "testns", false),
@@ -472,7 +502,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				IncludeNamespaces:    []string{"testns"},
 				GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 			},
-			addObjects: []runtime.Object{
+			addObjects: []*unstructured.Unstructured{
 				getObject("foobar/v1", "Foo", "testfoo", "testns", false),
 				getObject("foobar/v1", "Foo", "testfoo", "nottestns", false),
 			},
@@ -487,7 +517,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				IncludeNamespaces:    []string{""},
 				GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 			},
-			addObjects: []runtime.Object{
+			addObjects: []*unstructured.Unstructured{
 				getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
 				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
 			},
@@ -505,7 +535,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				IncludeNamespaces:    []string{""},
 				GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
 			},
-			addObjects: []runtime.Object{
+			addObjects: []*unstructured.Unstructured{
 				getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
 				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
 			},
@@ -527,7 +557,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				"testns1": "testfoo1",
 				"testns2": "testfoo2",
 			},
-			addObjects: []runtime.Object{
+			addObjects: []*unstructured.Unstructured{
 				getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
 				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
 			},
@@ -551,7 +581,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				"testns1": getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
 				"testns2": getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
 			},
-			addObjects: []runtime.Object{
+			addObjects: []*unstructured.Unstructured{
 				getObject("foobar/v1", "Foo", "testfoo1", "testns1", false),
 				getObject("foobar/v1", "Foo", "testfoo2", "testns2", false),
 			},
@@ -569,7 +599,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				IncludeNamespaces:    []string{""},
 				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
 			},
-			addObjects: []runtime.Object{
+			addObjects: []*unstructured.Unstructured{
 				getSecret("testsecret", "testns1", map[string]any{
 					"secretKey": "secretValue",
 				}, false, true),
@@ -591,7 +621,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				IncludeNamespaces:    []string{""},
 				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
 			},
-			addObjects: []runtime.Object{
+			addObjects: []*unstructured.Unstructured{
 				getSecret("testsecret", "testns1", map[string]any{
 					"tls.key": "secretValue",
 					"tls.crt": "value",
@@ -613,6 +643,76 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				{
 					// all other keys removed
 					Resource: getSecret("anothertestsecret", "testns2", nil, true, false),
+				},
+			},
+		},
+		"Secret resources should have encrypted data when encryption is enabled": {
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+			},
+			addObjects: []*unstructured.Unstructured{
+				getSecret("testsecret", "testns1", map[string]any{
+					"secretKey": "secretValue",
+				}, false, true),
+				getSecret("anothertestsecret", "testns2", map[string]any{
+					"secretNumber": "12345",
+				}, false, true),
+			},
+			encryptor: encryptor,
+			expected: []*api.GatheredResource{
+				{
+					Resource: getSecret("testsecret", "testns1", nil, false, false),
+				},
+				{
+					Resource: getSecret("anothertestsecret", "testns2", nil, false, false),
+				},
+			},
+		},
+		"Secret resources should have encrypted data when encryption is enabled with some data fields preserved": {
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+			},
+			addObjects: []*unstructured.Unstructured{
+				getSecret("testsecret-notpreserved", "testns1", map[string]any{
+					"secretKey": "secretValue",
+				}, false, true),
+				getSecret("testsecret-preserved", "testns1", map[string]any{
+					"tls.key": "secretValue",
+					"tls.crt": "value",
+					"ca.crt":  "value",
+				}, true, true),
+			},
+			encryptor: encryptor,
+			expected: []*api.GatheredResource{
+				{
+					// only tls.crt and ca.cert remain, although tls.key will be present in encrypted data
+					Resource: getSecret("testsecret-preserved", "testns1", map[string]any{
+						"tls.crt": "value",
+						"ca.crt":  "value",
+					}, true, false),
+				},
+				{
+					Resource: getSecret("testsecret-notpreserved", "testns1", nil, false, false),
+				},
+			},
+		},
+		"Secret resources should still be redacted if encryption fails": {
+			config: ConfigDynamic{
+				IncludeNamespaces:    []string{""},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+			},
+			addObjects: []*unstructured.Unstructured{
+				getSecret("testsecret", "testns1", map[string]any{
+					"secretKey": "secretValue",
+				}, false, true),
+			},
+			encryptor:               &failEncryptor{},
+			expectEncryptionFailure: true,
+			expected: []*api.GatheredResource{
+				{
+					Resource: getSecret("testsecret", "testns1", nil, false, false),
 				},
 			},
 		},
@@ -651,7 +751,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			// The regular expression would then be:
 			excludeLabelKeys: []string{`^company\.com/employee-id$`},
 
-			addObjects: []runtime.Object{getObjectAnnot("v1", "Secret", "s0", "n1",
+			addObjects: []*unstructured.Unstructured{getObjectAnnot("v1", "Secret", "s0", "n1",
 				map[string]any{"kapp.k14s.io/original": "foo", "kapp.k14s.io/original-diff": "bar", "normal": "true"},
 				map[string]any{`company.com/employee-id`: "12345", "prod": "true"},
 			)},
@@ -666,13 +766,20 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var wg sync.WaitGroup
 			ctx := t.Context()
+
 			gvrToListKind := map[schema.GroupVersionResource]string{
 				{Group: "foobar", Version: "v1", Resource: "foos"}:      "UnstructuredList",
 				{Group: "apps", Version: "v1", Resource: "deployments"}: "UnstructuredList",
 				{Group: "", Version: "v1", Resource: "secrets"}:         "UnstructuredList",
 				{Group: "", Version: "v1", Resource: "namespaces"}:      "UnstructuredList",
 			}
-			cl := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, tc.addObjects...)
+
+			addObjs := make([]runtime.Object, len(tc.addObjects))
+			for i, obj := range tc.addObjects {
+				addObjs[i] = obj
+			}
+			cl := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, addObjs...)
+
 			// init the datagatherer's informer with the client
 			dg, err := tc.config.newDataGathererWithClient(ctx, cl, nil)
 			if err != nil {
@@ -707,6 +814,10 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			}
 			for _, key := range tc.excludeLabelKeys {
 				dgd.ExcludeLabelKeys = append(dgd.ExcludeLabelKeys, regexp.MustCompile(key))
+			}
+
+			if tc.encryptor != nil {
+				dgd.Encryptor = tc.encryptor
 			}
 
 			// start data gatherer informer
@@ -769,11 +880,88 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				// sorting list of expected results by name
 				sortGatheredResources(tc.expected)
 
-				assert.Equal(t, tc.expected, list)
+				// check lengths of lists first before we iterate to compare items
 				assert.Len(t, list, expectCount, "unexpected number of resources returned")
+
+				for i, item := range list {
+					got, ok := item.Resource.(*unstructured.Unstructured)
+					if !ok {
+						t.Errorf("expected resource to be of type unstructured.Unstructured but got %T", item.Resource)
+					}
+
+					expected, ok := tc.expected[i].Resource.(*unstructured.Unstructured)
+					if !ok {
+						t.Errorf("expected resource to be of type unstructured.Unstructured but got %T", tc.expected[i].Resource)
+					}
+
+					// If encryption is enabled, validate the encrypted data
+					if tc.encryptor != nil {
+						if tc.expectEncryptionFailure {
+							_, found, err := unstructured.NestedFieldNoCopy(got.Object, encryptedDataFieldName)
+							require.NoError(t, err, "error checking %s field", encryptedDataFieldName)
+							require.False(t, found, "expected %s field to not exist when encryption fails", encryptedDataFieldName)
+						} else {
+							sortResourcesByName(tc.addObjects)
+							compareEncryptedData(t, privKey, got, tc.addObjects[i])
+						}
+					}
+
+					assert.Equal(t, expected, got)
+				}
 			}
 		})
 	}
+}
+
+func compareEncryptedData(t *testing.T, privKey *stdrsa.PrivateKey, got *unstructured.Unstructured, original *unstructured.Unstructured) {
+	t.Helper()
+
+	// Check that encrypted data field exists
+	encryptedDataRaw, found, err := unstructured.NestedFieldNoCopy(got.Object, encryptedDataFieldName)
+	require.NoError(t, err, "error retrieving %s field", encryptedDataFieldName)
+	require.True(t, found, "expected %s field to exist when encryption is enabled", encryptedDataFieldName)
+
+	// Convert to map and validate structure
+	encryptedDataMap, ok := encryptedDataRaw.(map[string]any)
+	require.True(t, ok, "expected %s to be a map[string]any", encryptedDataFieldName)
+
+	// Check type field
+	typeField, ok := encryptedDataMap["type"].(string)
+	require.True(t, ok, "expected type field to be a string")
+	assert.Equal(t, rsa.EncryptionType, typeField, "expected type to be %s", rsa.EncryptionType)
+
+	// Check data field exists and is valid
+	dataFieldRaw, ok := encryptedDataMap["data"]
+	require.True(t, ok, "expected data field to exist")
+
+	dataField, ok := dataFieldRaw.(string)
+	require.True(t, ok, "expected data field to be a JSON string")
+
+	jweBytes, err := base64.StdEncoding.DecodeString(dataField)
+	require.NoError(t, err, "data field should be valid base64 string")
+
+	require.NotEmpty(t, jweBytes, "expected data field to be non-empty")
+
+	// Verify JWE can be parsed
+	_, err = jwe.Parse(jweBytes)
+	require.NoError(t, err, "data should be a valid JWE")
+
+	plaintext, err := jwe.Decrypt(jweBytes, jwe.WithKey(jwa.RSA_OAEP_256(), privKey), jwe.WithContext(t.Context()))
+	require.NoError(t, err, "failed to decrypt JWE")
+
+	// Verify decrypted plaintext matches expected resource data
+	expectedData, found, err := unstructured.NestedMap(original.Object, "data")
+	require.True(t, found, "expected data field to exist in original resource")
+	require.NoError(t, err, "error retrieving data field from original resource")
+
+	var decryptedDataMap map[string]any
+	err = json.Unmarshal(plaintext, &decryptedDataMap)
+	require.NoError(t, err, "failed to unmarshal decrypted plaintext")
+
+	assert.Equal(t, expectedData, decryptedDataMap, "decrypted data does not match original data")
+
+	// Remove encrypted data so that simple comparison works for other fields
+	unstructured.RemoveNestedField(got.Object, encryptedDataFieldName)
 }
 
 func TestDynamicGathererNativeResources_Fetch(t *testing.T) {

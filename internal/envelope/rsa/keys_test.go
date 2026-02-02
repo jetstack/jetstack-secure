@@ -142,3 +142,24 @@ func TestLoadPublicKeyFromPEMFile_InvalidContent(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, key)
 }
+
+func TestLoadHardcodedPublicKey_CanBeUsedWithEncryptor(t *testing.T) {
+	// Test that the hardcoded key can be used to create an encryptor
+	// First, test that the key can be loaded successfully
+	key, uid, err := internalrsa.LoadHardcodedPublicKey()
+	require.NoError(t, err)
+	require.NotNil(t, key)
+	require.NotEmpty(t, uid)
+
+	encryptor, err := internalrsa.NewEncryptor(uid, key)
+	require.NoError(t, err)
+	require.NotNil(t, encryptor)
+
+	// Test that the encryptor can encrypt data
+	testData := []byte("test data for encryption")
+	encryptedData, err := encryptor.Encrypt(testData)
+	require.NoError(t, err)
+	require.NotNil(t, encryptedData)
+	require.NotEmpty(t, encryptedData.Data)
+	require.Equal(t, "JWE-RSA", encryptedData.Type)
+}

@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/internal/envelope/rsa"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8sdynamic"
@@ -181,6 +182,25 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		if isDynamicGatherer {
 			dynDg.ExcludeAnnotKeys = config.ExcludeAnnotationKeysRegex
 			dynDg.ExcludeLabelKeys = config.ExcludeLabelKeysRegex
+
+			// Check if secret encryption is enabled via environment variable
+			// When enabled, secret data will be kept for encryption instead of being redacted
+			encryptSecrets := strings.ToLower(os.Getenv("ARK_SEND_SECRETS"))
+
+			if encryptSecrets == "true" {
+				// TODO(@SgtCoDFish): this will fetch a key from JWKS endpoint when that endpoint is available
+				key, keyID, err := rsa.LoadHardcodedPublicKey()
+				if err == nil {
+					encryptor, err := rsa.NewEncryptor(keyID, key)
+					if err == nil {
+						dynDg.Encryptor = encryptor
+					} else {
+						log.Error(err, "Failed to create encryptor for secret encryption, secrets will not be sent to backend")
+					}
+				} else {
+					log.Error(err, "Failed to load public key for secret encryption, secrets will not be sent to backend")
+				}
+			}
 		}
 
 		log.V(logs.Debug).Info("Starting DataGatherer", "name", dgConfig.Name)
