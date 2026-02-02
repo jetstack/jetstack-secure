@@ -94,7 +94,7 @@ func (g *DataGathererOIDC) fetchOIDCConfig(ctx context.Context) (map[string]any,
 		return nil, fmt.Errorf("failed to get /.well-known/openid-configuration: %s", k8sErrorMessage(err))
 	}
 
-	bytes, _ := result.Raw()
+	bytes, _ := result.Raw() // we already checked result.Error(), so there is no error here
 	var oidcResponse map[string]any
 	if err := json.Unmarshal(bytes, &oidcResponse); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal OIDC discovery document: %v", err)
@@ -115,7 +115,7 @@ func (g *DataGathererOIDC) fetchJWKS(ctx context.Context) (map[string]any, error
 		return nil, fmt.Errorf("failed to get /openid/v1/jwks: %s", k8sErrorMessage(err))
 	}
 
-	bytes, _ := result.Raw()
+	bytes, _ := result.Raw() // we already checked result.Error(), so there is no error here
 	var jwksResponse map[string]any
 	if err := json.Unmarshal(bytes, &jwksResponse); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JWKS response: %v", err)
