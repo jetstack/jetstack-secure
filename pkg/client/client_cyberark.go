@@ -104,6 +104,25 @@ func baseSnapshotFromOptions(opts Options) dataupload.Snapshot {
 	}
 }
 
+// extractOIDCFromReading converts the opaque data from a OIDCDiscoveryData
+// data reading to allow access to the OIDC fields within.
+func extractOIDCFromReading(reading *api.DataReading, target *dataupload.Snapshot) error {
+	if reading == nil {
+		return fmt.Errorf("programmer mistake: the DataReading must not be nil")
+	}
+	data, ok := reading.Data.(*api.OIDCDiscoveryData)
+	if !ok {
+		return fmt.Errorf(
+			"programmer mistake: the DataReading must have data type *api.OIDCDiscoveryData. "+
+				"This DataReading (%s) has data type %T", reading.DataGatherer, reading.Data)
+	}
+	target.OIDCConfig = data.OIDCConfig
+	target.OIDCConfigError = data.OIDCConfigError
+	target.JWKS = data.JWKS
+	target.JWKSError = data.JWKSError
+	return nil
+}
+
 // extractClusterIDAndServerVersionFromReading converts the opaque data from a DiscoveryData
 // data reading to allow access to the Kubernetes version fields within.
 func extractClusterIDAndServerVersionFromReading(reading *api.DataReading, target *dataupload.Snapshot) error {
@@ -161,6 +180,7 @@ func extractResourceListFromReading(reading *api.DataReading, target *[]runtime.
 // and populates the relevant field(s) of the Snapshot based on the DataReading's data.
 // Deleted resources are excluded from the snapshot because they are not needed by CyberArk.
 var defaultExtractorFunctions = map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+	"ark/oidc":      extractOIDCFromReading,
 	"ark/discovery": extractClusterIDAndServerVersionFromReading,
 	"ark/secrets": func(r *api.DataReading, s *dataupload.Snapshot) error {
 		return extractResourceListFromReading(r, &s.Secrets)

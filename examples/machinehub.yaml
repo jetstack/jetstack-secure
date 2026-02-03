@@ -12,6 +12,10 @@
 #  go run . agent --one-shot --machine-hub -v 6 --agent-config-file ./examples/machinehub.yaml
 
 data-gatherers:
+# Gather Kubernetes OIDC information
+- name: ark/oidc
+  kind: oidc
+
 # Gather Kubernetes API server version information
 - name: ark/discovery
   kind: k8s-discovery
