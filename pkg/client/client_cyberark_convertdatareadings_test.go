@@ -317,6 +317,363 @@ func TestExtractResourceListFromReading(t *testing.T) {
 	}
 }
 
+// TestConvertDataReadings_ConfigMaps tests that configmaps are correctly converted.
+func TestConvertDataReadings_ConfigMaps(t *testing.T) {
+	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+		"ark/discovery": extractClusterIDAndServerVersionFromReading,
+		"ark/configmaps": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.ConfigMaps)
+		},
+	}
+
+	readings := []*api.DataReading{
+		{
+			DataGatherer: "ark/discovery",
+			Data: &api.DiscoveryData{
+				ClusterID: "test-cluster-id",
+				ServerVersion: &version.Info{
+					GitVersion: "v1.21.0",
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/configmaps",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "v1",
+								"kind":       "ConfigMap",
+								"metadata": map[string]any{
+									"name":      "conjur-connect",
+									"namespace": "conjur",
+									"labels": map[string]any{
+										"conjur.org/name": "conjur-connect-configmap",
+									},
+								},
+								"data": map[string]any{
+									"config.yaml": "some-config-data",
+								},
+							},
+						},
+					},
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "v1",
+								"kind":       "ConfigMap",
+								"metadata": map[string]any{
+									"name":      "another-configmap",
+									"namespace": "default",
+									"labels": map[string]any{
+										"conjur.org/name": "conjur-connect-configmap",
+									},
+								},
+								"data": map[string]any{
+									"setting": "value",
+								},
+							},
+						},
+					},
+					// Deleted configmap should be ignored
+					{
+						DeletedAt: api.Time{Time: time.Now()},
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "v1",
+								"kind":       "ConfigMap",
+								"metadata": map[string]any{
+									"name":      "deleted-configmap",
+									"namespace": "default",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var snapshot dataupload.Snapshot
+	err := convertDataReadings(extractorFunctions, readings, &snapshot)
+	require.NoError(t, err)
+
+	// Verify the snapshot contains the expected data
+	assert.Equal(t, "test-cluster-id", snapshot.ClusterID)
+	assert.Equal(t, "v1.21.0", snapshot.K8SVersion)
+	require.Len(t, snapshot.ConfigMaps, 2, "should have 2 configmaps (deleted one should be excluded)")
+
+	// Verify the first configmap
+	cm1, ok := snapshot.ConfigMaps[0].(*unstructured.Unstructured)
+	require.True(t, ok, "configmap should be unstructured")
+	assert.Equal(t, "ConfigMap", cm1.GetKind())
+	assert.Equal(t, "conjur-connect", cm1.GetName())
+	assert.Equal(t, "conjur", cm1.GetNamespace())
+
+	// Verify the second configmap
+	cm2, ok := snapshot.ConfigMaps[1].(*unstructured.Unstructured)
+	require.True(t, ok, "configmap should be unstructured")
+	assert.Equal(t, "ConfigMap", cm2.GetKind())
+	assert.Equal(t, "another-configmap", cm2.GetName())
+	assert.Equal(t, "default", cm2.GetNamespace())
+}
+
+// TestConvertDataReadings_ServiceAccounts tests that serviceaccounts are correctly converted.
+func TestConvertDataReadings_ServiceAccounts(t *testing.T) {
+	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+		"ark/discovery": extractClusterIDAndServerVersionFromReading,
+		"ark/serviceaccounts": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.ServiceAccounts)
+		},
+	}
+
+	readings := []*api.DataReading{
+		{
+			DataGatherer: "ark/discovery",
+			Data: &api.DiscoveryData{
+				ClusterID: "test-cluster-id",
+				ServerVersion: &version.Info{
+					GitVersion: "v1.22.0",
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/serviceaccounts",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "v1",
+								"kind":       "ServiceAccount",
+								"metadata": map[string]any{
+									"name":      "default",
+									"namespace": "default",
+								},
+							},
+						},
+					},
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "v1",
+								"kind":       "ServiceAccount",
+								"metadata": map[string]any{
+									"name":      "app-sa",
+									"namespace": "production",
+									"labels": map[string]any{
+										"app": "myapp",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var snapshot dataupload.Snapshot
+	err := convertDataReadings(extractorFunctions, readings, &snapshot)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test-cluster-id", snapshot.ClusterID)
+	assert.Equal(t, "v1.22.0", snapshot.K8SVersion)
+	require.Len(t, snapshot.ServiceAccounts, 2)
+
+	sa1, ok := snapshot.ServiceAccounts[0].(*unstructured.Unstructured)
+	require.True(t, ok)
+	assert.Equal(t, "ServiceAccount", sa1.GetKind())
+	assert.Equal(t, "default", sa1.GetName())
+}
+
+// TestConvertDataReadings_Roles tests that roles are correctly converted.
+func TestConvertDataReadings_Roles(t *testing.T) {
+	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+		"ark/discovery": extractClusterIDAndServerVersionFromReading,
+		"ark/roles": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.Roles)
+		},
+	}
+
+	readings := []*api.DataReading{
+		{
+			DataGatherer: "ark/discovery",
+			Data: &api.DiscoveryData{
+				ClusterID: "rbac-cluster",
+				ServerVersion: &version.Info{
+					GitVersion: "v1.23.0",
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/roles",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "rbac.authorization.k8s.io/v1",
+								"kind":       "Role",
+								"metadata": map[string]any{
+									"name":      "pod-reader",
+									"namespace": "default",
+									"labels": map[string]any{
+										"rbac.authorization.k8s.io/aggregate-to-view": "true",
+									},
+								},
+								"rules": []any{
+									map[string]any{
+										"apiGroups": []any{""},
+										"resources": []any{"pods"},
+										"verbs":     []any{"get", "list"},
+									},
+								},
+							},
+						},
+					},
+					// Deleted role should be excluded
+					{
+						DeletedAt: api.Time{Time: time.Now()},
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "rbac.authorization.k8s.io/v1",
+								"kind":       "Role",
+								"metadata": map[string]any{
+									"name":      "deleted-role",
+									"namespace": "default",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var snapshot dataupload.Snapshot
+	err := convertDataReadings(extractorFunctions, readings, &snapshot)
+	require.NoError(t, err)
+
+	assert.Equal(t, "rbac-cluster", snapshot.ClusterID)
+	require.Len(t, snapshot.Roles, 1, "deleted role should be excluded")
+
+	role, ok := snapshot.Roles[0].(*unstructured.Unstructured)
+	require.True(t, ok)
+	assert.Equal(t, "Role", role.GetKind())
+	assert.Equal(t, "pod-reader", role.GetName())
+}
+
+// TestConvertDataReadings_MultipleResources tests conversion with multiple resource types.
+func TestConvertDataReadings_MultipleResources(t *testing.T) {
+	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+		"ark/discovery": extractClusterIDAndServerVersionFromReading,
+		"ark/configmaps": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.ConfigMaps)
+		},
+		"ark/serviceaccounts": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.ServiceAccounts)
+		},
+		"ark/deployments": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.Deployments)
+		},
+	}
+
+	readings := []*api.DataReading{
+		{
+			DataGatherer: "ark/discovery",
+			Data: &api.DiscoveryData{
+				ClusterID: "multi-resource-cluster",
+				ServerVersion: &version.Info{
+					GitVersion: "v1.24.0",
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/configmaps",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "v1",
+								"kind":       "ConfigMap",
+								"metadata": map[string]any{
+									"name":      "app-config",
+									"namespace": "default",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/serviceaccounts",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "v1",
+								"kind":       "ServiceAccount",
+								"metadata": map[string]any{
+									"name":      "app-sa",
+									"namespace": "default",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/deployments",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "apps/v1",
+								"kind":       "Deployment",
+								"metadata": map[string]any{
+									"name":      "web-app",
+									"namespace": "default",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var snapshot dataupload.Snapshot
+	err := convertDataReadings(extractorFunctions, readings, &snapshot)
+	require.NoError(t, err)
+
+	// Verify all resources are present
+	assert.Equal(t, "multi-resource-cluster", snapshot.ClusterID)
+	assert.Equal(t, "v1.24.0", snapshot.K8SVersion)
+	require.Len(t, snapshot.ConfigMaps, 1)
+	require.Len(t, snapshot.ServiceAccounts, 1)
+	require.Len(t, snapshot.Deployments, 1)
+
+	// Verify each resource type
+	cm, ok := snapshot.ConfigMaps[0].(*unstructured.Unstructured)
+	require.True(t, ok)
+	assert.Equal(t, "app-config", cm.GetName())
+
+	sa, ok := snapshot.ServiceAccounts[0].(*unstructured.Unstructured)
+	require.True(t, ok)
+	assert.Equal(t, "app-sa", sa.GetName())
+
+	deploy, ok := snapshot.Deployments[0].(*unstructured.Unstructured)
+	require.True(t, ok)
+	assert.Equal(t, "web-app", deploy.GetName())
+}
+
 // TestConvertDataReadings tests the convertDataReadings function.
 func TestConvertDataReadings(t *testing.T) {
 	simpleExtractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
