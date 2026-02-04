@@ -218,6 +218,9 @@ var defaultExtractorFunctions = map[string]func(*api.DataReading, *dataupload.Sn
 	"ark/pods": func(r *api.DataReading, s *dataupload.Snapshot) error {
 		return extractResourceListFromReading(r, &s.Pods)
 	},
+	"ark/configmaps": func(r *api.DataReading, s *dataupload.Snapshot) error {
+		return extractResourceListFromReading(r, &s.ConfigMaps)
+	},
 }
 
 // convertDataReadings processes a list of DataReadings using the provided

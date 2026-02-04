@@ -109,3 +109,11 @@ data:
         resource-type:
           version: v1
           resource: pods
+    - kind: k8s-dynamic
+      name: ark/configmaps
+      config:
+        resource-type:
+          resource: configmaps
+          version: v1
+        label-selectors:
+        - conjur.org/name=conjur-connect-configmap
