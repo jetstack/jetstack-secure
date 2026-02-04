@@ -49,6 +49,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -77,6 +78,8 @@ type ConfigDynamic struct {
 	IncludeNamespaces []string `yaml:"include-namespaces"`
 	// FieldSelectors is a list of field selectors to use when listing this resource
 	FieldSelectors []string `yaml:"field-selectors"`
+	// LabelSelectors is a list of label selectors to use when listing this resource
+	LabelSelectors []string `yaml:"label-selectors"`
 }
 
 // UnmarshalYAML unmarshals the ConfigDynamic resolving GroupVersionResource.
@@ -91,6 +94,7 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(any) error) error {
 		ExcludeNamespaces []string `yaml:"exclude-namespaces"`
 		IncludeNamespaces []string `yaml:"include-namespaces"`
 		FieldSelectors    []string `yaml:"field-selectors"`
+		LabelSelectors    []string `yaml:"label-selectors"`
 	}{}
 	err := unmarshal(&aux)
 	if err != nil {
@@ -104,6 +108,7 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(any) error) error {
 	c.ExcludeNamespaces = aux.ExcludeNamespaces
 	c.IncludeNamespaces = aux.IncludeNamespaces
 	c.FieldSelectors = aux.FieldSelectors
+	c.LabelSelectors = aux.LabelSelectors
 
 	return nil
 }
@@ -119,13 +124,23 @@ func (c *ConfigDynamic) validate() error {
 		errs = append(errs, "invalid configuration: GroupVersionResource.Resource cannot be empty")
 	}
 
-	for i, selectorString := range c.FieldSelectors {
-		if selectorString == "" {
+	for i, fieldSelectorString := range c.FieldSelectors {
+		if fieldSelectorString == "" {
 			errs = append(errs, fmt.Sprintf("invalid field selector %d: must not be empty", i))
 		}
-		_, err := fields.ParseSelector(selectorString)
+		_, err := fields.ParseSelector(fieldSelectorString)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("invalid field selector %d: %s", i, err))
+		}
+	}
+
+	for i, labelSelectorString := range c.LabelSelectors {
+		if labelSelectorString == "" {
+			errs = append(errs, fmt.Sprintf("invalid label selector %d: must not be empty", i))
+		}
+		_, err := labels.Parse(labelSelectorString)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("invalid label selector %d: %s", i, err))
 		}
 	}
 
@@ -207,8 +222,22 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	// Add any custom field selectors to the excluded namespaces selector
 	// The selectors have already been validated, so it is safe to use
 	// ParseSelectorOrDie here.
-	for _, selectorString := range c.FieldSelectors {
-		fieldSelector = fields.AndSelectors(fieldSelector, fields.ParseSelectorOrDie(selectorString))
+	for _, fieldSelectorString := range c.FieldSelectors {
+		fieldSelector = fields.AndSelectors(fieldSelector, fields.ParseSelectorOrDie(fieldSelectorString))
+	}
+
+	// Add any custom label selectors
+	// The selectors have already been validated, so Parse is expected to
+	// succeed; any parse error is treated as a programming error.
+	labelSelector := labels.Everything()
+	for _, labelSelectorString := range c.LabelSelectors {
+		selector, err := labels.Parse(labelSelectorString)
+		if err != nil {
+			panic(fmt.Sprintf("PROGRAMMING ERROR: should have been caught in validation: "+
+				"failed to parse validated label selector %q: %v", labelSelectorString, err))
+		}
+		reqs, _ := selector.Requirements()
+		labelSelector = labelSelector.Add(reqs...)
 	}
 
 	// init cache to store gathered resources
@@ -217,6 +246,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	newDataGatherer := &DataGathererDynamic{
 		groupVersionResource: c.GroupVersionResource,
 		fieldSelector:        fieldSelector.String(),
+		labelSelector:        labelSelector.String(),
 		namespaces:           c.IncludeNamespaces,
 		cache:                dgCache,
 	}
@@ -237,6 +267,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 			informers.WithNamespace(metav1.NamespaceAll),
 			informers.WithTweakListOptions(func(options *metav1.ListOptions) {
 				options.FieldSelector = fieldSelector.String()
+				options.LabelSelector = labelSelector.String()
 			}),
 		)
 		newDataGatherer.informer = informerFunc(factory)
@@ -249,6 +280,7 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 			metav1.NamespaceAll,
 			func(options *metav1.ListOptions) {
 				options.FieldSelector = fieldSelector.String()
+				options.LabelSelector = labelSelector.String()
 			},
 		)
 		newDataGatherer.informer = factory.ForResource(c.GroupVersionResource).Informer()
@@ -293,6 +325,9 @@ type DataGathererDynamic struct {
 	// returned by the Kubernetes API.
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/field-selectors/
 	fieldSelector string
+	// labelSelector is a label selector string used to filter resources
+	// returned by the Kubernetes API.
+	labelSelector string
 	// cache holds all resources watched by the data gatherer, default object expiry time 5 minutes
 	// 30 seconds purge time https://pkg.go.dev/github.com/patrickmn/go-cache
 	cache *cache.Cache
