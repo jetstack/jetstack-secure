@@ -227,8 +227,8 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	}
 
 	// Add any custom label selectors
-	// The selectors have already been validated, so it is safe to use
-	// MustParse here (Parse errors would indicate a programming error).
+	// The selectors have already been validated, so Parse is expected to
+	// succeed; any parse error is treated as a programming error.
 	labelSelector := labels.Everything()
 	for _, labelSelectorString := range c.LabelSelectors {
 		selector, err := labels.Parse(labelSelectorString)
