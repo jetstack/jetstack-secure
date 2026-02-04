@@ -106,6 +106,13 @@ func fakeReadings() []*api.DataReading {
 
 	return append([]*api.DataReading{
 		{
+			DataGatherer: "ark/oidc",
+			Data: &api.OIDCDiscoveryData{
+				OIDCConfigError: "Failed to fetch /.well-known/openid-configuration: 404 Not Found",
+				JWKSError:       "Failed to fetch /openid/v1/jwks: 404 Not Found",
+			},
+		},
+		{
 			DataGatherer: "ark/discovery",
 			Data: &api.DiscoveryData{
 				ClusterID: "ffffffff-ffff-ffff-ffff-ffffffffffff",

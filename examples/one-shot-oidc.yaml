@@ -1,0 +1,16 @@
+# one-shot-oidc.yaml
+#
+# An example configuration file which can be used for local testing.
+# For example:
+#
+#  go run . agent \
+#     --agent-config-file examples/one-shot-oidc.yaml \
+#     --one-shot \
+#     --output-path output.json
+#
+organization_id: "my-organization"
+cluster_id: "my_cluster"
+period: 1m
+data-gatherers:
+- kind: "oidc"
+  name: "ark/oidc"

@@ -64,6 +64,7 @@ func (o *DataReading) UnmarshalJSON(data []byte) error {
 		target any
 		assign func(any)
 	}{
+		{&OIDCDiscoveryData{}, func(v any) { o.Data = v.(*OIDCDiscoveryData) }},
 		{&DiscoveryData{}, func(v any) { o.Data = v.(*DiscoveryData) }},
 		{&DynamicData{}, func(v any) { o.Data = v.(*DynamicData) }},
 	}
@@ -130,14 +131,14 @@ func (v *GatheredResource) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// DynamicData is the DataReading.Data returned by the k8s.DataGathererDynamic
+// DynamicData is the DataReading.Data returned by the k8sdynamic.DataGathererDynamic
 // gatherer
 type DynamicData struct {
 	// Items is a list of GatheredResource
 	Items []*GatheredResource `json:"items"`
 }
 
-// DiscoveryData is the DataReading.Data returned by the k8s.ConfigDiscovery
+// DiscoveryData is the DataReading.Data returned by the k8sdiscovery.DataGathererDiscovery
 // gatherer
 type DiscoveryData struct {
 	// ClusterID is the unique ID of the Kubernetes cluster which this snapshot was taken from.
@@ -148,4 +149,19 @@ type DiscoveryData struct {
 	// ServerVersion is the version information of the k8s apiserver
 	// See https://godoc.org/k8s.io/apimachinery/pkg/version#Info
 	ServerVersion *version.Info `json:"server_version"`
+}
+
+// OIDCDiscoveryData is the DataReading.Data returned by the oidc.OIDCDiscovery
+// gatherer
+type OIDCDiscoveryData struct {
+	// OIDCConfig contains OIDC configuration data from the API server's
+	// `/.well-known/openid-configuration` endpoint
+	OIDCConfig map[string]any `json:"openid_configuration,omitempty"`
+	// OIDCConfigError contains any error encountered while fetching the OIDC configuration
+	OIDCConfigError string `json:"openid_configuration_error,omitempty"`
+
+	// JWKS contains JWKS data from the API server's `/openid/v1/jwks` endpoint
+	JWKS map[string]any `json:"jwks,omitempty"`
+	// JWKSError contains any error encountered while fetching the JWKS
+	JWKSError string `json:"jwks_error,omitempty"`
 }

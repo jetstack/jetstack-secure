@@ -19,6 +19,7 @@ import (
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/internal/cyberark"
 	"github.com/jetstack/preflight/internal/cyberark/dataupload"
+	"github.com/jetstack/preflight/internal/cyberark/servicediscovery"
 	"github.com/jetstack/preflight/pkg/logs"
 	"github.com/jetstack/preflight/pkg/version"
 )
@@ -37,10 +38,12 @@ var _ Client = &CyberArkClient{}
 // If the configuration is invalid or missing, an error is returned.
 func NewCyberArk(httpClient *http.Client) (*CyberArkClient, error) {
 	configLoader := cyberark.LoadClientConfigFromEnvironment
+
 	_, err := configLoader()
 	if err != nil {
 		return nil, err
 	}
+
 	return &CyberArkClient{
 		configLoader: configLoader,
 		httpClient:   httpClient,
@@ -56,6 +59,19 @@ func NewCyberArk(httpClient *http.Client) (*CyberArkClient, error) {
 // The supplied Options are not used by this publisher.
 func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readings []*api.DataReading, opts Options) error {
 	log := klog.FromContext(ctx)
+
+	cfg, err := o.configLoader()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	discoveryClient := servicediscovery.New(o.httpClient)
+
+	serviceMap, err := discoveryClient.DiscoverServices(ctx, cfg.Subdomain)
+	if err != nil {
+		return err
+	}
+
 	snapshot := baseSnapshotFromOptions(opts)
 
 	if err := convertDataReadings(defaultExtractorFunctions, readings, &snapshot); err != nil {
@@ -65,11 +81,7 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 	// Minimize the snapshot to reduce size and improve privacy
 	minimizeSnapshot(log.V(logs.Debug), &snapshot)
 
-	cfg, err := o.configLoader()
-	if err != nil {
-		return err
-	}
-	datauploadClient, err := cyberark.NewDatauploadClient(ctx, o.httpClient, cfg)
+	datauploadClient, err := cyberark.NewDatauploadClient(ctx, o.httpClient, serviceMap, cfg)
 	if err != nil {
 		return fmt.Errorf("while initializing data upload client: %s", err)
 	}
@@ -90,6 +102,25 @@ func baseSnapshotFromOptions(opts Options) dataupload.Snapshot {
 		ClusterDescription: opts.ClusterDescription,
 		AgentVersion:       version.PreflightVersion,
 	}
+}
+
+// extractOIDCFromReading converts the opaque data from a OIDCDiscoveryData
+// data reading to allow access to the OIDC fields within.
+func extractOIDCFromReading(reading *api.DataReading, target *dataupload.Snapshot) error {
+	if reading == nil {
+		return fmt.Errorf("programmer mistake: the DataReading must not be nil")
+	}
+	data, ok := reading.Data.(*api.OIDCDiscoveryData)
+	if !ok {
+		return fmt.Errorf(
+			"programmer mistake: the DataReading must have data type *api.OIDCDiscoveryData. "+
+				"This DataReading (%s) has data type %T", reading.DataGatherer, reading.Data)
+	}
+	target.OIDCConfig = data.OIDCConfig
+	target.OIDCConfigError = data.OIDCConfigError
+	target.JWKS = data.JWKS
+	target.JWKSError = data.JWKSError
+	return nil
 }
 
 // extractClusterIDAndServerVersionFromReading converts the opaque data from a DiscoveryData
@@ -149,6 +180,7 @@ func extractResourceListFromReading(reading *api.DataReading, target *[]runtime.
 // and populates the relevant field(s) of the Snapshot based on the DataReading's data.
 // Deleted resources are excluded from the snapshot because they are not needed by CyberArk.
 var defaultExtractorFunctions = map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+	"ark/oidc":      extractOIDCFromReading,
 	"ark/discovery": extractClusterIDAndServerVersionFromReading,
 	"ark/secrets": func(r *api.DataReading, s *dataupload.Snapshot) error {
 		return extractResourceListFromReading(r, &s.Secrets)
