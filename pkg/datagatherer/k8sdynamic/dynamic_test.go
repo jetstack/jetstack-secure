@@ -1292,7 +1292,7 @@ func toRegexps(keys []string) []*regexp.Regexp {
 	return regexps
 }
 
-// TestValidate_LabelSelectors tests validation of label selectors.
+// TestValidate_LabelSelectors tests validation of label selectors
 func TestValidate_LabelSelectors(t *testing.T) {
 	tests := []struct {
 		name           string
