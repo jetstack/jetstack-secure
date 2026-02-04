@@ -233,9 +233,8 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	for _, labelSelectorString := range c.LabelSelectors {
 		selector, err := labels.Parse(labelSelectorString)
 		if err != nil {
-			// This should never happen since validation already passed
-			log.Error(err, "failed to parse validated label selector", "selector", labelSelectorString)
-			panic(fmt.Sprintf("failed to parse validated label selector %q: %v", labelSelectorString, err))
+			panic(fmt.Sprintf("PROGRAMMING ERROR: should have been caught in validation: "+
+				"failed to parse validated label selector %q: %v", labelSelectorString, err))
 		}
 		reqs, _ := selector.Requirements()
 		labelSelector = labelSelector.Add(reqs...)
