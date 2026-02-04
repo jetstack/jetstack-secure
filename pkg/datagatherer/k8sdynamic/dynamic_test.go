@@ -124,6 +124,10 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 			"type!=kubernetes.io/service-account-token",
 			"type!=kubernetes.io/dockercfg",
 		},
+		LabelSelectors: []string{
+			"conjur.org/name=conjur-connect-configmap",
+			"app=my-app",
+		},
 	}
 	cl := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	dg, err := config.newDataGathererWithClient(ctx, cl, nil)
@@ -138,6 +142,7 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 		// during initialization
 		namespaces:    config.IncludeNamespaces,
 		fieldSelector: "metadata.namespace!=kube-system,type!=kubernetes.io/service-account-token,type!=kubernetes.io/dockercfg",
+		labelSelector: "app=my-app,conjur.org/name=conjur-connect-configmap",
 	}
 
 	gatherer := dg.(*DataGathererDynamic)
@@ -160,6 +165,9 @@ func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 	if !reflect.DeepEqual(gatherer.fieldSelector, expected.fieldSelector) {
 		t.Errorf("expected %v, got %v", expected.fieldSelector, gatherer.fieldSelector)
 	}
+	if !reflect.DeepEqual(gatherer.labelSelector, expected.labelSelector) {
+		t.Errorf("expected %v, got %v", expected.labelSelector, gatherer.labelSelector)
+	}
 }
 
 func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
@@ -167,6 +175,10 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 	config := ConfigDynamic{
 		IncludeNamespaces:    []string{"a"},
 		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+		LabelSelectors: []string{
+			"app=my-app",
+			"version=v1",
+		},
 	}
 	clientset := fakeclientset.NewSimpleClientset()
 	dg, err := config.newDataGathererWithClient(ctx, nil, clientset)
@@ -178,7 +190,8 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 		groupVersionResource: config.GroupVersionResource,
 		// it's important that the namespaces are set as the IncludeNamespaces
 		// during initialization
-		namespaces: config.IncludeNamespaces,
+		namespaces:    config.IncludeNamespaces,
+		labelSelector: "app=my-app,version=v1",
 	}
 
 	gatherer := dg.(*DataGathererDynamic)
@@ -197,6 +210,9 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 	}
 	if gatherer.registration == nil {
 		t.Errorf("unexpected event handler registration value: %v", nil)
+	}
+	if !reflect.DeepEqual(gatherer.labelSelector, expected.labelSelector) {
+		t.Errorf("expected %v, got %v", expected.labelSelector, gatherer.labelSelector)
 	}
 }
 
@@ -217,6 +233,9 @@ include-namespaces:
 - default
 field-selectors:
 - type!=kubernetes.io/service-account-token
+label-selectors:
+- conjur.org/name=conjur-connect-configmap
+- app=my-app
 `
 
 	expectedGVR := schema.GroupVersionResource{
@@ -234,6 +253,11 @@ field-selectors:
 
 	expectedFieldSelectors := []string{
 		"type!=kubernetes.io/service-account-token",
+	}
+
+	expectedLabelSelectors := []string{
+		"conjur.org/name=conjur-connect-configmap",
+		"app=my-app",
 	}
 
 	cfg := ConfigDynamic{}
@@ -258,6 +282,9 @@ field-selectors:
 	}
 	if got, want := cfg.FieldSelectors, expectedFieldSelectors; !reflect.DeepEqual(got, want) {
 		t.Errorf("FieldSelectors does not match: got=%+v want=%+v", got, want)
+	}
+	if got, want := cfg.LabelSelectors, expectedLabelSelectors; !reflect.DeepEqual(got, want) {
+		t.Errorf("LabelSelectors does not match: got=%+v want=%+v", got, want)
 	}
 }
 
@@ -1263,4 +1290,216 @@ func toRegexps(keys []string) []*regexp.Regexp {
 		regexps = append(regexps, regexp.MustCompile(key))
 	}
 	return regexps
+}
+
+// TestValidate_LabelSelectors tests validation of label selectors.
+func TestValidate_LabelSelectors(t *testing.T) {
+	tests := []struct {
+		name           string
+		labelSelectors []string
+		expectError    bool
+		errorContains  string
+	}{
+		{
+			name:           "valid simple label selector",
+			labelSelectors: []string{"app=myapp"},
+			expectError:    false,
+		},
+		{
+			name:           "valid label selector with dot notation",
+			labelSelectors: []string{"conjur.org/name=conjur-connect-configmap"},
+			expectError:    false,
+		},
+		{
+			name:           "valid negative label selector",
+			labelSelectors: []string{"app!=test"},
+			expectError:    false,
+		},
+		{
+			name:           "valid multiple label selectors",
+			labelSelectors: []string{"app=myapp", "environment=production"},
+			expectError:    false,
+		},
+		{
+			name:           "valid label existence check",
+			labelSelectors: []string{"app"},
+			expectError:    false,
+		},
+		{
+			name:           "valid label non-existence check",
+			labelSelectors: []string{"!app"},
+			expectError:    false,
+		},
+		{
+			name:           "valid set-based selector",
+			labelSelectors: []string{"environment in (production, staging)"},
+			expectError:    false,
+		},
+		{
+			name:           "valid negative set-based selector",
+			labelSelectors: []string{"environment notin (dev, test)"},
+			expectError:    false,
+		},
+		{
+			name:           "empty label selector",
+			labelSelectors: []string{""},
+			expectError:    true,
+			errorContains:  "must not be empty",
+		},
+		{
+			name:           "invalid label selector syntax",
+			labelSelectors: []string{"invalid===syntax"},
+			expectError:    true,
+			errorContains:  "invalid label selector",
+		},
+		{
+			name:           "multiple selectors with one invalid",
+			labelSelectors: []string{"app=valid", "invalid==="},
+			expectError:    true,
+			errorContains:  "invalid label selector 1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Version:  "v1",
+					Resource: "configmaps",
+				},
+				LabelSelectors: tt.labelSelectors,
+			}
+
+			err := config.validate()
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestValidate_FieldSelectors tests validation of field selectors.
+func TestValidate_FieldSelectors(t *testing.T) {
+	tests := []struct {
+		name           string
+		fieldSelectors []string
+		expectError    bool
+		errorContains  string
+	}{
+		{
+			name:           "valid field selector",
+			fieldSelectors: []string{"metadata.name=test"},
+			expectError:    false,
+		},
+		{
+			name:           "valid negative field selector",
+			fieldSelectors: []string{"type!=kubernetes.io/dockercfg"},
+			expectError:    false,
+		},
+		{
+			name:           "multiple valid field selectors",
+			fieldSelectors: []string{"metadata.namespace=default", "type!=Opaque"},
+			expectError:    false,
+		},
+		{
+			name:           "empty field selector",
+			fieldSelectors: []string{""},
+			expectError:    true,
+			errorContains:  "must not be empty",
+		},
+		{
+			name:           "invalid field selector syntax",
+			fieldSelectors: []string{"invalid===field"},
+			expectError:    true,
+			errorContains:  "invalid field selector",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Version:  "v1",
+					Resource: "secrets",
+				},
+				FieldSelectors: tt.fieldSelectors,
+			}
+
+			err := config.validate()
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestValidate_CombinedSelectors tests validation with both field and label selectors.
+func TestValidate_CombinedSelectors(t *testing.T) {
+	tests := []struct {
+		name           string
+		fieldSelectors []string
+		labelSelectors []string
+		expectError    bool
+		errorContains  string
+	}{
+		{
+			name:           "valid field and label selectors",
+			fieldSelectors: []string{"type!=kubernetes.io/dockercfg"},
+			labelSelectors: []string{"app=myapp"},
+			expectError:    false,
+		},
+		{
+			name:           "invalid field selector with valid label selector",
+			fieldSelectors: []string{"invalid==="},
+			labelSelectors: []string{"app=myapp"},
+			expectError:    true,
+			errorContains:  "invalid field selector",
+		},
+		{
+			name:           "valid field selector with invalid label selector",
+			fieldSelectors: []string{"type!=Opaque"},
+			labelSelectors: []string{"invalid==="},
+			expectError:    true,
+			errorContains:  "invalid label selector",
+		},
+		{
+			name:           "both selectors invalid",
+			fieldSelectors: []string{"bad===field"},
+			labelSelectors: []string{"bad===label"},
+			expectError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &ConfigDynamic{
+				GroupVersionResource: schema.GroupVersionResource{
+					Version:  "v1",
+					Resource: "configmaps",
+				},
+				FieldSelectors: tt.fieldSelectors,
+				LabelSelectors: tt.labelSelectors,
+			}
+
+			err := config.validate()
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
