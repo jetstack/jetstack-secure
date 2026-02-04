@@ -226,16 +226,18 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 		fieldSelector = fields.AndSelectors(fieldSelector, fields.ParseSelectorOrDie(fieldSelectorString))
 	}
 
+	// Add any custom label selectors
+	// The selectors have already been validated, so it is safe to use
+	// MustParse here (Parse errors would indicate a programming error).
 	labelSelector := labels.Everything()
 	for _, labelSelectorString := range c.LabelSelectors {
 		selector, err := labels.Parse(labelSelectorString)
 		if err != nil {
-			return nil, err
+			// This should never happen since validation already passed
+			log.Error(err, "failed to parse validated label selector", "selector", labelSelectorString)
+			panic(fmt.Sprintf("failed to parse validated label selector %q: %v", labelSelectorString, err))
 		}
-		reqs, selectable := selector.Requirements()
-		if !selectable {
-			return nil, fmt.Errorf("invalid label selector %q: not selectable", labelSelectorString)
-		}
+		reqs, _ := selector.Requirements()
 		labelSelector = labelSelector.Add(reqs...)
 	}
 
