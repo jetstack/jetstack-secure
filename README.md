@@ -34,6 +34,7 @@ go run . agent \
 > - [./agent.yaml](./agent.yaml).
 > - [./examples/one-shot-secret.yaml](./examples/one-shot-secret.yaml).
 > - [./examples/cert-manager-agent.yaml](./examples/cert-manager-agent.yaml).
+> - [./examples/encrypted-secrets](./examples/encrypted-secrets) - Send encrypted Kubernetes secrets to CyberArk.
 
 You might also want to run a local echo server to monitor requests sent by the agent:
 
