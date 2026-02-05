@@ -131,13 +131,18 @@ func Test_IdentityAdvanceAuthentication(t *testing.T) {
 				return
 			}
 
-			if len(client.tokenCached) == 0 {
+			if client.tokenCached.Username != testSpec.username {
+				t.Errorf("expected username %s to be set on cached token after authentication but got %q", testSpec.username, client.tokenCached.Username)
+				return
+			}
+
+			if len(client.tokenCached.Token) == 0 {
 				t.Errorf("expected token for %s to be set to %q but wasn't found", testSpec.username, mockSuccessfulStartAuthenticationToken)
 				return
 			}
 
-			if client.tokenCached != mockSuccessfulStartAuthenticationToken {
-				t.Errorf("expected token for %s to be set to %q but was set to %q", testSpec.username, mockSuccessfulStartAuthenticationToken, client.tokenCached)
+			if client.tokenCached.Token != mockSuccessfulStartAuthenticationToken {
+				t.Errorf("expected token for %s to be set to %q but was set to %q", testSpec.username, mockSuccessfulStartAuthenticationToken, client.tokenCached.Token)
 			}
 		})
 	}

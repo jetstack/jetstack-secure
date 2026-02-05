@@ -183,7 +183,10 @@ type Client struct {
 }
 
 // token is a wrapper type for holding auth tokens we want to cache.
-type token string
+type token struct {
+	Username string
+	Token    string
+}
 
 // New returns an initialized CyberArk Identity client using a default service discovery client.
 func New(httpClient *http.Client, baseURL string, subdomain string) *Client {
@@ -192,7 +195,7 @@ func New(httpClient *http.Client, baseURL string, subdomain string) *Client {
 		baseURL:    baseURL,
 		subdomain:  subdomain,
 
-		tokenCached:      "",
+		tokenCached:      token{},
 		tokenCachedMutex: sync.Mutex{},
 	}
 }
@@ -404,7 +407,10 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 
 	c.tokenCachedMutex.Lock()
 
-	c.tokenCached = token(advanceAuthResponse.Result.Token)
+	c.tokenCached = token{
+		Username: username,
+		Token:    advanceAuthResponse.Result.Token,
+	}
 
 	c.tokenCachedMutex.Unlock()
 

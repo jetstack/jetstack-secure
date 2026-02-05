@@ -95,17 +95,21 @@ type Services struct {
 
 // DiscoverServices fetches from the service discovery service for a given subdomain
 // and parses the CyberArk Identity API URL and Inventory API URL.
-func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Services, error) {
+// It also returns the Tenant ID UUID corresponding to the subdomain.
+func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Services, string, error) {
 	u, err := url.Parse(c.baseURL)
 	if err != nil {
-		return nil, fmt.Errorf("invalid base URL for service discovery: %w", err)
+		return nil, "", fmt.Errorf("invalid base URL for service discovery: %w", err)
 	}
+
 	u.Path = path.Join(u.Path, "api/public/tenant-discovery")
 	u.RawQuery = url.Values{"bySubdomain": []string{subdomain}}.Encode()
+
 	endpoint := u.String()
+
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialise request to %s: %s", endpoint, err)
+		return nil, "", fmt.Errorf("failed to initialise request to %s: %s", endpoint, err)
 	}
 
 	request.Header.Set("Accept", "application/json")
@@ -114,7 +118,7 @@ func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Servi
 	arkapi.SetTelemetryRequestHeader(request)
 	resp, err := c.client.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("failed to perform HTTP request: %s", err)
+		return nil, "", fmt.Errorf("failed to perform HTTP request: %s", err)
 	}
 
 	defer resp.Body.Close()
@@ -123,19 +127,19 @@ func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Servi
 		// a 404 error is returned with an empty JSON body "{}" if the subdomain is unknown; at the time of writing, we haven't observed
 		// any other errors and so we can't special case them
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, fmt.Errorf("got an HTTP 404 response from service discovery; maybe the subdomain %q is incorrect or does not exist?", subdomain)
+			return nil, "", fmt.Errorf("got an HTTP 404 response from service discovery; maybe the subdomain %q is incorrect or does not exist?", subdomain)
 		}
 
-		return nil, fmt.Errorf("got unexpected status code %s from request to service discovery API", resp.Status)
+		return nil, "", fmt.Errorf("got unexpected status code %s from request to service discovery API", resp.Status)
 	}
 
 	var discoveryResp DiscoveryResponse
 	err = json.NewDecoder(io.LimitReader(resp.Body, maxDiscoverBodySize)).Decode(&discoveryResp)
 	if err != nil {
 		if err == io.ErrUnexpectedEOF {
-			return nil, fmt.Errorf("rejecting JSON response from server as it was too large or was truncated")
+			return nil, "", fmt.Errorf("rejecting JSON response from server as it was too large or was truncated")
 		}
-		return nil, fmt.Errorf("failed to parse JSON from otherwise successful request to service discovery endpoint: %s", err)
+		return nil, "", fmt.Errorf("failed to parse JSON from otherwise successful request to service discovery endpoint: %s", err)
 	}
 	var identityAPI, discoveryContextAPI string
 	for _, svc := range discoveryResp.Services {
@@ -158,7 +162,7 @@ func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Servi
 	}
 
 	if identityAPI == "" {
-		return nil, fmt.Errorf("didn't find %s in service discovery response, "+
+		return nil, "", fmt.Errorf("didn't find %s in service discovery response, "+
 			"which may indicate a suspended tenant; unable to detect CyberArk Identity API URL", IdentityServiceName)
 	}
 	//TODO: Should add a check for discoveryContextAPI too?
@@ -166,5 +170,5 @@ func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Servi
 	return &Services{
 		Identity:         ServiceEndpoint{API: identityAPI},
 		DiscoveryContext: ServiceEndpoint{API: discoveryContextAPI},
-	}, nil
+	}, discoveryResp.TenantID, nil
 }

@@ -10,6 +10,7 @@ import (
 	"k8s.io/klog/v2/ktesting"
 
 	"github.com/jetstack/preflight/internal/cyberark/dataupload"
+	"github.com/jetstack/preflight/internal/cyberark/identity"
 	"github.com/jetstack/preflight/pkg/version"
 
 	_ "k8s.io/klog/v2/ktesting/init"
@@ -19,17 +20,17 @@ import (
 // mock API server. The mock server is configured to return different responses
 // based on the cluster ID and bearer token used in the request.
 func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
-	setToken := func(token string) func(*http.Request) error {
-		return func(req *http.Request) error {
+	setToken := func(token string) identity.RequestAuthenticator {
+		return func(req *http.Request) (string, error) {
 			req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-			return nil
+			return "foo@example.com", nil // set a dummy username for testing purposes; the actual value is not important for these tests
 		}
 	}
 
 	tests := []struct {
 		name         string
 		snapshot     dataupload.Snapshot
-		authenticate func(req *http.Request) error
+		authenticate identity.RequestAuthenticator
 		requireFn    func(t *testing.T, err error)
 	}{
 		{
@@ -96,7 +97,7 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 
 			datauploadAPIBaseURL, httpClient := dataupload.MockDataUploadServer(t)
 
-			cyberArkClient := dataupload.New(httpClient, datauploadAPIBaseURL, tc.authenticate)
+			cyberArkClient := dataupload.New(httpClient, datauploadAPIBaseURL, "test-tenant-uuid", tc.authenticate)
 
 			err := cyberArkClient.PutSnapshot(ctx, tc.snapshot)
 			tc.requireFn(t, err)
