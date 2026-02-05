@@ -51,9 +51,9 @@ const schemaVersion string = "v2.0.0"
 
 // Run starts the agent process
 func Run(cmd *cobra.Command, args []string) (returnErr error) {
-	ctx, cancel := context.WithCancel(cmd.Context())
+	baseCtx, cancel := context.WithCancel(cmd.Context())
 	defer cancel()
-	log := klog.FromContext(ctx).WithName("Run")
+	log := klog.FromContext(baseCtx).WithName("Run")
 
 	log.Info("Starting", "version", version.PreflightVersion, "commit", version.Commit)
 
@@ -78,7 +78,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		return fmt.Errorf("While evaluating configuration: %v", err)
 	}
 
-	group, gctx := errgroup.WithContext(ctx)
+	group, gctx := errgroup.WithContext(baseCtx)
 	defer func() {
 		cancel()
 		if groupErr := group.Wait(); groupErr != nil {
@@ -123,13 +123,14 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		})
 
 		group.Go(func() error {
+			listenCtx := klog.NewContext(gctx, log)
 			err := listenAndServe(
-				klog.NewContext(gctx, log),
+				listenCtx,
 				&http.Server{
 					Addr:    serverAddress,
 					Handler: server,
 					BaseContext: func(_ net.Listener) context.Context {
-						return gctx
+						return listenCtx
 					},
 				},
 			)
@@ -239,7 +240,7 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 	// be cancelled, which will cause this blocking loop to exit
 	// instead of waiting for the time period.
 	for {
-		if err := gatherAndOutputData(klog.NewContext(ctx, log), eventf, config, preflightClient, dataGatherers); err != nil {
+		if err := gatherAndOutputData(gctx, eventf, config, preflightClient, dataGatherers); err != nil {
 			return err
 		}
 
@@ -316,7 +317,7 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 		}
 	} else {
 		var err error
-		readings, err = gatherData(klog.NewContext(ctx, log), config, dataGatherers)
+		readings, err = gatherData(ctx, config, dataGatherers)
 		if err != nil {
 			return err
 		}
@@ -338,7 +339,7 @@ func gatherAndOutputData(ctx context.Context, eventf Eventf, config CombinedConf
 			postCtx, cancel := context.WithTimeout(ctx, config.BackoffMaxTime)
 			defer cancel()
 
-			return struct{}{}, postData(klog.NewContext(postCtx, log), config, preflightClient, readings)
+			return struct{}{}, postData(postCtx, config, preflightClient, readings)
 		}
 
 		group.Go(func() error {
@@ -406,7 +407,6 @@ func gatherData(ctx context.Context, config CombinedConfig, dataGatherers map[st
 
 func postData(ctx context.Context, config CombinedConfig, preflightClient client.Client, readings []*api.DataReading) error {
 	log := klog.FromContext(ctx).WithName("postData")
-	ctx = klog.NewContext(ctx, log)
 	err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
 		ClusterName:        config.ClusterName,
 		ClusterDescription: config.ClusterDescription,
