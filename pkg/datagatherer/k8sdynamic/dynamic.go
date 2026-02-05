@@ -385,7 +385,7 @@ func (g *DataGathererDynamic) WaitForCacheSync(ctx context.Context) error {
 
 // Fetch will fetch the requested data from the apiserver, or return an error
 // if fetching the data fails.
-func (g *DataGathererDynamic) Fetch() (any, int, error) {
+func (g *DataGathererDynamic) Fetch(ctx context.Context) (any, int, error) {
 	if g.groupVersionResource.String() == "" {
 		return nil, -1, fmt.Errorf("resource type must be specified")
 	}

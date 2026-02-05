@@ -51,7 +51,7 @@ func TestFetch_Success(t *testing.T) {
 	rc := makeRESTClient(t, ts)
 	g := &DataGathererOIDC{cl: rc}
 
-	anyRes, count, err := g.Fetch()
+	anyRes, count, err := g.Fetch(t.Context())
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
@@ -197,7 +197,7 @@ func TestFetch_Errors(t *testing.T) {
 			rc := makeRESTClient(t, ts)
 			g := &DataGathererOIDC{cl: rc}
 
-			anyRes, count, err := g.Fetch()
+			anyRes, count, err := g.Fetch(t.Context())
 			require.NoError(t, err)
 			require.Equal(t, 1, count)
 
