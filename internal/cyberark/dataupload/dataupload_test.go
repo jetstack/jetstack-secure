@@ -96,7 +96,7 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 
 			datauploadAPIBaseURL, httpClient := dataupload.MockDataUploadServer(t)
 
-			cyberArkClient := dataupload.New(httpClient, datauploadAPIBaseURL, tc.authenticate)
+			cyberArkClient := dataupload.New(httpClient, datauploadAPIBaseURL, "test-tenant-uuid", "test-user@example.com", tc.authenticate)
 
 			err := cyberArkClient.PutSnapshot(ctx, tc.snapshot)
 			tc.requireFn(t, err)

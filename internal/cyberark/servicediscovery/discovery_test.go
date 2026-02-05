@@ -66,7 +66,7 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 
 			client := New(httpClient)
 
-			services, err := client.DiscoverServices(ctx, testSpec.subdomain)
+			services, _, err := client.DiscoverServices(ctx, testSpec.subdomain)
 			if testSpec.expectedError != nil {
 				assert.EqualError(t, err, testSpec.expectedError.Error())
 				assert.Nil(t, services)
