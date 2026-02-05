@@ -76,7 +76,7 @@ func (g *DataGathererDiscovery) WaitForCacheSync(ctx context.Context) error {
 }
 
 // Fetch will fetch discovery data from the apiserver, or return an error
-func (g *DataGathererDiscovery) Fetch() (any, int, error) {
+func (g *DataGathererDiscovery) Fetch(ctx context.Context) (any, int, error) {
 	data, err := g.cl.ServerVersion()
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to get server version: %v", err)

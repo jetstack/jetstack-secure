@@ -117,6 +117,7 @@ func sortGatheredResources(list []*api.GatheredResource) {
 
 func TestNewDataGathererWithClientAndDynamicInformer(t *testing.T) {
 	ctx := t.Context()
+
 	config := ConfigDynamic{
 		ExcludeNamespaces:    []string{"kube-system"},
 		GroupVersionResource: schema.GroupVersionResource{Group: "foobar", Version: "v1", Resource: "foos"},
@@ -748,7 +749,7 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			if waitTimeout(&wg, 30*time.Second) {
 				t.Fatalf("unexpected timeout")
 			}
-			res, expectCount, err := dynamiDg.Fetch()
+			res, expectCount, err := dynamiDg.Fetch(ctx)
 			if err != nil && !tc.err {
 				t.Errorf("expected no error but got: %v", err)
 			}
@@ -1061,7 +1062,7 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			if waitTimeout(&wg, 5*time.Second) {
 				t.Fatalf("unexpected timeout")
 			}
-			rawRes, count, err := dynamiDg.Fetch()
+			rawRes, count, err := dynamiDg.Fetch(ctx)
 			if tc.err {
 				require.Error(t, err)
 			} else {

@@ -39,7 +39,7 @@ func (g *dummyDataGatherer) WaitForCacheSync(ctx context.Context) error {
 	return nil
 }
 
-func (c *dummyDataGatherer) Fetch() (any, int, error) {
+func (c *dummyDataGatherer) Fetch(ctx context.Context) (any, int, error) {
 	var err error
 	if c.attemptNumber < c.FailedAttempts {
 		err = fmt.Errorf("First %d attempts will fail", c.FailedAttempts)

@@ -361,7 +361,7 @@ func gatherData(ctx context.Context, config CombinedConfig, dataGatherers map[st
 
 	var dgError *multierror.Error
 	for k, dg := range dataGatherers {
-		dgData, count, err := dg.Fetch()
+		dgData, count, err := dg.Fetch(ctx)
 		if err != nil {
 			dgError = multierror.Append(dgError, fmt.Errorf("error in datagatherer %s: %w", k, err))
 

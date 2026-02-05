@@ -66,9 +66,7 @@ func (g *DataGathererOIDC) WaitForCacheSync(ctx context.Context) error {
 }
 
 // Fetch will fetch the OIDC discovery document and JWKS from the cluster API server.
-func (g *DataGathererOIDC) Fetch() (any, int, error) {
-	ctx := context.Background()
-
+func (g *DataGathererOIDC) Fetch(ctx context.Context) (any, int, error) {
 	oidcResponse, oidcErr := g.fetchOIDCConfig(ctx)
 	jwksResponse, jwksErr := g.fetchJWKS(ctx)
 
