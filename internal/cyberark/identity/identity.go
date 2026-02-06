@@ -51,7 +51,7 @@ var (
 )
 
 // startAuthenticationRequestBody is the body sent to the StartAuthentication endpoint in CyberArk Identity;
-// see https://api-docs.cyberark.com/docs/identity-api-reference/authentication-and-authorization/operations/create-a-security-start-authentication
+// see https://api-docs.cyberark.com/identity-docs-api/docs/security-api#/Login/start-authentication
 type startAuthenticationRequestBody struct {
 	// TenantID is the internal ID of the tenant containing the user attempting to log in. In testing,
 	// it seems that the subdomain works in this field.
@@ -135,6 +135,7 @@ type startAuthenticationMechanism struct {
 // advanceAuthenticationRequestBody is a request body for the AdvanceAuthentication call to CyberArk Identity,
 // which should usually be obtained by making requests to StartAuthentication first.
 // WARNING: This struct can hold secret data (a user's password)
+// See: https://api-docs.cyberark.com/identity-docs-api/docs/security-api#/Login/advance-authentication
 type advanceAuthenticationRequestBody struct {
 	// Action is a string identifying how we're intending to log in; for username/password, this is
 	// set to "Answer" to indicate that the password is held in the Answer field
@@ -227,7 +228,7 @@ func (c *Client) LoginUsernamePassword(ctx context.Context, username string, pas
 // It returns a partially initialized advanceAuthenticationRequestBody ready to send to the server to complete
 // the login. As this function doesn't have access to the password, it must be added to the returned request body
 // by the caller before being used as a request to AdvanceAuthentication.
-// See https://api-docs.cyberark.com/docs/identity-api-reference/authentication-and-authorization/operations/create-a-security-start-authentication
+// See https://api-docs.cyberark.com/identity-docs-api/docs/security-api#/Login/start-authentication
 func (c *Client) doStartAuthentication(ctx context.Context, username string) (advanceAuthenticationRequestBody, error) {
 	response := advanceAuthenticationRequestBody{}
 
@@ -342,6 +343,7 @@ func (c *Client) doStartAuthentication(ctx context.Context, username string) (ad
 
 // doAdvanceAuthentication performs the second step of the login process, sending the password to the server
 // and receiving a token in response.
+// See: https://api-docs.cyberark.com/identity-docs-api/docs/security-api#/Login/advance-authentication
 func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, password *[]byte, requestBody advanceAuthenticationRequestBody) error {
 	if password == nil {
 		return fmt.Errorf("password must not be nil; this is a programming error")
