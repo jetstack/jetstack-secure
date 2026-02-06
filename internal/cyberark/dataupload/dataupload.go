@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -33,13 +34,21 @@ type CyberArkClient struct {
 	baseURL    string
 	httpClient *http.Client
 
+	tenantUUID string
+	username   string
+
 	authenticateRequest func(req *http.Request) error
 }
 
-func New(httpClient *http.Client, baseURL string, authenticateRequest func(req *http.Request) error) *CyberArkClient {
+// TODO: should probably take a cyberark Identity client directly and query subdomain + username from that
+func New(httpClient *http.Client, baseURL string, tenantUUID string, username string, authenticateRequest func(req *http.Request) error) *CyberArkClient {
 	return &CyberArkClient{
-		baseURL:             baseURL,
-		httpClient:          httpClient,
+		baseURL:    baseURL,
+		httpClient: httpClient,
+
+		tenantUUID: tenantUUID,
+		username:   username,
+
 		authenticateRequest: authenticateRequest,
 	}
 }
@@ -102,13 +111,6 @@ type Snapshot struct {
 // has been received intact.
 // Read [Checking object integrity for data uploads in Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity-upload.html),
 // to learn more.
-//
-// TODO(wallrj): There is a bug in the AWS backend:
-// [S3 Presigned PutObjectCommand URLs ignore Sha256 Hash when uploading](https://github.com/aws/aws-sdk/issues/480)
-// ...which means that the `x-amz-checksum-sha256` request header is optional.
-// If you omit that header, it is possible to PUT any data.
-// There is a work around listed in that issue which we have shared with the
-// CyberArk API team.
 func (c *CyberArkClient) PutSnapshot(ctx context.Context, snapshot Snapshot) error {
 	if snapshot.ClusterID == "" {
 		return fmt.Errorf("programmer mistake: the snapshot cluster ID cannot be left empty")
@@ -133,6 +135,30 @@ func (c *CyberArkClient) PutSnapshot(ctx context.Context, snapshot Snapshot) err
 		return err
 	}
 	req.Header.Set("X-Amz-Checksum-Sha256", checksumBase64)
+
+	// TODO: this is temporary logic to only enable the extra sigv4 headers on the specific tenant with
+	// the feature flag enabled
+	// We'll remove this later.
+	if c.tenantUUID == "8f08a102-58ca-49cd-960e-debc5e0d3cd4" {
+		req.Header.Set("X-Amz-Server-Side-Encryption", "AES256")
+
+		q := url.Values{}
+
+		q.Add("agent_version", snapshot.AgentVersion)
+		q.Add("tenant_id", c.tenantUUID)
+		q.Add("upload_type", "k8s_snapshot")
+		q.Add("uploader_id", snapshot.ClusterID)
+		q.Add("username", c.username)
+		q.Add("vendor", "k8s")
+
+		// TODO: Remove this hack when urlencoding is fixed on the backend
+		// MASSIVE HACK: backend is not url-encoding the username, so we need to "decode" it here to match what the backend expects
+		// Backend has committed to change this soon, but to unbreak tests in the meantime we need to do this hack.
+		encodedTags := strings.ReplaceAll(q.Encode(), "%40", "@")
+
+		req.Header.Set("X-Amz-Tagging", encodedTags)
+	}
+
 	version.SetUserAgent(req)
 
 	res, err := c.httpClient.Do(req)

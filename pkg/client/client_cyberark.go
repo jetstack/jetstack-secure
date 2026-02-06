@@ -67,7 +67,7 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 
 	discoveryClient := servicediscovery.New(o.httpClient)
 
-	serviceMap, err := discoveryClient.DiscoverServices(ctx, cfg.Subdomain)
+	serviceMap, tenantUUID, err := discoveryClient.DiscoverServices(ctx, cfg.Subdomain)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 	// Minimize the snapshot to reduce size and improve privacy
 	minimizeSnapshot(log.V(logs.Debug), &snapshot)
 
-	datauploadClient, err := cyberark.NewDatauploadClient(ctx, o.httpClient, serviceMap, cfg)
+	datauploadClient, err := cyberark.NewDatauploadClient(ctx, o.httpClient, serviceMap, tenantUUID, cfg)
 	if err != nil {
 		return fmt.Errorf("while initializing data upload client: %s", err)
 	}
