@@ -117,3 +117,17 @@ data:
           version: v1
         label-selectors:
         - conjur.org/name=conjur-connect-configmap
+    - kind: k8s-dynamic
+      name: ark/externalsecrets
+      config:
+        resource-type:
+          group: external-secrets.io
+          version: v1
+          resource: externalsecrets
+    - kind: k8s-dynamic
+      name: ark/secretstores
+      config:
+        resource-type:
+          group: external-secrets.io
+          version: v1
+          resource: secretstores

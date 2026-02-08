@@ -159,5 +159,17 @@
         "data": {
             "items": []
         }
+    },
+    {
+        "data-gatherer": "ark/externalsecrets",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/secretstores",
+        "data": {
+            "items": []
+        }
     }
 ]

@@ -80,6 +80,13 @@ kubectl create secret generic e2e-sample-secret-$(date '+%s') \
 # in the ark/configmaps data gatherer (conjur.org/name=conjur-connect-configmap).
 kubectl apply -f "${root_dir}/hack/ark/conjur-connect-configmap.yaml"
 
+# Create sample External Secrets Operator resources that will be discovered by the agent
+#
+# These require the ESO CRDs to be installed in the cluster. If the CRDs are not
+# installed, these commands will fail but the e2e test can still proceed.
+kubectl apply -f "${root_dir}/hack/ark/secret-store.yaml" || echo "Warning: SecretStore CRD not installed, skipping"
+kubectl apply -f "${root_dir}/hack/ark/external-secret.yaml" || echo "Warning: ExternalSecret CRD not installed, skipping"
+
 # We use a non-existent tag and omit the `--version` flag, to work around a Helm
 # v4 bug. See: https://github.com/helm/helm/issues/31600
 helm upgrade agent "oci://${ARK_CHART}:NON_EXISTENT_TAG@${ARK_CHART_DIGEST}" \

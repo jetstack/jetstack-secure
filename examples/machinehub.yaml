@@ -139,3 +139,22 @@ data-gatherers:
       version: v1
     label-selectors:
     - conjur.org/name=conjur-connect-configmap
+
+# Gather External Secrets Operator ExternalSecret resources
+- name: ark/externalsecrets
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      group: external-secrets.io
+      version: v1
+      resource: externalsecrets
+
+# Gather External Secrets Operator SecretStore resources
+- name: ark/secretstores
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      group: external-secrets.io
+      version: v1
+      resource: secretstores
+
