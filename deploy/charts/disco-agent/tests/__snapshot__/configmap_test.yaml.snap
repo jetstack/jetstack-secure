@@ -105,6 +105,34 @@ custom-cluster-description:
               version: v1
             label-selectors:
             - conjur.org/name=conjur-connect-configmap
+        - kind: k8s-dynamic
+          name: ark/esoexternalsecrets
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: externalsecrets
+        - kind: k8s-dynamic
+          name: ark/esosecretstores
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: secretstores
+        - kind: k8s-dynamic
+          name: ark/esoclusterexternalsecrets
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: clusterexternalsecrets
+        - kind: k8s-dynamic
+          name: ark/esoclustersecretstores
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: clustersecretstores
     kind: ConfigMap
     metadata:
       labels:
@@ -222,6 +250,34 @@ custom-cluster-name:
               version: v1
             label-selectors:
             - conjur.org/name=conjur-connect-configmap
+        - kind: k8s-dynamic
+          name: ark/esoexternalsecrets
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: externalsecrets
+        - kind: k8s-dynamic
+          name: ark/esosecretstores
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: secretstores
+        - kind: k8s-dynamic
+          name: ark/esoclusterexternalsecrets
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: clusterexternalsecrets
+        - kind: k8s-dynamic
+          name: ark/esoclustersecretstores
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: clustersecretstores
     kind: ConfigMap
     metadata:
       labels:
@@ -339,6 +395,34 @@ custom-period:
               version: v1
             label-selectors:
             - conjur.org/name=conjur-connect-configmap
+        - kind: k8s-dynamic
+          name: ark/esoexternalsecrets
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: externalsecrets
+        - kind: k8s-dynamic
+          name: ark/esosecretstores
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: secretstores
+        - kind: k8s-dynamic
+          name: ark/esoclusterexternalsecrets
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: clusterexternalsecrets
+        - kind: k8s-dynamic
+          name: ark/esoclustersecretstores
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: clustersecretstores
     kind: ConfigMap
     metadata:
       labels:
@@ -456,6 +540,34 @@ defaults:
               version: v1
             label-selectors:
             - conjur.org/name=conjur-connect-configmap
+        - kind: k8s-dynamic
+          name: ark/esoexternalsecrets
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: externalsecrets
+        - kind: k8s-dynamic
+          name: ark/esosecretstores
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: secretstores
+        - kind: k8s-dynamic
+          name: ark/esoclusterexternalsecrets
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: clusterexternalsecrets
+        - kind: k8s-dynamic
+          name: ark/esoclustersecretstores
+          config:
+            resource-type:
+              group: external-secrets.io
+              version: v1
+              resource: clustersecretstores
     kind: ConfigMap
     metadata:
       labels:
