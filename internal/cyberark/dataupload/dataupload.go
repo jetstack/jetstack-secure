@@ -73,6 +73,10 @@ type Snapshot struct {
 	ServiceAccounts []runtime.Object `json:"serviceaccounts"`
 	// ConfigMaps is a list of ConfigMap resources in the cluster.
 	ConfigMaps []runtime.Object `json:"configmaps"`
+    // ExternalSecrets is a list of ExternalSecret resources in the cluster.
+	ExternalSecrets []runtime.Object `json:"externalsecrets"`
+	// SecretStores is a list of SecretStore resources in the cluster.
+	SecretStores []runtime.Object `json:"secretstores"`
 	// Roles is a list of Role resources in the cluster.
 	Roles []runtime.Object `json:"roles"`
 	// ClusterRoles is a list of ClusterRole resources in the cluster.
