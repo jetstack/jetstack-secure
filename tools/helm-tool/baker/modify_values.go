@@ -21,9 +21,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
+	"unicode"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
+	"github.com/goccy/go-yaml/parser"
 )
 
 // inplaceReadValuesYAML reads the provided chart tar file and returns the values
@@ -124,16 +127,126 @@ func modifyTarStreamValuesYAML(in io.Reader, out io.Writer, modFn modFunction) e
 }
 
 func modifyStreamValuesYAML(in io.Reader, out io.Writer, modFn modFunction) error {
-	// Parse YAML
-	var data map[string]any
-	if err := yaml.NewDecoder(in).Decode(&data); err != nil {
-		return err
-	}
-	// Modify YAML
-	data, err := modFn(data)
+	inputBytes, err := io.ReadAll(in)
 	if err != nil {
 		return err
 	}
-	// Marshal back to YAML
-	return yaml.NewEncoder(out).Encode(data)
+	// Parse YAML into Go values for modification logic.
+	var data map[string]any
+	if err := yaml.Unmarshal(inputBytes, &data); err != nil {
+		return err
+	}
+	originalStrings := map[string]string{}
+	collectStringValues(data, nil, originalStrings)
+	// Modify YAML values via the existing callback.
+	data, err = modFn(data)
+	if err != nil {
+		return err
+	}
+	updatedStrings := map[string]string{}
+	collectStringValues(data, nil, updatedStrings)
+	// Parse YAML into an AST so we can update nodes without losing comments.
+	astFile, err := parser.ParseBytes(inputBytes, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+	for yamlPath, newValue := range updatedStrings {
+		if originalValue, ok := originalStrings[yamlPath]; ok && originalValue == newValue {
+			continue
+		}
+		path, err := yaml.PathString(yamlPath)
+		if err != nil {
+			return err
+		}
+		node, err := yaml.ValueToNode(newValue)
+		if err != nil {
+			return err
+		}
+		if err := path.ReplaceWithNode(astFile, node); err != nil {
+			return err
+		}
+	}
+	_, err = io.WriteString(out, astFile.String())
+	return err
+}
+
+type pathSegment struct {
+	key     string
+	isIndex bool
+}
+
+func collectStringValues(object any, path []pathSegment, out map[string]string) {
+	switch t := object.(type) {
+	case map[string]any:
+		for key, value := range t {
+			keyPath := append(path, pathSegment{key: key})
+			if stringValue, ok := value.(string); ok {
+				out[pathToYAMLPath(keyPath)] = stringValue
+				continue
+			}
+			collectStringValues(value, keyPath, out)
+		}
+	case map[string]string:
+		for key, value := range t {
+			keyPath := append(path, pathSegment{key: key})
+			out[pathToYAMLPath(keyPath)] = value
+		}
+	case []any:
+		for i, value := range t {
+			keyPath := append(path, pathSegment{key: strconv.Itoa(i), isIndex: true})
+			if stringValue, ok := value.(string); ok {
+				out[pathToYAMLPath(keyPath)] = stringValue
+				continue
+			}
+			collectStringValues(value, keyPath, out)
+		}
+	case []string:
+		for i, value := range t {
+			keyPath := append(path, pathSegment{key: strconv.Itoa(i), isIndex: true})
+			out[pathToYAMLPath(keyPath)] = value
+		}
+	default:
+		// ignore object
+	}
+}
+
+func pathToYAMLPath(path []pathSegment) string {
+	if len(path) == 0 {
+		return "$"
+	}
+	var builder strings.Builder
+	builder.WriteString("$")
+	for _, segment := range path {
+		if segment.isIndex {
+			builder.WriteString("[")
+			builder.WriteString(segment.key)
+			builder.WriteString("]")
+			continue
+		}
+		builder.WriteString(".")
+		if isSimpleYAMLPathKey(segment.key) {
+			builder.WriteString(segment.key)
+			continue
+		}
+		builder.WriteString("'")
+		builder.WriteString(strings.ReplaceAll(segment.key, "'", "\\'"))
+		builder.WriteString("'")
+	}
+	return builder.String()
+}
+
+func isSimpleYAMLPathKey(key string) bool {
+	if key == "" {
+		return false
+	}
+	for i, r := range key {
+		if i == 0 && unicode.IsDigit(r) {
+			return false
+		}
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
