@@ -158,3 +158,20 @@ data-gatherers:
       version: v1
       resource: secretstores
 
+# Gather External Secrets Operator ClusterExternalSecret resources
+- name: ark/clusterexternalsecrets
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      group: external-secrets.io
+      version: v1beta1
+      resource: clusterexternalsecrets
+
+# Gather External Secrets Operator ClusterSecretStore resources
+- name: ark/clustersecretstores
+  kind: k8s-dynamic
+  config:
+    resource-type:
+      group: external-secrets.io
+      version: v1beta1
+      resource: clustersecretstores

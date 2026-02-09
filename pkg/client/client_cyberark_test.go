@@ -82,6 +82,8 @@ var defaultDynamicDatagathererNames = []string{
 	"ark/configmaps",
 	"ark/externalsecrets",
 	"ark/secretstores",
+	"ark/clusterexternalsecrets",
+	"ark/clustersecretstores",
 	"ark/roles",
 	"ark/clusterroles",
 	"ark/rolebindings",

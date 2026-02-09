@@ -171,5 +171,17 @@
         "data": {
             "items": []
         }
+    },
+    {
+        "data-gatherer": "ark/clusterexternalsecrets",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/clustersecretstores",
+        "data": {
+            "items": []
+        }
     }
 ]
