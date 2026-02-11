@@ -3,6 +3,7 @@
   "dr_region": "us-east-2",
   "subdomain": "venafi-test",
   "platform_id": "platform-123",
+  "tenant_id": "tenant-123",
   "identity_id": "identity-456",
   "default_url": "https://venafi-test.integration-cyberark.cloud",
   "tenant_flags": {

@@ -124,7 +124,7 @@ func (c *CyberArkClient) PutSnapshot(ctx context.Context, snapshot Snapshot) err
 	checksumHex := hex.EncodeToString(checksum)
 	checksumBase64 := base64.StdEncoding.EncodeToString(checksum)
 
-	presignedUploadURL, username, err := c.retrievePresignedUploadURL(ctx, checksumHex, snapshot.ClusterID)
+	presignedUploadURL, username, err := c.retrievePresignedUploadURL(ctx, checksumHex, snapshot.ClusterID, int64(encodedBody.Len()))
 	if err != nil {
 		return fmt.Errorf("while retrieving snapshot upload URL: %s", err)
 	}
@@ -168,20 +168,30 @@ func (c *CyberArkClient) PutSnapshot(ctx context.Context, snapshot Snapshot) err
 	return nil
 }
 
-func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksum string, clusterID string) (string, string, error) {
+// RetrievePresignedUploadURLRequest is the JSON body sent to the inventory API to request a presigned upload URL.
+type RetrievePresignedUploadURLRequest struct {
+	ClusterID string `json:"cluster_id"`
+	Checksum  string `json:"checksum_sha256"`
+
+	// AgentVersion is the v-prefixed version of the agent uploading the snapshot.
+	// Note that the backend relies on this version being v-prefixed semver.
+	AgentVersion string `json:"agent_version"`
+
+	// FileSize is the size of the data we'll upload in bytes
+	FileSize int64 `json:"file_size"`
+}
+
+func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksum string, clusterID string, fileSize int64) (string, string, error) {
 	uploadURL, err := url.JoinPath(c.baseURL, apiPathSnapshotLinks)
 	if err != nil {
 		return "", "", err
 	}
 
-	request := struct {
-		ClusterID    string `json:"cluster_id"`
-		Checksum     string `json:"checksum_sha256"`
-		AgentVersion string `json:"agent_version"`
-	}{
+	request := RetrievePresignedUploadURLRequest{
 		ClusterID:    clusterID,
 		Checksum:     checksum,
 		AgentVersion: version.PreflightVersion,
+		FileSize:     fileSize,
 	}
 
 	encodedBody := &bytes.Buffer{}
