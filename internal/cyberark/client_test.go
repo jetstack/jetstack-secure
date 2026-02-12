@@ -34,12 +34,12 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 
 	discoveryClient := servicediscovery.New(httpClient)
 
-	serviceMap, err := discoveryClient.DiscoverServices(t.Context(), cfg.Subdomain)
+	serviceMap, tenantUUID, err := discoveryClient.DiscoverServices(t.Context(), cfg.Subdomain)
 	if err != nil {
 		t.Fatalf("failed to discover mock services: %v", err)
 	}
 
-	cl, err := cyberark.NewDatauploadClient(ctx, httpClient, serviceMap, cfg)
+	cl, err := cyberark.NewDatauploadClient(ctx, httpClient, serviceMap, tenantUUID, cfg)
 	require.NoError(t, err)
 
 	err = cl.PutSnapshot(ctx, dataupload.Snapshot{
@@ -78,12 +78,12 @@ func TestCyberArkClient_PutSnapshot_RealAPI(t *testing.T) {
 
 	discoveryClient := servicediscovery.New(httpClient)
 
-	serviceMap, err := discoveryClient.DiscoverServices(t.Context(), cfg.Subdomain)
+	serviceMap, tenantUUID, err := discoveryClient.DiscoverServices(t.Context(), cfg.Subdomain)
 	if err != nil {
 		t.Fatalf("failed to discover services: %v", err)
 	}
 
-	cl, err := cyberark.NewDatauploadClient(ctx, httpClient, serviceMap, cfg)
+	cl, err := cyberark.NewDatauploadClient(ctx, httpClient, serviceMap, tenantUUID, cfg)
 	require.NoError(t, err)
 
 	err = cl.PutSnapshot(ctx, dataupload.Snapshot{

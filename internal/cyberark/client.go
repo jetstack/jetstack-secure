@@ -49,7 +49,7 @@ func LoadClientConfigFromEnvironment() (ClientConfig, error) {
 // NewDatauploadClient initializes and returns a new CyberArk Data Upload client.
 // It performs service discovery to find the necessary API endpoints and authenticates
 // using the provided client configuration.
-func NewDatauploadClient(ctx context.Context, httpClient *http.Client, serviceMap *servicediscovery.Services, cfg ClientConfig) (*dataupload.CyberArkClient, error) {
+func NewDatauploadClient(ctx context.Context, httpClient *http.Client, serviceMap *servicediscovery.Services, tenantUUID string, cfg ClientConfig) (*dataupload.CyberArkClient, error) {
 	identityAPI := serviceMap.Identity.API
 	if identityAPI == "" {
 		return nil, errors.New("service discovery returned an empty identity API")
@@ -67,5 +67,5 @@ func NewDatauploadClient(ctx context.Context, httpClient *http.Client, serviceMa
 		return nil, err
 	}
 
-	return dataupload.New(httpClient, discoveryAPI, identityClient.AuthenticateRequest), nil
+	return dataupload.New(httpClient, discoveryAPI, tenantUUID, identityClient.AuthenticateRequest), nil
 }

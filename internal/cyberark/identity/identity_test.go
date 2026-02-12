@@ -53,7 +53,7 @@ func TestLoginUsernamePassword_RealAPI(t *testing.T) {
 	arktesting.SkipIfNoEnv(t)
 	subdomain := os.Getenv("ARK_SUBDOMAIN")
 	httpClient := http.DefaultClient
-	services, err := servicediscovery.New(httpClient).DiscoverServices(t.Context(), subdomain)
+	services, _, err := servicediscovery.New(httpClient).DiscoverServices(t.Context(), subdomain)
 	require.NoError(t, err)
 
 	loginUsernamePasswordTests(t, func(t testing.TB) inputs {

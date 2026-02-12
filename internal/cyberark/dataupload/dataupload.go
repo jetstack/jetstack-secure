@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
+	"github.com/jetstack/preflight/internal/cyberark/identity"
 	"github.com/jetstack/preflight/pkg/version"
 )
 
@@ -33,13 +34,19 @@ type CyberArkClient struct {
 	baseURL    string
 	httpClient *http.Client
 
-	authenticateRequest func(req *http.Request) error
+	tenantUUID string
+
+	authenticateRequest identity.RequestAuthenticator
 }
 
-func New(httpClient *http.Client, baseURL string, authenticateRequest func(req *http.Request) error) *CyberArkClient {
+// New creates a new CyberArkClient. The tenant UUID is best sourced from service discovery along with the base URL.
+func New(httpClient *http.Client, baseURL string, tenantUUID string, authenticateRequest identity.RequestAuthenticator) *CyberArkClient {
 	return &CyberArkClient{
-		baseURL:             baseURL,
-		httpClient:          httpClient,
+		baseURL:    baseURL,
+		httpClient: httpClient,
+
+		tenantUUID: tenantUUID,
+
 		authenticateRequest: authenticateRequest,
 	}
 }
@@ -102,13 +109,6 @@ type Snapshot struct {
 // has been received intact.
 // Read [Checking object integrity for data uploads in Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity-upload.html),
 // to learn more.
-//
-// TODO(wallrj): There is a bug in the AWS backend:
-// [S3 Presigned PutObjectCommand URLs ignore Sha256 Hash when uploading](https://github.com/aws/aws-sdk/issues/480)
-// ...which means that the `x-amz-checksum-sha256` request header is optional.
-// If you omit that header, it is possible to PUT any data.
-// There is a work around listed in that issue which we have shared with the
-// CyberArk API team.
 func (c *CyberArkClient) PutSnapshot(ctx context.Context, snapshot Snapshot) error {
 	if snapshot.ClusterID == "" {
 		return fmt.Errorf("programmer mistake: the snapshot cluster ID cannot be left empty")
@@ -119,10 +119,12 @@ func (c *CyberArkClient) PutSnapshot(ctx context.Context, snapshot Snapshot) err
 	if err := json.NewEncoder(io.MultiWriter(encodedBody, hash)).Encode(snapshot); err != nil {
 		return err
 	}
+
 	checksum := hash.Sum(nil)
 	checksumHex := hex.EncodeToString(checksum)
 	checksumBase64 := base64.StdEncoding.EncodeToString(checksum)
-	presignedUploadURL, err := c.retrievePresignedUploadURL(ctx, checksumHex, snapshot.ClusterID)
+
+	presignedUploadURL, username, err := c.retrievePresignedUploadURL(ctx, checksumHex, snapshot.ClusterID, int64(encodedBody.Len()))
 	if err != nil {
 		return fmt.Errorf("while retrieving snapshot upload URL: %s", err)
 	}
@@ -132,7 +134,21 @@ func (c *CyberArkClient) PutSnapshot(ctx context.Context, snapshot Snapshot) err
 	if err != nil {
 		return err
 	}
+
 	req.Header.Set("X-Amz-Checksum-Sha256", checksumBase64)
+	req.Header.Set("X-Amz-Server-Side-Encryption", "AES256")
+
+	q := url.Values{}
+
+	q.Add("agent_version", snapshot.AgentVersion)
+	q.Add("tenant_id", c.tenantUUID)
+	q.Add("upload_type", "k8s_snapshot")
+	q.Add("uploader_id", snapshot.ClusterID)
+	q.Add("username", username)
+	q.Add("vendor", "k8s")
+
+	req.Header.Set("X-Amz-Tagging", q.Encode())
+
 	version.SetUserAgent(req)
 
 	res, err := c.httpClient.Do(req)
@@ -152,36 +168,49 @@ func (c *CyberArkClient) PutSnapshot(ctx context.Context, snapshot Snapshot) err
 	return nil
 }
 
-func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksum string, clusterID string) (string, error) {
+// RetrievePresignedUploadURLRequest is the JSON body sent to the inventory API to request a presigned upload URL.
+type RetrievePresignedUploadURLRequest struct {
+	ClusterID string `json:"cluster_id"`
+	Checksum  string `json:"checksum_sha256"`
+
+	// AgentVersion is the v-prefixed version of the agent uploading the snapshot.
+	// Note that the backend relies on this version being v-prefixed semver.
+	AgentVersion string `json:"agent_version"`
+
+	// FileSize is the size of the data we'll upload in bytes
+	FileSize int64 `json:"file_size"`
+}
+
+func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksum string, clusterID string, fileSize int64) (string, string, error) {
 	uploadURL, err := url.JoinPath(c.baseURL, apiPathSnapshotLinks)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	request := struct {
-		ClusterID    string `json:"cluster_id"`
-		Checksum     string `json:"checksum_sha256"`
-		AgentVersion string `json:"agent_version"`
-	}{
+	request := RetrievePresignedUploadURLRequest{
 		ClusterID:    clusterID,
 		Checksum:     checksum,
 		AgentVersion: version.PreflightVersion,
+		FileSize:     fileSize,
 	}
 
 	encodedBody := &bytes.Buffer{}
 	if err := json.NewEncoder(encodedBody).Encode(request); err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, encodedBody)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	if err := c.authenticateRequest(req); err != nil {
-		return "", fmt.Errorf("failed to authenticate request: %s", err)
+
+	username, err := c.authenticateRequest(req)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to authenticate request: %s", err)
 	}
+
 	version.SetUserAgent(req)
 
 	// Add telemetry headers
@@ -189,7 +218,7 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer res.Body.Close()
 
@@ -198,7 +227,7 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 		if len(body) == 0 {
 			body = []byte(`<empty body>`)
 		}
-		return "", fmt.Errorf("received response with status code %d: %s", code, bytes.TrimSpace(body))
+		return "", "", fmt.Errorf("received response with status code %d: %s", code, bytes.TrimSpace(body))
 	}
 
 	response := struct {
@@ -207,11 +236,11 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 
 	if err := json.NewDecoder(io.LimitReader(res.Body, maxRetrievePresignedUploadURLBodySize)).Decode(&response); err != nil {
 		if err == io.ErrUnexpectedEOF {
-			return "", fmt.Errorf("rejecting JSON response from server as it was too large or was truncated")
+			return "", "", fmt.Errorf("rejecting JSON response from server as it was too large or was truncated")
 		}
 
-		return "", fmt.Errorf("failed to parse JSON from otherwise successful request to start data upload: %s", err)
+		return "", "", fmt.Errorf("failed to parse JSON from otherwise successful request to start data upload: %s", err)
 	}
 
-	return response.URL, nil
+	return response.URL, username, nil
 }
