@@ -645,7 +645,7 @@ func TestConvertDataReadings_ClusterExternalSecrets(t *testing.T) {
 					{
 						Resource: &unstructured.Unstructured{
 							Object: map[string]any{
-								"apiVersion": "external-secrets.io/v1beta1",
+								"apiVersion": "external-secrets.io/v1",
 								"kind":       "ClusterExternalSecret",
 								"metadata": map[string]any{
 									"name": "my-cluster-external-secret",
@@ -664,7 +664,7 @@ func TestConvertDataReadings_ClusterExternalSecrets(t *testing.T) {
 					{
 						Resource: &unstructured.Unstructured{
 							Object: map[string]any{
-								"apiVersion": "external-secrets.io/v1beta1",
+								"apiVersion": "external-secrets.io/v1",
 								"kind":       "ClusterExternalSecret",
 								"metadata": map[string]any{
 									"name": "aws-cluster-external-secret",
@@ -685,7 +685,7 @@ func TestConvertDataReadings_ClusterExternalSecrets(t *testing.T) {
 						DeletedAt: api.Time{Time: time.Now()},
 						Resource: &unstructured.Unstructured{
 							Object: map[string]any{
-								"apiVersion": "external-secrets.io/v1beta1",
+								"apiVersion": "external-secrets.io/v1",
 								"kind":       "ClusterExternalSecret",
 								"metadata": map[string]any{
 									"name": "deleted-cluster-external-secret",
@@ -746,7 +746,7 @@ func TestConvertDataReadings_ClusterSecretStores(t *testing.T) {
 					{
 						Resource: &unstructured.Unstructured{
 							Object: map[string]any{
-								"apiVersion": "external-secrets.io/v1beta1",
+								"apiVersion": "external-secrets.io/v1",
 								"kind":       "ClusterSecretStore",
 								"metadata": map[string]any{
 									"name": "my-cluster-secret-store",
@@ -762,7 +762,7 @@ func TestConvertDataReadings_ClusterSecretStores(t *testing.T) {
 					{
 						Resource: &unstructured.Unstructured{
 							Object: map[string]any{
-								"apiVersion": "external-secrets.io/v1beta1",
+								"apiVersion": "external-secrets.io/v1",
 								"kind":       "ClusterSecretStore",
 								"metadata": map[string]any{
 									"name": "aws-cluster-secret-store",
@@ -780,7 +780,7 @@ func TestConvertDataReadings_ClusterSecretStores(t *testing.T) {
 						DeletedAt: api.Time{Time: time.Now()},
 						Resource: &unstructured.Unstructured{
 							Object: map[string]any{
-								"apiVersion": "external-secrets.io/v1beta1",
+								"apiVersion": "external-secrets.io/v1",
 								"kind":       "ClusterSecretStore",
 								"metadata": map[string]any{
 									"name": "deleted-cluster-secret-store",

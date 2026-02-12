@@ -136,12 +136,12 @@ data:
       config:
         resource-type:
           group: external-secrets.io
-          version: v1beta1
+          version: v1
           resource: clusterexternalsecrets
     - kind: k8s-dynamic
       name: ark/esoclustersecretstores
       config:
         resource-type:
           group: external-secrets.io
-          version: v1beta1
+          version: v1
           resource: clustersecretstores
