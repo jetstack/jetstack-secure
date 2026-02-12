@@ -221,16 +221,16 @@ var defaultExtractorFunctions = map[string]func(*api.DataReading, *dataupload.Sn
 	"ark/configmaps": func(r *api.DataReading, s *dataupload.Snapshot) error {
 		return extractResourceListFromReading(r, &s.ConfigMaps)
 	},
-	"ark/externalsecrets": func(r *api.DataReading, s *dataupload.Snapshot) error {
+	"ark/esoexternalsecrets": func(r *api.DataReading, s *dataupload.Snapshot) error {
 		return extractResourceListFromReading(r, &s.ExternalSecrets)
 	},
-	"ark/secretstores": func(r *api.DataReading, s *dataupload.Snapshot) error {
+	"ark/esosecretstores": func(r *api.DataReading, s *dataupload.Snapshot) error {
 		return extractResourceListFromReading(r, &s.SecretStores)
 	},
-	"ark/clusterexternalsecrets": func(r *api.DataReading, s *dataupload.Snapshot) error {
+	"ark/esoclusterexternalsecrets": func(r *api.DataReading, s *dataupload.Snapshot) error {
 		return extractResourceListFromReading(r, &s.ClusterExternalSecrets)
 	},
-	"ark/clustersecretstores": func(r *api.DataReading, s *dataupload.Snapshot) error {
+	"ark/esoclustersecretstores": func(r *api.DataReading, s *dataupload.Snapshot) error {
 		return extractResourceListFromReading(r, &s.ClusterSecretStores)
 	},
 }

@@ -423,7 +423,7 @@ func TestConvertDataReadings_ConfigMaps(t *testing.T) {
 func TestConvertDataReadings_ExternalSecrets(t *testing.T) {
 	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
 		"ark/discovery": extractClusterIDAndServerVersionFromReading,
-		"ark/externalsecrets": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+		"ark/esoexternalsecrets": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
 			return extractResourceListFromReading(reading, &snapshot.ExternalSecrets)
 		},
 	}
@@ -439,7 +439,7 @@ func TestConvertDataReadings_ExternalSecrets(t *testing.T) {
 			},
 		},
 		{
-			DataGatherer: "ark/externalsecrets",
+			DataGatherer: "ark/esoexternalsecrets",
 			Data: &api.DynamicData{
 				Items: []*api.GatheredResource{
 					{
@@ -523,7 +523,7 @@ func TestConvertDataReadings_ExternalSecrets(t *testing.T) {
 func TestConvertDataReadings_SecretStores(t *testing.T) {
 	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
 		"ark/discovery": extractClusterIDAndServerVersionFromReading,
-		"ark/secretstores": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+		"ark/esosecretstores": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
 			return extractResourceListFromReading(reading, &snapshot.SecretStores)
 		},
 	}
@@ -539,7 +539,7 @@ func TestConvertDataReadings_SecretStores(t *testing.T) {
 			},
 		},
 		{
-			DataGatherer: "ark/secretstores",
+			DataGatherer: "ark/esosecretstores",
 			Data: &api.DynamicData{
 				Items: []*api.GatheredResource{
 					{
@@ -623,7 +623,7 @@ func TestConvertDataReadings_SecretStores(t *testing.T) {
 func TestConvertDataReadings_ClusterExternalSecrets(t *testing.T) {
 	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
 		"ark/discovery": extractClusterIDAndServerVersionFromReading,
-		"ark/clusterexternalsecrets": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+		"ark/esoclusterexternalsecrets": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
 			return extractResourceListFromReading(reading, &snapshot.ClusterExternalSecrets)
 		},
 	}
@@ -639,7 +639,7 @@ func TestConvertDataReadings_ClusterExternalSecrets(t *testing.T) {
 			},
 		},
 		{
-			DataGatherer: "ark/clusterexternalsecrets",
+			DataGatherer: "ark/esoclusterexternalsecrets",
 			Data: &api.DynamicData{
 				Items: []*api.GatheredResource{
 					{
@@ -724,7 +724,7 @@ func TestConvertDataReadings_ClusterExternalSecrets(t *testing.T) {
 func TestConvertDataReadings_ClusterSecretStores(t *testing.T) {
 	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
 		"ark/discovery": extractClusterIDAndServerVersionFromReading,
-		"ark/clustersecretstores": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+		"ark/esoclustersecretstores": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
 			return extractResourceListFromReading(reading, &snapshot.ClusterSecretStores)
 		},
 	}
@@ -740,7 +740,7 @@ func TestConvertDataReadings_ClusterSecretStores(t *testing.T) {
 			},
 		},
 		{
-			DataGatherer: "ark/clustersecretstores",
+			DataGatherer: "ark/esoclustersecretstores",
 			Data: &api.DynamicData{
 				Items: []*api.GatheredResource{
 					{

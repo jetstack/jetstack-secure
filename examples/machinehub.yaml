@@ -141,7 +141,7 @@ data-gatherers:
     - conjur.org/name=conjur-connect-configmap
 
 # Gather External Secrets Operator ExternalSecret resources
-- name: ark/externalsecrets
+- name: ark/esoexternalsecrets
   kind: k8s-dynamic
   config:
     resource-type:
@@ -150,7 +150,7 @@ data-gatherers:
       resource: externalsecrets
 
 # Gather External Secrets Operator SecretStore resources
-- name: ark/secretstores
+- name: ark/esosecretstores
   kind: k8s-dynamic
   config:
     resource-type:
@@ -159,7 +159,7 @@ data-gatherers:
       resource: secretstores
 
 # Gather External Secrets Operator ClusterExternalSecret resources
-- name: ark/clusterexternalsecrets
+- name: ark/esoclusterexternalsecrets
   kind: k8s-dynamic
   config:
     resource-type:
@@ -168,7 +168,7 @@ data-gatherers:
       resource: clusterexternalsecrets
 
 # Gather External Secrets Operator ClusterSecretStore resources
-- name: ark/clustersecretstores
+- name: ark/esoclustersecretstores
   kind: k8s-dynamic
   config:
     resource-type:

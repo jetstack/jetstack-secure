@@ -161,25 +161,25 @@
         }
     },
     {
-        "data-gatherer": "ark/externalsecrets",
+        "data-gatherer": "ark/esoexternalsecrets",
         "data": {
             "items": []
         }
     },
     {
-        "data-gatherer": "ark/secretstores",
+        "data-gatherer": "ark/esosecretstores",
         "data": {
             "items": []
         }
     },
     {
-        "data-gatherer": "ark/clusterexternalsecrets",
+        "data-gatherer": "ark/esoclusterexternalsecrets",
         "data": {
             "items": []
         }
     },
     {
-        "data-gatherer": "ark/clustersecretstores",
+        "data-gatherer": "ark/esoclustersecretstores",
         "data": {
             "items": []
         }

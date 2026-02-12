@@ -118,28 +118,28 @@ data:
         label-selectors:
         - conjur.org/name=conjur-connect-configmap
     - kind: k8s-dynamic
-      name: ark/externalsecrets
+      name: ark/esoexternalsecrets
       config:
         resource-type:
           group: external-secrets.io
           version: v1
           resource: externalsecrets
     - kind: k8s-dynamic
-      name: ark/secretstores
+      name: ark/esosecretstores
       config:
         resource-type:
           group: external-secrets.io
           version: v1
           resource: secretstores
     - kind: k8s-dynamic
-      name: ark/clusterexternalsecrets
+      name: ark/esoclusterexternalsecrets
       config:
         resource-type:
           group: external-secrets.io
           version: v1beta1
           resource: clusterexternalsecrets
     - kind: k8s-dynamic
-      name: ark/clustersecretstores
+      name: ark/esoclustersecretstores
       config:
         resource-type:
           group: external-secrets.io
