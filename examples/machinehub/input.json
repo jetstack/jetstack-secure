@@ -159,5 +159,29 @@
         "data": {
             "items": []
         }
+    },
+    {
+        "data-gatherer": "ark/esoexternalsecrets",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/esosecretstores",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/esoclusterexternalsecrets",
+        "data": {
+            "items": []
+        }
+    },
+    {
+        "data-gatherer": "ark/esoclustersecretstores",
+        "data": {
+            "items": []
+        }
     }
 ]

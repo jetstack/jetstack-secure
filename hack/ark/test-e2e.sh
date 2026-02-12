@@ -80,6 +80,25 @@ kubectl create secret generic e2e-sample-secret-$(date '+%s') \
 # in the ark/configmaps data gatherer (conjur.org/name=conjur-connect-configmap).
 kubectl apply -f "${root_dir}/hack/ark/conjur-connect-configmap.yaml"
 
+# Install External Secrets Operator CRDs and controller
+#
+# This is required for the agent to discover ExternalSecret and SecretStore resources.
+echo "Installing External Secrets Operator..."
+helm repo add external-secrets https://charts.external-secrets.io
+helm repo update
+helm upgrade --install external-secrets \
+     external-secrets/external-secrets \
+     --namespace external-secrets-system \
+     --create-namespace \
+     --wait \
+     --set installCRDs=true
+
+# Create sample External Secrets Operator resources that will be discovered by the agent
+kubectl apply -f "${root_dir}/hack/ark/secret-store.yaml"
+kubectl apply -f "${root_dir}/hack/ark/external-secret.yaml"
+kubectl apply -f "${root_dir}/hack/ark/cluster-secret-store.yaml"
+kubectl apply -f "${root_dir}/hack/ark/cluster-external-secret.yaml"
+
 # We use a non-existent tag and omit the `--version` flag, to work around a Helm
 # v4 bug. See: https://github.com/helm/helm/issues/31600
 helm upgrade agent "oci://${ARK_CHART}:NON_EXISTENT_TAG@${ARK_CHART_DIGEST}" \
