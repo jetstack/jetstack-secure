@@ -164,7 +164,7 @@ data-gatherers:
   config:
     resource-type:
       group: external-secrets.io
-      version: v1beta1
+      version: v1
       resource: clusterexternalsecrets
 
 # Gather External Secrets Operator ClusterSecretStore resources
@@ -173,5 +173,5 @@ data-gatherers:
   config:
     resource-type:
       group: external-secrets.io
-      version: v1beta1
+      version: v1
       resource: clustersecretstores
