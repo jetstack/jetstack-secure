@@ -154,6 +154,13 @@ config:
   # be communicated to the people responsible for the affected secrets.
   clusterDescription: ""
 
+  # Enable sending of Secret values to CyberArk in addition to metadata.
+  # Metadata is always sent, but the actual values of Secrets are not sent by default.
+  # When enabled, Secret data is encrypted using envelope encryption using
+  # a key managed by CyberArk.
+  # Default: false (but default will change to true for a future release)
+  sendSecretValues: false
+
 authentication:
   secretName: agent-credentials
 

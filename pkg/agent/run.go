@@ -31,6 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/internal/envelope"
+	"github.com/jetstack/preflight/internal/envelope/rsa"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8sdynamic"
@@ -181,6 +183,19 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		if isDynamicGatherer {
 			dynDg.ExcludeAnnotKeys = config.ExcludeAnnotationKeysRegex
 			dynDg.ExcludeLabelKeys = config.ExcludeLabelKeysRegex
+
+			// Check if secret encryption is enabled via environment variable
+			// When enabled, secret data will be kept for encryption instead of being redacted
+			encryptSecrets := strings.ToLower(os.Getenv("ARK_SEND_SECRET_VALUES"))
+
+			if encryptSecrets == "true" {
+				var err error
+
+				dynDg.Encryptor, err = loadEncryptor()
+				if err != nil {
+					log.Error(err, "Failed to set up encryptor for secrets, secret data will not be sent")
+				}
+			}
 		}
 
 		log.V(logs.Debug).Info("Starting DataGatherer", "name", dgConfig.Name)
@@ -255,6 +270,22 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		}
 	}
 	return nil
+}
+
+// loadEncryptor sets up an encryptor for encrypting secrets. For now, it just loads a hardcoded public key
+func loadEncryptor() (envelope.Encryptor, error) {
+	// TODO(@SgtCoDFish): this will eventually fetch a key from JWKS endpoint when that endpoint is available
+	key, keyID, err := rsa.LoadHardcodedPublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load public key for secret encryption: %w", err)
+	}
+
+	encryptor, err := rsa.NewEncryptor(keyID, key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create encryptor for secret encryption: %w", err)
+	}
+
+	return encryptor, nil
 }
 
 // Creates an event recorder for the agent's Pod object. Expects the env var

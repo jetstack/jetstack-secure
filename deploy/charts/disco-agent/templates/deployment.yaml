@@ -76,6 +76,8 @@ spec:
                 name: {{ .Values.authentication.secretName }}
                 key: ARK_DISCOVERY_API
                 optional: true
+          - name: ARK_SEND_SECRET_VALUES
+            value: {{ .Values.config.sendSecretValues | default "false" | quote }}
           {{- with .Values.http_proxy }}
           - name: HTTP_PROXY
             value: {{ . }}

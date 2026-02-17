@@ -34,6 +34,7 @@ package k8sdynamic
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -61,6 +62,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/internal/envelope"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/kubeconfig"
 	"github.com/jetstack/preflight/pkg/logs"
@@ -340,6 +342,10 @@ type DataGathererDynamic struct {
 
 	ExcludeAnnotKeys []*regexp.Regexp
 	ExcludeLabelKeys []*regexp.Regexp
+
+	// Encryptor, if non-nil, will be used to envelope encrypt Secret data.
+	// If nil, Secret data will be redacted.
+	Encryptor envelope.Encryptor
 }
 
 // Run starts the dynamic data gatherer's informers for resource collection.
@@ -413,8 +419,8 @@ func (g *DataGathererDynamic) Fetch(ctx context.Context) (any, int, error) {
 		return nil, -1, fmt.Errorf("failed to parse cached resource")
 	}
 
-	// Redact Secret data
-	err := redactList(items, g.ExcludeAnnotKeys, g.ExcludeLabelKeys)
+	// Redact Secret data (which may include encrypting it if enabled)
+	err := g.redactList(ctx, items)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -431,12 +437,20 @@ func (g *DataGathererDynamic) Fetch(ctx context.Context) (any, int, error) {
 // resources there is an allow-list of fields that should be retained.
 // For Secret resources, the `data` is redacted, to prevent private keys or sensitive
 // data being collected; only the tls.crt and ca.crt data keys are retained.
+// However, if keepSecretData is true (i.e., encryption is enabled), secret data is NOT redacted
+// so it can be encrypted later in the upload pipeline.
 // For Route resources, only the fields related to CA certificate and policy are retained.
 // TODO(wallrj): A short coming of the current allow-list implementation is that
 // you have to specify absolute fields paths. It is not currently possible to
 // select all metadata with: `{metadata}`. This means that the metadata for
 // Secret and Route has fewer fields than the metadata for all other resources.
-func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys []*regexp.Regexp) error {
+func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.GatheredResource) error {
+	secretSelectedFields := slices.Clone(SecretSelectedFields)
+
+	if g.Encryptor != nil {
+		secretSelectedFields = append(secretSelectedFields, FieldPath{"_encryptedData"})
+	}
+
 	for i := range list {
 		if item, ok := list[i].Resource.(*unstructured.Unstructured); ok {
 			// Determine the kind of items in case this is a generic 'mixed' list.
@@ -451,12 +465,25 @@ func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys
 			for _, gvk := range gvks {
 				// secret object
 				if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
-					if err := Select(SecretSelectedFields, resource); err != nil {
-						return err
+					// Note: We must redact data field in all cases!
+					// If encryption is enabled, we encrypt the data and preserve it, but we still need to redact later.
+					// If encryption is enabled and _fails_, we MUST still redact the data field to avoid leaking sensitive information.
+					if g.Encryptor != nil {
+						err := g.encryptDataField(resource)
+						if err != nil {
+							// WARNING: We CAN NOT return an error here, as that would leak the secret data
+							log := klog.FromContext(ctx).WithName("encryptDataField")
+							log.Error(err, "failed to encrypt secret data field; no encrypted secret data will be sent for object", "secretName", resource.GetName())
+
+						}
 					}
 
-					// route object
+					// Redact to only selected fields
+					if err := Select(secretSelectedFields, resource); err != nil {
+						return err
+					}
 				} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io" {
+					// route object
 					if err := Select(RouteSelectedFields, resource); err != nil {
 						return err
 					}
@@ -466,8 +493,8 @@ func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys
 			// remove managedFields from all resources
 			Redact(RedactFields, resource)
 
-			RemoveUnstructuredKeys(excludeAnnotKeys, resource, "metadata", "annotations")
-			RemoveUnstructuredKeys(excludeLabelKeys, resource, "metadata", "labels")
+			RemoveUnstructuredKeys(g.ExcludeAnnotKeys, resource, "metadata", "annotations")
+			RemoveUnstructuredKeys(g.ExcludeLabelKeys, resource, "metadata", "labels")
 
 			continue
 		}
@@ -481,8 +508,8 @@ func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys
 			item.GetObjectMeta().SetManagedFields(nil)
 			delete(item.GetObjectMeta().GetAnnotations(), "kubectl.kubernetes.io/last-applied-configuration")
 
-			RemoveTypedKeys(excludeAnnotKeys, item.GetObjectMeta().GetAnnotations())
-			RemoveTypedKeys(excludeLabelKeys, item.GetObjectMeta().GetLabels())
+			RemoveTypedKeys(g.ExcludeAnnotKeys, item.GetObjectMeta().GetAnnotations())
+			RemoveTypedKeys(g.ExcludeLabelKeys, item.GetObjectMeta().GetLabels())
 
 			resource := item.(runtime.Object)
 			gvks, _, err := scheme.Scheme.ObjectKinds(resource)
@@ -506,6 +533,52 @@ func redactList(list []*api.GatheredResource, excludeAnnotKeys, excludeLabelKeys
 			continue
 		}
 	}
+	return nil
+}
+
+const encryptedDataFieldName = "_encryptedData"
+
+var encryptedDataField = FieldPath{encryptedDataFieldName}
+
+// encryptDataField encrypts the `data` field of the given secret and stores the encrypted data
+// in a new field with the name of [encryptedDataFieldName]. The original `data` field is left unchanged, on the
+// assumption that it will be redacted after the encryption step.
+// This function does not check that the given resource is actually a Secret; that is the caller's responsibility.
+func (g *DataGathererDynamic) encryptDataField(secret *unstructured.Unstructured) error {
+	if g.Encryptor == nil {
+		return nil
+	}
+
+	plaintextDataRaw, found, err := unstructured.NestedFieldNoCopy(secret.Object, "data")
+	if err != nil {
+		return fmt.Errorf("error retrieving secret data field during redaction for encryption: %w", err)
+	}
+
+	if !found {
+		return fmt.Errorf("no data field found on secret")
+	}
+
+	plaintextDataTyped, ok := plaintextDataRaw.(map[string]any)
+	if !ok {
+		return fmt.Errorf("secret data field is not of expected map type for encryption")
+	}
+
+	// we want to encrypt the JSON representation of the data field
+	plaintextData, err := json.Marshal(plaintextDataTyped)
+	if err != nil {
+		return fmt.Errorf("failed to marshal secret data field for encryption: %w", err)
+	}
+
+	encryptedData, err := g.Encryptor.Encrypt(plaintextData)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt secret data during redaction: %w", err)
+	}
+
+	err = unstructured.SetNestedField(secret.Object, encryptedData.ToMap(), encryptedDataField...)
+	if err != nil {
+		return fmt.Errorf("failed to set %s field on secret resource during redaction: %w", encryptedDataFieldName, err)
+	}
+
 	return nil
 }
 
