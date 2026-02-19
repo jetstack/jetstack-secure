@@ -191,6 +191,7 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 			"version=v1",
 		},
 	}
+
 	clientset := fakeclientset.NewSimpleClientset()
 	dg, err := config.newDataGathererWithClient(ctx, nil, clientset)
 	if err != nil {
