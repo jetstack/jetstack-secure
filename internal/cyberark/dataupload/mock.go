@@ -101,7 +101,7 @@ func randHex() string {
 }
 
 func (mds *mockDataUploadServer) handleSnapshotLinks(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("User-Agent") != version.UserAgent() {
+	if r.Header.Get("User-Agent") != version.UserAgentCYBR() {
 		http.Error(w, "should set user agent on all requests", http.StatusInternalServerError)
 		return
 	}
@@ -132,7 +132,7 @@ func (mds *mockDataUploadServer) handleSnapshotLinks(w http.ResponseWriter, r *h
 		return
 	}
 
-	if req.AgentVersion != version.PreflightVersion {
+	if req.AgentVersion != version.CYBRVersion {
 		http.Error(w, fmt.Sprintf("post body contains unexpected agent version: %s", req.AgentVersion), http.StatusInternalServerError)
 		return
 	}
@@ -214,7 +214,7 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 		return
 	}
 
-	if r.Header.Get("User-Agent") != version.UserAgent() {
+	if r.Header.Get("User-Agent") != version.UserAgentCYBR() {
 		http.Error(w, "should set user agent on all requests", http.StatusInternalServerError)
 		return
 	}
@@ -249,8 +249,8 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 		return
 	}
 
-	if tags.Get("agent_version") != version.PreflightVersion {
-		http.Error(w, fmt.Sprintf("x-amz-tagging should contain an agent_version tag with value %s", version.PreflightVersion), http.StatusInternalServerError)
+	if tags.Get("agent_version") != version.CYBRVersion {
+		http.Error(w, fmt.Sprintf("x-amz-tagging should contain an agent_version tag with value %s but got %s", version.CYBRVersion, tags.Get("agent_version")), http.StatusInternalServerError)
 		return
 	}
 
@@ -308,7 +308,7 @@ func (mds *mockDataUploadServer) handlePresignedUpload(w http.ResponseWriter, r 
 	err = d.Decode(&snapshot)
 	require.NoError(mds.t, err)
 	assert.Equal(mds.t, successClusterID, snapshot.ClusterID)
-	assert.Equal(mds.t, version.PreflightVersion, snapshot.AgentVersion)
+	assert.Equal(mds.t, version.CYBRVersion, snapshot.AgentVersion)
 
 	// AWS S3 responds with an empty body if the PUT succeeds
 	w.WriteHeader(http.StatusOK)

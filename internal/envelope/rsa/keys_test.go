@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/jetstack/preflight/internal/envelope/keyfetch"
 	internalrsa "github.com/jetstack/preflight/internal/envelope/rsa"
 )
 
@@ -151,13 +152,14 @@ func TestLoadHardcodedPublicKey_CanBeUsedWithEncryptor(t *testing.T) {
 	require.NotNil(t, key)
 	require.NotEmpty(t, uid)
 
-	encryptor, err := internalrsa.NewEncryptor(uid, key)
+	fetcher := keyfetch.NewFakeClientWithKey(uid, key)
+	encryptor, err := internalrsa.NewEncryptor(fetcher)
 	require.NoError(t, err)
 	require.NotNil(t, encryptor)
 
 	// Test that the encryptor can encrypt data
 	testData := []byte("test data for encryption")
-	encryptedData, err := encryptor.Encrypt(testData)
+	encryptedData, err := encryptor.Encrypt(t.Context(), testData)
 	require.NoError(t, err)
 	require.NotNil(t, encryptedData)
 	require.NotEmpty(t, encryptedData.Data)

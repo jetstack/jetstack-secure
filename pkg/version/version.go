@@ -31,3 +31,16 @@ func UserAgent() string {
 func SetUserAgent(req *http.Request) {
 	req.Header.Set("User-Agent", UserAgent())
 }
+
+// CYBRVersion DO NOT MERGE
+var CYBRVersion = "v999.0.0"
+
+// UserAgentCYBR DO NOT MERGE
+func UserAgentCYBR() string {
+	return fmt.Sprintf("Mozilla/5.0 venafi-kubernetes-agent/%s", CYBRVersion)
+}
+
+// SetUserAgentCYBR DO NOT MERGE
+func SetUserAgentCYBR(req *http.Request) {
+	req.Header.Set("User-Agent", UserAgentCYBR())
+}

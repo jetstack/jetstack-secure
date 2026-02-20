@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sync"
+	"time"
 
 	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
 	"github.com/jetstack/preflight/pkg/version"
@@ -35,21 +37,34 @@ const (
 // users to fetch URLs for various APIs available in CyberArk. This client is specialised to
 // fetch only API endpoints, since only API endpoints are required by the Venafi Kubernetes Agent currently.
 type Client struct {
-	client  *http.Client
-	baseURL string
+	client    *http.Client
+	baseURL   string
+	subdomain string
+
+	cachedResponse      *Services
+	cachedTenantID      string
+	cachedResponseTime  time.Time
+	cachedResponseMutex sync.Mutex
 }
 
 // New creates a new CyberArk Service Discovery client. If the ARK_DISCOVERY_API
 // environment variable is set, it is used as the base URL for the service
 // discovery API. Otherwise, the production URL is used.
-func New(httpClient *http.Client) *Client {
+func New(httpClient *http.Client, subdomain string) *Client {
 	baseURL := os.Getenv("ARK_DISCOVERY_API")
 	if baseURL == "" {
 		baseURL = ProdDiscoveryAPIBaseURL
 	}
+
 	client := &Client{
-		client:  httpClient,
-		baseURL: baseURL,
+		client:    httpClient,
+		baseURL:   baseURL,
+		subdomain: subdomain,
+
+		cachedResponse:      nil,
+		cachedTenantID:      "",
+		cachedResponseTime:  time.Time{},
+		cachedResponseMutex: sync.Mutex{},
 	}
 
 	return client
@@ -93,17 +108,24 @@ type Services struct {
 	DiscoveryContext ServiceEndpoint
 }
 
-// DiscoverServices fetches from the service discovery service for a given subdomain
+// DiscoverServices fetches from the service discovery service for the configured subdomain
 // and parses the CyberArk Identity API URL and Inventory API URL.
 // It also returns the Tenant ID UUID corresponding to the subdomain.
-func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Services, string, error) {
+func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error) {
+	c.cachedResponseMutex.Lock()
+	defer c.cachedResponseMutex.Unlock()
+
+	if c.cachedResponse != nil && time.Since(c.cachedResponseTime) < 1*time.Hour {
+		return c.cachedResponse, c.cachedTenantID, nil
+	}
+
 	u, err := url.Parse(c.baseURL)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid base URL for service discovery: %w", err)
 	}
 
 	u.Path = path.Join(u.Path, "api/public/tenant-discovery")
-	u.RawQuery = url.Values{"bySubdomain": []string{subdomain}}.Encode()
+	u.RawQuery = url.Values{"bySubdomain": []string{c.subdomain}}.Encode()
 
 	endpoint := u.String()
 
@@ -127,7 +149,7 @@ func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Servi
 		// a 404 error is returned with an empty JSON body "{}" if the subdomain is unknown; at the time of writing, we haven't observed
 		// any other errors and so we can't special case them
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, "", fmt.Errorf("got an HTTP 404 response from service discovery; maybe the subdomain %q is incorrect or does not exist?", subdomain)
+			return nil, "", fmt.Errorf("got an HTTP 404 response from service discovery; maybe the subdomain %q is incorrect or does not exist?", c.subdomain)
 		}
 
 		return nil, "", fmt.Errorf("got unexpected status code %s from request to service discovery API", resp.Status)
@@ -167,8 +189,14 @@ func (c *Client) DiscoverServices(ctx context.Context, subdomain string) (*Servi
 	}
 	//TODO: Should add a check for discoveryContextAPI too?
 
-	return &Services{
+	services := &Services{
 		Identity:         ServiceEndpoint{API: identityAPI},
 		DiscoveryContext: ServiceEndpoint{API: discoveryContextAPI},
-	}, discoveryResp.TenantID, nil
+	}
+
+	c.cachedResponse = services
+	c.cachedTenantID = discoveryResp.TenantID
+	c.cachedResponseTime = time.Now()
+
+	return services, discoveryResp.TenantID, nil
 }

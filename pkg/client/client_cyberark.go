@@ -28,6 +28,8 @@ import (
 type CyberArkClient struct {
 	configLoader cyberark.ClientConfigLoader
 	httpClient   *http.Client
+
+	discoveryClient *servicediscovery.Client
 }
 
 var _ Client = &CyberArkClient{}
@@ -41,14 +43,15 @@ var _ Client = &CyberArkClient{}
 func NewCyberArk(httpClient *http.Client) (*CyberArkClient, error) {
 	configLoader := cyberark.LoadClientConfigFromEnvironment
 
-	_, err := configLoader()
+	cfg, err := configLoader()
 	if err != nil {
 		return nil, err
 	}
 
 	return &CyberArkClient{
-		configLoader: configLoader,
-		httpClient:   httpClient,
+		configLoader:    configLoader,
+		httpClient:      httpClient,
+		discoveryClient: servicediscovery.New(httpClient, cfg.Subdomain),
 	}, nil
 }
 
@@ -67,9 +70,7 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	discoveryClient := servicediscovery.New(o.httpClient)
-
-	serviceMap, tenantUUID, err := discoveryClient.DiscoverServices(ctx, cfg.Subdomain)
+	serviceMap, tenantUUID, err := o.discoveryClient.DiscoverServices(ctx)
 	if err != nil {
 		return err
 	}
@@ -95,6 +96,10 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 	return nil
 }
 
+func (o *CyberArkClient) DiscoveryClient() *servicediscovery.Client {
+	return o.discoveryClient
+}
+
 // baseSnapshotFromOptions creates a base snapshot with common fields from the provided options.
 // This includes the cluster name, description, and agent version.
 // Other fields like ClusterID and K8SVersion need to be populated separately.
@@ -102,7 +107,7 @@ func baseSnapshotFromOptions(opts Options) dataupload.Snapshot {
 	return dataupload.Snapshot{
 		ClusterName:        opts.ClusterName,
 		ClusterDescription: opts.ClusterDescription,
-		AgentVersion:       version.PreflightVersion,
+		AgentVersion:       version.CYBRVersion,
 	}
 }
 

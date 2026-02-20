@@ -45,7 +45,7 @@ func TestBaseSnapshotFromOptions(t *testing.T) {
 			want: dataupload.Snapshot{
 				ClusterName:        "some-cluster-name",
 				ClusterDescription: "some-cluster-description",
-				AgentVersion:       preflightversion.PreflightVersion,
+				AgentVersion:       preflightversion.CYBRVersion,
 			},
 		},
 	}

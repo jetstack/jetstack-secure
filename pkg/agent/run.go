@@ -32,6 +32,7 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/internal/envelope"
+	"github.com/jetstack/preflight/internal/envelope/keyfetch"
 	"github.com/jetstack/preflight/internal/envelope/rsa"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
@@ -164,6 +165,10 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 		return fmt.Errorf("failed to create event recorder: %v", err)
 	}
 
+	// Check if secret encryption is enabled via environment variable
+	// When enabled, secret data will be kept for encryption instead of being redacted
+	encryptSecrets := strings.ToLower(os.Getenv("ARK_SEND_SECRET_VALUES")) == "true"
+
 	dataGatherers := map[string]datagatherer.DataGatherer{}
 
 	// load datagatherer config and boot each one
@@ -184,14 +189,10 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 			dynDg.ExcludeAnnotKeys = config.ExcludeAnnotationKeysRegex
 			dynDg.ExcludeLabelKeys = config.ExcludeLabelKeysRegex
 
-			// Check if secret encryption is enabled via environment variable
-			// When enabled, secret data will be kept for encryption instead of being redacted
-			encryptSecrets := strings.ToLower(os.Getenv("ARK_SEND_SECRET_VALUES"))
-
-			if encryptSecrets == "true" {
+			if encryptSecrets {
 				var err error
 
-				dynDg.Encryptor, err = loadEncryptor()
+				dynDg.Encryptor, err = loadEncryptor(preflightClient)
 				if err != nil {
 					log.Error(err, "Failed to set up encryptor for secrets, secret data will not be sent")
 				}
@@ -273,14 +274,15 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 }
 
 // loadEncryptor sets up an encryptor for encrypting secrets. For now, it just loads a hardcoded public key
-func loadEncryptor() (envelope.Encryptor, error) {
-	// TODO(@SgtCoDFish): this will eventually fetch a key from JWKS endpoint when that endpoint is available
-	key, keyID, err := rsa.LoadHardcodedPublicKey()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load public key for secret encryption: %w", err)
+func loadEncryptor(preflightClient client.Client) (envelope.Encryptor, error) {
+	cyberarkClient, ok := preflightClient.(*client.CyberArkClient)
+	if !ok {
+		return nil, fmt.Errorf("secret encryption is only supported for CyberArk clients")
 	}
 
-	encryptor, err := rsa.NewEncryptor(keyID, key)
+	fetcher := keyfetch.NewClient(cyberarkClient.DiscoveryClient())
+
+	encryptor, err := rsa.NewEncryptor(fetcher)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create encryptor for secret encryption: %w", err)
 	}
