@@ -37,7 +37,7 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 			name: "successful upload",
 			snapshot: dataupload.Snapshot{
 				ClusterID:    "ffffffff-ffff-ffff-ffff-ffffffffffff",
-				AgentVersion: version.PreflightVersion,
+				AgentVersion: version.CYBRVersion,
 			},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {

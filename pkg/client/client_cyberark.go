@@ -107,7 +107,7 @@ func baseSnapshotFromOptions(opts Options) dataupload.Snapshot {
 	return dataupload.Snapshot{
 		ClusterName:        opts.ClusterName,
 		ClusterDescription: opts.ClusterDescription,
-		AgentVersion:       version.PreflightVersion,
+		AgentVersion:       version.CYBRVersion,
 	}
 }
 

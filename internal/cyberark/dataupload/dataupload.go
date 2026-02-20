@@ -149,7 +149,7 @@ func (c *CyberArkClient) PutSnapshot(ctx context.Context, snapshot Snapshot) err
 
 	req.Header.Set("X-Amz-Tagging", q.Encode())
 
-	version.SetUserAgent(req)
+	version.SetUserAgentCYBR(req)
 
 	res, err := c.httpClient.Do(req)
 	if err != nil {
@@ -190,7 +190,7 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 	request := RetrievePresignedUploadURLRequest{
 		ClusterID:    clusterID,
 		Checksum:     checksum,
-		AgentVersion: version.PreflightVersion,
+		AgentVersion: version.CYBRVersion,
 		FileSize:     fileSize,
 	}
 
@@ -211,7 +211,7 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 		return "", "", fmt.Errorf("failed to authenticate request: %s", err)
 	}
 
-	version.SetUserAgent(req)
+	version.SetUserAgentCYBR(req)
 
 	// Add telemetry headers
 	arkapi.SetTelemetryRequestHeader(req)

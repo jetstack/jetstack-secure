@@ -57,7 +57,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 		ctx := klog.NewContext(t.Context(), logger)
 
 		var rootCAs *x509.CertPool
-		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
+		httpClient := http_client.NewDefaultClient(version.UserAgentCYBR(), rootCAs)
 
 		c, err := client.NewCyberArk(httpClient)
 		if err != nil {
