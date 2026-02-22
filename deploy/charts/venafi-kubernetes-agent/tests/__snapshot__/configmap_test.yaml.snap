@@ -133,28 +133,28 @@ custom-cluster-description:
           config:
             resource-type:
               group: cas-issuer.jetstack.io
-              version: v1
+              version: v1beta1
               resource: googlecasissuers
         - kind: "k8s-dynamic"
           name: "k8s/googlecasclusterissuers"
           config:
             resource-type:
               group: cas-issuer.jetstack.io
-              version: v1
+              version: v1beta1
               resource: googlecasclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/awspcaissuer"
           config:
             resource-type:
               group: awspca.cert-manager.io
-              version: v1
+              version: v1beta1
               resource: awspcaissuers
         - kind: "k8s-dynamic"
           name: "k8s/awspcaclusterissuers"
           config:
             resource-type:
               group: awspca.cert-manager.io
-              version: v1
+              version: v1beta1
               resource: awspcaclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/mutatingwebhookconfigurations"
@@ -224,14 +224,14 @@ custom-cluster-description:
           config:
             resource-type:
               group: certmanager.step.sm
-              version: v1
+              version: v1beta1
               resource: stepissuers
         - kind: "k8s-dynamic"
           name: "k8s/stepclusterissuers"
           config:
             resource-type:
               group: certmanager.step.sm
-              version: v1
+              version: v1beta1
               resource: stepclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/originissuers"
@@ -252,14 +252,14 @@ custom-cluster-description:
           config:
             resource-type:
               group: certmanager.freeipa.org
-              version: v1
+              version: v1beta1
               resource: issuers
         - kind: "k8s-dynamic"
           name: "k8s/freeipaclusterissuers"
           config:
             resource-type:
               group: certmanager.freeipa.org
-              version: v1
+              version: v1beta1
               resource: clusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/ejbcaissuers"
@@ -420,28 +420,28 @@ custom-cluster-name:
           config:
             resource-type:
               group: cas-issuer.jetstack.io
-              version: v1
+              version: v1beta1
               resource: googlecasissuers
         - kind: "k8s-dynamic"
           name: "k8s/googlecasclusterissuers"
           config:
             resource-type:
               group: cas-issuer.jetstack.io
-              version: v1
+              version: v1beta1
               resource: googlecasclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/awspcaissuer"
           config:
             resource-type:
               group: awspca.cert-manager.io
-              version: v1
+              version: v1beta1
               resource: awspcaissuers
         - kind: "k8s-dynamic"
           name: "k8s/awspcaclusterissuers"
           config:
             resource-type:
               group: awspca.cert-manager.io
-              version: v1
+              version: v1beta1
               resource: awspcaclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/mutatingwebhookconfigurations"
@@ -511,14 +511,14 @@ custom-cluster-name:
           config:
             resource-type:
               group: certmanager.step.sm
-              version: v1
+              version: v1beta1
               resource: stepissuers
         - kind: "k8s-dynamic"
           name: "k8s/stepclusterissuers"
           config:
             resource-type:
               group: certmanager.step.sm
-              version: v1
+              version: v1beta1
               resource: stepclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/originissuers"
@@ -539,14 +539,14 @@ custom-cluster-name:
           config:
             resource-type:
               group: certmanager.freeipa.org
-              version: v1
+              version: v1beta1
               resource: issuers
         - kind: "k8s-dynamic"
           name: "k8s/freeipaclusterissuers"
           config:
             resource-type:
               group: certmanager.freeipa.org
-              version: v1
+              version: v1beta1
               resource: clusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/ejbcaissuers"
@@ -722,21 +722,21 @@ custom-period:
           config:
             resource-type:
               group: cas-issuer.jetstack.io
-              version: v1
+              version: v1beta1
               resource: googlecasissuers
         - kind: "k8s-dynamic"
           name: "k8s/googlecasclusterissuers"
           config:
             resource-type:
               group: cas-issuer.jetstack.io
-              version: v1
+              version: v1beta1
               resource: googlecasclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/awspcaissuer"
           config:
             resource-type:
               group: awspca.cert-manager.io
-              version: v1
+              version: v1beta1
               resource: awspcaissuers
         - kind: "k8s-dynamic"
           name: "k8s/awspcaclusterissuers"
@@ -813,14 +813,14 @@ custom-period:
           config:
             resource-type:
               group: certmanager.step.sm
-              version: v1
+              version: v1beta1
               resource: stepissuers
         - kind: "k8s-dynamic"
           name: "k8s/stepclusterissuers"
           config:
             resource-type:
               group: certmanager.step.sm
-              version: v1
+              version: v1beta1
               resource: stepclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/originissuers"
@@ -841,14 +841,14 @@ custom-period:
           config:
             resource-type:
               group: certmanager.freeipa.org
-              version: v1
+              version: v1beta1
               resource: issuers
         - kind: "k8s-dynamic"
           name: "k8s/freeipaclusterissuers"
           config:
             resource-type:
               group: certmanager.freeipa.org
-              version: v1
+              version: v1beta1
               resource: clusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/ejbcaissuers"
@@ -1009,28 +1009,28 @@ defaults:
           config:
             resource-type:
               group: cas-issuer.jetstack.io
-              version: v1
+              version: v1beta1
               resource: googlecasissuers
         - kind: "k8s-dynamic"
           name: "k8s/googlecasclusterissuers"
           config:
             resource-type:
               group: cas-issuer.jetstack.io
-              version: v1
+              version: v1beta1
               resource: googlecasclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/awspcaissuer"
           config:
             resource-type:
               group: awspca.cert-manager.io
-              version: v1
+              version: v1beta1
               resource: awspcaissuers
         - kind: "k8s-dynamic"
           name: "k8s/awspcaclusterissuers"
           config:
             resource-type:
               group: awspca.cert-manager.io
-              version: v1
+              version: v1beta1
               resource: awspcaclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/mutatingwebhookconfigurations"
@@ -1100,14 +1100,14 @@ defaults:
           config:
             resource-type:
               group: certmanager.step.sm
-              version: v1
+              version: v1beta1
               resource: stepissuers
         - kind: "k8s-dynamic"
           name: "k8s/stepclusterissuers"
           config:
             resource-type:
               group: certmanager.step.sm
-              version: v1
+              version: v1beta1
               resource: stepclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/originissuers"
@@ -1128,14 +1128,14 @@ defaults:
           config:
             resource-type:
               group: certmanager.freeipa.org
-              version: v1
+              version: v1beta1
               resource: issuers
         - kind: "k8s-dynamic"
           name: "k8s/freeipaclusterissuers"
           config:
             resource-type:
               group: certmanager.freeipa.org
-              version: v1
+              version: v1beta1
               resource: clusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/ejbcaissuers"
