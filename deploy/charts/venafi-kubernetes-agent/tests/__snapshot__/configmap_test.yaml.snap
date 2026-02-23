@@ -743,7 +743,7 @@ custom-period:
           config:
             resource-type:
               group: awspca.cert-manager.io
-              version: v1
+              version: v1beta1
               resource: awspcaclusterissuers
         - kind: "k8s-dynamic"
           name: "k8s/mutatingwebhookconfigurations"
