@@ -419,6 +419,402 @@ func TestConvertDataReadings_ConfigMaps(t *testing.T) {
 	assert.Equal(t, "default", cm2.GetNamespace())
 }
 
+// TestConvertDataReadings_ExternalSecrets tests that externalsecrets are correctly converted.
+func TestConvertDataReadings_ExternalSecrets(t *testing.T) {
+	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+		"ark/discovery": extractClusterIDAndServerVersionFromReading,
+		"ark/esoexternalsecrets": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.ExternalSecrets)
+		},
+	}
+
+	readings := []*api.DataReading{
+		{
+			DataGatherer: "ark/discovery",
+			Data: &api.DiscoveryData{
+				ClusterID: "test-cluster-id",
+				ServerVersion: &version.Info{
+					GitVersion: "v1.21.0",
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/esoexternalsecrets",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "ExternalSecret",
+								"metadata": map[string]any{
+									"name":      "my-external-secret",
+									"namespace": "default",
+								},
+								"spec": map[string]any{
+									"refreshInterval": "1h",
+									"secretStoreRef": map[string]any{
+										"name": "my-secret-store",
+										"kind": "SecretStore",
+									},
+								},
+							},
+						},
+					},
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "ExternalSecret",
+								"metadata": map[string]any{
+									"name":      "another-external-secret",
+									"namespace": "production",
+								},
+								"spec": map[string]any{
+									"refreshInterval": "30m",
+								},
+							},
+						},
+					},
+					// Deleted externalsecret should be ignored
+					{
+						DeletedAt: api.Time{Time: time.Now()},
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "ExternalSecret",
+								"metadata": map[string]any{
+									"name":      "deleted-external-secret",
+									"namespace": "default",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var snapshot dataupload.Snapshot
+	err := convertDataReadings(extractorFunctions, readings, &snapshot)
+	require.NoError(t, err)
+
+	// Verify the snapshot contains the expected data
+	assert.Equal(t, "test-cluster-id", snapshot.ClusterID)
+	assert.Equal(t, "v1.21.0", snapshot.K8SVersion)
+	require.Len(t, snapshot.ExternalSecrets, 2, "should have 2 externalsecrets (deleted one should be excluded)")
+
+	// Verify the first externalsecret
+	es1, ok := snapshot.ExternalSecrets[0].(*unstructured.Unstructured)
+	require.True(t, ok, "externalsecret should be unstructured")
+	assert.Equal(t, "ExternalSecret", es1.GetKind())
+	assert.Equal(t, "my-external-secret", es1.GetName())
+	assert.Equal(t, "default", es1.GetNamespace())
+
+	// Verify the second externalsecret
+	es2, ok := snapshot.ExternalSecrets[1].(*unstructured.Unstructured)
+	require.True(t, ok, "externalsecret should be unstructured")
+	assert.Equal(t, "ExternalSecret", es2.GetKind())
+	assert.Equal(t, "another-external-secret", es2.GetName())
+	assert.Equal(t, "production", es2.GetNamespace())
+}
+
+// TestConvertDataReadings_SecretStores tests that secretstores are correctly converted.
+func TestConvertDataReadings_SecretStores(t *testing.T) {
+	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+		"ark/discovery": extractClusterIDAndServerVersionFromReading,
+		"ark/esosecretstores": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.SecretStores)
+		},
+	}
+
+	readings := []*api.DataReading{
+		{
+			DataGatherer: "ark/discovery",
+			Data: &api.DiscoveryData{
+				ClusterID: "test-cluster-id",
+				ServerVersion: &version.Info{
+					GitVersion: "v1.21.0",
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/esosecretstores",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "SecretStore",
+								"metadata": map[string]any{
+									"name":      "my-secret-store",
+									"namespace": "default",
+								},
+								"spec": map[string]any{
+									"provider": map[string]any{
+										"fake": map[string]any{},
+									},
+								},
+							},
+						},
+					},
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "SecretStore",
+								"metadata": map[string]any{
+									"name":      "aws-secret-store",
+									"namespace": "production",
+								},
+								"spec": map[string]any{
+									"provider": map[string]any{
+										"aws": map[string]any{},
+									},
+								},
+							},
+						},
+					},
+					// Deleted secretstore should be ignored
+					{
+						DeletedAt: api.Time{Time: time.Now()},
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "SecretStore",
+								"metadata": map[string]any{
+									"name":      "deleted-secret-store",
+									"namespace": "default",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var snapshot dataupload.Snapshot
+	err := convertDataReadings(extractorFunctions, readings, &snapshot)
+	require.NoError(t, err)
+
+	// Verify the snapshot contains the expected data
+	assert.Equal(t, "test-cluster-id", snapshot.ClusterID)
+	assert.Equal(t, "v1.21.0", snapshot.K8SVersion)
+	require.Len(t, snapshot.SecretStores, 2, "should have 2 secretstores (deleted one should be excluded)")
+
+	// Verify the first secretstore
+	ss1, ok := snapshot.SecretStores[0].(*unstructured.Unstructured)
+	require.True(t, ok, "secretstore should be unstructured")
+	assert.Equal(t, "SecretStore", ss1.GetKind())
+	assert.Equal(t, "my-secret-store", ss1.GetName())
+	assert.Equal(t, "default", ss1.GetNamespace())
+
+	// Verify the second secretstore
+	ss2, ok := snapshot.SecretStores[1].(*unstructured.Unstructured)
+	require.True(t, ok, "secretstore should be unstructured")
+	assert.Equal(t, "SecretStore", ss2.GetKind())
+	assert.Equal(t, "aws-secret-store", ss2.GetName())
+	assert.Equal(t, "production", ss2.GetNamespace())
+}
+
+// TestConvertDataReadings_ClusterExternalSecrets tests that clusterexternalsecrets are correctly converted.
+func TestConvertDataReadings_ClusterExternalSecrets(t *testing.T) {
+	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+		"ark/discovery": extractClusterIDAndServerVersionFromReading,
+		"ark/esoclusterexternalsecrets": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.ClusterExternalSecrets)
+		},
+	}
+
+	readings := []*api.DataReading{
+		{
+			DataGatherer: "ark/discovery",
+			Data: &api.DiscoveryData{
+				ClusterID: "test-cluster-id",
+				ServerVersion: &version.Info{
+					GitVersion: "v1.21.0",
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/esoclusterexternalsecrets",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "ClusterExternalSecret",
+								"metadata": map[string]any{
+									"name": "my-cluster-external-secret",
+								},
+								"spec": map[string]any{
+									"externalSecretSpec": map[string]any{
+										"secretStoreRef": map[string]any{
+											"name": "my-cluster-secret-store",
+											"kind": "ClusterSecretStore",
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "ClusterExternalSecret",
+								"metadata": map[string]any{
+									"name": "aws-cluster-external-secret",
+								},
+								"spec": map[string]any{
+									"externalSecretSpec": map[string]any{
+										"secretStoreRef": map[string]any{
+											"name": "aws-cluster-secret-store",
+											"kind": "ClusterSecretStore",
+										},
+									},
+								},
+							},
+						},
+					},
+					// Deleted clusterexternalsecret should be ignored
+					{
+						DeletedAt: api.Time{Time: time.Now()},
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "ClusterExternalSecret",
+								"metadata": map[string]any{
+									"name": "deleted-cluster-external-secret",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var snapshot dataupload.Snapshot
+	err := convertDataReadings(extractorFunctions, readings, &snapshot)
+	require.NoError(t, err)
+
+	// Verify the snapshot contains the expected data
+	assert.Equal(t, "test-cluster-id", snapshot.ClusterID)
+	assert.Equal(t, "v1.21.0", snapshot.K8SVersion)
+	require.Len(t, snapshot.ClusterExternalSecrets, 2, "should have 2 clusterexternalsecrets (deleted one should be excluded)")
+
+	// Verify the first clusterexternalsecret
+	ces1, ok := snapshot.ClusterExternalSecrets[0].(*unstructured.Unstructured)
+	require.True(t, ok, "clusterexternalsecret should be unstructured")
+	assert.Equal(t, "ClusterExternalSecret", ces1.GetKind())
+	assert.Equal(t, "my-cluster-external-secret", ces1.GetName())
+
+	// Verify the second clusterexternalsecret
+	ces2, ok := snapshot.ClusterExternalSecrets[1].(*unstructured.Unstructured)
+	require.True(t, ok, "clusterexternalsecret should be unstructured")
+	assert.Equal(t, "ClusterExternalSecret", ces2.GetKind())
+	assert.Equal(t, "aws-cluster-external-secret", ces2.GetName())
+}
+
+// TestConvertDataReadings_ClusterSecretStores tests that clustersecretstores are correctly converted.
+func TestConvertDataReadings_ClusterSecretStores(t *testing.T) {
+	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+		"ark/discovery": extractClusterIDAndServerVersionFromReading,
+		"ark/esoclustersecretstores": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.ClusterSecretStores)
+		},
+	}
+
+	readings := []*api.DataReading{
+		{
+			DataGatherer: "ark/discovery",
+			Data: &api.DiscoveryData{
+				ClusterID: "test-cluster-id",
+				ServerVersion: &version.Info{
+					GitVersion: "v1.21.0",
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/esoclustersecretstores",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "ClusterSecretStore",
+								"metadata": map[string]any{
+									"name": "my-cluster-secret-store",
+								},
+								"spec": map[string]any{
+									"provider": map[string]any{
+										"fake": map[string]any{},
+									},
+								},
+							},
+						},
+					},
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "ClusterSecretStore",
+								"metadata": map[string]any{
+									"name": "aws-cluster-secret-store",
+								},
+								"spec": map[string]any{
+									"provider": map[string]any{
+										"aws": map[string]any{},
+									},
+								},
+							},
+						},
+					},
+					// Deleted clustersecretstore should be ignored
+					{
+						DeletedAt: api.Time{Time: time.Now()},
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "external-secrets.io/v1",
+								"kind":       "ClusterSecretStore",
+								"metadata": map[string]any{
+									"name": "deleted-cluster-secret-store",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var snapshot dataupload.Snapshot
+	err := convertDataReadings(extractorFunctions, readings, &snapshot)
+	require.NoError(t, err)
+
+	// Verify the snapshot contains the expected data
+	assert.Equal(t, "test-cluster-id", snapshot.ClusterID)
+	assert.Equal(t, "v1.21.0", snapshot.K8SVersion)
+	require.Len(t, snapshot.ClusterSecretStores, 2, "should have 2 clustersecretstores (deleted one should be excluded)")
+
+	// Verify the first clustersecretstore
+	css1, ok := snapshot.ClusterSecretStores[0].(*unstructured.Unstructured)
+	require.True(t, ok, "clustersecretstore should be unstructured")
+	assert.Equal(t, "ClusterSecretStore", css1.GetKind())
+	assert.Equal(t, "my-cluster-secret-store", css1.GetName())
+
+	// Verify the second clustersecretstore
+	css2, ok := snapshot.ClusterSecretStores[1].(*unstructured.Unstructured)
+	require.True(t, ok, "clustersecretstore should be unstructured")
+	assert.Equal(t, "ClusterSecretStore", css2.GetKind())
+	assert.Equal(t, "aws-cluster-secret-store", css2.GetName())
+}
+
 // TestConvertDataReadings_ServiceAccounts tests that serviceaccounts are correctly converted.
 func TestConvertDataReadings_ServiceAccounts(t *testing.T) {
 	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
