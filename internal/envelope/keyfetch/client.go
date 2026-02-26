@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
+	"time"
 
 	"github.com/jetstack/venafi-connection-lib/http_client"
 	"github.com/lestrrat-go/jwx/v3/jwk"
@@ -53,6 +55,10 @@ type Client struct {
 
 	// httpClient is the HTTP client used for requests
 	httpClient *http.Client
+
+	cachedKey      PublicKey
+	cachedKeyMutex sync.Mutex
+	cachedKeyTime  time.Time
 }
 
 // NewClient creates a new key fetching client.
@@ -82,6 +88,15 @@ func NewClient(ctx context.Context, discoveryClient *servicediscovery.Client, cf
 // FetchKey retrieves the public keys from the configured endpoint.
 // It returns a slice of PublicKey structs containing the key material and metadata.
 func (c *Client) FetchKey(ctx context.Context) (PublicKey, error) {
+	logger := klog.FromContext(ctx).WithName("keyfetch")
+	c.cachedKeyMutex.Lock()
+	defer c.cachedKeyMutex.Unlock()
+
+	if time.Since(c.cachedKeyTime) < 15*time.Minute {
+		klog.FromContext(ctx).WithName("keyfetch").V(2).Info("using cached key", "fetchedAt", c.cachedKeyTime.Format(time.RFC3339Nano), "kid", c.cachedKey.KeyID)
+		return c.cachedKey, nil
+	}
+
 	services, _, err := c.discoveryClient.DiscoverServices(ctx)
 	if err != nil {
 		return PublicKey{}, fmt.Errorf("failed to get services from discovery client: %w", err)
@@ -176,12 +191,17 @@ func (c *Client) FetchKey(ctx context.Context) (PublicKey, error) {
 			continue
 		}
 
-		klog.FromContext(ctx).WithName("keyfetch").Info("found valid RSA key", "kid", kid)
 		// return the first valid key we find
-		return PublicKey{
+
+		logger.Info("fetched valid RSA key", "kid", kid)
+
+		c.cachedKey = PublicKey{
 			KeyID: kid,
 			Key:   rsaKey,
-		}, nil
+		}
+		c.cachedKeyTime = time.Now()
+
+		return c.cachedKey, nil
 	}
 
 	return PublicKey{}, fmt.Errorf("no valid RSA keys found at %s", endpoint)

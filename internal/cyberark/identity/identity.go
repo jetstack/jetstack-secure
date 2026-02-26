@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"k8s.io/klog/v2"
 
@@ -180,6 +181,7 @@ type Client struct {
 
 	tokenCached      token
 	tokenCachedMutex sync.Mutex
+	tokenCachedTime  time.Time
 }
 
 // token is a wrapper type for holding auth tokens we want to cache.
@@ -205,11 +207,22 @@ func New(httpClient *http.Client, baseURL string, subdomain string) *Client {
 // Tokens are cached internally and are not directly accessible to code; use Client.AuthenticateRequest to add credentials
 // to an *http.Request.
 func (c *Client) LoginUsernamePassword(ctx context.Context, username string, password []byte) error {
+	// note: we hold the mutex for the whole login attempt to ensure that only one login attempt can be in flight at once,
+	// and to ensure that the token cache is correctly updated
+	c.tokenCachedMutex.Lock()
+	defer c.tokenCachedMutex.Unlock()
+
 	defer func() {
 		for i := range password {
 			password[i] = 0x00
 		}
 	}()
+
+	if time.Since(c.tokenCachedTime) < 15*time.Minute && c.tokenCached.Username == username {
+		// If the cached token is recent and for the same username, we can reuse it.
+		klog.FromContext(ctx).V(2).Info("reusing cached token for user", "username", username)
+		return nil
+	}
 
 	advanceRequestBody, err := c.doStartAuthentication(ctx, username)
 	if err != nil {
@@ -405,14 +418,12 @@ func (c *Client) doAdvanceAuthentication(ctx context.Context, username string, p
 
 	klog.FromContext(ctx).Info("successfully completed AdvanceAuthentication request to CyberArk Identity; login complete", "username", username)
 
-	c.tokenCachedMutex.Lock()
-
+	// NB: This assumes we already hold the token cache mutex, which we do in LoginUsernamePassword, so this is safe.
+	c.tokenCachedTime = time.Now()
 	c.tokenCached = token{
 		Username: username,
 		Token:    advanceAuthResponse.Result.Token,
 	}
-
-	c.tokenCachedMutex.Unlock()
 
 	return nil
 }
