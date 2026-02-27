@@ -101,6 +101,7 @@ kubectl apply -f "${root_dir}/hack/ark/cluster-external-secret.yaml"
 
 # We use a non-existent tag and omit the `--version` flag, to work around a Helm
 # v4 bug. See: https://github.com/helm/helm/issues/31600
+# TODO: shouldn't need to set config.sendSecretValues because it will default to true in future
 helm upgrade agent "oci://${ARK_CHART}:NON_EXISTENT_TAG@${ARK_CHART_DIGEST}" \
      --install \
      --wait \
@@ -113,6 +114,7 @@ helm upgrade agent "oci://${ARK_CHART}:NON_EXISTENT_TAG@${ARK_CHART_DIGEST}" \
      --set config.clusterName="e2e-test-cluster" \
      --set config.clusterDescription="A temporary cluster for E2E testing. Contact @wallrj-cyberark." \
      --set config.period=60s \
+     --set config.sendSecretValues=true \
      --set-json "podLabels={\"disco-agent.cyberark.cloud/test-id\": \"${RANDOM}\"}"
 
 kubectl rollout status deployments/disco-agent --namespace "${NAMESPACE}"

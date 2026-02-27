@@ -3,9 +3,7 @@ package rsa
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"strings"
 	"sync"
 	"testing"
@@ -13,21 +11,15 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwe"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jetstack/preflight/internal/envelope/keyfetch"
 )
 
-const testKeyID = "test-key-id"
-
-// smallRSAKey1024 is a hardcoded 1024-bit RSA public key in PEM format (PKIX)
-// used for testing key size validation. This key is intentionally weak and should
-// only be used for testing purposes.
-// This is hardcoded rather than generated in order to save compute, and also on the
-// assumption that future Go releases might restrict the ability to generate such small keys.
-const smallRSAKey1024 = `-----BEGIN PUBLIC KEY-----
-MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDCNDoCM0OBt4HFxFxyU50FYsuZ
-gK+lgel/Jlzb+ghkWpCL1Vk3Au7aet4KxNxQh5dFRxtMU7pe6fC5eZtdL3+0TCUu
-XAUVgMhTRn3ZXlEmJXosuiFQ2y4+3nbWL51OxXRf3jsieSVqr4fbceakuOKXp4vX
-wgiguV3/XqaysHs1uwIDAQAB
------END PUBLIC KEY-----`
+const (
+	testKeyID = "test-key-id"
+	// minRSAKeySize is the minimum RSA key size used for test key generation
+	minRSAKeySize = 2048
+)
 
 var (
 	testKeyOnce     sync.Once
@@ -49,67 +41,10 @@ func testKey() *rsa.PrivateKey {
 	return internalTestKey
 }
 
-func TestNewEncryptor_ValidKeys(t *testing.T) {
-	tests := []struct {
-		name    string
-		keySize int
-	}{
-		{"2048 bits", 2048},
-		{"3072 bits", 3072},
-		{"4096 bits", 4096},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			key, err := rsa.GenerateKey(rand.Reader, tt.keySize)
-			require.NoError(t, err)
-
-			enc, err := NewEncryptor(testKeyID, &key.PublicKey)
-			require.NoError(t, err)
-			require.NotNil(t, enc)
-		})
-	}
-}
-
-func TestNewEncryptor_RejectsSmallKeys(t *testing.T) {
-	// Parse the hardcoded 1024-bit RSA public key from PEM format
-	block, _ := pem.Decode([]byte(smallRSAKey1024))
-	require.NotNil(t, block, "failed to decode PEM block")
-
-	// NB: a future Go update might restrict the ability to parse small keys;
-	// if that happens, this test will need to be removed or changed.
-	pubKey, err := x509.ParsePKIXPublicKey(block.Bytes)
-	require.NoError(t, err, "failed to parse RSA public key")
-
-	rsaPubKey, ok := pubKey.(*rsa.PublicKey)
-	require.True(t, ok, "key should be an RSA public key")
-
-	enc, err := NewEncryptor(testKeyID, rsaPubKey)
-	require.Error(t, err)
-	require.Nil(t, enc)
-	require.Contains(t, err.Error(), "must be at least 2048 bits")
-}
-
-func TestNewEncryptor_NilKey(t *testing.T) {
-	enc, err := NewEncryptor(testKeyID, nil)
-	require.Error(t, err)
-	require.Nil(t, enc)
-	require.Contains(t, err.Error(), "cannot be nil")
-}
-
-func TestNewEncryptor_EmptyKeyID(t *testing.T) {
-	key := testKey()
-
-	enc, err := NewEncryptor("", &key.PublicKey)
-	require.Error(t, err)
-	require.Nil(t, enc)
-	require.Contains(t, err.Error(), "keyID cannot be empty")
-}
-
 func TestEncrypt_VariousDataSizes(t *testing.T) {
-	key := testKey()
+	fetcher := keyfetch.NewFakeClient()
 
-	enc, err := NewEncryptor(testKeyID, &key.PublicKey)
+	enc, err := NewEncryptor(fetcher)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -127,7 +62,7 @@ func TestEncrypt_VariousDataSizes(t *testing.T) {
 			_, err := rand.Read(data)
 			require.NoError(t, err)
 
-			result, err := enc.Encrypt(data)
+			result, err := enc.Encrypt(t.Context(), data)
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			require.Equal(t, EncryptionType, result.Type, "Type should be JWE-RSA")
@@ -152,31 +87,31 @@ func TestEncrypt_VariousDataSizes(t *testing.T) {
 }
 
 func TestEncrypt_EmptyData(t *testing.T) {
-	key := testKey()
+	fetcher := keyfetch.NewFakeClient()
 
-	enc, err := NewEncryptor(testKeyID, &key.PublicKey)
+	enc, err := NewEncryptor(fetcher)
 	require.NoError(t, err)
 
-	result, err := enc.Encrypt([]byte{})
+	result, err := enc.Encrypt(t.Context(), []byte{})
 	require.Error(t, err)
 	require.Nil(t, result)
 	require.Contains(t, err.Error(), "cannot be empty")
 }
 
 func TestEncrypt_NonDeterministic(t *testing.T) {
-	key := testKey()
+	fetcher := keyfetch.NewFakeClient()
 
-	enc, err := NewEncryptor(testKeyID, &key.PublicKey)
+	enc, err := NewEncryptor(fetcher)
 	require.NoError(t, err)
 
 	data := []byte("test data for encryption")
 
 	// Encrypt the same data twice
-	result1, err := enc.Encrypt(data)
+	result1, err := enc.Encrypt(t.Context(), data)
 	require.NoError(t, err)
 	require.Equal(t, EncryptionType, result1.Type, "Type should be JWE-RSA")
 
-	result2, err := enc.Encrypt(data)
+	result2, err := enc.Encrypt(t.Context(), data)
 	require.NoError(t, err)
 	require.Equal(t, EncryptionType, result2.Type, "Type should be JWE-RSA")
 
@@ -186,12 +121,13 @@ func TestEncrypt_NonDeterministic(t *testing.T) {
 
 func TestEncrypt_JWEFormat(t *testing.T) {
 	key := testKey()
+	fetcher := keyfetch.NewFakeClientWithKey(testKeyID, &key.PublicKey)
 
-	enc, err := NewEncryptor(testKeyID, &key.PublicKey)
+	enc, err := NewEncryptor(fetcher)
 	require.NoError(t, err)
 
 	data := []byte("test data")
-	result, err := enc.Encrypt(data)
+	result, err := enc.Encrypt(t.Context(), data)
 	require.NoError(t, err)
 	require.Equal(t, EncryptionType, result.Type, "Type should be JWE-RSA")
 
@@ -203,14 +139,15 @@ func TestEncrypt_JWEFormat(t *testing.T) {
 
 func TestEncrypt_DecryptRoundtrip(t *testing.T) {
 	key := testKey()
+	fetcher := keyfetch.NewFakeClientWithKey(testKeyID, &key.PublicKey)
 
-	enc, err := NewEncryptor(testKeyID, &key.PublicKey)
+	enc, err := NewEncryptor(fetcher)
 	require.NoError(t, err)
 
 	originalData := []byte("test data for roundtrip encryption and decryption")
 
 	// Encrypt the data
-	encrypted, err := enc.Encrypt(originalData)
+	encrypted, err := enc.Encrypt(t.Context(), originalData)
 	require.NoError(t, err)
 	require.Equal(t, EncryptionType, encrypted.Type, "Type should be JWE-RSA")
 

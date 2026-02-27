@@ -1,6 +1,9 @@
 package envelope
 
-import "encoding/json"
+import (
+	"context"
+	"encoding/json"
+)
 
 // EncryptedData represents encrypted data along with metadata about the encryption type.
 type EncryptedData struct {
@@ -34,5 +37,5 @@ func (ed *EncryptedData) ToMap() map[string]any {
 type Encryptor interface {
 	// Encrypt encrypts data using envelope encryption, returning an EncryptedData struct
 	// containing the encrypted payload and encryption type metadata.
-	Encrypt(data []byte) (*EncryptedData, error)
+	Encrypt(ctx context.Context, data []byte) (*EncryptedData, error)
 }

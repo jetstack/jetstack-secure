@@ -1,6 +1,7 @@
 package k8sdynamic
 
 import (
+	"context"
 	"crypto/rand"
 	stdrsa "crypto/rsa"
 	"encoding/base64"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/jetstack/preflight/api"
 	"github.com/jetstack/preflight/internal/envelope"
+	"github.com/jetstack/preflight/internal/envelope/keyfetch"
 	"github.com/jetstack/preflight/internal/envelope/rsa"
 )
 
@@ -405,7 +407,7 @@ func init() {
 
 type failEncryptor struct{}
 
-func (fe *failEncryptor) Encrypt(plaintext []byte) (*envelope.EncryptedData, error) {
+func (fe *failEncryptor) Encrypt(_ context.Context, plaintext []byte) (*envelope.EncryptedData, error) {
 	return nil, fmt.Errorf("encryption failed")
 }
 
@@ -415,7 +417,8 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 
 	keyID := "test-key-id"
 
-	encryptor, err := rsa.NewEncryptor(keyID, privKey.Public().(*stdrsa.PublicKey))
+	fetcher := keyfetch.NewFakeClientWithKey(keyID, privKey.Public().(*stdrsa.PublicKey))
+	encryptor, err := rsa.NewEncryptor(fetcher)
 	if err != nil {
 		t.Fatalf("failed to create encryptor: %v", err)
 	}

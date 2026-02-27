@@ -28,6 +28,8 @@ import (
 type CyberArkClient struct {
 	configLoader cyberark.ClientConfigLoader
 	httpClient   *http.Client
+
+	discoveryClient *servicediscovery.Client
 }
 
 var _ Client = &CyberArkClient{}
@@ -41,14 +43,15 @@ var _ Client = &CyberArkClient{}
 func NewCyberArk(httpClient *http.Client) (*CyberArkClient, error) {
 	configLoader := cyberark.LoadClientConfigFromEnvironment
 
-	_, err := configLoader()
+	cfg, err := configLoader()
 	if err != nil {
 		return nil, err
 	}
 
 	return &CyberArkClient{
-		configLoader: configLoader,
-		httpClient:   httpClient,
+		configLoader:    configLoader,
+		httpClient:      httpClient,
+		discoveryClient: servicediscovery.New(httpClient, cfg.Subdomain),
 	}, nil
 }
 
@@ -67,9 +70,7 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	discoveryClient := servicediscovery.New(o.httpClient)
-
-	serviceMap, tenantUUID, err := discoveryClient.DiscoverServices(ctx, cfg.Subdomain)
+	serviceMap, tenantUUID, err := o.discoveryClient.DiscoverServices(ctx)
 	if err != nil {
 		return err
 	}
@@ -93,6 +94,14 @@ func (o *CyberArkClient) PostDataReadingsWithOptions(ctx context.Context, readin
 		return fmt.Errorf("while uploading snapshot: %s", err)
 	}
 	return nil
+}
+
+func (o *CyberArkClient) DiscoveryClient() *servicediscovery.Client {
+	return o.discoveryClient
+}
+
+func (o *CyberArkClient) Config() (cyberark.ClientConfig, error) {
+	return o.configLoader()
 }
 
 // baseSnapshotFromOptions creates a base snapshot with common fields from the provided options.
