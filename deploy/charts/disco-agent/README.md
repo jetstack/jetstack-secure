@@ -91,11 +91,54 @@ kubectl logs deployments/disco-agent --namespace "${NAMESPACE}" --follow
 > ```
 
 This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+#### **imageRegistry** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+The container registry used for disco-agent images by default. This can include path prefixes (e.g. "artifactory.example.com/docker").
+
+#### **imageNamespace** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+The repository namespace used for disco-agent images by default.  
+Examples:  
+- jetstack  
+- custom-namespace
+
+#### **image.registry** ~ `string`
+
+Deprecated: per-component registry prefix.  
+  
+If set, this value is *prepended* to the image repository that the chart would otherwise render. This applies both when `image.repository` is set and when the repository is computed from  
+`imageRegistry` + `imageNamespace` + `image.name`.  
+  
+This can produce "double registry" style references such as  
+`legacy.example.io/quay.io/jetstack/...`. Prefer using the global  
+`imageRegistry`/`imageNamespace` values.
+
 #### **image.repository** ~ `string`
 > Default value:
 > ```yaml
 > ""
 > ```
+
+Full repository override (takes precedence over `imageRegistry`, `imageNamespace`, and `image.name`).  
+Example: quay.io/jetstack/disco-agent
+
+#### **image.name** ~ `string`
+> Default value:
+> ```yaml
+> disco-agent
+> ```
+
+The image name for the Discovery Agent.  
+This is used (together with `imageRegistry` and `imageNamespace`) to construct the full image reference.
+
 #### **image.pullPolicy** ~ `string`
 > Default value:
 > ```yaml
@@ -109,14 +152,14 @@ This sets the pull policy for images.
 > ""
 > ```
 
-Overrides the image tag whose default is the chart appVersion.
+Override the image tag to deploy by setting this variable. If no value is set, the chart's appVersion is used.
 #### **image.digest** ~ `string`
 > Default value:
 > ```yaml
 > ""
 > ```
 
-The image digest
+Override the image digest to deploy by setting this variable. If set together with `image.tag`, the rendered image will include both tag and digest.
 #### **imagePullSecrets** ~ `array`
 > Default value:
 > ```yaml
@@ -405,4 +448,6 @@ endpointAdditionalProperties:
    - __meta_kubernetes_pod_node_name
    targetLabel: instance
 ```
+
+<!-- /AUTO-GENERATED -->
 

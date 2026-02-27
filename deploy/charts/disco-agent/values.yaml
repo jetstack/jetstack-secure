@@ -5,14 +5,53 @@
 # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
 replicaCount: 1
 
+# The container registry used for disco-agent images by default.
+# This can include path prefixes (e.g. "artifactory.example.com/docker").
+# +docs:property
+imageRegistry: ""
+
+# The repository namespace used for disco-agent images by default.
+# Examples:
+# - jetstack
+# - custom-namespace
+# +docs:property
+imageNamespace: ""
+
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
 image:
+  # Deprecated: per-component registry prefix.
+  #
+  # If set, this value is *prepended* to the image repository that the chart would otherwise render.
+  # This applies both when `image.repository` is set and when the repository is computed from
+  # `imageRegistry` + `imageNamespace` + `image.name`.
+  #
+  # This can produce "double registry" style references such as
+  # `legacy.example.io/quay.io/jetstack/...`. Prefer using the global
+  # `imageRegistry`/`imageNamespace` values.
+  # +docs:property
+  # registry: quay.io
+
+  # Full repository override (takes precedence over `imageRegistry`, `imageNamespace`,
+  # and `image.name`).
+  # Example: quay.io/jetstack/disco-agent
+  # +docs:property
   repository: ""
+
+  # The image name for the Discovery Agent.
+  # This is used (together with `imageRegistry` and `imageNamespace`) to construct the full
+  # image reference.
+  # +docs:property
+  name: disco-agent
+
   # This sets the pull policy for images.
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
+
+  # Override the image tag to deploy by setting this variable.
+  # If no value is set, the chart's appVersion is used.
   tag: ""
-  # The image digest
+
+  # Override the image digest to deploy by setting this variable.
+  # If set together with `image.tag`, the rendered image will include both tag and digest.
   digest: ""
 
 # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
