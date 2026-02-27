@@ -26,5 +26,8 @@ oci_ark_build_args := \
 
 
 define ark_helm_values_mutation_function
-echo "no mutations defined for this chart"
+$(YQ) \
+	'( .image.repository = "$(oci_ark_image_name)" ) | \
+	( .image.tag = "$(oci_ark_image_tag)" )' \
+	$1 --inplace
 endef
