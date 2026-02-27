@@ -1,3 +1,6 @@
+{{- if not .Values.acceptTerms }}
+  {{- fail "\n\n=================================================================\n                Terms & Conditions Notice\n=================================================================\n\nBefore installing this application, you must review and accept\nthe terms and conditions available at:\nhttps://www.cyberark.com/contract-terms/\n\nTo proceed with installation, you must indicate acceptance by\nsetting:\n\n  - In your values file: acceptTerms: true\n  or\n  - Via the Helm flag: --set acceptTerms=true\n\nBy continuing with the next command, you confirm that you have\nreviewed and accepted these terms and conditions.\n\n=================================================================\n" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

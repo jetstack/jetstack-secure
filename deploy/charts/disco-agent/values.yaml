@@ -5,6 +5,9 @@
 # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
 replicaCount: 1
 
+# Must be set to indicate that you have read and accepted the CyberArk Terms of Service. If false, the helm chart will fail to install and will print a message with instructions on how to accept the TOS.
+acceptTerms: false
+
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
 image:
   repository: ""
@@ -157,9 +160,9 @@ config:
   # Enable sending of Secret values to CyberArk in addition to metadata.
   # Metadata is always sent, but the actual values of Secrets are not sent by default.
   # When enabled, Secret data is encrypted using envelope encryption using
-  # a key managed by CyberArk.
-  # Default: false (but default will change to true for a future release)
-  sendSecretValues: false
+  # a key managed by CyberArk, fetched from the Discovery and Context service.
+  # Default: true
+  sendSecretValues: true
 
 authentication:
   secretName: agent-credentials
