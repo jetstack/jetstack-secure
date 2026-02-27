@@ -30,8 +30,14 @@
         "image": {
           "$ref": "#/$defs/helm-values.image"
         },
+        "imageNamespace": {
+          "$ref": "#/$defs/helm-values.imageNamespace"
+        },
         "imagePullSecrets": {
           "$ref": "#/$defs/helm-values.imagePullSecrets"
+        },
+        "imageRegistry": {
+          "$ref": "#/$defs/helm-values.imageRegistry"
         },
         "metrics": {
           "$ref": "#/$defs/helm-values.metrics"
@@ -183,8 +189,14 @@
         "digest": {
           "$ref": "#/$defs/helm-values.image.digest"
         },
+        "name": {
+          "$ref": "#/$defs/helm-values.image.name"
+        },
         "pullPolicy": {
           "$ref": "#/$defs/helm-values.image.pullPolicy"
+        },
+        "registry": {
+          "$ref": "#/$defs/helm-values.image.registry"
         },
         "repository": {
           "$ref": "#/$defs/helm-values.image.repository"
@@ -197,7 +209,12 @@
     },
     "helm-values.image.digest": {
       "default": "",
-      "description": "The image digest",
+      "description": "Override the image digest to deploy by setting this variable. If set together with `image.tag`, the rendered image will include both tag and digest.",
+      "type": "string"
+    },
+    "helm-values.image.name": {
+      "default": "disco-agent",
+      "description": "The image name for the Discovery Agent.\nThis is used (together with `imageRegistry` and `imageNamespace`) to construct the full image reference.",
       "type": "string"
     },
     "helm-values.image.pullPolicy": {
@@ -205,13 +222,23 @@
       "description": "This sets the pull policy for images.",
       "type": "string"
     },
+    "helm-values.image.registry": {
+      "description": "Deprecated: per-component registry prefix.\n\nIf set, this value is *prepended* to the image repository that the chart would otherwise render. This applies both when `image.repository` is set and when the repository is computed from\n`imageRegistry` + `imageNamespace` + `image.name`.\n\nThis can produce \"double registry\" style references such as\n`legacy.example.io/quay.io/jetstack/...`. Prefer using the global\n`imageRegistry`/`imageNamespace` values.",
+      "type": "string"
+    },
     "helm-values.image.repository": {
       "default": "",
+      "description": "Full repository override (takes precedence over `imageRegistry`, `imageNamespace`, and `image.name`).\nExample: quay.io/jetstack/disco-agent",
       "type": "string"
     },
     "helm-values.image.tag": {
       "default": "",
-      "description": "Overrides the image tag whose default is the chart appVersion.",
+      "description": "Override the image tag to deploy by setting this variable. If no value is set, the chart's appVersion is used.",
+      "type": "string"
+    },
+    "helm-values.imageNamespace": {
+      "default": "",
+      "description": "The repository namespace used for disco-agent images by default.\nExamples:\n- jetstack\n- custom-namespace",
       "type": "string"
     },
     "helm-values.imagePullSecrets": {
@@ -219,6 +246,11 @@
       "description": "This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/",
       "items": {},
       "type": "array"
+    },
+    "helm-values.imageRegistry": {
+      "default": "",
+      "description": "The container registry used for disco-agent images by default. This can include path prefixes (e.g. \"artifactory.example.com/docker\").",
+      "type": "string"
     },
     "helm-values.metrics": {
       "additionalProperties": false,

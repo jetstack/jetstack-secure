@@ -50,15 +50,53 @@ metrics:
 # default replicas, do not scale up
 replicaCount: 1
 
+# The container registry used for venafi-kubernetes-agent images by default.
+# This can include path prefixes (e.g. "artifactory.example.com/docker").
+# +docs:property
+imageRegistry: registry.venafi.cloud
+
+# The repository namespace used for venafi-kubernetes-agent images by default.
+# Examples:
+# - venafi-agent
+# - custom-namespace
+# +docs:property
+imageNamespace: venafi-agent
+
 image:
-  # The container image for the Discovery Agent.
-  repository: registry.venafi.cloud/venafi-agent/venafi-agent
+  # Deprecated: per-component registry prefix.
+  #
+  # If set, this value is *prepended* to the image repository that the chart would otherwise render.
+  # This applies both when `image.repository` is set and when the repository is computed from
+  # `imageRegistry` + `imageNamespace` + `image.name`.
+  #
+  # This can produce "double registry" style references such as
+  # `legacy.example.io/registry.venafi.cloud/venafi-agent/...`. Prefer using the global
+  # `imageRegistry`/`imageNamespace` values.
+  # +docs:property
+  # registry: registry.venafi.cloud
+
+  # Full repository override (takes precedence over `imageRegistry`, `imageNamespace`,
+  # and `image.name`).
+  # Example: registry.venafi.cloud/venafi-agent/venafi-agent
+  # +docs:property
+  repository: ""
+
+  # The image name for the Discovery Agent.
+  # This is used (together with `imageRegistry` and `imageNamespace`) to construct the full
+  # image reference.
+  # +docs:property
+  name: venafi-agent
 
   # Kubernetes imagePullPolicy on Deployment.
   pullPolicy: IfNotPresent
 
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "v0.0.0"
+  # Override the image tag to deploy by setting this variable.
+  # If no value is set, the chart's appVersion is used.
+  tag: ""
+
+  # Override the image digest to deploy by setting this variable.
+  # If set together with `image.tag`, the rendered image will include both tag and digest.
+  digest: ""
 
 # Specify image pull credentials if using a private registry. Example:
 #  - name: my-pull-secret
