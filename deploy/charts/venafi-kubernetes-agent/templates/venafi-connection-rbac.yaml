@@ -1,4 +1,4 @@
-{{- if .Values.crds.venafiConnection.include }}
+{{- if .Values.venafiConnection.include }}
 # The 'venafi-connection' service account is used by multiple
 # controllers. When configuring which resources a VenafiConnection
 # can access, the RBAC rules you create manually must point to this SA.
