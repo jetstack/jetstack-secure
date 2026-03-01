@@ -193,7 +193,7 @@ func TestNewDataGathererWithClientAndSharedIndexInformer(t *testing.T) {
 			"version=v1",
 		},
 	}
-	clientset := fakeclientset.NewSimpleClientset()
+	clientset := fakeclientset.NewClientset()
 	dg, err := config.newDataGathererWithClient(ctx, nil, clientset)
 	if err != nil {
 		t.Errorf("expected no error but got: %v", err)
@@ -1175,7 +1175,7 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 			var wg sync.WaitGroup
 			ctx := t.Context()
 
-			clientset := fakeclientset.NewSimpleClientset(tc.addObjects...)
+			clientset := fakeclientset.NewClientset(tc.addObjects...)
 
 			// init the datagatherer's informer with the client
 			dg, err := tc.config.newDataGathererWithClient(ctx, nil, clientset)
