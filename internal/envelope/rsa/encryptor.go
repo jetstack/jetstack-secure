@@ -53,7 +53,8 @@ func (e *Encryptor) Encrypt(ctx context.Context, data []byte) (*envelope.Encrypt
 	}
 
 	// Encrypt using RSA-OAEP-256 for key algorithm and A256GCM for content encryption
-	// TODO: in go1.26+, consider using secret.Do to wrap this call, since it will generate an AES key
+	// TODO: When standardised, consider using secret.Do to wrap this call, since it will generate an AES key
+	// (see https://pkg.go.dev/runtime/secret)
 	encrypted, err := jwe.Encrypt(
 		data,
 		jwe.WithKey(jwa.RSA_OAEP_256(), key.Key, jwe.WithPerRecipientHeaders(headers)),
