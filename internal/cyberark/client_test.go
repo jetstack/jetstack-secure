@@ -2,6 +2,8 @@ package cyberark_test
 
 import (
 	"crypto/x509"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/jetstack/venafi-connection-lib/http_client"
@@ -63,6 +65,11 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 //	go test ./internal/cyberark \
 //	  -v -count 1 -run TestCyberArkClient_PutSnapshot_RealAPI -args -testing.v 6
 func TestCyberArkClient_PutSnapshot_RealAPI(t *testing.T) {
+	if strings.ToLower(os.Getenv("ARK_LIVE_TEST")) != "true" {
+		t.Skip("set ARK_LIVE_TEST=true to run this test against the live service")
+		return
+	}
+
 	arktesting.SkipIfNoEnv(t)
 
 	t.Log("This test runs against a live service and has been known to flake. If you see timeout issues it's possible that the test is flaking and it could be unrelated to your changes.")

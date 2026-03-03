@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +33,10 @@ func TestOutputModes(t *testing.T) {
 	})
 
 	t.Run("machinehub", func(t *testing.T) {
+		if strings.ToLower(os.Getenv("ARK_LIVE_TEST")) != "true" {
+			t.Skip("set ARK_LIVE_TEST=true to run this test against the live service")
+			return
+		}
 		arktesting.SkipIfNoEnv(t)
 
 		t.Log("This test runs against a live service and has been known to flake. If you see timeout issues it's possible that the test is flaking and it could be unrelated to your changes.")
