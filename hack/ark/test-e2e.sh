@@ -109,8 +109,8 @@ helm upgrade agent "oci://${ARK_CHART}:NON_EXISTENT_TAG@${ARK_CHART_DIGEST}" \
      --set-json extraArgs='["--log-level=6"]' \
      --set pprof.enabled=true \
      --set fullnameOverride=disco-agent \
-        --set "image.registry=${OCI_BASE}" \
-        --set "image.digest=${ARK_IMAGE_DIGEST}" \
+     --set "image.registry=${OCI_BASE}" \
+     --set "image.digest=${ARK_IMAGE_DIGEST}" \
      --set config.clusterName="e2e-test-cluster" \
      --set config.clusterDescription="A temporary cluster for E2E testing. Contact @wallrj-cyberark." \
      --set config.period=60s \
