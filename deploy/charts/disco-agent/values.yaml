@@ -11,14 +11,14 @@ acceptTerms: false
 # The container registry used for disco-agent images by default.
 # This can include path prefixes (e.g. "artifactory.example.com/docker").
 # +docs:property
-imageRegistry: ""
+imageRegistry: "quay.io"
 
 # The repository namespace used for disco-agent images by default.
 # Examples:
 # - jetstack
 # - custom-namespace
 # +docs:property
-imageNamespace: ""
+imageNamespace: "jetstack"
 
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
 image:
