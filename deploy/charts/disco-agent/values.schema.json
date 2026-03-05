@@ -245,7 +245,7 @@
       "type": "string"
     },
     "helm-values.imageNamespace": {
-      "default": "",
+      "default": "jetstack",
       "description": "The repository namespace used for disco-agent images by default.\nExamples:\n- jetstack\n- custom-namespace",
       "type": "string"
     },
@@ -256,7 +256,7 @@
       "type": "array"
     },
     "helm-values.imageRegistry": {
-      "default": "",
+      "default": "quay.io",
       "description": "The container registry used for disco-agent images by default. This can include path prefixes (e.g. \"artifactory.example.com/docker\").",
       "type": "string"
     },

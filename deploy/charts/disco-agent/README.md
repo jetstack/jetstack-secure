@@ -102,7 +102,7 @@ Must be set to indicate that you have read and accepted the CyberArk Terms of Se
 #### **imageRegistry** ~ `string`
 > Default value:
 > ```yaml
-> ""
+> quay.io
 > ```
 
 The container registry used for disco-agent images by default. This can include path prefixes (e.g. "artifactory.example.com/docker").
@@ -110,7 +110,7 @@ The container registry used for disco-agent images by default. This can include 
 #### **imageNamespace** ~ `string`
 > Default value:
 > ```yaml
-> ""
+> jetstack
 > ```
 
 The repository namespace used for disco-agent images by default.  
