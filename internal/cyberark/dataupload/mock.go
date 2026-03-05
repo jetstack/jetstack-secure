@@ -132,6 +132,11 @@ func (mds *mockDataUploadServer) handleSnapshotLinks(w http.ResponseWriter, r *h
 		return
 	}
 
+	if req.SignatureVersion != SigV4Support {
+		http.Error(w, fmt.Sprintf("post body does not set signature_version=%s", SigV4Support), http.StatusInternalServerError)
+		return
+	}
+
 	if req.AgentVersion != version.PreflightVersion {
 		http.Error(w, fmt.Sprintf("post body contains unexpected agent version: %s", req.AgentVersion), http.StatusInternalServerError)
 		return

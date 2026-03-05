@@ -3,6 +3,8 @@ package client_test
 import (
 	"crypto/x509"
 	"errors"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/jetstack/venafi-connection-lib/http_client"
@@ -52,6 +54,11 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 //	go test ./internal/cyberark/dataupload/... \
 //	  -v -count 1 -run TestCyberArkClient_PostDataReadingsWithOptions_RealAPI -args -testing.v 6
 func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
+	if strings.ToLower(os.Getenv("ARK_LIVE_TEST")) != "true" {
+		t.Skip("set ARK_LIVE_TEST=true to run this test against the live service")
+		return
+	}
+
 	t.Run("success", func(t *testing.T) {
 		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 		ctx := klog.NewContext(t.Context(), logger)

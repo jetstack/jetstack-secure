@@ -176,17 +176,25 @@ func (c *CyberArkClient) PutSnapshot(ctx context.Context, snapshot Snapshot) err
 	return nil
 }
 
+const SigV4Support = "sigv4"
+
 // RetrievePresignedUploadURLRequest is the JSON body sent to the inventory API to request a presigned upload URL.
 type RetrievePresignedUploadURLRequest struct {
 	ClusterID string `json:"cluster_id"`
 	Checksum  string `json:"checksum_sha256"`
 
 	// AgentVersion is the v-prefixed version of the agent uploading the snapshot.
-	// Note that the backend relies on this version being v-prefixed semver.
+	// Note that some versions of the backend rely on this version being v-prefixed semver,
+	// but that requirement was dropped in favour of the SigV4Support field below.
 	AgentVersion string `json:"agent_version"`
 
 	// FileSize is the size of the data we'll upload in bytes
 	FileSize int64 `json:"file_size"`
+
+	// SignatureVersion allows the agent to specify which version of AWS's signature scheme it expects for the presigned URL.
+	// Older versions of the agent will not send this. All versions which support this field will unconditionally set it to the
+	// value of SigV4Support, so the backend can rely on this field being set.
+	SignatureVersion string `json:"signature_version"`
 }
 
 func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksum string, clusterID string, fileSize int64) (string, string, error) {
@@ -196,10 +204,11 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 	}
 
 	request := RetrievePresignedUploadURLRequest{
-		ClusterID:    clusterID,
-		Checksum:     checksum,
-		AgentVersion: version.PreflightVersion,
-		FileSize:     fileSize,
+		ClusterID:        clusterID,
+		Checksum:         checksum,
+		AgentVersion:     version.PreflightVersion,
+		FileSize:         fileSize,
+		SignatureVersion: SigV4Support,
 	}
 
 	encodedBody := &bytes.Buffer{}

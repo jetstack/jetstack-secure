@@ -91,6 +91,13 @@ kubectl logs deployments/disco-agent --namespace "${NAMESPACE}" --follow
 > ```
 
 This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+#### **acceptTerms** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+Must be set to indicate that you have read and accepted the CyberArk Terms of Service. If false, the helm chart will fail to install and will print a message with instructions on how to accept the TOS.
 #### **image.repository** ~ `string`
 > Default value:
 > ```yaml
@@ -298,10 +305,11 @@ This description will be associated with the data that the agent uploads to the 
 #### **config.sendSecretValues** ~ `bool`
 > Default value:
 > ```yaml
-> false
+> true
 > ```
 
-Enable sending of Secret values to CyberArk in addition to metadata. Metadata is always sent, but the actual values of Secrets are not sent by default. When enabled, Secret data is encrypted using envelope encryption using a key managed by CyberArk. Default: false (but default will change to true for a future release)
+Enable sending of Secret values to CyberArk in addition to metadata. Metadata is always sent, but the actual values of Secrets are not sent by default. When enabled, Secret data is encrypted using envelope encryption using a key managed by CyberArk, fetched from the Discovery and Context service.  
+Default: true
 #### **authentication.secretName** ~ `string`
 > Default value:
 > ```yaml
