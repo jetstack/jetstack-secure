@@ -98,7 +98,6 @@ This will set the replicaset count more information can be found here: https://k
 > ```
 
 Must be set to indicate that you have read and accepted the CyberArk Terms of Service. If false, the helm chart will fail to install and will print a message with instructions on how to accept the TOS.
-
 #### **imageRegistry** ~ `string`
 > Default value:
 > ```yaml
