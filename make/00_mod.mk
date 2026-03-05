@@ -61,10 +61,7 @@ helm_image_tag ?= $(oci_preflight_image_tag)
 # Allows us to replace the Helm values.yaml's image.repository and image.tag
 # with the right values.
 define helm_values_mutation_function
-$(YQ) \
-	'( .image.repository = "$(helm_image_name)" ) | \
-	( .image.tag = "$(helm_image_tag)" )' \
-	$1 --inplace
+echo "no mutations defined for this chart"
 endef
 
 golangci_lint_config := .golangci.yaml

@@ -36,8 +36,14 @@
         "image": {
           "$ref": "#/$defs/helm-values.image"
         },
+        "imageNamespace": {
+          "$ref": "#/$defs/helm-values.imageNamespace"
+        },
         "imagePullSecrets": {
           "$ref": "#/$defs/helm-values.imagePullSecrets"
+        },
+        "imageRegistry": {
+          "$ref": "#/$defs/helm-values.imageRegistry"
         },
         "metrics": {
           "$ref": "#/$defs/helm-values.metrics"
@@ -331,8 +337,17 @@
     "helm-values.image": {
       "additionalProperties": false,
       "properties": {
+        "digest": {
+          "$ref": "#/$defs/helm-values.image.digest"
+        },
+        "name": {
+          "$ref": "#/$defs/helm-values.image.name"
+        },
         "pullPolicy": {
           "$ref": "#/$defs/helm-values.image.pullPolicy"
+        },
+        "registry": {
+          "$ref": "#/$defs/helm-values.image.registry"
         },
         "repository": {
           "$ref": "#/$defs/helm-values.image.repository"
@@ -343,19 +358,38 @@
       },
       "type": "object"
     },
+    "helm-values.image.digest": {
+      "default": "",
+      "description": "Override the image digest to deploy by setting this variable. If set together with `image.tag`, the rendered image will include both tag and digest.",
+      "type": "string"
+    },
+    "helm-values.image.name": {
+      "default": "venafi-agent",
+      "description": "The image name for the Discovery Agent.\nThis is used (together with `imageRegistry` and `imageNamespace`) to construct the full image reference.",
+      "type": "string"
+    },
     "helm-values.image.pullPolicy": {
       "default": "IfNotPresent",
       "description": "Kubernetes imagePullPolicy on Deployment.",
       "type": "string"
     },
+    "helm-values.image.registry": {
+      "description": "Deprecated: per-component registry prefix.\n\nIf set, this value is *prepended* to the image repository that the chart would otherwise render. This applies both when `image.repository` is set and when the repository is computed from\n`imageRegistry` + `imageNamespace` + `image.name`.\n\nThis can produce \"double registry\" style references such as\n`legacy.example.io/registry.venafi.cloud/venafi-agent/...`. Prefer using the global\n`imageRegistry`/`imageNamespace` values.",
+      "type": "string"
+    },
     "helm-values.image.repository": {
-      "default": "registry.venafi.cloud/venafi-agent/venafi-agent",
-      "description": "The container image for the Discovery Agent.",
+      "default": "",
+      "description": "Full repository override (takes precedence over `imageRegistry`, `imageNamespace`, and `image.name`). Example: registry.venafi.cloud/venafi-agent/venafi-agent",
       "type": "string"
     },
     "helm-values.image.tag": {
-      "default": "v0.0.0",
-      "description": "Overrides the image tag whose default is the chart appVersion.",
+      "default": "",
+      "description": "Override the image tag to deploy by setting this variable. If no value is set, the chart's appVersion is used.",
+      "type": "string"
+    },
+    "helm-values.imageNamespace": {
+      "default": "venafi-agent",
+      "description": "The repository namespace used for venafi-kubernetes-agent images by default.\nExamples:\n- venafi-agent\n- custom-namespace",
       "type": "string"
     },
     "helm-values.imagePullSecrets": {
@@ -363,6 +397,11 @@
       "description": "Specify image pull credentials if using a private registry. Example:\n - name: my-pull-secret",
       "items": {},
       "type": "array"
+    },
+    "helm-values.imageRegistry": {
+      "default": "registry.venafi.cloud",
+      "description": "The container registry used for venafi-kubernetes-agent images by default. This can include path prefixes (e.g. \"artifactory.example.com/docker\").",
+      "type": "string"
     },
     "helm-values.metrics": {
       "additionalProperties": false,

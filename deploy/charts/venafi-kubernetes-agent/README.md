@@ -99,13 +99,53 @@ endpointAdditionalProperties:
 > ```
 
 default replicas, do not scale up
+#### **imageRegistry** ~ `string`
+> Default value:
+> ```yaml
+> registry.venafi.cloud
+> ```
+
+The container registry used for venafi-kubernetes-agent images by default. This can include path prefixes (e.g. "artifactory.example.com/docker").
+
+#### **imageNamespace** ~ `string`
+> Default value:
+> ```yaml
+> venafi-agent
+> ```
+
+The repository namespace used for venafi-kubernetes-agent images by default.  
+Examples:  
+- venafi-agent  
+- custom-namespace
+
+#### **image.registry** ~ `string`
+
+Deprecated: per-component registry prefix.  
+  
+If set, this value is *prepended* to the image repository that the chart would otherwise render. This applies both when `image.repository` is set and when the repository is computed from  
+`imageRegistry` + `imageNamespace` + `image.name`.  
+  
+This can produce "double registry" style references such as  
+`legacy.example.io/registry.venafi.cloud/venafi-agent/...`. Prefer using the global  
+`imageRegistry`/`imageNamespace` values.
+
 #### **image.repository** ~ `string`
 > Default value:
 > ```yaml
-> registry.venafi.cloud/venafi-agent/venafi-agent
+> ""
 > ```
 
-The container image for the Discovery Agent.
+Full repository override (takes precedence over `imageRegistry`, `imageNamespace`, and `image.name`). Example: registry.venafi.cloud/venafi-agent/venafi-agent
+
+#### **image.name** ~ `string`
+> Default value:
+> ```yaml
+> venafi-agent
+> ```
+
+The image name for the Discovery Agent.  
+This is used (together with `imageRegistry` and `imageNamespace`) to construct the full image reference.
+
 #### **image.pullPolicy** ~ `string`
 > Default value:
 > ```yaml
@@ -116,10 +156,17 @@ Kubernetes imagePullPolicy on Deployment.
 #### **image.tag** ~ `string`
 > Default value:
 > ```yaml
-> v0.0.0
+> ""
 > ```
 
-Overrides the image tag whose default is the chart appVersion.
+Override the image tag to deploy by setting this variable. If no value is set, the chart's appVersion is used.
+#### **image.digest** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+Override the image digest to deploy by setting this variable. If set together with `image.tag`, the rendered image will include both tag and digest.
 #### **imagePullSecrets** ~ `array`
 > Default value:
 > ```yaml
