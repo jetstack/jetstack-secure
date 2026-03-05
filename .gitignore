@@ -15,5 +15,3 @@ predicate.json
 
 _bin
 .envrc
-
-examples/encrypted-secrets/output.json

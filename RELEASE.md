@@ -1,7 +1,8 @@
 # Release Process
 
 > [!NOTE]
-> Before starting, let Michael McLoughlin know that a release is about to be created so that documentation can be prepared in advance.
+> Before starting a release let the docs team know that a release is about to be created so that documentation can be prepared in advance.
+> This is not necessary for pre-releases.
 
 The release process is semi-automated.
 
@@ -63,11 +64,11 @@ The release process is semi-automated.
 
 7. Publish the release.
 
-8. Inform the `#venctl` channel that a new version of Discovery Agent has been
-   released. Make sure to share any breaking change that may affect `venctl connect`
-   or `venctl generate`.
+8. Inform the `#venafi-kubernetes-agent` channel on Slack that a new version of the Venafi Discovery Agent has been
+   released (and that a new version of the disco-agent has been released!)a
+   TODO: Who should be notified on the disco side?
 
-9. Inform Michael McLoughlin of the new release so he can update the
+9. Inform the docs team of the new release so they can update the
    documentation at <https://docs.cyberark.com/>.
 
 [tests-workflow]: https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml?query=branch%3Amaster
