@@ -3,9 +3,6 @@
     "helm-values": {
       "additionalProperties": false,
       "properties": {
-        "acceptTerms": {
-          "$ref": "#/$defs/helm-values.acceptTerms"
-        },
         "affinity": {
           "$ref": "#/$defs/helm-values.affinity"
         },
@@ -92,11 +89,6 @@
         }
       },
       "type": "object"
-    },
-    "helm-values.acceptTerms": {
-      "default": false,
-      "description": "Must be set to indicate that you have read and accepted the CyberArk Terms of Service. If false, the helm chart will fail to install and will print a message with instructions on how to accept the TOS.",
-      "type": "boolean"
     },
     "helm-values.affinity": {
       "default": {},
