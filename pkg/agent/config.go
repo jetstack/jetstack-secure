@@ -178,6 +178,17 @@ type AgentCmdFlags struct {
 
 	// Prometheus (--enable-metrics) enables the Prometheus metrics server.
 	Prometheus bool
+
+	// NGTSMode (--ngts) turns on the NGTS mode. The agent will authenticate
+	// using key pair authentication and send data to NGTS endpoints.
+	NGTSMode bool
+
+	// TSGID (--tsg-id) is the TSG (Tenant Security Group) ID for NGTS mode.
+	TSGID string
+
+	// NGTSServerURL (--ngts-server-url) is a hidden flag for developers to
+	// override the NGTS server URL for testing purposes.
+	NGTSServerURL string
 }
 
 func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
@@ -330,6 +341,34 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		panic(err)
 	}
 
+	c.PersistentFlags().BoolVar(
+		&cfg.NGTSMode,
+		"ngts",
+		false,
+		"Enables NGTS mode. The agent will authenticate using key pair authentication and send data to NGTS endpoints. "+
+			"Must be used in conjunction with --tsg-id, --client-id, and --private-key-path.",
+	)
+	c.PersistentFlags().StringVar(
+		&cfg.TSGID,
+		"tsg-id",
+		"",
+		"The TSG (Tenant Security Group) ID for NGTS mode. Required when using --ngts.",
+	)
+
+	ngtsServerURLFlag := "ngts-server-url"
+
+	c.PersistentFlags().StringVar(
+		&cfg.NGTSServerURL,
+		ngtsServerURLFlag,
+		"",
+		"Override the NGTS server URL for testing purposes. This flag is intended for agent development and should not need to be set.",
+	)
+
+	// ngts-server-url is intended only for developers, so hide it from help
+	if err := c.PersistentFlags().MarkHidden(ngtsServerURLFlag); err != nil {
+		panic(err)
+	}
+
 }
 
 // OutputMode controls how the collected data is published.
@@ -343,6 +382,7 @@ const (
 	VenafiCloudVenafiConnection OutputMode = "Venafi Cloud VenafiConnection"
 	LocalFile                   OutputMode = "Local File"
 	MachineHub                  OutputMode = "MachineHub"
+	NGTS                        OutputMode = "NGTS"
 )
 
 // The command-line flags and the config file and some environment variables are
@@ -387,6 +427,10 @@ type CombinedConfig struct {
 	ExcludeAnnotationKeysRegex []*regexp.Regexp
 	ExcludeLabelKeysRegex      []*regexp.Regexp
 
+	// NGTS mode only.
+	TSGID         string
+	NGTSServerURL string
+
 	// Only used for testing purposes.
 	OutputPath string
 	InputPath  string
@@ -411,6 +455,10 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			keysAndValues []any
 		)
 		switch {
+		case flags.NGTSMode:
+			mode = NGTS
+			reason = "--ngts was specified"
+			keysAndValues = []any{"ngts", true}
 		case flags.VenafiCloudMode && flags.CredentialsPath != "":
 			mode = VenafiCloudKeypair
 			reason = "--venafi-cloud and --credentials-path were specified"
@@ -448,6 +496,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		default:
 			return CombinedConfig{}, nil, fmt.Errorf("no output mode specified. " +
 				"To enable one of the output modes, you can:\n" +
+				" - Use --ngts with --tsg-id, --client-id, and --private-key-path to use the " + string(NGTS) + " mode.\n" +
 				" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
 				" - Use --venafi-connection for the " + string(VenafiCloudVenafiConnection) + " mode.\n" +
 				" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
@@ -462,6 +511,55 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	}
 
 	var errs error
+
+	// Validation of NGTS mode requirements.
+	if res.OutputMode == NGTS {
+		if flags.TSGID == "" {
+			errs = multierror.Append(errs, fmt.Errorf("--tsg-id is required when using --ngts"))
+		}
+		if flags.ClientID == "" {
+			errs = multierror.Append(errs, fmt.Errorf("--client-id is required when using --ngts"))
+		}
+		if flags.PrivateKeyPath == "" {
+			errs = multierror.Append(errs, fmt.Errorf("--private-key-path is required when using --ngts"))
+		}
+
+		// Error if MachineHub mode is also enabled
+		if flags.MachineHubMode {
+			errs = multierror.Append(errs, fmt.Errorf("--machine-hub cannot be used with --ngts. These are mutually exclusive modes."))
+		}
+
+		// Error if VenafiConnection mode flags are used
+		if flags.VenConnName != "" {
+			errs = multierror.Append(errs, fmt.Errorf("--venafi-connection cannot be used with --ngts. Use --client-id and --private-key-path instead."))
+		}
+
+		// Error if Jetstack Secure OAuth mode flags are used
+		if !flags.VenafiCloudMode && flags.CredentialsPath != "" {
+			errs = multierror.Append(errs, fmt.Errorf("--credentials-file (for Jetstack Secure OAuth) cannot be used with --ngts. Use --client-id and --private-key-path instead."))
+		}
+
+		// Error if API Token mode is used
+		if flags.APIToken != "" {
+			errs = multierror.Append(errs, fmt.Errorf("--api-token cannot be used with --ngts. Use --client-id and --private-key-path instead."))
+		}
+
+		// Error if --venafi-cloud is used with --ngts
+		if flags.VenafiCloudMode {
+			errs = multierror.Append(errs, fmt.Errorf("--venafi-cloud cannot be used with --ngts. These are different deployment targets."))
+		}
+
+		// Error if organization_id or cluster_id are set in config (these are for Jetstack Secure / CM-SaaS)
+		if cfg.OrganizationID != "" {
+			errs = multierror.Append(errs, fmt.Errorf("organization_id in config file is not supported in NGTS mode. This field is only for Jetstack Secure."))
+		}
+		if cfg.ClusterID != "" {
+			errs = multierror.Append(errs, fmt.Errorf("cluster_id in config file is not supported in NGTS mode. Use cluster_name instead."))
+		}
+
+		res.TSGID = flags.TSGID
+		res.NGTSServerURL = flags.NGTSServerURL
+	}
 
 	// Validation and defaulting of `server` and the deprecated `endpoint.path`.
 	{
@@ -491,14 +589,30 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 				// The VenafiCloudVenafiConnection mode doesn't need a server.
 				server = client.VenafiCloudProdURL
 			}
+			if res.OutputMode == NGTS {
+				// In NGTS mode, use NGTSServerURL if provided, otherwise we'll use a default
+				// (which will be determined when creating the client)
+				server = res.NGTSServerURL
+			}
 		}
+
+		// For NGTS mode with custom server URL
+		if res.OutputMode == NGTS && res.NGTSServerURL != "" {
+			log.Info("Using custom NGTS server URL (for testing)", "url", res.NGTSServerURL)
+			server = res.NGTSServerURL
+		}
+
 		url, urlErr := url.Parse(server)
-		if urlErr != nil || url.Hostname() == "" {
+		if urlErr != nil || (url.Hostname() == "" && server != "") {
 			errs = multierror.Append(errs, fmt.Errorf("server %q is not a valid URL", server))
 		}
 		if res.OutputMode == VenafiCloudVenafiConnection && server != "" {
 			log.Info(fmt.Sprintf("ignoring the server field specified in the config file. In %s mode, this field is not needed.", VenafiCloudVenafiConnection))
 			server = ""
+		}
+		if res.OutputMode == NGTS && cfg.Server != "" && res.NGTSServerURL == "" {
+			log.Info(fmt.Sprintf("ignoring the server field specified in the config file. In %s mode, use --ngts-server-url for testing.", NGTS))
+			server = res.NGTSServerURL
 		}
 		res.Server = server
 		res.EndpointPath = endpointPath
@@ -530,6 +644,12 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 				log.Info(fmt.Sprintf(`ignoring the venafi-cloud.upload_path field in the config file. In %s mode, this field is not needed.`, res.OutputMode))
 			}
 			uploadPath = ""
+		case NGTS:
+			// NGTS mode doesn't use the upload_path field
+			if cfg.VenafiCloud != nil && cfg.VenafiCloud.UploadPath != "" {
+				log.Info(fmt.Sprintf(`ignoring the venafi-cloud.upload_path field in the config file. In %s mode, this field is not needed.`, res.OutputMode))
+			}
+			uploadPath = ""
 		}
 		res.UploadPath = uploadPath
 	}
@@ -555,6 +675,13 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		var clusterID string      // Required by the old jetstack-secure mode deprecated for venafi cloud modes.
 		var organizationID string // Only used by the old jetstack-secure mode.
 		switch res.OutputMode {   // nolint:exhaustive
+		case NGTS:
+			// NGTS mode requires cluster_name
+			if cfg.ClusterName == "" {
+				errs = multierror.Append(errs, fmt.Errorf("cluster_name is required in %s mode", res.OutputMode))
+			}
+			clusterName = cfg.ClusterName
+			// cluster_id and organization_id were already validated to not be present in NGTS mode
 		case VenafiCloudKeypair, VenafiCloudVenafiConnection:
 			// For backwards compatibility, use the agent config's `cluster_id` as
 			// ClusterName if `cluster_name` is not set.
@@ -817,6 +944,27 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		)
 		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
 		outputClient, err = client.NewCyberArk(httpClient)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+		}
+	case NGTS:
+		var creds *client.NGTSServiceAccountCredentials
+
+		if flagClientID == "" || flagPrivateKeyPath == "" {
+			errs = multierror.Append(errs, fmt.Errorf("both --client-id and --private-key-path are required for NGTS mode"))
+			break
+		}
+
+		creds = &client.NGTSServiceAccountCredentials{
+			ClientID:       flagClientID,
+			PrivateKeyFile: flagPrivateKeyPath,
+		}
+
+		// rootCAs can be used in future to support custom CA certs, but for now will remain empty
+		var rootCAs *x509.CertPool
+
+		var err error
+		outputClient, err = client.NewNGTSClient(metadata, creds, cfg.Server, cfg.TSGID, rootCAs)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}

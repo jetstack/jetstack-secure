@@ -195,6 +195,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		)
 		assert.EqualError(t, err, testutil.Undent(`
 			no output mode specified. To enable one of the output modes, you can:
+			 - Use --ngts with --tsg-id, --client-id, and --private-key-path to use the NGTS mode.
 			 - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the Venafi Cloud Key Pair Service Account mode.
 			 - Use --venafi-connection for the Venafi Cloud VenafiConnection mode.
 			 - Use --credentials-file alone if you want to use the Jetstack Secure OAuth mode.
@@ -1063,6 +1064,185 @@ users:
     client-certificate-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURLVENDQWhHZ0F3SUJBZ0lJV1JQVy9Nblo0VnN3RFFZSktvWklodmNOQVFFTEJRQXdGVEVUTUJFR0ExVUUKQXhNS2EzVmlaWEp1WlhSbGN6QWVGdzB5TkRBM01UVXhOREUxTVRSYUZ3MHlOVEEzTVRVeE5ESXdNVFZhTUR3eApIekFkQmdOVkJBb1RGbXQxWW1WaFpHMDZZMngxYzNSbGNpMWhaRzFwYm5NeEdUQVhCZ05WQkFNVEVHdDFZbVZ5CmJtVjBaWE10WVdSdGFXNHdnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFDcGpIRW4KY2w3QlVURlJLdTVUeU54TmxEdWxHYittalNLcHdsd2FGa0ZyYUZPMXU0MVRVOE9FalZhNDlheHp1SHZYNTZpWgpLMEJCbkJ5aFdYeGVKNE1CTzRWdXk2K09zYVBHWUgxcDZIcGpmUTBwVW5QODFndTgzMloyWmRaazhmZkJVb0pjCjI4b25Mbjd0UERVdjhHVk9WbndZRzE4RGFDWFFjVGR3VjFNYVFKZCtsNGpveHQ5S0J6aDhZUUhZanJMdnl4RncKd2dPbTNITk5GQ3J3Zno2Wis2bi95bHliaTA3amNHVi9nMTVHaVl6azJNWW5EbFBYUHVQYzY0MVp0NWdBcGFwSgpUbUdsaW95Ym85bUVtZmRFbnd0aDJDSTZTdkx6eXlveTJidlhEVktNRzhZTzE5N25kRUd6TE95T1lYT1RMYUNkCnhaWVVCdlNadkxSK1pzMGpBZ01CQUFHalZqQlVNQTRHQTFVZER3RUIvd1FFQXdJRm9EQVRCZ05WSFNVRUREQUsKQmdnckJnRUZCUWNEQWpBTUJnTlZIUk1CQWY4RUFqQUFNQjhHQTFVZEl3UVlNQmFBRktzSWlFM3l6cUxaMGZRbQprQjd1MVk3K08rdEdNQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUExeXpDdE55Rmp6SHlNZ0FFTVpXalR4OWxWClk2MHRpeTFvYjUvL0thR0MvWmhSbW94NmZ0Sy94dFJDRlptRVYxZ1ZzaXNLc0g2L0YwTEZHRys4V0lrNzVoZXkKVGtoRXUvRVpBdEpRMUNoSmFWMTg4QzNvMmtmSkZOOFlVRlRyS0k3K1NNb0RCTmJJU0VPV3FsZFRiVDdWdkVzNQpsWTRKcS9rU2xnNnNZcWNCRDYzY2pFOHpKU3Y4aDUra3J0d2JVRW90Y0ptN0IvNnpMZksxNWQ5WXBEb0F1anl0CjlVcTVROEhaSGRqWlZ1OWgvNmYvbVMvZkRyek9weDhNOTdPblU1T0MvY2dTNGtUNVhkdVo3SVB3TDJVMkZsTlIKVUdvZ0RndmxDQkFaMDV4WXh4Z2xjNlNYK3JrcURUK3VhWHNtR2dBU21oUjR4OXFkRzA1R2JIdXhoZkJhCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
     client-key-data: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBcVl4eEozSmV3VkV4VVNydVU4amNUWlE3cFJtL3BvMGlxY0pjR2haQmEyaFR0YnVOClUxUERoSTFXdVBXc2M3aDcxK2VvbVN0QVFad2NvVmw4WGllREFUdUZic3V2anJHanhtQjlhZWg2WTMwTktWSnoKL05ZTHZOOW1kbVhXWlBIM3dWS0NYTnZLSnk1KzdUdzFML0JsVGxaOEdCdGZBMmdsMEhFM2NGZFRHa0NYZnBlSQo2TWJmU2djNGZHRUIySTZ5NzhzUmNNSURwdHh6VFJRcThIOCttZnVwLzhwY200dE80M0JsZjROZVJvbU01TmpHCkp3NVQxejdqM091TldiZVlBS1dxU1U1aHBZcU1tNlBaaEpuM1JKOExZZGdpT2tyeTg4c3FNdG03MXcxU2pCdkcKRHRmZTUzUkJzeXpzam1Gemt5MmduY1dXRkFiMG1ieTBmbWJOSXdJREFRQUJBb0lCQUY2dHkzNWdzcU0zYU5mUApwbmpwSUlTOTh6UzJGVHkzY1pUa3NUUHNHNm9UL3pMcndmYTNQdVpsV3ZrOFQ0bnJpbFM5eTN1RkdJUEszbjRICmo1aXdiY3FoWjFqQXE0OStpVnM5Qkt2QW81K3M5RTJQK3E5RkJCYjdsYWNtSlR3SGx2ZkEwSVYwUXdYd1EvYk0KZVZNRTVqMkJ0Qmh1S0hlcGovdy9UTnNTR0pqK2NlNmN2aXVVb2NXWGsxWDl2c1RDaUdtMVdnVkZGQVphVGpMTgpDcEU1dHFpdnpvbEZVbXZIbmVYNTZTOEdFWk01NFA5MFk1enJ3NHBGa0Vud1VMRlBLa1U0cUU0eWVPNVFsWUhCClQ0NklIOVNPcUU5T0pLL3JCSGVzQU45TWNrMTdKblF6Sy95bXh6eHhhcGdPMnk0bVBTcjJaaGk0SENMRHRQV2QKc0ZtRzc2RUNnWUVBeHhQTTJYVFV2bXV5ckZmUVgxblJTSW9jMGhxZFY0MnFaRFlkMzZWVWc1UUVMM0Y4S01aUwptSkNsWlJXYW9IY0NFVUdXakFTWEJaMW9hOHlOMVhSNURTV3ZJMmV5TjE1dnh3NFg1SjV5QzUvY0F4ZW00dUk3CnkzM0VWWktXZXpFQTVVeUFtNlF6ei9lR1R6QkZyNUlxYkJDUitTUldudHRXUHdJTUhkK0VoeEVDZ1lFQTJnY3QKT2h1U0xJeDZZbTFTRHVVT0pSdmtFZFlCazJPQWxRbk5kOVJoaWIxdVlVbjhPTkhYdHBsY2FHZEl3bFdkaEJlcwo4M1F4dXA4MEFydEFtM2FHMXZ6RlZ6Q05KeHA4ZGFxWlFsZk94YlJReUQ0cjdtT2Z5aENFY2VibHAxMkZKRTBQCmNhOFl2TkFuTTdkbnlTSFd0aUo2THFQWDVuMXlRSC9JY1NIaEdQTUNnWUVBa0ZDZFBzSy8rcTZ1SHR1bDFZbVIKK3FrTWpZNzNvdUd5dE9TNk1VZDBCZEtHV2pKRmxIVjRxTnFxMjZXV3ExNjZZL0lOQmNIS0RTcjM2TFduMkNhUQpIbVRFR3NGd1kwMFZjTktacFlUckhkd3NMUjIzUUdCS2dwRFFoRXc0eEdOWXgrRDJsbDJwcGNoRldDQ2hVODU4CjdFdnkxZzV1c01oR05IVHlmYkZzTEZFQ2dZRUF6QXJOVzhVenZuZFZqY25MY3Q4UXBzLzhXR2pVbnJBUFJPdWcKbTlWcDF2TXVXdVJYcElGV0JMQnYxOUZaT1czUWRTK0hEMndkb2c2ZUtUUS9HWDhLWUNhOU5JVGVoTXIzMFZMdwpEVE9KOG1KMiszK2JzNFVPcEpkaXJBb3Z3THI0QUdvUjJ3M0g4K1JGMjlOMzBMYlhieXJDOStVa0I3UTgrWG5kCkIydHljdHNDZ1lCZkxqUTNRUnpQN1Z5Y1VGNkFTYUNYVTJkcE5lckVUbGFpdldIb1FFWVo3NHEyMkFTeFcrMlEKWmtZTEM1RVNGMnZwUU5kZUZhZlRyRm9zR3pLQ1dwYXBUL2QwUC9qaG83TEF1TTJQZEcxSXFoNElRU3FUM3VqNwp4Sm9WUzhIbEg1Ri9sQzZzczZQSm1GWlpsanhFL1FVTDlucDNLYTVCRjFXdXZiZVp0Q2I5Mnc9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
 `
+
+func Test_ValidateAndCombineConfig_NGTS(t *testing.T) {
+	t.Run("ngts: valid configuration with all required flags", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+				cluster_description: Test NGTS cluster
+			`)),
+			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		require.NoError(t, err)
+		assert.Equal(t, NGTS, got.OutputMode)
+		assert.Equal(t, "test-tsg-123", got.TSGID)
+		assert.Equal(t, "test-cluster", got.ClusterName)
+		assert.Equal(t, "Test NGTS cluster", got.ClusterDescription)
+		assert.IsType(t, &client.NGTSClient{}, cl)
+	})
+
+	t.Run("ngts: valid configuration with custom server URL", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+			`)),
+			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath, "--ngts-server-url", "https://ngts.test.example.com"))
+		require.NoError(t, err)
+		assert.Equal(t, NGTS, got.OutputMode)
+		assert.Equal(t, "https://ngts.test.example.com", got.NGTSServerURL)
+		assert.IsType(t, &client.NGTSClient{}, cl)
+	})
+
+	t.Run("ngts: missing --ngts flag should not trigger NGTS mode", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+			`)),
+			withCmdLineFlags("--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		// Should select VenafiCloudKeypair mode instead when --ngts is not specified
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "venafi-cloud.upload_path")
+	})
+
+	t.Run("ngts: missing --tsg-id should error", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+			`)),
+			withCmdLineFlags("--ngts", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--tsg-id is required when using --ngts")
+	})
+
+	t.Run("ngts: missing --client-id should error", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+			`)),
+			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--private-key-path", privKeyPath))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--client-id is required when using --ngts")
+	})
+
+	t.Run("ngts: missing --private-key-path should error", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+			`)),
+			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--private-key-path is required when using --ngts")
+	})
+
+	t.Run("ngts: missing cluster_name should error", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+			`)),
+			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cluster_name is required")
+	})
+
+	t.Run("ngts: cannot be used with --machine-hub", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+			`)),
+			withCmdLineFlags("--ngts", "--machine-hub", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--machine-hub cannot be used with --ngts")
+	})
+
+	t.Run("ngts: cannot be used with --venafi-connection", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+			`)),
+			withCmdLineFlags("--ngts", "--venafi-connection", "my-conn", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--venafi-connection cannot be used with --ngts")
+	})
+
+	t.Run("ngts: cannot be used with --venafi-cloud", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+			`)),
+			withCmdLineFlags("--ngts", "--venafi-cloud", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--venafi-cloud cannot be used with --ngts")
+	})
+
+	t.Run("ngts: cannot be used with --api-token", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+			`)),
+			withCmdLineFlags("--ngts", "--api-token", "test-token", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--api-token cannot be used with --ngts")
+	})
+
+	t.Run("ngts: organization_id in config should error", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+				organization_id: my-org
+			`)),
+			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "organization_id in config file is not supported in NGTS mode")
+	})
+
+	t.Run("ngts: cluster_id in config should error", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+				cluster_id: my-cluster-id
+			`)),
+			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cluster_id in config file is not supported in NGTS mode")
+	})
+}
 
 const fakePrivKeyPEM = `-----BEGIN PRIVATE KEY-----
 MHcCAQEEIFptpPXOvEWDrYkiMhyEH1+FB1GwtwX2tyXH4KtBO6g7oAoGCCqGSM49
