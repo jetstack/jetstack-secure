@@ -348,10 +348,10 @@ This description will be associated with the data that the agent uploads to the 
 #### **config.sendSecretValues** ~ `bool`
 > Default value:
 > ```yaml
-> false
+> true
 > ```
 
-Enable sending of Secret values to CyberArk in addition to metadata. Metadata is always sent, but the actual values of Secrets are not sent by default. When enabled, Secret data is encrypted using envelope encryption using a key managed by CyberArk, fetched from the Discovery and Context service. This value will default to "true" in a future release when further updates have been made to the Discovery and Context backend.
+Enable sending of Secret values to CyberArk in addition to metadata. Metadata is always sent, but the actual values of Secrets are not sent by default. When enabled, Secret data is encrypted using envelope encryption using a key managed by CyberArk, fetched from the Discovery and Context service.
 #### **authentication.secretName** ~ `string`
 > Default value:
 > ```yaml

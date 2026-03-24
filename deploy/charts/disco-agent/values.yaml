@@ -200,9 +200,7 @@ config:
   # Metadata is always sent, but the actual values of Secrets are not sent by default.
   # When enabled, Secret data is encrypted using envelope encryption using
   # a key managed by CyberArk, fetched from the Discovery and Context service.
-  # This value will default to "true" in a future release when further updates have been
-  # made to the Discovery and Context backend.
-  sendSecretValues: false
+  sendSecretValues: true
 
 authentication:
   secretName: agent-credentials
