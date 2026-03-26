@@ -1,5 +1,6 @@
 include make/test-unit.mk
 include make/ark/02_mod.mk
+include make/ngts/02_mod.mk
 
 GITHUB_OUTPUT ?= /dev/stderr
 .PHONY: release

@@ -195,7 +195,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		)
 		assert.EqualError(t, err, testutil.Undent(`
 			no output mode specified. To enable one of the output modes, you can:
-			 - Use --ngts with --tsg-id, --client-id, and --private-key-path to use the NGTS mode.
+			 - Use --ngts with --tsg-id and --private-key-path to use the NGTS mode (--client-id is optional if provided in the credentials secret).
 			 - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the Venafi Cloud Key Pair Service Account mode.
 			 - Use --venafi-connection for the Venafi Cloud VenafiConnection mode.
 			 - Use --credentials-file alone if you want to use the Jetstack Secure OAuth mode.
@@ -1136,7 +1136,7 @@ func Test_ValidateAndCombineConfig_NGTS(t *testing.T) {
 			`)),
 			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--private-key-path", privKeyPath))
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--client-id is required when using --ngts")
+		assert.Contains(t, err.Error(), "client_id cannot be empty")
 	})
 
 	t.Run("ngts: missing --private-key-path should error", func(t *testing.T) {

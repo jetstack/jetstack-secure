@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "discovery-agent.fullname" . }}
+  labels:
+    {{- include "discovery-agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "discovery-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "discovery-agent.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "discovery-agent.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: agent
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ template "image" (tuple .Values.image .Values.imageRegistry .Values.imageNamespace (printf ":%s" .Chart.AppVersion)) }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_UID
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.uid
+          - name: POD_NODE
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+          {{- with .Values.http_proxy }}
+          - name: HTTP_PROXY
+            value: {{ . }}
+          {{- end }}
+          {{- with .Values.https_proxy }}
+          - name: HTTPS_PROXY
+            value: {{ . }}
+          {{- end }}
+          {{- with .Values.no_proxy }}
+          - name: NO_PROXY
+            value: {{ . }}
+          {{- end }}
+          args:
+            - "agent"
+            - "-c"
+            - "/etc/discovery-agent/config.yaml"
+            - --ngts
+            - --tsg-id
+            - {{ required "config.tsgID is required" .Values.config.tsgID | toString | quote }}
+            {{- with .Values.config.serverURL }}
+            - --ngts-server-url
+            - {{ . | quote }}
+            {{- end }}
+            {{- if .Values.config.clientID }}
+            - --client-id
+            - {{ .Values.config.clientID }}
+            {{- end }}
+            - --private-key-path
+            - /etc/discovery-agent/credentials/privatekey.pem
+            - --logging-format=json
+            {{- if .Values.metrics.enabled }}
+            - --enable-metrics
+            {{- end }}
+            {{- if .Values.pprof.enabled }}
+            - --enable-pprof
+            {{- end }}
+            {{- range .Values.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/discovery-agent"
+              readOnly: true
+            - name: credentials
+              mountPath: "/etc/discovery-agent/credentials"
+              readOnly: true
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: agent-api
+              containerPort: 8081
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "discovery-agent.fullname" . }}-config
+            optional: false
+        - name: credentials
+          secret:
+            secretName: {{ .Values.config.secretName }}
+            optional: false
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

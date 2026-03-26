@@ -346,7 +346,7 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		"ngts",
 		false,
 		"Enables NGTS mode. The agent will authenticate using key pair authentication and send data to NGTS endpoints. "+
-			"Must be used in conjunction with --tsg-id, --client-id, and --private-key-path.",
+			"Must be used in conjunction with --tsg-id and --private-key-path. --client-id is optional if provided in the credentials secret.",
 	)
 	c.PersistentFlags().StringVar(
 		&cfg.TSGID,
@@ -496,7 +496,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		default:
 			return CombinedConfig{}, nil, fmt.Errorf("no output mode specified. " +
 				"To enable one of the output modes, you can:\n" +
-				" - Use --ngts with --tsg-id, --client-id, and --private-key-path to use the " + string(NGTS) + " mode.\n" +
+				" - Use --ngts with --tsg-id and --private-key-path to use the " + string(NGTS) + " mode (--client-id is optional if provided in the credentials secret).\n" +
 				" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
 				" - Use --venafi-connection for the " + string(VenafiCloudVenafiConnection) + " mode.\n" +
 				" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
@@ -516,9 +516,6 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	if res.OutputMode == NGTS {
 		if flags.TSGID == "" {
 			errs = multierror.Append(errs, fmt.Errorf("--tsg-id is required when using --ngts"))
-		}
-		if flags.ClientID == "" {
-			errs = multierror.Append(errs, fmt.Errorf("--client-id is required when using --ngts"))
 		}
 		if flags.PrivateKeyPath == "" {
 			errs = multierror.Append(errs, fmt.Errorf("--private-key-path is required when using --ngts"))
@@ -959,8 +956,8 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 	case NGTS:
 		var creds *client.NGTSServiceAccountCredentials
 
-		if flagClientID == "" || flagPrivateKeyPath == "" {
-			errs = multierror.Append(errs, fmt.Errorf("both --client-id and --private-key-path are required for NGTS mode"))
+		if flagPrivateKeyPath == "" {
+			errs = multierror.Append(errs, fmt.Errorf("--private-key-path is required for NGTS mode"))
 			break
 		}
 

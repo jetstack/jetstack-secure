@@ -73,7 +73,7 @@ func TestNewNGTSClient(t *testing.T) {
 			errContains: "tsgID cannot be empty",
 		},
 		{
-			name: "invalid credentials",
+			name: "missing clientID without file",
 			credentials: &NGTSServiceAccountCredentials{
 				ClientID:       "",
 				PrivateKeyFile: keyFile,
@@ -122,6 +122,67 @@ func TestNewNGTSClient(t *testing.T) {
 			}
 
 			assert.Equal(t, fmt.Sprintf(ngtsProdURLFormat, tt.tsgID), client.baseURL.String())
+		})
+	}
+}
+
+func TestNGTSClient_LoadClientIDFromFile(t *testing.T) {
+	// Create a temporary directory for the secret files
+	tmpDir := t.TempDir()
+
+	// Create the private key file
+	keyFile := tmpDir + "/privatekey.pem"
+	err := os.WriteFile(keyFile, []byte(fakePrivKeyPEM), 0600)
+	require.NoError(t, err)
+
+	// Create the clientID file in the same directory
+	clientIDFile := tmpDir + "/clientID"
+	err = os.WriteFile(clientIDFile, []byte("test-client-from-file\n"), 0600)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		credentials *NGTSServiceAccountCredentials
+		wantErr     bool
+		wantClient  string
+	}{
+		{
+			name: "load clientID from file",
+			credentials: &NGTSServiceAccountCredentials{
+				ClientID:       "", // Empty - should be loaded from file
+				PrivateKeyFile: keyFile,
+			},
+			wantErr:    false,
+			wantClient: "test-client-from-file",
+		},
+		{
+			name: "explicit clientID takes precedence",
+			credentials: &NGTSServiceAccountCredentials{
+				ClientID:       "explicit-client-id",
+				PrivateKeyFile: keyFile,
+			},
+			wantErr:    false,
+			wantClient: "explicit-client-id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metadata := &api.AgentMetadata{
+				Version:   "test-version",
+				ClusterID: "test-cluster",
+			}
+
+			client, err := NewNGTSClient(metadata, tt.credentials, "https://test.example.com", "test-tsg", nil)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.NotNil(t, client)
+			assert.Equal(t, tt.wantClient, client.credentials.ClientID)
 		})
 	}
 }
