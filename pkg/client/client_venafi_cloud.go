@@ -259,14 +259,22 @@ func (c *VenafiCloudClient) post(ctx context.Context, path string, body io.Reade
 // token from the auth server in case the current access token does not exist
 // or it is expired.
 func (c *VenafiCloudClient) getValidAccessToken(ctx context.Context) (*venafiCloudAccessToken, error) {
-	if c.accessToken == nil || time.Now().Add(time.Minute).After(c.accessToken.expirationTime) {
+	c.lock.RLock()
+	needsUpdate := c.accessToken == nil || time.Now().Add(time.Minute).After(c.accessToken.expirationTime)
+	c.lock.RUnlock()
+
+	if needsUpdate {
 		err := c.updateAccessToken(ctx)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return c.accessToken, nil
+	c.lock.RLock()
+	token := c.accessToken
+	c.lock.RUnlock()
+
+	return token, nil
 }
 
 func (c *VenafiCloudClient) updateAccessToken(ctx context.Context) error {
