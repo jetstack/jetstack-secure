@@ -131,12 +131,12 @@
     },
     "helm-values.config.clusterDescription": {
       "default": "",
-      "description": "A short description of the cluster where the agent is deployed (optional).\n\nThis description will be associated with the data that the agent uploads to the NGTS service. The description may include contact information such as the email address of the cluster administrator.",
+      "description": "A short description of the cluster where the agent is deployed (optional).\n\nThis description will be associated with the data that the agent uploads to the backend. The description may include contact information such as the email address of the cluster administrator.",
       "type": "string"
     },
     "helm-values.config.clusterName": {
       "default": "",
-      "description": "A human readable name for the cluster where the agent is deployed (required).\n\nThis cluster name will be associated with the data that the agent uploads to the NGTS service.",
+      "description": "A human readable name for the cluster where the agent is deployed (required).\n\nThis cluster name will be associated with the data that the agent uploads to the backend.",
       "type": "string"
     },
     "helm-values.config.excludeAnnotationKeysRegex": {
@@ -152,7 +152,7 @@
     },
     "helm-values.config.period": {
       "default": "0h1m0s",
-      "description": "Push data every 12 hours unless changed.",
+      "description": "How often to push data to the remote server",
       "type": "string"
     },
     "helm-values.config.secretName": {
@@ -162,12 +162,12 @@
     },
     "helm-values.config.serverURL": {
       "default": "",
-      "description": "The NGTS server URL (optional).\nIf not set, a production NGTS server URL will be created based on the tsg ID\nExample: https://ngts.example.com",
+      "description": "Explicit NGTS server URL (optional).\nIf not set, a production NGTS server URL will be created based on the TSG ID. This is intended for development purposes and should not be set in production.",
       "type": "string"
     },
     "helm-values.config.tsgID": {
       "default": "",
-      "description": "The TSG (Tenant Security Group) ID for your NGTS account (required). NB: TSG IDs are numeric, but must be provided as strings (in double quotes).",
+      "description": "The TSG (Tenant Security Group) ID for your NGTS account (required). NB: TSG IDs are numeric, but must be provided as strings (in double quotes). If being set with the Helm CLI, use `--set-string`",
       "type": "string"
     },
     "helm-values.extraArgs": {
@@ -203,9 +203,6 @@
         "pullPolicy": {
           "$ref": "#/$defs/helm-values.image.pullPolicy"
         },
-        "registry": {
-          "$ref": "#/$defs/helm-values.image.registry"
-        },
         "repository": {
           "$ref": "#/$defs/helm-values.image.repository"
         },
@@ -228,10 +225,6 @@
     "helm-values.image.pullPolicy": {
       "default": "IfNotPresent",
       "description": "This sets the pull policy for images.",
-      "type": "string"
-    },
-    "helm-values.image.registry": {
-      "description": "Deprecated: per-component registry prefix.\n\nIf set, this value is *prepended* to the image repository that the chart would otherwise render. This applies both when `image.repository` is set and when the repository is computed from\n`imageRegistry` + `imageNamespace` + `image.name`.\n\nThis can produce \"double registry\" style references such as\n`legacy.example.io/quay.io/jetstack/...`. Prefer using the global\n`imageRegistry`/`imageNamespace` values.",
       "type": "string"
     },
     "helm-values.image.repository": {

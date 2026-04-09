@@ -6,6 +6,79 @@ The Discovery Agent connects your Kubernetes or OpenShift cluster to Palo Alto N
 
 <!-- AUTO-GENERATED -->
 
+#### **config.period** ~ `string`
+> Default value:
+> ```yaml
+> 0h1m0s
+> ```
+
+How often to push data to the remote server
+
+#### **config.excludeAnnotationKeysRegex** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
+
+You can configure the agent to exclude some annotations or labels from being pushed. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being pushed.  
+  
+Dots is the only character that needs to be escaped in the regex. Use either double quotes with escaped single quotes or unquoted strings for the regex to avoid YAML parsing issues with `\.`.  
+  
+Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
+#### **config.excludeLabelKeysRegex** ~ `array`
+> Default value:
+> ```yaml
+> []
+> ```
+#### **config.clusterName** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+A human readable name for the cluster where the agent is deployed (required).  
+  
+This cluster name will be associated with the data that the agent uploads to the backend.
+
+#### **config.clusterDescription** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+A short description of the cluster where the agent is deployed (optional).  
+  
+This description will be associated with the data that the agent uploads to the backend. The description may include contact information such as the email address of the cluster administrator.
+
+#### **config.clientID** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+Deprecated: Client ID for the configured service account. The client ID should be provided in the "clientID" field of the authentication secret (see config.secretName).
+
+#### **config.tsgID** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+The TSG (Tenant Security Group) ID for your NGTS account (required). NB: TSG IDs are numeric, but must be provided as strings (in double quotes). If being set with the Helm CLI, use `--set-string`
+
+
+#### **config.secretName** ~ `string`
+> Default value:
+> ```yaml
+> discovery-agent-credentials
+> ```
+
+The name of the Secret containing the NGTS service account credentials.  
+The Secret must contain the following key:  
+- privatekey.pem: PEM-encoded private key for the service account  
+The Secret may contain the following key:  
+- clientID:       Service account client ID (config.clientID must be set if not present)
+
 #### **replicaCount** ~ `number`
 > Default value:
 > ```yaml
@@ -31,17 +104,6 @@ The repository namespace used for discovery-agent images by default.
 Examples:  
 - jetstack  
 - custom-namespace
-
-#### **image.registry** ~ `string`
-
-Deprecated: per-component registry prefix.  
-  
-If set, this value is *prepended* to the image repository that the chart would otherwise render. This applies both when `image.repository` is set and when the repository is computed from  
-`imageRegistry` + `imageNamespace` + `image.name`.  
-  
-This can produce "double registry" style references such as  
-`legacy.example.io/quay.io/jetstack/...`. Prefer using the global  
-`imageRegistry`/`imageNamespace` values.
 
 #### **image.repository** ~ `string`
 > Default value:
@@ -218,76 +280,6 @@ Configures the NO_PROXY environment variable where a HTTP proxy is required, but
 > ```
 
 Configure a PodDisruptionBudget for the agent's Deployment. If running with multiple replicas, consider setting podDisruptionBudget.enabled to true.
-
-#### **config.period** ~ `string`
-> Default value:
-> ```yaml
-> 0h1m0s
-> ```
-
-Push data every 12 hours unless changed.
-#### **config.excludeAnnotationKeysRegex** ~ `array`
-> Default value:
-> ```yaml
-> []
-> ```
-
-You can configure the agent to exclude some annotations or labels from being pushed. All Kubernetes objects are affected. The objects are still pushed, but the specified annotations and labels are removed before being pushed.  
-  
-Dots is the only character that needs to be escaped in the regex. Use either double quotes with escaped single quotes or unquoted strings for the regex to avoid YAML parsing issues with `\.`.  
-  
-Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
-#### **config.excludeLabelKeysRegex** ~ `array`
-> Default value:
-> ```yaml
-> []
-> ```
-#### **config.clusterName** ~ `string`
-> Default value:
-> ```yaml
-> ""
-> ```
-
-A human readable name for the cluster where the agent is deployed (required).  
-  
-This cluster name will be associated with the data that the agent uploads to the NGTS service.
-#### **config.clusterDescription** ~ `string`
-> Default value:
-> ```yaml
-> ""
-> ```
-
-A short description of the cluster where the agent is deployed (optional).  
-  
-This description will be associated with the data that the agent uploads to the NGTS service. The description may include contact information such as the email address of the cluster administrator.
-#### **config.clientID** ~ `string`
-> Default value:
-> ```yaml
-> ""
-> ```
-
-Deprecated: Client ID for the configured service account. The client ID should be provided in the "clientID" field of the authentication secret (see config.secretName).
-
-#### **config.tsgID** ~ `string`
-> Default value:
-> ```yaml
-> ""
-> ```
-
-The TSG (Tenant Security Group) ID for your NGTS account (required). NB: TSG IDs are numeric, but must be provided as strings (in double quotes).
-
-
-#### **config.secretName** ~ `string`
-> Default value:
-> ```yaml
-> discovery-agent-credentials
-> ```
-
-The name of the Secret containing the NGTS service account credentials.  
-The Secret must contain the following key:  
-- privatekey.pem: PEM-encoded private key for the service account  
-The Secret may contain the following key:  
-- clientID:       Service account client ID (config.clientID must be set if not present)
 
 #### **extraArgs** ~ `array`
 > Default value:

@@ -1,6 +1,62 @@
-# Default values for discovery-agent.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+# Configuration for the Discovery Agent
+config:
+  # How often to push data to the remote server
+  # +docs:property
+  period: "0h1m0s"
+
+  # You can configure the agent to exclude some annotations or
+  # labels from being pushed. All Kubernetes objects
+  # are affected. The objects are still pushed, but the specified annotations
+  # and labels are removed before being pushed.
+  #
+  # Dots is the only character that needs to be escaped in the regex. Use either
+  # double quotes with escaped single quotes or unquoted strings for the regex
+  # to avoid YAML parsing issues with `\.`.
+  #
+  # Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
+  excludeAnnotationKeysRegex: []
+  excludeLabelKeysRegex: []
+
+  # A human readable name for the cluster where the agent is deployed (required).
+  #
+  # This cluster name will be associated with the data that the agent uploads to
+  # the backend.
+  # +docs:property
+  clusterName: ""
+
+  # A short description of the cluster where the agent is deployed (optional).
+  #
+  # This description will be associated with the data that the agent uploads to
+  # the backend. The description may include contact
+  # information such as the email address of the cluster administrator.
+  # +docs:property
+  clusterDescription: ""
+
+  # Deprecated: Client ID for the configured service account.
+  # The client ID should be provided in the "clientID" field of the authentication secret (see config.secretName).
+  # +docs:property
+  clientID: ""
+
+  # The TSG (Tenant Security Group) ID for your NGTS account (required).
+  # NB: TSG IDs are numeric, but must be provided as strings (in double quotes).
+  # If being set with the Helm CLI, use `--set-string`
+  # +docs:property
+  # +docs:type=string
+  tsgID: ""
+
+  # The name of the Secret containing the NGTS service account credentials.
+  # The Secret must contain the following key:
+  # - privatekey.pem: PEM-encoded private key for the service account
+  # The Secret may contain the following key:
+  # - clientID:       Service account client ID (config.clientID must be set if not present)
+  # +docs:property
+  secretName: discovery-agent-credentials
+
+  # Explicit NGTS server URL (optional).
+  # If not set, a production NGTS server URL will be created based on the TSG ID.
+  # This is intended for development purposes and should not be set in production.
+  # +docs:hidden
+  serverURL: ""
 
 # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
 replicaCount: 1
@@ -146,62 +202,6 @@ podDisruptionBudget:
   # Cannot be used if `minAvailable` is set.
   # +docs:property
   # maxUnavailable: 1
-
-# Configuration for the agent
-config:
-  # Push data every 12 hours unless changed.
-  period: "0h1m0s"
-
-  # You can configure the agent to exclude some annotations or
-  # labels from being pushed. All Kubernetes objects
-  # are affected. The objects are still pushed, but the specified annotations
-  # and labels are removed before being pushed.
-  #
-  # Dots is the only character that needs to be escaped in the regex. Use either
-  # double quotes with escaped single quotes or unquoted strings for the regex
-  # to avoid YAML parsing issues with `\.`.
-  #
-  # Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
-  excludeAnnotationKeysRegex: []
-  excludeLabelKeysRegex: []
-
-  # A human readable name for the cluster where the agent is deployed (required).
-  #
-  # This cluster name will be associated with the data that the agent uploads to
-  # the NGTS service.
-  clusterName: ""
-
-  # A short description of the cluster where the agent is deployed (optional).
-  #
-  # This description will be associated with the data that the agent uploads to
-  # the NGTS service. The description may include contact
-  # information such as the email address of the cluster administrator.
-  clusterDescription: ""
-
-  # Deprecated: Client ID for the configured service account.
-  # The client ID should be provided in the "clientID" field of the authentication secret (see config.secretName).
-  # +docs:property
-  clientID: ""
-
-  # The TSG (Tenant Security Group) ID for your NGTS account (required).
-  # NB: TSG IDs are numeric, but must be provided as strings (in double quotes).
-  # +docs:property
-  # +docs:type=string
-  tsgID: ""
-
-  # The name of the Secret containing the NGTS service account credentials.
-  # The Secret must contain the following key:
-  # - privatekey.pem: PEM-encoded private key for the service account
-  # The Secret may contain the following key:
-  # - clientID:       Service account client ID (config.clientID must be set if not present)
-  # +docs:property
-  secretName: discovery-agent-credentials
-
-  # The NGTS server URL (optional).
-  # If not set, a production NGTS server URL will be created based on the tsg ID
-  # Example: https://ngts.example.com
-  # +docs:hidden
-  serverURL: ""
 
 #  extraArgs:
 #  - --logging-format=json
