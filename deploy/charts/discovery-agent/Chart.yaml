@@ -1,0 +1,17 @@
+apiVersion: v2
+name: discovery-agent
+description: |-
+  The discovery-agent connects your Kubernetes or Openshift cluster to NGTS for discovery and monitoring.
+
+maintainers:
+  - name: Palo Alto Networks
+    url: https://www.paloaltonetworks.com
+
+sources:
+  - https://github.com/jetstack/jetstack-secure
+
+# These versions are meant to be overridden by `make helm-chart`. No `v` prefix
+# for the `version` because Helm doesn't support auto-determining the latest
+# version for OCI Helm charts that use a `v` prefix.
+version: 0.0.0
+appVersion: "v0.0.0"

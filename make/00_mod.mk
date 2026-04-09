@@ -69,3 +69,4 @@ go_header_file := /dev/null
 
 include make/extra_tools.mk
 include make/ark/00_mod.mk
+include make/ngts/00_mod.mk

@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "discovery-agent.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "discovery-agent.labels" . | nindent 4 }}
+data:
+  config.yaml: |-
+    cluster_name: {{ required "config.clusterName is required" .Values.config.clusterName | quote }}
+    cluster_description: {{ .Values.config.clusterDescription | quote }}
+    period: {{ .Values.config.period | quote }}
+    {{- with .Values.config.excludeAnnotationKeysRegex }}
+    exclude-annotation-keys-regex:
+      {{- . | toYaml | nindent 6 }}
+    {{- end }}
+    {{- with .Values.config.excludeLabelKeysRegex }}
+    exclude-label-keys-regex:
+      {{- . | toYaml | nindent 6 }}
+    {{- end }}
+    data-gatherers:
+    - kind: k8s-discovery
+      name: ngts/discovery
+    - kind: k8s-dynamic
+      name: ngts/secrets
+      config:
+        resource-type:
+          version: v1
+          resource: secrets
+        field-selectors:
+        - type!=kubernetes.io/dockercfg
+        - type!=kubernetes.io/dockerconfigjson
+        - type!=bootstrap.kubernetes.io/token
+        - type!=helm.sh/release.v1
+    - kind: k8s-dynamic
+      name: ngts/jobs
+      config:
+        resource-type:
+          version: v1
+          group: batch
+          resource: jobs
+    - kind: k8s-dynamic
+      name: ngts/cronjobs
+      config:
+        resource-type:
+          version: v1
+          group: batch
+          resource: cronjobs
+    - kind: k8s-dynamic
+      name: ngts/deployments
+      config:
+        resource-type:
+          version: v1
+          group: apps
+          resource: deployments
+    - kind: k8s-dynamic
+      name: ngts/statefulsets
+      config:
+        resource-type:
+          version: v1
+          group: apps
+          resource: statefulsets
+    - kind: k8s-dynamic
+      name: ngts/daemonsets
+      config:
+        resource-type:
+          version: v1
+          group: apps
+          resource: daemonsets
+    - kind: k8s-dynamic
+      name: ngts/pods
+      config:
+        resource-type:
+          version: v1
+          resource: pods

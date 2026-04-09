@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -73,8 +74,10 @@ const (
 	// The TSG ID is part of the URL.
 	ngtsProdURLFormat = "https://%s.ngts.paloaltonetworks.com"
 
-	// ngtsUploadEndpoint matches the CM-SaaS upload endpoint
-	ngtsUploadEndpoint = defaultVenafiCloudUploadEndpoint
+	// ngtsUploadEndpoint matches the "new" CM-SaaS upload endpoint
+	// Note that "no" is always passed to this endpoint in other paths (e.g. in the venafi-connection client and in the venafi-kubernetes-agent chart)
+	// so we copy that behavior here.
+	ngtsUploadEndpoint = "v1/tlspk/upload/clusterdata/no"
 
 	// ngtsAccessTokenEndpoint matches the CM-SaaS token endpoint
 	// TODO: Confirm that this will match in NGTS
@@ -89,6 +92,11 @@ const (
 // and uploads data to NGTS endpoints. The baseURL parameter can override the default
 // NGTS server URL for testing purposes.
 func NewNGTSClient(agentMetadata *api.AgentMetadata, credentials *NGTSServiceAccountCredentials, baseURL string, tsgID string, rootCAs *x509.CertPool) (*NGTSClient, error) {
+	// Load ClientID from file if not provided directly
+	if err := credentials.LoadClientIDIfNeeded(); err != nil {
+		return nil, fmt.Errorf("cannot create NGTSClient: %w", err)
+	}
+
 	if err := credentials.Validate(); err != nil {
 		return nil, fmt.Errorf("cannot create NGTSClient: %w", err)
 	}
@@ -148,6 +156,42 @@ func NewNGTSClient(agentMetadata *api.AgentMetadata, credentials *NGTSServiceAcc
 		privateKey:    privateKey,
 		jwtSigningAlg: jwtSigningAlg,
 	}, nil
+}
+
+// LoadClientIDIfNeeded attempts to load the ClientID from a file if it is not already set.
+// It looks for a "clientID" file in the same directory as the PrivateKeyFile.
+// This allows the ClientID to be provided either as a direct value or via a Kubernetes secret.
+func (c *NGTSServiceAccountCredentials) LoadClientIDIfNeeded() error {
+	if c == nil {
+		return fmt.Errorf("credentials are nil")
+	}
+
+	// If ClientID is already set, nothing to do
+	if c.ClientID != "" {
+		return nil
+	}
+
+	// If PrivateKeyFile is not set, we can't determine where to look for the clientID file
+	if c.PrivateKeyFile == "" {
+		return nil // Will be caught by Validate() later
+	}
+
+	// Try to load ClientID from a file in the same directory as the private key
+	clientIDPath := path.Dir(c.PrivateKeyFile) + "/clientID"
+	clientIDBytes, err := os.ReadFile(clientIDPath)
+	if err != nil {
+		// If the file doesn't exist, that's okay - the ClientID might be required to be set directly
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to read clientID from %s: %w", clientIDPath, err)
+	}
+
+	// Trim whitespace from the clientID
+	c.ClientID = strings.TrimSpace(string(clientIDBytes))
+	klog.V(2).Info("Loaded clientID from secret file", "path", clientIDPath)
+
+	return nil
 }
 
 // Validate checks that the NGTS service account credentials are valid.
