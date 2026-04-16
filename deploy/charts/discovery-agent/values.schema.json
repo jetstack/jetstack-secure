@@ -157,18 +157,17 @@
     },
     "helm-values.config.secretName": {
       "default": "discovery-agent-credentials",
-      "description": "The name of the Secret containing the NGTS service account credentials.\nThe Secret must contain the following key:\n- privatekey.pem: PEM-encoded private key for the service account\nThe Secret may contain the following key:\n- clientID:       Service account client ID (config.clientID must be set if not present)",
+      "description": "The name of the Secret containing the NGTS built-in service account credentials.\nThe Secret must contain the following key:\n- privatekey.pem: PEM-encoded private key for the service account\nThe Secret should also contain the following key:\n- clientID:       Service account client ID (config.clientID must be set if not present)",
       "type": "string"
     },
     "helm-values.config.serverURL": {
       "default": "",
-      "description": "Explicit NGTS server URL (optional).\nIf not set, a production NGTS server URL will be created based on the TSG ID. This is intended for development purposes and should not be set in production.",
+      "description": "Explicit SCM server URL (optional).\nIf not set, a production SCM server URL will be created based on the TSG ID. This value is intended for development purposes only and should not be set in production.",
       "type": "string"
     },
     "helm-values.config.tsgID": {
       "default": "",
-      "description": "Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but must be provided as strings (in double quotes). If being set with the Helm CLI, use `--set-string`",
-      "type": "string"
+      "description": "Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but should be treated as strings (in double quotes). If being set with the Helm CLI prefer `--set-string`."
     },
     "helm-values.extraArgs": {
       "default": [],

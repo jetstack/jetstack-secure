@@ -58,13 +58,13 @@ This description will be associated with the data that the agent uploads to the 
 
 Deprecated: Client ID for the configured service account. The client ID should be provided in the "clientID" field of the authentication secret (see config.secretName). This field is provided for compatibility for users migrating from the "venafi-kubernetes-agent" chart.
 
-#### **config.tsgID** ~ `string`
+#### **config.tsgID** ~ `string,number`
 > Default value:
 > ```yaml
 > ""
 > ```
 
-Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but must be provided as strings (in double quotes). If being set with the Helm CLI, use `--set-string`
+Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but should be treated as strings (in double quotes). If being set with the Helm CLI prefer `--set-string`.
 
 
 #### **config.secretName** ~ `string`
@@ -73,10 +73,10 @@ Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: T
 > discovery-agent-credentials
 > ```
 
-The name of the Secret containing the NGTS service account credentials.  
+The name of the Secret containing the NGTS built-in service account credentials.  
 The Secret must contain the following key:  
 - privatekey.pem: PEM-encoded private key for the service account  
-The Secret may contain the following key:  
+The Secret should also contain the following key:  
 - clientID:       Service account client ID (config.clientID must be set if not present)
 
 #### **replicaCount** ~ `number`

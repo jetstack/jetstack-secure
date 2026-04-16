@@ -39,23 +39,23 @@ config:
   clientID: ""
 
   # Required: The TSG (Tenant Service Group) ID to use when connecting to SCM.
-  # NB: TSG IDs are numeric, but must be provided as strings (in double quotes).
-  # If being set with the Helm CLI, use `--set-string`
+  # NB: TSG IDs are numeric, but should be treated as strings (in double quotes).
+  # If being set with the Helm CLI prefer `--set-string`.
   # +docs:property
-  # +docs:type=string
+  # +docs:type=string,number
   tsgID: ""
 
-  # The name of the Secret containing the NGTS service account credentials.
+  # The name of the Secret containing the NGTS built-in service account credentials.
   # The Secret must contain the following key:
   # - privatekey.pem: PEM-encoded private key for the service account
-  # The Secret may contain the following key:
+  # The Secret should also contain the following key:
   # - clientID:       Service account client ID (config.clientID must be set if not present)
   # +docs:property
   secretName: discovery-agent-credentials
 
-  # Explicit NGTS server URL (optional).
-  # If not set, a production NGTS server URL will be created based on the TSG ID.
-  # This is intended for development purposes and should not be set in production.
+  # Explicit SCM server URL (optional).
+  # If not set, a production SCM server URL will be created based on the TSG ID.
+  # This value is intended for development purposes only and should not be set in production.
   # +docs:hidden
   serverURL: ""
 
