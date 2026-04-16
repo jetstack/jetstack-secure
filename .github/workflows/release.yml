@@ -37,7 +37,7 @@ jobs:
           go-version: ${{ steps.go-version.outputs.result }}
 
       - id: release
-        run: make release ark-release
+        run: make release ark-release ngts-release
 
     outputs:
       RELEASE_OCI_PREFLIGHT_IMAGE: ${{ steps.release.outputs.RELEASE_OCI_PREFLIGHT_IMAGE }}
@@ -50,6 +50,12 @@ jobs:
       ARK_CHART: ${{ steps.release.outputs.ARK_CHART }}
       ARK_CHART_TAG: ${{ steps.release.outputs.ARK_CHART_TAG }}
       ARK_CHART_DIGEST: ${{ steps.release.outputs.ARK_CHART_DIGEST }}
+      NGTS_IMAGE: ${{ steps.release.outputs.NGTS_IMAGE }}
+      NGTS_IMAGE_TAG: ${{ steps.release.outputs.NGTS_IMAGE_TAG }}
+      NGTS_IMAGE_DIGEST: ${{ steps.release.outputs.NGTS_IMAGE_DIGEST }}
+      NGTS_CHART: ${{ steps.release.outputs.NGTS_CHART }}
+      NGTS_CHART_TAG: ${{ steps.release.outputs.NGTS_CHART_TAG }}
+      NGTS_CHART_DIGEST: ${{ steps.release.outputs.NGTS_CHART_DIGEST }}
 
   github_release:
     runs-on: ubuntu-latest
@@ -73,6 +79,12 @@ jobs:
           echo "ARK_CHART: ${{ needs.build_and_push.outputs.ARK_CHART }}" >> .notes-file
           echo "ARK_CHART_TAG: ${{ needs.build_and_push.outputs.ARK_CHART_TAG }}" >> .notes-file
           echo "ARK_CHART_DIGEST: ${{ needs.build_and_push.outputs.ARK_CHART_DIGEST }}" >> .notes-file
+          echo "NGTS_IMAGE: ${{ needs.build_and_push.outputs.NGTS_IMAGE }}" >> .notes-file
+          echo "NGTS_IMAGE_TAG: ${{ needs.build_and_push.outputs.NGTS_IMAGE_TAG }}" >> .notes-file
+          echo "NGTS_IMAGE_DIGEST: ${{ needs.build_and_push.outputs.NGTS_IMAGE_DIGEST }}" >> .notes-file
+          echo "NGTS_CHART: ${{ needs.build_and_push.outputs.NGTS_CHART }}" >> .notes-file
+          echo "NGTS_CHART_TAG: ${{ needs.build_and_push.outputs.NGTS_CHART_TAG }}" >> .notes-file
+          echo "NGTS_CHART_DIGEST: ${{ needs.build_and_push.outputs.NGTS_CHART_DIGEST }}" >> .notes-file
 
       - env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
