@@ -56,11 +56,11 @@ fi
 
 kubectl create ns "$NAMESPACE" || true
 
-kubectl delete secret agent-credentials --namespace "$NAMESPACE" --ignore-not-found
-kubectl create secret generic agent-credentials \
+kubectl delete secret discovery-agent-credentials --namespace "$NAMESPACE" --ignore-not-found
+kubectl create secret generic discovery-agent-credentials \
         --namespace "$NAMESPACE" \
-        --from-literal=CLIENT_ID=$NGTS_CLIENT_ID \
-        --from-literal=PRIVATE_KEY="$NGTS_PRIVATE_KEY"
+        --from-literal=clientID=$NGTS_CLIENT_ID \
+        --from-literal=privatekey.pem="$NGTS_PRIVATE_KEY"
 
 # Create a sample secret in the cluster
 kubectl create secret generic e2e-sample-secret-$(date '+%s') \
@@ -80,17 +80,18 @@ helm upgrade agent "oci://${NGTS_CHART}:NON_EXISTENT_TAG@${NGTS_CHART_DIGEST}" \
      --set "imageRegistry=${OCI_BASE}" \
      --set "imageNamespace=" \
      --set "image.digest=${NGTS_IMAGE_DIGEST}" \
-     --set config.clusterName="e2e-test-cluster" \
-     --set config.clusterDescription="A temporary cluster for E2E testing." \
+     --set config.clusterName="e2e-test-cluster-ngts" \
+     --set config.clusterDescription="A temporary cluster for E2E testing NGTS" \
      --set config.period=60s \
-     --set ngts.tsgId="${NGTS_TSG_ID}" \
+     --set config.tsgID="${NGTS_TSG_ID}" \
+     --set config.serverURL="https://${NGTS_TSG_ID}.ngts.dev.venafi.io" \
      --set-json "podLabels={\"discovery-agent.ngts/test-id\": \"${RANDOM}\"}"
 
 kubectl rollout status deployments/discovery-agent --namespace "${NAMESPACE}"
 
-# Wait 60s for log message indicating success.
+# Wait for log message indicating success.
 # Parse logs as JSON using jq to ensure logs are all JSON formatted.
-timeout 60 jq -n \
+timeout 120 jq -n \
         'inputs | if .msg | test("Data sent successfully") then . | halt_error(0) else . end' \
         <(kubectl logs deployments/discovery-agent --namespace "${NAMESPACE}" --follow)
 
@@ -109,3 +110,5 @@ kubectl get pod \
         --output jsonpath={.items[*].metadata.name} \
     | xargs -I{} kubectl get --raw /api/v1/namespaces/ngts/pods/{}:8081/proxy/debug/pprof/cmdline \
     | xargs -0
+
+# TODO: should call to SCM and verify that certs are actually uploaded
