@@ -6,6 +6,35 @@ The Discovery Agent connects your Kubernetes or OpenShift cluster to Palo Alto N
 
 <!-- AUTO-GENERATED -->
 
+#### **config.tsgID** ~ `string,number`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but should be treated as strings. If being set with the Helm CLI prefer `--set-string`.
+
+
+#### **config.clusterName** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+Required: A human readable name for the cluster into which the agent is being deployed.  
+  
+This cluster name will be associated with the data that the agent uploads to the backend.
+
+#### **config.clusterDescription** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+A short description of the cluster where the agent is deployed (optional).  
+  
+This description will be associated with the data that the agent uploads to the backend.
+
 #### **config.period** ~ `string`
 > Default value:
 > ```yaml
@@ -30,26 +59,6 @@ Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
 > ```yaml
 > []
 > ```
-#### **config.clusterName** ~ `string`
-> Default value:
-> ```yaml
-> ""
-> ```
-
-A human readable name for the cluster where the agent is deployed (required).  
-  
-This cluster name will be associated with the data that the agent uploads to the backend.
-
-#### **config.clusterDescription** ~ `string`
-> Default value:
-> ```yaml
-> ""
-> ```
-
-A short description of the cluster where the agent is deployed (optional).  
-  
-This description will be associated with the data that the agent uploads to the backend. The description may include contact information such as the email address of the cluster administrator.
-
 #### **config.clientID** ~ `string`
 > Default value:
 > ```yaml
@@ -57,15 +66,6 @@ This description will be associated with the data that the agent uploads to the 
 > ```
 
 Deprecated: Client ID for the configured service account. The client ID should be provided in the "clientID" field of the authentication secret (see config.secretName). This field is provided for compatibility for users migrating from the "venafi-kubernetes-agent" chart.
-
-#### **config.tsgID** ~ `string,number`
-> Default value:
-> ```yaml
-> ""
-> ```
-
-Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but should be treated as strings (in double quotes). If being set with the Helm CLI prefer `--set-string`.
-
 
 #### **config.secretName** ~ `string`
 > Default value:

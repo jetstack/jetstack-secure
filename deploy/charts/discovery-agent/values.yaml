@@ -1,5 +1,24 @@
 # Configuration for the Discovery Agent
 config:
+  # Required: The TSG (Tenant Service Group) ID to use when connecting to SCM.
+  # NB: TSG IDs are numeric, but should be treated as strings.
+  # If being set with the Helm CLI prefer `--set-string`.
+  # +docs:property
+  # +docs:type=string,number
+  tsgID: ""
+
+  # Required: A human readable name for the cluster into which the agent is being deployed.
+  #
+  # This cluster name will be associated with the data that the agent uploads to the backend.
+  # +docs:property
+  clusterName: ""
+
+  # A short description of the cluster where the agent is deployed (optional).
+  #
+  # This description will be associated with the data that the agent uploads to the backend.
+  # +docs:property
+  clusterDescription: ""
+
   # How often to push data to the remote server
   # +docs:property
   period: "0h1m0s"
@@ -17,33 +36,11 @@ config:
   excludeAnnotationKeysRegex: []
   excludeLabelKeysRegex: []
 
-  # A human readable name for the cluster where the agent is deployed (required).
-  #
-  # This cluster name will be associated with the data that the agent uploads to
-  # the backend.
-  # +docs:property
-  clusterName: ""
-
-  # A short description of the cluster where the agent is deployed (optional).
-  #
-  # This description will be associated with the data that the agent uploads to
-  # the backend. The description may include contact
-  # information such as the email address of the cluster administrator.
-  # +docs:property
-  clusterDescription: ""
-
   # Deprecated: Client ID for the configured service account.
   # The client ID should be provided in the "clientID" field of the authentication secret (see config.secretName).
   # This field is provided for compatibility for users migrating from the "venafi-kubernetes-agent" chart.
   # +docs:property
   clientID: ""
-
-  # Required: The TSG (Tenant Service Group) ID to use when connecting to SCM.
-  # NB: TSG IDs are numeric, but should be treated as strings (in double quotes).
-  # If being set with the Helm CLI prefer `--set-string`.
-  # +docs:property
-  # +docs:type=string,number
-  tsgID: ""
 
   # The name of the Secret containing the NGTS built-in service account credentials.
   # The Secret must contain the following key:

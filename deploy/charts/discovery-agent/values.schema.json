@@ -131,12 +131,12 @@
     },
     "helm-values.config.clusterDescription": {
       "default": "",
-      "description": "A short description of the cluster where the agent is deployed (optional).\n\nThis description will be associated with the data that the agent uploads to the backend. The description may include contact information such as the email address of the cluster administrator.",
+      "description": "A short description of the cluster where the agent is deployed (optional).\n\nThis description will be associated with the data that the agent uploads to the backend.",
       "type": "string"
     },
     "helm-values.config.clusterName": {
       "default": "",
-      "description": "A human readable name for the cluster where the agent is deployed (required).\n\nThis cluster name will be associated with the data that the agent uploads to the backend.",
+      "description": "Required: A human readable name for the cluster into which the agent is being deployed.\n\nThis cluster name will be associated with the data that the agent uploads to the backend.",
       "type": "string"
     },
     "helm-values.config.excludeAnnotationKeysRegex": {
@@ -167,7 +167,7 @@
     },
     "helm-values.config.tsgID": {
       "default": "",
-      "description": "Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but should be treated as strings (in double quotes). If being set with the Helm CLI prefer `--set-string`."
+      "description": "Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but should be treated as strings. If being set with the Helm CLI prefer `--set-string`."
     },
     "helm-values.extraArgs": {
       "default": [],
