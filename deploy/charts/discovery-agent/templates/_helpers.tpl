@@ -62,10 +62,8 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Util function for generating the image URL based on the provided options.
-IMPORTANT: This function is standardized across all charts in the cert-manager GH organization.
-Any changes to this function should also be made in cert-manager, trust-manager, approver-policy, ...
-See https://github.com/cert-manager/cert-manager/issues/6329 for a list of linked PRs.
+Util function for generating an image reference based on the provided options.
+This function is derived from similar functions used in the cert-manager GitHub organization
 */}}
 {{- define "image" -}}
 {{- /*
@@ -85,12 +83,6 @@ usage through tuple/variable indirection.
 {{- $repository := "" -}}
 {{- if $image.repository -}}
 	{{- $repository = $image.repository -}}
-	{{- /*
-		Backwards compatibility: if image.registry is set, additionally prefix the repository with this registry.
-	*/ -}}
-	{{- if $image.registry -}}
-		{{- $repository = printf "%s/%s" $image.registry $repository -}}
-	{{- end -}}
 {{- else -}}
 	{{- $name := required "ERROR: image.name must be set when image.repository is empty" $image.name -}}
 	{{- $repository = $name -}}
@@ -99,12 +91,6 @@ usage through tuple/variable indirection.
 	{{- end -}}
 	{{- if $imageRegistry -}}
 		{{- $repository = printf "%s/%s" $imageRegistry $repository -}}
-	{{- end -}}
-	{{- /*
-		Backwards compatibility: if image.registry is set, additionally prefix the repository with this registry.
-	*/ -}}
-	{{- if $image.registry -}}
-		{{- $repository = printf "%s/%s" $image.registry $repository -}}
 	{{- end -}}
 {{- end -}}
 {{- $repository -}}

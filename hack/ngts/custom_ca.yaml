@@ -1,0 +1,12 @@
+# These values are used to set a custom CA bundle during the NGTS test.
+# Only used when developing locally, as detected by logic in test-e2e.sh
+
+volumes:
+- name: custom-ca-volume
+  configMap:
+    name: custom-ca
+
+volumeMounts:
+- name: custom-ca-volume
+  mountPath: /etc/ssl/certs
+
