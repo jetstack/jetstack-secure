@@ -130,18 +130,18 @@ timeout 120 jq -n \
 
 # Query the Prometheus metrics endpoint to ensure it's working.
 kubectl get pod \
-        --namespace ngts \
+        --namespace ${NAMESPACE} \
         --selector app.kubernetes.io/name=discovery-agent \
         --output jsonpath={.items[*].metadata.name} \
-    | xargs -I{} kubectl get --raw /api/v1/namespaces/ngts/pods/{}:8081/proxy/metrics \
+    | xargs -I{} kubectl get --raw /api/v1/namespaces/$NAMESPACE/pods/{}:8081/proxy/metrics \
     | grep '^process_'
 
 # Query the pprof endpoint to ensure it's working.
 kubectl get pod \
-        --namespace ngts \
+        --namespace ${NAMESPACE} \
         --selector app.kubernetes.io/name=discovery-agent \
         --output jsonpath={.items[*].metadata.name} \
-    | xargs -I{} kubectl get --raw /api/v1/namespaces/ngts/pods/{}:8081/proxy/debug/pprof/cmdline \
+    | xargs -I{} kubectl get --raw /api/v1/namespaces/$NAMESPACE/pods/{}:8081/proxy/debug/pprof/cmdline \
     | xargs -0
 
 # TODO: should call to SCM and verify that certs are actually uploaded
