@@ -47,7 +47,7 @@ ngts-test-e2e: $(NEEDS_KIND) $(NEEDS_KUBECTL) $(NEEDS_HELM) $(NEEDS_YQ)
 ## Verify the Helm chart
 ## @category NGTS Discovery Agent
 ngts-verify:
-	INSTALL_OPTIONS="--set-string config.tsgID=1234123412 --set config.clusterName=foo" $(MAKE) verify-helm-lint verify-helm-values verify-pod-security-standards verify-helm-kubeconform \
+	INSTALL_OPTIONS="--set-string config.tsgID=1234123412 --set config.clusterName=foo" $(MAKE) verify-helm-lint verify-helm-values verify-pod-security-standards verify-helm-kubeconform verify-helm-unittest \
 		helm_chart_source_dir=deploy/charts/discovery-agent \
 		helm_chart_image_name=$(NGTS_CHART)
 

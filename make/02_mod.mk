@@ -55,17 +55,12 @@ shared_generate_targets += generate-crds-venconn
 test-e2e-gke: | $(NEEDS_HELM) $(NEEDS_STEP) $(NEEDS_VENCTL)
 	./hack/e2e/test.sh
 
-.PHONY: test-helm
-## Run `helm unittest`.
-## @category Testing
-test-helm: | $(NEEDS_HELM-UNITTEST)
-	$(HELM-UNITTEST) ./deploy/charts/{venafi-kubernetes-agent,disco-agent}
-
 .PHONY: test-helm-snapshot
 ## Update the `helm unittest` snapshots.
+## Note that running helm unit tests is done through "make verify" using the Helm makefile-module
 ## @category Testing
 test-helm-snapshot: | $(NEEDS_HELM-UNITTEST)
-	$(HELM-UNITTEST) ./deploy/charts/{venafi-kubernetes-agent,disco-agent} -u
+	$(HELM-UNITTEST) ./deploy/charts/{venafi-kubernetes-agent,disco-agent,discovery-agent} -u
 
 .PHONY: helm-plugins
 ## Install required helm plugins

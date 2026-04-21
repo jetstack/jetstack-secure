@@ -47,7 +47,7 @@ ark-test-e2e: $(NEEDS_KIND) $(NEEDS_KUBECTL) $(NEEDS_HELM)
 ## Verify the Helm chart
 ## @category CyberArk Discovery and Context
 ark-verify:
-	INSTALL_OPTIONS="--set acceptTerms=true" $(MAKE) verify-helm-lint verify-helm-values verify-pod-security-standards verify-helm-kubeconform \
+	INSTALL_OPTIONS="--set acceptTerms=true" $(MAKE) verify-helm-lint verify-helm-values verify-pod-security-standards verify-helm-kubeconform verify-helm-unittest \
 		helm_chart_source_dir=deploy/charts/disco-agent \
 		helm_chart_image_name=$(ARK_CHART)
 
