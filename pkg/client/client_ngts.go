@@ -80,11 +80,9 @@ const (
 	ngtsUploadEndpoint = "v1/tlspk/upload/clusterdata/no"
 
 	// ngtsAccessTokenEndpoint matches the CM-SaaS token endpoint
-	// TODO: Confirm that this will match in NGTS
 	ngtsAccessTokenEndpoint = accessTokenEndpoint
 
 	// ngtsRequiredGrantType matches the CM-SaaS required grant type for JWTs
-	// TODO: Confirm JWT structure for NGTS
 	ngtsRequiredGrantType = requiredGrantType
 )
 
@@ -166,30 +164,32 @@ func (c *NGTSServiceAccountCredentials) LoadClientIDIfNeeded() error {
 		return fmt.Errorf("credentials are nil")
 	}
 
-	// If ClientID is already set, nothing to do
+	// If ClientID is already set via helm values / CLI args, nothing to do
 	if c.ClientID != "" {
+		klog.V(2).Info("Using clientID from config.clientID helm value")
 		return nil
 	}
 
+	// We'd preferably have NGTSServiceAccountCredentials.CredentialPath but we didn't want to make another change
+	// to existing CLI flags; so we depend on PrivateKeyFile and assume clientID is in the same directory.
+
 	// If PrivateKeyFile is not set, we can't determine where to look for the clientID file
 	if c.PrivateKeyFile == "" {
-		return nil // Will be caught by Validate() later
+		return nil // This is actually a fatal error but will be caught by Validate() later
 	}
 
 	// Try to load ClientID from a file in the same directory as the private key
 	clientIDPath := path.Dir(c.PrivateKeyFile) + "/clientID"
 	clientIDBytes, err := os.ReadFile(clientIDPath)
 	if err != nil {
-		// If the file doesn't exist, that's okay - the ClientID might be required to be set directly
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("failed to read clientID from %s: %w", clientIDPath, err)
+		// If the file doesn't exist, that's okay - we'll let Validate() catch the empty ClientID error later
+		klog.V(2).Info("Could not read clientID from file", "path", clientIDPath, "error", err)
+		return nil
 	}
 
 	// Trim whitespace from the clientID
 	c.ClientID = strings.TrimSpace(string(clientIDBytes))
-	klog.V(2).Info("Loaded clientID from secret file", "path", clientIDPath)
+	klog.V(2).Info("Loaded clientID from file", "path", clientIDPath)
 
 	return nil
 }
@@ -205,7 +205,7 @@ func (c *NGTSServiceAccountCredentials) Validate() error {
 	}
 
 	if c.PrivateKeyFile == "" {
-		return fmt.Errorf("private_key_file cannot be empty")
+		return fmt.Errorf("NGTS private key file location cannot be empty")
 	}
 
 	return nil

@@ -56,16 +56,60 @@ fi
 
 kubectl create ns "$NAMESPACE" || true
 
-kubectl delete secret agent-credentials --namespace "$NAMESPACE" --ignore-not-found
-kubectl create secret generic agent-credentials \
+kubectl delete secret discovery-agent-credentials --namespace "$NAMESPACE" --ignore-not-found
+kubectl create secret generic discovery-agent-credentials \
         --namespace "$NAMESPACE" \
-        --from-literal=CLIENT_ID=$NGTS_CLIENT_ID \
-        --from-literal=PRIVATE_KEY="$NGTS_PRIVATE_KEY"
+        --from-literal=clientID=$NGTS_CLIENT_ID \
+        --from-literal=privatekey.pem="$NGTS_PRIVATE_KEY"
 
 # Create a sample secret in the cluster
 kubectl create secret generic e2e-sample-secret-$(date '+%s') \
         --namespace default \
         --from-literal=username=${RANDOM}
+
+# Create values.yaml file for the helm chart
+cat > "${tmp_dir}/values.yaml" <<EOF
+extraArgs:
+  - "--log-level=6"
+
+pprof:
+  enabled: true
+
+fullnameOverride: discovery-agent
+
+imageRegistry: ${OCI_BASE}
+imageNamespace: ""
+
+image:
+  digest: ${NGTS_IMAGE_DIGEST}
+
+config:
+  clusterName: "e2e-test-cluster-ngts"
+  clusterDescription: "A temporary cluster for E2E testing NGTS"
+  period: 10s
+  tsgID: "${NGTS_TSG_ID}"
+  serverURL: "https://${NGTS_TSG_ID}.ngts.dev.venafi.io"
+
+podLabels:
+  "discovery-agent.ngts/test-id": "${RANDOM}"
+EOF
+
+# Detect running locally on macOS, and if so inject a custom CA bundle to be used
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  echo "Detected running on macOS - adding system trust bundle to cluster + updating values.yaml to mount in agent pod"
+
+  CA_BUNDLE_FILE=${tmp_dir}/system_certs.pem
+
+  (security find-certificate -a -p /System/Library/Keychains/SystemRootCertificates.keychain && \
+   security find-certificate -a -p /Library/Keychains/System.keychain) >  $CA_BUNDLE_FILE
+
+  kubectl create configmap custom-ca --namespace="$NAMESPACE" --from-file=ca_certs.crt="$CA_BUNDLE_FILE"
+
+  # Need to update values.yaml to add the custom CA bundle
+  custom_ca_yaml="${script_dir}/custom_ca.yaml"
+  yq eval-all '. as $item ireduce ({}; . * $item)' "${tmp_dir}/values.yaml" "$custom_ca_yaml" > "${tmp_dir}/values.merged.yaml"
+  mv "${tmp_dir}/values.merged.yaml" "${tmp_dir}/values.yaml"
+fi
 
 # We use a non-existent tag and omit the `--version` flag, to work around a Helm
 # v4 bug. See: https://github.com/helm/helm/issues/31600
@@ -74,38 +118,30 @@ helm upgrade agent "oci://${NGTS_CHART}:NON_EXISTENT_TAG@${NGTS_CHART_DIGEST}" \
      --wait \
      --create-namespace \
      --namespace "$NAMESPACE" \
-     --set-json extraArgs='["--log-level=6"]' \
-     --set pprof.enabled=true \
-     --set fullnameOverride=discovery-agent \
-     --set "imageRegistry=${OCI_BASE}" \
-     --set "imageNamespace=" \
-     --set "image.digest=${NGTS_IMAGE_DIGEST}" \
-     --set config.clusterName="e2e-test-cluster" \
-     --set config.clusterDescription="A temporary cluster for E2E testing." \
-     --set config.period=60s \
-     --set ngts.tsgId="${NGTS_TSG_ID}" \
-     --set-json "podLabels={\"discovery-agent.ngts/test-id\": \"${RANDOM}\"}"
+     --values "${tmp_dir}/values.yaml"
 
 kubectl rollout status deployments/discovery-agent --namespace "${NAMESPACE}"
 
-# Wait 60s for log message indicating success.
+# Wait for log message indicating success.
 # Parse logs as JSON using jq to ensure logs are all JSON formatted.
-timeout 60 jq -n \
+timeout 120 jq -n \
         'inputs | if .msg | test("Data sent successfully") then . | halt_error(0) else . end' \
         <(kubectl logs deployments/discovery-agent --namespace "${NAMESPACE}" --follow)
 
 # Query the Prometheus metrics endpoint to ensure it's working.
 kubectl get pod \
-        --namespace ngts \
+        --namespace ${NAMESPACE} \
         --selector app.kubernetes.io/name=discovery-agent \
         --output jsonpath={.items[*].metadata.name} \
-    | xargs -I{} kubectl get --raw /api/v1/namespaces/ngts/pods/{}:8081/proxy/metrics \
+    | xargs -I{} kubectl get --raw /api/v1/namespaces/$NAMESPACE/pods/{}:8081/proxy/metrics \
     | grep '^process_'
 
 # Query the pprof endpoint to ensure it's working.
 kubectl get pod \
-        --namespace ngts \
+        --namespace ${NAMESPACE} \
         --selector app.kubernetes.io/name=discovery-agent \
         --output jsonpath={.items[*].metadata.name} \
-    | xargs -I{} kubectl get --raw /api/v1/namespaces/ngts/pods/{}:8081/proxy/debug/pprof/cmdline \
+    | xargs -I{} kubectl get --raw /api/v1/namespaces/$NAMESPACE/pods/{}:8081/proxy/debug/pprof/cmdline \
     | xargs -0
+
+# TODO: should call to SCM and verify that certs are actually uploaded

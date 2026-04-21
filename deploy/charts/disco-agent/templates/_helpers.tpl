@@ -62,10 +62,8 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Util function for generating the image URL based on the provided options.
-IMPORTANT: This function is standardized across all charts in the cert-manager GH organization.
-Any changes to this function should also be made in cert-manager, trust-manager, approver-policy, ...
-See https://github.com/cert-manager/cert-manager/issues/6329 for a list of linked PRs.
+Util function for generating an image reference based on the provided options.
+This function is derived from similar functions used in the cert-manager GitHub organization
 */}}
 {{- define "image" -}}
 {{- /*

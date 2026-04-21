@@ -40,7 +40,7 @@ ngts-release:
 ## Run a basic E2E test on a Kind cluster
 ## See `hack/ngts/e2e.sh` for the full test script.
 ## @category NGTS Discovery Agent
-ngts-test-e2e: $(NEEDS_KIND) $(NEEDS_KUBECTL) $(NEEDS_HELM)
+ngts-test-e2e: $(NEEDS_KIND) $(NEEDS_KUBECTL) $(NEEDS_HELM) $(NEEDS_YQ)
 	PATH="$(bin_dir)/tools:${PATH}" ./hack/ngts/test-e2e.sh
 
 .PHONY: ngts-verify
