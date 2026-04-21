@@ -1,6 +1,6 @@
 custom-cluster-description:
   1: |
-    raw: |2
+    raw: |
       - Check the credentials Secret exists: "agent-credentials"
       > kubectl get secret -n test-ns agent-credentials
       - Check the application is running:
@@ -287,7 +287,7 @@ custom-cluster-description:
       namespace: test-ns
 custom-cluster-name:
   1: |
-    raw: |2
+    raw: |
       - Check the credentials Secret exists: "agent-credentials"
       > kubectl get secret -n test-ns agent-credentials
       - Check the application is running:
@@ -574,7 +574,7 @@ custom-cluster-name:
       namespace: test-ns
 custom-configmap:
   1: |
-    |2
+    |
       You are using a custom configuration in the following ConfigMap: "agent-custom-config".
 
       DEPRECATION: The `cluster_id` configuration field is deprecated.
@@ -589,7 +589,7 @@ custom-configmap:
       > kubectl logs -n test-ns -l app.kubernetes.io/instance=test
 custom-period:
   1: |
-    raw: |2
+    raw: |
       - Check the credentials Secret exists: "agent-credentials"
       > kubectl get secret -n test-ns agent-credentials
       - Check the application is running:
@@ -876,7 +876,7 @@ custom-period:
       namespace: test-ns
 defaults:
   1: |
-    raw: |2
+    raw: |
       - Check the credentials Secret exists: "agent-credentials"
       > kubectl get secret -n test-ns agent-credentials
       - Check the application is running:

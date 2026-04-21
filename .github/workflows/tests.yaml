@@ -66,7 +66,8 @@ jobs:
           path: _bin/downloaded
           key: downloaded-${{ runner.os }}-${{ hashFiles('klone.yaml') }}-test-unit
 
-      - run: make -j test-unit test-helm
+      # NB: helm unit tests will be run by "make verify", so we don't run it here
+      - run: make -j test-unit
         env:
           # These environment variables are required to run the CyberArk client integration tests
           ARK_DISCOVERY_API: https://platform-discovery.integration-cyberark.cloud/
