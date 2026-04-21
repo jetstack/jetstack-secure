@@ -76,6 +76,11 @@ jobs:
           ARK_SECRET: ${{ secrets.ARK_SECRET }}
 
   ark-test-e2e:
+    # TEMPORARY: require an explicit label to test disco-agent until the test environment fixes a recurring issue
+    # where the e2e fails with a 400 error relating to "conflicting tagging values"
+    # The test is flaky, not broken and re-running eventually makes it pass - but that delays progress on
+    # other unrelated work.
+    if: contains(github.event.pull_request.labels.*.name, 'test-ark')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
