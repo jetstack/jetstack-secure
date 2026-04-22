@@ -35,6 +35,13 @@ A short description of the cluster where the agent is deployed (optional).
   
 This description will be associated with the data that the agent uploads to the backend.
 
+#### **config.claimableCerts** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+Whether discovered certs can be claimed by other tenants (optional). true = certs are left unassigned, available for any tenant to claim. false (default) = certs are owned by this cluster's tenant.
 #### **config.period** ~ `string`
 > Default value:
 > ```yaml

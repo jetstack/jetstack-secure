@@ -94,6 +94,9 @@
     "helm-values.config": {
       "additionalProperties": false,
       "properties": {
+        "claimableCerts": {
+          "$ref": "#/$defs/helm-values.config.claimableCerts"
+        },
         "clientID": {
           "$ref": "#/$defs/helm-values.config.clientID"
         },
@@ -126,6 +129,11 @@
         }
       },
       "type": "object"
+    },
+    "helm-values.config.claimableCerts": {
+      "default": false,
+      "description": "Whether discovered certs can be claimed by other tenants (optional). true = certs are left unassigned, available for any tenant to claim. false (default) = certs are owned by this cluster's tenant.",
+      "type": "boolean"
     },
     "helm-values.config.clientID": {
       "default": "",

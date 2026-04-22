@@ -23,6 +23,11 @@ type (
 
 		// Used for Venafi Cloud and MachineHub mode.
 		ClusterDescription string
+
+		// ClaimableCerts controls whether discovered certs can be claimed by other tenants.
+		// true = certs are left unassigned, available for any tenant to claim.
+		// false (default) = certs are owned by this cluster's tenant.
+		ClaimableCerts bool
 	}
 
 	// The Client interface describes types that perform requests against the Jetstack Secure backend.

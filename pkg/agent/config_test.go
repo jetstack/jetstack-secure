@@ -1081,7 +1081,22 @@ func Test_ValidateAndCombineConfig_NGTS(t *testing.T) {
 		assert.Equal(t, "test-tsg-123", got.TSGID)
 		assert.Equal(t, "test-cluster", got.ClusterName)
 		assert.Equal(t, "Test NGTS cluster", got.ClusterDescription)
+		assert.Equal(t, false, got.ClaimableCerts)
 		assert.IsType(t, &client.NGTSClient{}, cl)
+	})
+
+	t.Run("ngts: claimable_certs flows from config into CombinedConfig", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		got, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+				claimable_certs: true
+			`)),
+			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		require.NoError(t, err)
+		assert.Equal(t, true, got.ClaimableCerts)
 	})
 
 	t.Run("ngts: valid configuration with custom server URL", func(t *testing.T) {
