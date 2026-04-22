@@ -1,0 +1,330 @@
+suite: test deployment
+templates:
+  - deployment.yaml
+
+tests:
+  # Test that tsgID is rendered correctly as a string
+  - it: tsgID is rendered as string in deployment args
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "987654321"
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --tsg-id
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "987654321"
+
+  # Test that tsgID preserves leading zeros (only possible with string type)
+  # NB: TSG IDs are defined to start with "1", but this test is defence in depth
+  - it: tsgID preserves leading zeros when provided as string
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "0001234"
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --tsg-id
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "0001234"
+
+  # Test basic deployment rendering with all required values
+  - it: deployment templates correctly with required values
+    set:
+      config.clusterName: my-test-cluster
+      config.tsgID: "123456"
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - matchRegex:
+          path: metadata.name
+          pattern: ^.*-discovery-agent$
+
+  # Test replica count
+  - it: should set replica count correctly
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      replicaCount: 3
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 3
+
+  # Test security contexts
+  - it: should apply pod security context
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      podSecurityContext:
+        fsGroup: 2000
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 2000
+
+  - it: should apply container security context defaults
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+
+  # Test resources
+  - it: should set resources when specified
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      resources:
+        limits:
+          cpu: 200m
+          memory: 256Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: 200m
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 128Mi
+
+  # Test environment variables
+  - it: should set HTTP_PROXY environment variable
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      http_proxy: "http://proxy:8080"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HTTP_PROXY
+            value: "http://proxy:8080"
+
+  - it: should set HTTPS_PROXY environment variable
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      https_proxy: "https://proxy:8443"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: HTTPS_PROXY
+            value: "https://proxy:8443"
+
+  - it: should set NO_PROXY environment variable
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      no_proxy: "127.0.0.1,localhost"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: NO_PROXY
+            value: "127.0.0.1,localhost"
+
+  # Test command line arguments
+  - it: should include metrics flag when enabled
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --enable-metrics
+
+  - it: should include pprof flag when enabled
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      pprof.enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --enable-pprof
+
+  - it: should include custom server URL when set
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      config.serverURL: "https://custom.example.com"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --ngts-server-url
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "https://custom.example.com"
+
+  - it: should include client ID when set
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      config.clientID: "test-client-id"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --client-id
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: test-client-id
+
+  - it: should include extra args
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      extraArgs:
+        - --log-level=6
+        - --custom-flag=value
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--log-level=6"
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--custom-flag=value"
+
+  # Test volumes and volume mounts
+  - it: should mount config and credentials volumes
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: config
+            mountPath: "/etc/discovery-agent"
+            readOnly: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: credentials
+            mountPath: "/etc/discovery-agent/credentials"
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            configMap:
+              name: RELEASE-NAME-discovery-agent-config
+              optional: false
+
+  - it: should use custom secret name
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      config.secretName: custom-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: credentials
+            secret:
+              secretName: custom-secret
+              optional: false
+
+  # Test pod annotations and labels
+  - it: should apply pod annotations
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      podAnnotations:
+        annotation-key: annotation-value
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations.annotation-key
+          value: annotation-value
+
+  - it: should apply pod labels
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      podLabels:
+        custom-label: label-value
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.custom-label
+          value: label-value
+
+  # Test node selector, tolerations, and affinity
+  - it: should apply node selector
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      nodeSelector:
+        disktype: ssd
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.disktype
+          value: ssd
+
+  - it: should apply tolerations
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      tolerations:
+        - key: "key1"
+          operator: "Equal"
+          value: "value1"
+          effect: "NoSchedule"
+    asserts:
+      - contains:
+          path: spec.template.spec.tolerations
+          content:
+            key: "key1"
+            operator: "Equal"
+            value: "value1"
+            effect: "NoSchedule"
+
+  - it: should apply affinity
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - node1
+    asserts:
+      - isNotEmpty:
+          path: spec.template.spec.affinity.nodeAffinity
+
+  # Test image pull secrets
+  - it: should apply image pull secrets
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      imagePullSecrets:
+        - name: my-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: my-secret

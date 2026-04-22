@@ -1,0 +1,102 @@
+suite: test poddisruptionbudget
+templates:
+  - poddisruptionbudget.yaml
+
+tests:
+  # Test PodDisruptionBudget is not created by default
+  - it: should not create PodDisruptionBudget when disabled
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      podDisruptionBudget.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # Test PodDisruptionBudget is created when enabled
+  - it: should create PodDisruptionBudget when enabled
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      podDisruptionBudget.enabled: true
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-discovery-agent
+
+  # Test default minAvailable when neither minAvailable nor maxUnavailable is set
+  - it: should set default minAvailable when no disruption values are set
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      podDisruptionBudget.enabled: true
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 1
+      - isNull:
+          path: spec.maxUnavailable
+
+  # Test custom minAvailable
+  - it: should set custom minAvailable
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      podDisruptionBudget.enabled: true
+      podDisruptionBudget.minAvailable: 2
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 2
+      - isNull:
+          path: spec.maxUnavailable
+
+  # Test minAvailable as percentage
+  - it: should set minAvailable as percentage
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      podDisruptionBudget.enabled: true
+      podDisruptionBudget.minAvailable: "50%"
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: "50%"
+
+  # Test custom maxUnavailable
+  - it: should set custom maxUnavailable
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      podDisruptionBudget.enabled: true
+      podDisruptionBudget.maxUnavailable: 1
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+      - isNull:
+          path: spec.minAvailable
+
+  # Test maxUnavailable as percentage
+  - it: should set maxUnavailable as percentage
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      podDisruptionBudget.enabled: true
+      podDisruptionBudget.maxUnavailable: "25%"
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: "25%"
+
+  # Test selector labels
+  - it: should use correct selector labels
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      podDisruptionBudget.enabled: true
+    asserts:
+      - isNotEmpty:
+          path: spec.selector.matchLabels
