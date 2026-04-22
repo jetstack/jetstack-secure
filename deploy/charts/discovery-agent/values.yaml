@@ -42,6 +42,13 @@ config:
   # +docs:property
   clientID: ""
 
+  # Deprecated: Client ID for the configured service account (alternative to clientID).
+  # The client ID should be provided in the "clientID" field of the authentication secret (see config.secretName).
+  # This field is provided for compatibility for users migrating from the "venafi-kubernetes-agent" chart.
+  # If both clientID and clientId are set, clientID takes precedence.
+  # +docs:hidden
+  clientId: ""
+
   # The name of the Secret containing the NGTS built-in service account credentials.
   # The Secret must contain the following key:
   # - privatekey.pem: PEM-encoded private key for the service account

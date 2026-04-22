@@ -158,6 +158,8 @@ func NewNGTSClient(agentMetadata *api.AgentMetadata, credentials *NGTSServiceAcc
 
 // LoadClientIDIfNeeded attempts to load the ClientID from a file if it is not already set.
 // It looks for a "clientID" file in the same directory as the PrivateKeyFile.
+// For compatibility with the venafi-kubernetes-agent chart, it also supports "clientId" (lowercase 'd').
+// If both files exist, "clientID" takes precedence.
 // This allows the ClientID to be provided either as a direct value or via a Kubernetes secret.
 func (c *NGTSServiceAccountCredentials) LoadClientIDIfNeeded() error {
 	if c == nil {
@@ -178,13 +180,21 @@ func (c *NGTSServiceAccountCredentials) LoadClientIDIfNeeded() error {
 		return nil // This is actually a fatal error but will be caught by Validate() later
 	}
 
+	baseDir := path.Dir(c.PrivateKeyFile)
+
 	// Try to load ClientID from a file in the same directory as the private key
-	clientIDPath := path.Dir(c.PrivateKeyFile) + "/clientID"
+	// Try "clientID" first (takes precedence), then "clientId" for backward compatibility
+	clientIDPath := baseDir + "/clientID"
 	clientIDBytes, err := os.ReadFile(clientIDPath)
 	if err != nil {
-		// If the file doesn't exist, that's okay - we'll let Validate() catch the empty ClientID error later
-		klog.V(2).Info("Could not read clientID from file", "path", clientIDPath, "error", err)
-		return nil
+		// Try the alternative "clientId" (lowercase 'd') for compatibility with venafi-kubernetes-agent
+		clientIDPath = baseDir + "/clientId"
+		clientIDBytes, err = os.ReadFile(clientIDPath)
+		if err != nil {
+			// If neither file exists, that's okay - we'll let Validate() catch the empty ClientID error later
+			klog.V(2).Info("Could not read clientID from file", "path", clientIDPath, "error", err)
+			return nil
+		}
 	}
 
 	// Trim whitespace from the clientID

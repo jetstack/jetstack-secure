@@ -132,12 +132,12 @@ func TestNGTSClient_LoadClientIDFromFile(t *testing.T) {
 
 	// Create the private key file
 	keyFile := tmpDir + "/privatekey.pem"
-	err := os.WriteFile(keyFile, []byte(fakePrivKeyPEM), 0600)
+	err := os.WriteFile(keyFile, []byte(fakePrivKeyPEM), 0o600)
 	require.NoError(t, err)
 
 	// Create the clientID file in the same directory
 	clientIDFile := tmpDir + "/clientID"
-	err = os.WriteFile(clientIDFile, []byte("test-client-from-file\n"), 0600)
+	err = os.WriteFile(clientIDFile, []byte("test-client-from-file\n"), 0o600)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -183,6 +183,92 @@ func TestNGTSClient_LoadClientIDFromFile(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotNil(t, client)
 			assert.Equal(t, tt.wantClient, client.credentials.ClientID)
+		})
+	}
+}
+
+func TestNGTSClient_LoadClientIDFromFileAlternativeNames(t *testing.T) {
+	tests := []struct {
+		name           string
+		setupFiles     func(tmpDir string) string // returns keyFile path
+		wantClientID   string
+		wantErr        bool
+		wantErrContain string
+	}{
+		{
+			// Note: venafi-kubernetes-agent didn't support storing the client ID in the secret, but
+			// we don't want users moving to discovery-agent to be caught out by such a trivial mistake.
+			name: "load from clientId (lowercase d) for venafi-kubernetes-agent compatibility",
+			setupFiles: func(tmpDir string) string {
+				keyFile := tmpDir + "/privatekey.pem"
+				err := os.WriteFile(keyFile, []byte(fakePrivKeyPEM), 0o600)
+				require.NoError(t, err)
+				// Create clientId file (lowercase 'd')
+				clientIdFile := tmpDir + "/clientId"
+				err = os.WriteFile(clientIdFile, []byte("test-client-from-clientId\n"), 0o600)
+				require.NoError(t, err)
+				return keyFile
+			},
+			wantClientID: "test-client-from-clientId",
+			wantErr:      false,
+		},
+		{
+			name: "load from clientID (uppercase D)",
+			setupFiles: func(tmpDir string) string {
+				keyFile := tmpDir + "/privatekey.pem"
+				err := os.WriteFile(keyFile, []byte(fakePrivKeyPEM), 0o600)
+				require.NoError(t, err)
+				// Create only clientID file (uppercase 'D')
+				clientIDFile := tmpDir + "/clientID"
+				err = os.WriteFile(clientIDFile, []byte("from-clientID"), 0o600)
+				require.NoError(t, err)
+				return keyFile
+			},
+			wantClientID: "from-clientID",
+			wantErr:      false,
+		},
+		{
+			name: "error when no clientID file exists",
+			setupFiles: func(tmpDir string) string {
+				keyFile := tmpDir + "/privatekey.pem"
+				err := os.WriteFile(keyFile, []byte(fakePrivKeyPEM), 0o600)
+				require.NoError(t, err)
+				// Don't create any clientID file
+				return keyFile
+			},
+			wantErr:        true,
+			wantErrContain: "client_id cannot be empty",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			keyFile := tt.setupFiles(tmpDir)
+
+			credentials := &NGTSServiceAccountCredentials{
+				ClientID:       "", // Empty - should be loaded from file
+				PrivateKeyFile: keyFile,
+			}
+
+			metadata := &api.AgentMetadata{
+				Version:   "test-version",
+				ClusterID: "test-cluster",
+			}
+
+			client, err := NewNGTSClient(metadata, credentials, "https://test.example.com", "test-tsg", nil)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantErrContain != "" {
+					assert.Contains(t, err.Error(), tt.wantErrContain)
+				}
+				return
+			}
+
+			require.NoError(t, err)
+			assert.NotNil(t, client)
+			assert.Equal(t, tt.wantClientID, client.credentials.ClientID)
 		})
 	}
 }

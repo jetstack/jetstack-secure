@@ -191,6 +191,33 @@ tests:
           path: spec.template.spec.containers[0].args
           content: test-client-id
 
+  - it: should include client ID when clientId is set (lowercase d)
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      config.clientId: "test-client-id-lowercase"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --client-id
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: test-client-id-lowercase
+
+  - it: should prefer clientID over clientId when both are set
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      config.clientID: "uppercase-takes-precedence"
+      config.clientId: "lowercase-ignored"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --client-id
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: uppercase-takes-precedence
+
   - it: should include extra args
     set:
       config.clusterName: test-cluster
