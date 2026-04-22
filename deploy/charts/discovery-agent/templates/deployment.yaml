@@ -78,9 +78,9 @@ spec:
             - --ngts-server-url
             - {{ . | quote }}
             {{- end }}
-            {{- if .Values.config.clientID }}
+            {{- if or .Values.config.clientID .Values.config.clientId }}
             - --client-id
-            - {{ .Values.config.clientID }}
+            - {{ .Values.config.clientID | default .Values.config.clientId }}
             {{- end }}
             - --private-key-path
             - /etc/discovery-agent/credentials/privatekey.pem

@@ -6,13 +6,13 @@ The Discovery Agent connects your Kubernetes or OpenShift cluster to Palo Alto N
 
 <!-- AUTO-GENERATED -->
 
-#### **config.tsgID** ~ `string,number`
+#### **config.tsgID** ~ `string`
 > Default value:
 > ```yaml
 > ""
 > ```
 
-Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but should be treated as strings. If being set with the Helm CLI prefer `--set-string`.
+Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but must be treated as strings to avoid issues with YAML data types. With the Helm CLI use `--set-string`; with YAML always pass TSG IDs in double quotes.
 
 
 #### **config.clusterName** ~ `string`

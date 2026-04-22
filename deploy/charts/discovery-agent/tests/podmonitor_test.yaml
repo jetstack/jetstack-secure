@@ -1,0 +1,162 @@
+suite: test podmonitor
+templates:
+  - podmonitor.yaml
+
+tests:
+  # Test PodMonitor is not created by default
+  - it: should not create PodMonitor when metrics.podmonitor.enabled is false
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: true
+      metrics.podmonitor.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # Test PodMonitor is not created when metrics are disabled
+  - it: should not create PodMonitor when metrics.enabled is false
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: false
+      metrics.podmonitor.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # Test PodMonitor is created when both metrics and podmonitor are enabled
+  - it: should create PodMonitor when both metrics and podmonitor are enabled
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: true
+      metrics.podmonitor.enabled: true
+    asserts:
+      - isKind:
+          of: PodMonitor
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-discovery-agent
+
+  # Test PodMonitor namespace defaults to Release namespace
+  - it: should use Release namespace by default
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: true
+      metrics.podmonitor.enabled: true
+    release:
+      namespace: my-namespace
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: my-namespace
+
+  # Test custom PodMonitor namespace
+  - it: should use custom namespace when specified
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: true
+      metrics.podmonitor.enabled: true
+      metrics.podmonitor.namespace: monitoring
+    release:
+      namespace: default
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: monitoring
+      - contains:
+          path: spec.namespaceSelector.matchNames
+          content: default
+
+  # Test prometheus instance label
+  - it: should set prometheus instance label
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: true
+      metrics.podmonitor.enabled: true
+      metrics.podmonitor.prometheusInstance: custom-prometheus
+    asserts:
+      - equal:
+          path: metadata.labels.prometheus
+          value: custom-prometheus
+
+  # Test custom labels
+  - it: should apply custom labels
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: true
+      metrics.podmonitor.enabled: true
+      metrics.podmonitor.labels:
+        custom-label: custom-value
+        another-label: another-value
+    asserts:
+      - equal:
+          path: metadata.labels.custom-label
+          value: custom-value
+      - equal:
+          path: metadata.labels.another-label
+          value: another-value
+
+  # Test custom annotations
+  - it: should apply custom annotations
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: true
+      metrics.podmonitor.enabled: true
+      metrics.podmonitor.annotations:
+        custom-annotation: custom-value
+    asserts:
+      - equal:
+          path: metadata.annotations.custom-annotation
+          value: custom-value
+
+  # Test scrape configuration
+  - it: should configure scrape interval and timeout
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: true
+      metrics.podmonitor.enabled: true
+      metrics.podmonitor.interval: 30s
+      metrics.podmonitor.scrapeTimeout: 15s
+    asserts:
+      - equal:
+          path: spec.podMetricsEndpoints[0].interval
+          value: 30s
+      - equal:
+          path: spec.podMetricsEndpoints[0].scrapeTimeout
+          value: 15s
+
+  # Test honorLabels setting
+  - it: should set honorLabels correctly
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: true
+      metrics.podmonitor.enabled: true
+      metrics.podmonitor.honorLabels: true
+    asserts:
+      - equal:
+          path: spec.podMetricsEndpoints[0].honorLabels
+          value: true
+
+  # Test metrics endpoint configuration
+  - it: should configure metrics endpoint correctly
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      metrics.enabled: true
+      metrics.podmonitor.enabled: true
+    asserts:
+      - equal:
+          path: spec.podMetricsEndpoints[0].port
+          value: agent-api
+      - equal:
+          path: spec.podMetricsEndpoints[0].path
+          value: /metrics

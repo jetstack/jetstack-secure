@@ -97,6 +97,9 @@
         "clientID": {
           "$ref": "#/$defs/helm-values.config.clientID"
         },
+        "clientId": {
+          "$ref": "#/$defs/helm-values.config.clientId"
+        },
         "clusterDescription": {
           "$ref": "#/$defs/helm-values.config.clusterDescription"
         },
@@ -127,6 +130,11 @@
     "helm-values.config.clientID": {
       "default": "",
       "description": "Deprecated: Client ID for the configured service account. The client ID should be provided in the \"clientID\" field of the authentication secret (see config.secretName). This field is provided for compatibility for users migrating from the \"venafi-kubernetes-agent\" chart.",
+      "type": "string"
+    },
+    "helm-values.config.clientId": {
+      "default": "",
+      "description": "Deprecated: Client ID for the configured service account (alternative to clientID). The client ID should be provided in the \"clientID\" field of the authentication secret (see config.secretName). This field is provided for compatibility for users migrating from the \"venafi-kubernetes-agent\" chart. If both clientID and clientId are set, clientID takes precedence.",
       "type": "string"
     },
     "helm-values.config.clusterDescription": {
@@ -167,7 +175,8 @@
     },
     "helm-values.config.tsgID": {
       "default": "",
-      "description": "Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but should be treated as strings. If being set with the Helm CLI prefer `--set-string`."
+      "description": "Required: The TSG (Tenant Service Group) ID to use when connecting to SCM. NB: TSG IDs are numeric, but must be treated as strings to avoid issues with YAML data types. With the Helm CLI use `--set-string`; with YAML always pass TSG IDs in double quotes.",
+      "type": "string"
     },
     "helm-values.extraArgs": {
       "default": [],
