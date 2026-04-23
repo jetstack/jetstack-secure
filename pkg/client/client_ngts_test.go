@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -331,7 +330,7 @@ func TestNGTSClient_PostDataReadingsWithOptions(t *testing.T) {
 		ClusterDescription: "Test cluster description",
 	}
 
-	err = client.PostDataReadingsWithOptions(context.Background(), readings, opts)
+	err = client.PostDataReadingsWithOptions(t.Context(), readings, opts)
 	require.NoError(t, err)
 
 	// Verify the upload request
@@ -339,12 +338,25 @@ func TestNGTSClient_PostDataReadingsWithOptions(t *testing.T) {
 	assert.Equal(t, "/"+ngtsUploadEndpoint, receivedRequest.URL.Path)
 	assert.Contains(t, receivedRequest.URL.RawQuery, "name=test-cluster")
 	assert.Equal(t, "Bearer test-access-token", receivedRequest.Header.Get("Authorization"))
+	// certOwnership not set — must NOT appear in query
+	assert.NotContains(t, receivedRequest.URL.RawQuery, "certOwnership")
 
 	// Verify the payload
 	var payload api.DataReadingsPost
 	err = json.Unmarshal(receivedBody, &payload)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(payload.DataReadings))
+
+	// Verify claimableCerts=true is included when set
+	t.Run("claimableCerts: true sends certOwnership=unassigned to backend", func(t *testing.T) {
+		optsUnassigned := Options{
+			ClusterName:    "test-cluster",
+			ClaimableCerts: true,
+		}
+		err = client.PostDataReadingsWithOptions(t.Context(), readings, optsUnassigned)
+		require.NoError(t, err)
+		assert.Contains(t, receivedRequest.URL.RawQuery, "certOwnership=unassigned")
+	})
 }
 
 func TestNGTSClient_AuthenticationFlow(t *testing.T) {
@@ -384,7 +396,7 @@ func TestNGTSClient_AuthenticationFlow(t *testing.T) {
 	opts := Options{ClusterName: "test"}
 
 	for range 3 {
-		err = client.PostDataReadingsWithOptions(context.Background(), readings, opts)
+		err = client.PostDataReadingsWithOptions(t.Context(), readings, opts)
 		require.NoError(t, err)
 	}
 
@@ -448,7 +460,7 @@ func TestNGTSClient_ErrorHandling(t *testing.T) {
 			readings := []*api.DataReading{{DataGatherer: "test", Data: &api.DynamicData{}}}
 			opts := Options{ClusterName: "test"}
 
-			err = client.PostDataReadingsWithOptions(context.Background(), readings, opts)
+			err = client.PostDataReadingsWithOptions(t.Context(), readings, opts)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.expectedErrMsg)
 		})

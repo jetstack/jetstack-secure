@@ -247,6 +247,11 @@ func (c *NGTSClient) PostDataReadingsWithOptions(ctx context.Context, readings [
 		query.Add("description", base64.RawURLEncoding.EncodeToString([]byte(stripHTML.Sanitize(opts.ClusterDescription))))
 	}
 
+	if opts.ClaimableCerts {
+		// The TLSPK backend reads "certOwnership=unassigned" — this is the backend contract.
+		query.Add("certOwnership", "unassigned")
+	}
+
 	uploadURL.RawQuery = query.Encode()
 
 	klog.FromContext(ctx).V(2).Info(

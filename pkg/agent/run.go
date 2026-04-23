@@ -459,6 +459,7 @@ func postData(ctx context.Context, config CombinedConfig, preflightClient client
 	err := preflightClient.PostDataReadingsWithOptions(ctx, readings, client.Options{
 		ClusterName:        config.ClusterName,
 		ClusterDescription: config.ClusterDescription,
+		ClaimableCerts:     config.ClaimableCerts,
 		// orgID and clusterID are not required for Venafi Cloud auth
 		OrgID:     config.OrganizationID,
 		ClusterID: config.ClusterID,

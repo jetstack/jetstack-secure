@@ -19,6 +19,11 @@ config:
   # +docs:property
   clusterDescription: ""
 
+  # Whether discovered certs can be claimed by other tenants (optional).
+  # true = certs are left unassigned, available for any tenant to claim.
+  # false (default) = certs are owned by this cluster's tenant.
+  claimableCerts: false
+
   # How often to push data to the remote server
   # +docs:property
   period: "0h1m0s"

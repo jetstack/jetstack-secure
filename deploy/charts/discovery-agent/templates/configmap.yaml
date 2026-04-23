@@ -9,6 +9,9 @@ data:
   config.yaml: |-
     cluster_name: {{ required "config.clusterName is required" .Values.config.clusterName | quote }}
     cluster_description: {{ .Values.config.clusterDescription | quote }}
+    {{- if .Values.config.claimableCerts }}
+    claimable_certs: true
+    {{- end }}
     period: {{ .Values.config.period | quote }}
     {{- with .Values.config.excludeAnnotationKeysRegex }}
     exclude-annotation-keys-regex:

@@ -55,9 +55,13 @@ type Config struct {
 	ClusterName string `yaml:"cluster_name"`
 	// ClusterDescription is a short description of the Kubernetes cluster where the
 	// agent is running.
-	ClusterDescription string             `yaml:"cluster_description"`
-	DataGatherers      []DataGatherer     `yaml:"data-gatherers"`
-	VenafiCloud        *VenafiCloudConfig `yaml:"venafi-cloud,omitempty"`
+	ClusterDescription string `yaml:"cluster_description"`
+	// ClaimableCerts controls whether discovered certs can be claimed by other tenants.
+	// true = certs are left unassigned, available for any tenant to claim.
+	// false (default) = certs are owned by this cluster's tenant.
+	ClaimableCerts bool               `yaml:"claimable_certs"`
+	DataGatherers  []DataGatherer     `yaml:"data-gatherers"`
+	VenafiCloud    *VenafiCloudConfig `yaml:"venafi-cloud,omitempty"`
 
 	// For testing purposes.
 	InputPath string `yaml:"input-path"`
@@ -419,6 +423,11 @@ type CombinedConfig struct {
 	// the agent is running.
 	ClusterDescription string
 
+	// ClaimableCerts controls whether discovered certs can be claimed by other tenants.
+	// true = certs are left unassigned, available for any tenant to claim.
+	// false (default) = certs are owned by this cluster's tenant.
+	ClaimableCerts bool
+
 	// VenafiCloudVenafiConnection mode only.
 	VenConnName string
 	VenConnNS   string
@@ -733,6 +742,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		res.ClusterID = clusterID
 		res.ClusterName = clusterName
 		res.ClusterDescription = cfg.ClusterDescription
+		res.ClaimableCerts = cfg.ClaimableCerts
 	}
 
 	// Validation of `data-gatherers`.
