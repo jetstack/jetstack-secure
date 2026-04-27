@@ -65,7 +65,7 @@ Create the name of the service account to use
 Util function for generating an image reference based on the provided options.
 This function is derviced from similar functions used in the cert-manager GitHub organization
 */}}
-{{- define "image" -}}
+{{- define "venafi-kubernetes-agent.image" -}}
 {{- /*
 Calling convention:
 - (tuple <imageValues> <imageRegistry> <imageNamespace> <defaultReference>)

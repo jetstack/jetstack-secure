@@ -39,7 +39,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: "{{ template "image" (tuple .Values.image .Values.imageRegistry .Values.imageNamespace (printf ":%s" .Chart.AppVersion)) }}"
+          image: "{{ template "disco-agent.image" (tuple .Values.image .Values.imageRegistry .Values.imageNamespace (printf ":%s" .Chart.AppVersion)) }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
           - name: POD_NAMESPACE

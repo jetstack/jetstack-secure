@@ -65,7 +65,7 @@ Create the name of the service account to use
 Util function for generating an image reference based on the provided options.
 This function is derived from similar functions used in the cert-manager GitHub organization
 */}}
-{{- define "image" -}}
+{{- define "disco-agent.image" -}}
 {{- /*
 Calling convention:
 - (tuple <imageValues> <imageRegistry> <imageNamespace> <defaultReference>)
