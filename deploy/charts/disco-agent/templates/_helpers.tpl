@@ -65,7 +65,7 @@ Create the name of the service account to use
 Util function for generating an image reference based on the provided options.
 This function is derived from similar functions used in the cert-manager GitHub organization
 */}}
-{{- define "image" -}}
+{{- define "disco-agent.image" -}}
 {{- /*
 Calling convention:
 - (tuple <imageValues> <imageRegistry> <imageNamespace> <defaultReference>)
@@ -74,7 +74,7 @@ from `.Values` inside this helper, because `helm-tool lint` does not reliably tr
 usage through tuple/variable indirection.
 */ -}}
 {{- if ne (len .) 4 -}}
-	{{- fail (printf "ERROR: template \"image\" expects (tuple <imageValues> <imageRegistry> <imageNamespace> <defaultReference>), got %d arguments" (len .)) -}}
+	{{- fail (printf "ERROR: template \"disco-agent.image\" expects (tuple <imageValues> <imageRegistry> <imageNamespace> <defaultReference>), got %d arguments" (len .)) -}}
 {{- end -}}
 {{- $image := index . 0 -}}
 {{- $imageRegistry := index . 1 | default "" -}}
