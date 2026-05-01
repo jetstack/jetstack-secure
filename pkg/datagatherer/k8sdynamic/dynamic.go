@@ -82,6 +82,10 @@ type ConfigDynamic struct {
 	FieldSelectors []string `yaml:"field-selectors"`
 	// LabelSelectors is a list of label selectors to use when listing this resource
 	LabelSelectors []string `yaml:"label-selectors"`
+	// ExcludeAnnotationKeysRegex is a list of regular expressions to exclude.
+	ExcludeAnnotationKeysRegex []string `yaml:"excludeAnnotationKeysRegex"`
+	// ExcludeLabelKeysRegex is a list of regular expressions to exclude.
+	ExcludeLabelKeysRegex []string `yaml:"excludeLabelKeysRegex"`
 }
 
 // UnmarshalYAML unmarshals the ConfigDynamic resolving GroupVersionResource.
@@ -93,10 +97,12 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(any) error) error {
 			Version  string `yaml:"version"`
 			Resource string `yaml:"resource"`
 		} `yaml:"resource-type"`
-		ExcludeNamespaces []string `yaml:"exclude-namespaces"`
-		IncludeNamespaces []string `yaml:"include-namespaces"`
-		FieldSelectors    []string `yaml:"field-selectors"`
-		LabelSelectors    []string `yaml:"label-selectors"`
+		ExcludeNamespaces          []string `yaml:"exclude-namespaces"`
+		IncludeNamespaces          []string `yaml:"include-namespaces"`
+		FieldSelectors             []string `yaml:"field-selectors"`
+		LabelSelectors             []string `yaml:"label-selectors"`
+		ExcludeAnnotationKeysRegex []string `yaml:"excludeAnnotationKeysRegex"`
+		ExcludeLabelKeysRegex      []string `yaml:"excludeLabelKeysRegex"`
 	}{}
 	err := unmarshal(&aux)
 	if err != nil {
@@ -111,6 +117,8 @@ func (c *ConfigDynamic) UnmarshalYAML(unmarshal func(any) error) error {
 	c.IncludeNamespaces = aux.IncludeNamespaces
 	c.FieldSelectors = aux.FieldSelectors
 	c.LabelSelectors = aux.LabelSelectors
+	c.ExcludeAnnotationKeysRegex = aux.ExcludeAnnotationKeysRegex
+	c.ExcludeLabelKeysRegex = aux.ExcludeLabelKeysRegex
 
 	return nil
 }
@@ -143,6 +151,18 @@ func (c *ConfigDynamic) validate() error {
 		_, err := labels.Parse(labelSelectorString)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("invalid label selector %d: %s", i, err))
+		}
+	}
+
+	for i, r := range c.ExcludeAnnotationKeysRegex {
+		if _, err := regexp.Compile(r); err != nil {
+			errs = append(errs, fmt.Sprintf("invalid excludeAnnotationKeysRegex[%d]: %s", i, err))
+		}
+	}
+
+	for i, r := range c.ExcludeLabelKeysRegex {
+		if _, err := regexp.Compile(r); err != nil {
+			errs = append(errs, fmt.Sprintf("invalid excludeLabelKeysRegex[%d]: %s", i, err))
 		}
 	}
 
@@ -309,6 +329,13 @@ func (c *ConfigDynamic) newDataGathererWithClient(ctx context.Context, cl dynami
 	}
 	newDataGatherer.registration = registration
 
+	for _, r := range c.ExcludeAnnotationKeysRegex {
+		newDataGatherer.ExcludeAnnotKeys = append(newDataGatherer.ExcludeAnnotKeys, regexp.MustCompile(r))
+	}
+	for _, r := range c.ExcludeLabelKeysRegex {
+		newDataGatherer.ExcludeLabelKeys = append(newDataGatherer.ExcludeLabelKeys, regexp.MustCompile(r))
+	}
+
 	return newDataGatherer, nil
 }
 
@@ -423,6 +450,8 @@ func (g *DataGathererDynamic) Fetch(ctx context.Context) (any, int, error) {
 		return nil, -1, fmt.Errorf("failed to parse cached resource")
 	}
 
+	items = g.excludeResources(items)
+
 	// Redact Secret data (which may include encrypting it if enabled)
 	err := g.redactList(ctx, items)
 	if err != nil {
@@ -432,6 +461,41 @@ func (g *DataGathererDynamic) Fetch(ctx context.Context) (any, int, error) {
 	return &api.DynamicData{
 		Items: items,
 	}, len(items), nil
+}
+
+// excludeResources drops any resource whose annotation or label keys match the
+// configured exclusion patterns. This is distinct from redactList, which strips
+// matching keys from kept resources.
+func (g *DataGathererDynamic) excludeResources(list []*api.GatheredResource) []*api.GatheredResource {
+	if len(g.ExcludeAnnotKeys) == 0 && len(g.ExcludeLabelKeys) == 0 {
+		return list
+	}
+	result := list[:0]
+	for _, item := range list {
+		if !g.resourceMatchesExclusionKeys(item) {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+func (g *DataGathererDynamic) resourceMatchesExclusionKeys(item *api.GatheredResource) bool {
+	if res, ok := item.Resource.(*unstructured.Unstructured); ok {
+		return anyKeyMatches(res.GetAnnotations(), g.ExcludeAnnotKeys) ||
+			anyKeyMatches(res.GetLabels(), g.ExcludeLabelKeys)
+	}
+	return false
+}
+
+func anyKeyMatches(m map[string]string, patterns []*regexp.Regexp) bool {
+	for key := range m {
+		for _, p := range patterns {
+			if p.MatchString(key) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // redactList removes sensitive and superfluous data from the supplied resource list.

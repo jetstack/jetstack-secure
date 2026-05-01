@@ -300,6 +300,34 @@ label-selectors:
 		t.Errorf("LabelSelectors does not match: got=%+v want=%+v", got, want)
 	}
 }
+func TestUnmarshalDynamicConfig_ExclusionRegex(t *testing.T) {
+	// Verify that the per-gatherer excludeAnnotationKeysRegex and
+	// excludeLabelKeysRegex fields are parsed from YAML.
+	textCfg := `
+resource-type:
+  version: v1
+  resource: secrets
+excludeAnnotationKeysRegex:
+  - '^openshift\.io.*$'
+  - '^kapp\.k14s\.io/.*$'
+excludeLabelKeysRegex:
+  - '^company\.com/employee-id$'
+`
+	cfg := ConfigDynamic{}
+	if err := yaml.Unmarshal([]byte(textCfg), &cfg); err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+
+	expectedAnnot := []string{`^openshift\.io.*$`, `^kapp\.k14s\.io/.*$`}
+	expectedLabel := []string{`^company\.com/employee-id$`}
+
+	if got, expected := cfg.ExcludeAnnotationKeysRegex, expectedAnnot; !reflect.DeepEqual(got, expected) {
+		t.Errorf("ExcludeAnnotationKeysRegex: got=%v want=%v", got, expected)
+	}
+	if got, expected := cfg.ExcludeLabelKeysRegex, expectedLabel; !reflect.DeepEqual(got, expected) {
+		t.Errorf("ExcludeLabelKeysRegex: got=%v want=%v", got, expected)
+	}
+}
 
 func TestConfigDynamicValidate(t *testing.T) {
 	tests := []struct {
@@ -344,6 +372,20 @@ func TestConfigDynamicValidate(t *testing.T) {
 				FieldSelectors: []string{"foo"},
 			},
 			ExpectedError: "invalid field selector 0: invalid selector: 'foo'; can't understand 'foo'",
+		},
+		{
+			Config: ConfigDynamic{
+				GroupVersionResource:       schema.GroupVersionResource{Version: "v1", Resource: "secrets"},
+				ExcludeAnnotationKeysRegex: []string{`^[0-9$`},
+			},
+			ExpectedError: "invalid excludeAnnotationKeysRegex[0]",
+		},
+		{
+			Config: ConfigDynamic{
+				GroupVersionResource:  schema.GroupVersionResource{Version: "v1", Resource: "secrets"},
+				ExcludeLabelKeysRegex: []string{`^[0-9$`},
+			},
+			ExpectedError: "invalid excludeLabelKeysRegex[0]",
 		},
 	}
 
@@ -763,6 +805,48 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 				map[string]any{"prod": "true"},
 			)}},
 		},
+		"per-gatherer excludeAnnotationKeysRegex excludes matching resources entirely": {
+			// Resources annotated with openshift.io/* should not appear in the
+			// output at all, not just have those keys stripped.
+			config: ConfigDynamic{
+				GroupVersionResource:       schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+				ExcludeAnnotationKeysRegex: []string{`^openshift\.io.*$`},
+			},
+			addObjects: []*unstructured.Unstructured{
+				getObjectAnnot("v1", "Secret", "excluded", "ns",
+					map[string]any{"openshift.io/discovery": "ignore", "other": "kept"},
+					map[string]any{},
+				),
+				getObjectAnnot("v1", "Secret", "included", "ns",
+					map[string]any{"other": "kept"},
+					map[string]any{},
+				),
+			},
+			expected: []*api.GatheredResource{{Resource: getObjectAnnot("v1", "Secret", "included", "ns",
+				map[string]any{"other": "kept"},
+				map[string]any{},
+			)}},
+		},
+		"per-gatherer excludeLabelKeysRegex excludes matching resources entirely": {
+			config: ConfigDynamic{
+				GroupVersionResource:  schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+				ExcludeLabelKeysRegex: []string{`^discovery\.venafi\.com/exclude$`},
+			},
+			addObjects: []*unstructured.Unstructured{
+				getObjectAnnot("v1", "Secret", "excluded", "ns",
+					map[string]any{},
+					map[string]any{"discovery.venafi.com/exclude": "true", "other": "kept"},
+				),
+				getObjectAnnot("v1", "Secret", "included", "ns",
+					map[string]any{},
+					map[string]any{"other": "kept"},
+				),
+			},
+			expected: []*api.GatheredResource{{Resource: getObjectAnnot("v1", "Secret", "included", "ns",
+				map[string]any{},
+				map[string]any{"other": "kept"},
+			)}},
+		},
 	}
 
 	for name, tc := range tests {
@@ -965,6 +1049,55 @@ func compareEncryptedData(t *testing.T, privKey *stdrsa.PrivateKey, got *unstruc
 
 	// Remove encrypted data so that simple comparison works for other fields
 	unstructured.RemoveNestedField(got.Object, encryptedDataFieldName)
+}
+
+// TestExcludeAnnotKeys_ExcludesResourcesFromUpload verifies that resources
+// whose annotation keys match ExcludeAnnotKeys are dropped entirely from
+// Fetch() results, not just have those keys stripped.
+func TestExcludeAnnotKeys_ExcludesResourcesFromUpload(t *testing.T) {
+	ctx := t.Context()
+
+	gvrToListKind := map[schema.GroupVersionResource]string{
+		{Group: "", Version: "v1", Resource: "secrets"}: "UnstructuredList",
+	}
+
+	// "excluded" has a matching annotation key; "included" does not.
+	excluded := getObjectAnnot("v1", "Secret", "excluded", "ns",
+		map[string]any{"openshift.io/discovery": "ignore"},
+		map[string]any{},
+	)
+	included := getObjectAnnot("v1", "Secret", "included", "ns",
+		map[string]any{"other": "kept"},
+		map[string]any{},
+	)
+
+	cl := fake.NewSimpleDynamicClientWithCustomListKinds(
+		runtime.NewScheme(), gvrToListKind, excluded, included,
+	)
+
+	cfg := ConfigDynamic{
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
+	}
+	dg, err := cfg.newDataGathererWithClient(ctx, cl, nil)
+	require.NoError(t, err)
+
+	dgd := dg.(*DataGathererDynamic)
+	dgd.ExcludeAnnotKeys = []*regexp.Regexp{regexp.MustCompile(`^openshift\.io/.*$`)}
+
+	go func() { _ = dg.Run(ctx) }()
+	require.NoError(t, dgd.WaitForCacheSync(ctx))
+
+	res, count, err := dg.Fetch(ctx)
+	require.NoError(t, err)
+
+	data, ok := res.(*api.DynamicData)
+	require.True(t, ok)
+
+	assert.Equal(t, 1, count, "only the non-matching resource should be returned")
+	if assert.Len(t, data.Items, 1) {
+		got := data.Items[0].Resource.(*unstructured.Unstructured)
+		assert.Equal(t, "included", got.GetName(), "the resource with matching annotation key should be excluded")
+	}
 }
 
 func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
