@@ -73,7 +73,7 @@ spec:
             - "/etc/discovery-agent/config.yaml"
             - --ngts
             - --tsg-id
-            - {{ required "config.tsgID is required" .Values.config.tsgID | toString | quote }}
+            - {{ required "config.tsgID is required" .Values.config.tsgID | include "discovery-agent.stringOrNumber" | quote }}
             {{- with .Values.config.serverURL }}
             - --ngts-server-url
             - {{ . | quote }}
