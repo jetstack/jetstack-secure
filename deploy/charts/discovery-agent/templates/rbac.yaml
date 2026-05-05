@@ -110,3 +110,41 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "discovery-agent.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "discovery-agent.fullname" . }}-crd-reader
+  labels:
+    {{- include "discovery-agent.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+    - cert-manager.io
+    - cas-issuer.jetstack.io
+    - awspca.cert-manager.io
+    - jetstack.io
+    - firefly.venafi.com
+    - certmanager.step.sm
+    - cert-manager.k8s.cloudflare.com
+    - certmanager.freeipa.org
+    - ejbca-issuer.keyfactor.com
+    - networking.istio.io
+    - route.openshift.io
+    - admissionregistration.k8s.io
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "discovery-agent.fullname" . }}-crd-reader
+  labels:
+    {{- include "discovery-agent.labels" . | nindent 4 }}
+roleRef:
+  kind: ClusterRole
+  name: {{ include "discovery-agent.fullname" . }}-crd-reader
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "discovery-agent.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
