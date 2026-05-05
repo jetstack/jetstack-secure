@@ -76,3 +76,31 @@ data:
         resource-type:
           version: v1
           resource: pods
+    - kind: k8s-dynamic
+      name: k8s/certificates
+      config:
+        resource-type:
+          group: cert-manager.io
+          version: v1
+          resource: certificates
+    - kind: k8s-dynamic
+      name: k8s/certificaterequests
+      config:
+        resource-type:
+          group: cert-manager.io
+          version: v1
+          resource: certificaterequests
+    - kind: k8s-dynamic
+      name: k8s/issuers
+      config:
+        resource-type:
+          group: cert-manager.io
+          version: v1
+          resource: issuers
+    - kind: k8s-dynamic
+      name: k8s/clusterissuers
+      config:
+        resource-type:
+          group: cert-manager.io
+          version: v1
+          resource: clusterissuers
