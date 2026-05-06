@@ -99,12 +99,12 @@ spec:
                       type: object
                   type: object
                   x-kubernetes-map-type: atomic
-                firefly:
+                distributedIssuer:
                   properties:
                     accessToken:
                       description: |-
                         The list of steps to retrieve the Access Token that will be used to connect
-                        to Firefly.
+                        to the Distributed Issuer.
                       items:
                         properties:
                           hashicorpVaultLDAP:
@@ -144,9 +144,6 @@ spec:
                                 description: |-
                                   The login URL used for obtaining the Vault token. Example:
                                   /v1/auth/oidc/login
-                                type: string
-                              clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
                                 type: string
                               role:
                                 description: |-
@@ -192,6 +189,17 @@ spec:
                               - fields
                               - secretPath
                             type: object
+                          privateKeyJWT:
+                            description: |-
+                              PrivateKeyJWT is a SecretSource step that generates a JWT token signed by the input private key.
+                              This JWT can typically be used to authenticate to the NGTS Data Plane.
+                            properties:
+                              clientID:
+                                description: ClientID is the clientID that will be encoded in the "iss" and "sub" claims of the generated JWT.
+                                type: string
+                            required:
+                              - clientID
+                            type: object
                           secret:
                             description: |-
                               Secret is a SecretSource step meant to be the first step. It retrieves secret
@@ -219,7 +227,7 @@ spec:
                             properties:
                               audiences:
                                 description: |-
-                                  Audiences are the intendend audiences of the token. A recipient of a
+                                  Audiences are the intended audiences of the token. A recipient of a
                                   token must identify themself with an identifier in the list of
                                   audiences of the token, and otherwise should reject the token. A
                                   token issued for multiple audiences may be used to authenticate
@@ -256,8 +264,11 @@ spec:
                                   - UsernamePassword
                                   - JWT
                                 type: string
+                              clientID:
+                                description: ClientID is the clientID used to authenticate with TPP.
+                                type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: 'Deprecated: use clientID instead.'
                                 type: string
                               url:
                                 description: |-
@@ -286,10 +297,422 @@ spec:
                       type: array
                       x-kubernetes-list-type: atomic
                     url:
-                      description: The URL to connect to the Workload Identity Manager instance.
+                      description: The URL to connect to the Distributed Issuer instance.
                       type: string
                   required:
                     - url
+                  type: object
+                firefly:
+                  properties:
+                    accessToken:
+                      description: |-
+                        The list of steps to retrieve the Access Token that will be used to connect
+                        to the Distributed Issuer.
+                      items:
+                        properties:
+                          hashicorpVaultLDAP:
+                            description: |-
+                              HashicorpVaultLDAP is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              ldapPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/ldap/static-cred/:role_name
+                                  or
+                                  /v1/ldap/creds/:role_name
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - ldapPath
+                            type: object
+                          hashicorpVaultOAuth:
+                            description: |-
+                              HashicorpVaultOAuth is a SecretSource that relies on a prior SecretSource
+                              step to provide an OAuth token, which this step uses to authenticate to
+                              Vault. The output of this step is a Vault token. This step allows you to use
+                              the step `HashicorpVaultSecret` afterwards.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with HashiCorp Vault. The only supported value is "OIDC".
+                                enum:
+                                  - OIDC
+                                type: string
+                              authPath:
+                                description: |-
+                                  The login URL used for obtaining the Vault token. Example:
+                                  /v1/auth/oidc/login
+                                type: string
+                              role:
+                                description: |-
+                                  The role defined in Vault that we want to use when authenticating to
+                                  Vault.
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - authInputType
+                              - authPath
+                              - role
+                            type: object
+                          hashicorpVaultSecret:
+                            description: |-
+                              HashicorpVaultSecret is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The fields are Vault keys pointing to the secrets passed to the next
+                                  SecretSource step.
+
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
+                                  "password", you will want to set this field to `["username",
+                                  "password"]`. The username is expected to be given first, the password
+                                  second.
+                                items:
+                                  type: string
+                                type: array
+                              secretPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/secret/data/application-team-a/tpp-username-password
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - fields
+                              - secretPath
+                            type: object
+                          privateKeyJWT:
+                            description: |-
+                              PrivateKeyJWT is a SecretSource step that generates a JWT token signed by the input private key.
+                              This JWT can typically be used to authenticate to the NGTS Data Plane.
+                            properties:
+                              clientID:
+                                description: ClientID is the clientID that will be encoded in the "iss" and "sub" claims of the generated JWT.
+                                type: string
+                            required:
+                              - clientID
+                            type: object
+                          secret:
+                            description: |-
+                              Secret is a SecretSource step meant to be the first step. It retrieves secret
+                              values from a Kubernetes Secret, and passes them to the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The names of the fields we want to extract from the Kubernetes secret.
+                                  These fields are passed to the next step in the chain.
+                                items:
+                                  type: string
+                                type: array
+                              name:
+                                description: The name of the Kubernetes secret.
+                                type: string
+                            required:
+                              - fields
+                              - name
+                            type: object
+                          serviceAccountToken:
+                            description: |-
+                              ServiceAccountToken is a SecretSource step meant to be the first step. It
+                              uses the Kubernetes TokenRequest API to retrieve a token for a given service
+                              account, and passes it to the next step.
+                            properties:
+                              audiences:
+                                description: |-
+                                  Audiences are the intended audiences of the token. A recipient of a
+                                  token must identify themself with an identifier in the list of
+                                  audiences of the token, and otherwise should reject the token. A
+                                  token issued for multiple audiences may be used to authenticate
+                                  against any of the audiences listed but implies a high degree of
+                                  trust between the target audiences.
+                                items:
+                                  type: string
+                                type: array
+                              expirationSeconds:
+                                description: |-
+                                  ExpirationSeconds is the requested duration of validity of the request. The
+                                  token issuer may return a token with a different validity duration so a
+                                  client needs to check the 'expiration' field in a response.
+                                format: int64
+                                type: integer
+                              name:
+                                description: The name of the Kubernetes service account.
+                                type: string
+                            required:
+                              - audiences
+                              - name
+                            type: object
+                          tppOAuth:
+                            description: |-
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              step is meant to be the last step and requires a prior step that depends
+                              on the `authInputType`.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                enum:
+                                  - UsernamePassword
+                                  - JWT
+                                type: string
+                              clientID:
+                                description: ClientID is the clientID used to authenticate with TPP.
+                                type: string
+                              clientId:
+                                description: 'Deprecated: use clientID instead.'
+                                type: string
+                              url:
+                                description: |-
+                                  The URL to connect to the Certificate Manager, Self-Hosted instance. The two URLs
+                                  https://tpp.example.com and https://tpp.example.com/vedsdk are
+                                  equivalent. The ending `/vedsdk` is optional and is stripped out
+                                  by our client.
+                                  If not set, defaults to the URL defined at the top-level of the
+                                  TPP configuration.
+                                type: string
+                            required:
+                              - authInputType
+                            type: object
+                          vcpOAuth:
+                            description: |-
+                              VCPOAuth is a SecretSource step that authenticates to the
+                              Certificate Manager, SaaS. This step is meant to be the last step and requires a prior step
+                              that outputs a JWT token.
+                            properties:
+                              tenantID:
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager, SaaS.
+                                type: string
+                            type: object
+                        type: object
+                      maxItems: 50
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    url:
+                      description: The URL to connect to the Distributed Issuer instance.
+                      type: string
+                  required:
+                    - url
+                  type: object
+                ngts:
+                  properties:
+                    jwt:
+                      description: The list of steps to retrieve the JWT that will be used to connect to the NGTS Data Plane.
+                      items:
+                        properties:
+                          hashicorpVaultLDAP:
+                            description: |-
+                              HashicorpVaultLDAP is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              ldapPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/ldap/static-cred/:role_name
+                                  or
+                                  /v1/ldap/creds/:role_name
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - ldapPath
+                            type: object
+                          hashicorpVaultOAuth:
+                            description: |-
+                              HashicorpVaultOAuth is a SecretSource that relies on a prior SecretSource
+                              step to provide an OAuth token, which this step uses to authenticate to
+                              Vault. The output of this step is a Vault token. This step allows you to use
+                              the step `HashicorpVaultSecret` afterwards.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with HashiCorp Vault. The only supported value is "OIDC".
+                                enum:
+                                  - OIDC
+                                type: string
+                              authPath:
+                                description: |-
+                                  The login URL used for obtaining the Vault token. Example:
+                                  /v1/auth/oidc/login
+                                type: string
+                              role:
+                                description: |-
+                                  The role defined in Vault that we want to use when authenticating to
+                                  Vault.
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - authInputType
+                              - authPath
+                              - role
+                            type: object
+                          hashicorpVaultSecret:
+                            description: |-
+                              HashicorpVaultSecret is a SecretSource step that requires a Vault token in
+                              the previous step, either using a step `HashicorpVaultOAuth` or `Secret`. It
+                              then fetches the requested secrets from Vault for use in the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The fields are Vault keys pointing to the secrets passed to the next
+                                  SecretSource step.
+
+                                  Example 1 (TPP, username and password): imagining that you have stored
+                                  the username and password for TPP under the keys "username" and
+                                  "password", you will want to set this field to `["username",
+                                  "password"]`. The username is expected to be given first, the password
+                                  second.
+                                items:
+                                  type: string
+                                type: array
+                              secretPath:
+                                description: |-
+                                  The full HTTP path to the secret in Vault. Example:
+                                  /v1/secret/data/application-team-a/tpp-username-password
+                                type: string
+                              url:
+                                description: The URL to connect to your HashiCorp Vault instance.
+                                type: string
+                            required:
+                              - fields
+                              - secretPath
+                            type: object
+                          privateKeyJWT:
+                            description: |-
+                              PrivateKeyJWT is a SecretSource step that generates a JWT token signed by the input private key.
+                              This JWT can typically be used to authenticate to the NGTS Data Plane.
+                            properties:
+                              clientID:
+                                description: ClientID is the clientID that will be encoded in the "iss" and "sub" claims of the generated JWT.
+                                type: string
+                            required:
+                              - clientID
+                            type: object
+                          secret:
+                            description: |-
+                              Secret is a SecretSource step meant to be the first step. It retrieves secret
+                              values from a Kubernetes Secret, and passes them to the next step.
+                            properties:
+                              fields:
+                                description: |-
+                                  The names of the fields we want to extract from the Kubernetes secret.
+                                  These fields are passed to the next step in the chain.
+                                items:
+                                  type: string
+                                type: array
+                              name:
+                                description: The name of the Kubernetes secret.
+                                type: string
+                            required:
+                              - fields
+                              - name
+                            type: object
+                          serviceAccountToken:
+                            description: |-
+                              ServiceAccountToken is a SecretSource step meant to be the first step. It
+                              uses the Kubernetes TokenRequest API to retrieve a token for a given service
+                              account, and passes it to the next step.
+                            properties:
+                              audiences:
+                                description: |-
+                                  Audiences are the intended audiences of the token. A recipient of a
+                                  token must identify themself with an identifier in the list of
+                                  audiences of the token, and otherwise should reject the token. A
+                                  token issued for multiple audiences may be used to authenticate
+                                  against any of the audiences listed but implies a high degree of
+                                  trust between the target audiences.
+                                items:
+                                  type: string
+                                type: array
+                              expirationSeconds:
+                                description: |-
+                                  ExpirationSeconds is the requested duration of validity of the request. The
+                                  token issuer may return a token with a different validity duration so a
+                                  client needs to check the 'expiration' field in a response.
+                                format: int64
+                                type: integer
+                              name:
+                                description: The name of the Kubernetes service account.
+                                type: string
+                            required:
+                              - audiences
+                              - name
+                            type: object
+                          tppOAuth:
+                            description: |-
+                              TPPOAuth is a SecretSource step that authenticates to a TPP server. This
+                              step is meant to be the last step and requires a prior step that depends
+                              on the `authInputType`.
+                            properties:
+                              authInputType:
+                                description: |-
+                                  AuthInputType is the authentication method to be used to authenticate
+                                  with TPP. The supported values are "UsernamePassword" and "JWT".
+                                enum:
+                                  - UsernamePassword
+                                  - JWT
+                                type: string
+                              clientID:
+                                description: ClientID is the clientID used to authenticate with TPP.
+                                type: string
+                              clientId:
+                                description: 'Deprecated: use clientID instead.'
+                                type: string
+                              url:
+                                description: |-
+                                  The URL to connect to the Certificate Manager, Self-Hosted instance. The two URLs
+                                  https://tpp.example.com and https://tpp.example.com/vedsdk are
+                                  equivalent. The ending `/vedsdk` is optional and is stripped out
+                                  by our client.
+                                  If not set, defaults to the URL defined at the top-level of the
+                                  TPP configuration.
+                                type: string
+                            required:
+                              - authInputType
+                            type: object
+                          vcpOAuth:
+                            description: |-
+                              VCPOAuth is a SecretSource step that authenticates to the
+                              Certificate Manager, SaaS. This step is meant to be the last step and requires a prior step
+                              that outputs a JWT token.
+                            properties:
+                              tenantID:
+                                description: TenantID is the tenant ID used to authenticate with Certificate Manager, SaaS.
+                                type: string
+                            type: object
+                        type: object
+                      maxItems: 50
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    tsgID:
+                      description: |-
+                        The TSGID of the NGTS instance to connect to.
+                        This is a required field when URL is not set, and is used to construct the default URL in
+                        the format https://<tsgID>.ngts.paloaltonetworks.com
+                      type: string
+                    url:
+                      description: |-
+                        The URL to connect to the NGTS Data Plane. If not set, the default
+                        value https://<tsgID>.ngts.paloaltonetworks.com is used.
+                      type: string
+                  required:
+                    - jwt
                   type: object
                 tpp:
                   properties:
@@ -335,9 +758,6 @@ spec:
                                   The login URL used for obtaining the Vault token. Example:
                                   /v1/auth/oidc/login
                                 type: string
-                              clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
-                                type: string
                               role:
                                 description: |-
                                   The role defined in Vault that we want to use when authenticating to
@@ -382,6 +802,17 @@ spec:
                               - fields
                               - secretPath
                             type: object
+                          privateKeyJWT:
+                            description: |-
+                              PrivateKeyJWT is a SecretSource step that generates a JWT token signed by the input private key.
+                              This JWT can typically be used to authenticate to the NGTS Data Plane.
+                            properties:
+                              clientID:
+                                description: ClientID is the clientID that will be encoded in the "iss" and "sub" claims of the generated JWT.
+                                type: string
+                            required:
+                              - clientID
+                            type: object
                           secret:
                             description: |-
                               Secret is a SecretSource step meant to be the first step. It retrieves secret
@@ -409,7 +840,7 @@ spec:
                             properties:
                               audiences:
                                 description: |-
-                                  Audiences are the intendend audiences of the token. A recipient of a
+                                  Audiences are the intended audiences of the token. A recipient of a
                                   token must identify themself with an identifier in the list of
                                   audiences of the token, and otherwise should reject the token. A
                                   token issued for multiple audiences may be used to authenticate
@@ -446,8 +877,11 @@ spec:
                                   - UsernamePassword
                                   - JWT
                                 type: string
+                              clientID:
+                                description: ClientID is the clientID used to authenticate with TPP.
+                                type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: 'Deprecated: use clientID instead.'
                                 type: string
                               url:
                                 description: |-
@@ -483,6 +917,7 @@ spec:
                         venafi-connection-lib.
                       type: string
                   required:
+                    - accessToken
                     - url
                   type: object
                 vaas:
@@ -532,9 +967,6 @@ spec:
                                   The login URL used for obtaining the Vault token. Example:
                                   /v1/auth/oidc/login
                                 type: string
-                              clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
-                                type: string
                               role:
                                 description: |-
                                   The role defined in Vault that we want to use when authenticating to
@@ -579,6 +1011,17 @@ spec:
                               - fields
                               - secretPath
                             type: object
+                          privateKeyJWT:
+                            description: |-
+                              PrivateKeyJWT is a SecretSource step that generates a JWT token signed by the input private key.
+                              This JWT can typically be used to authenticate to the NGTS Data Plane.
+                            properties:
+                              clientID:
+                                description: ClientID is the clientID that will be encoded in the "iss" and "sub" claims of the generated JWT.
+                                type: string
+                            required:
+                              - clientID
+                            type: object
                           secret:
                             description: |-
                               Secret is a SecretSource step meant to be the first step. It retrieves secret
@@ -606,7 +1049,7 @@ spec:
                             properties:
                               audiences:
                                 description: |-
-                                  Audiences are the intendend audiences of the token. A recipient of a
+                                  Audiences are the intended audiences of the token. A recipient of a
                                   token must identify themself with an identifier in the list of
                                   audiences of the token, and otherwise should reject the token. A
                                   token issued for multiple audiences may be used to authenticate
@@ -643,8 +1086,11 @@ spec:
                                   - UsernamePassword
                                   - JWT
                                 type: string
+                              clientID:
+                                description: ClientID is the clientID used to authenticate with TPP.
+                                type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: 'Deprecated: use clientID instead.'
                                 type: string
                               url:
                                 description: |-
@@ -716,9 +1162,6 @@ spec:
                                   The login URL used for obtaining the Vault token. Example:
                                   /v1/auth/oidc/login
                                 type: string
-                              clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
-                                type: string
                               role:
                                 description: |-
                                   The role defined in Vault that we want to use when authenticating to
@@ -763,6 +1206,17 @@ spec:
                               - fields
                               - secretPath
                             type: object
+                          privateKeyJWT:
+                            description: |-
+                              PrivateKeyJWT is a SecretSource step that generates a JWT token signed by the input private key.
+                              This JWT can typically be used to authenticate to the NGTS Data Plane.
+                            properties:
+                              clientID:
+                                description: ClientID is the clientID that will be encoded in the "iss" and "sub" claims of the generated JWT.
+                                type: string
+                            required:
+                              - clientID
+                            type: object
                           secret:
                             description: |-
                               Secret is a SecretSource step meant to be the first step. It retrieves secret
@@ -790,7 +1244,7 @@ spec:
                             properties:
                               audiences:
                                 description: |-
-                                  Audiences are the intendend audiences of the token. A recipient of a
+                                  Audiences are the intended audiences of the token. A recipient of a
                                   token must identify themself with an identifier in the list of
                                   audiences of the token, and otherwise should reject the token. A
                                   token issued for multiple audiences may be used to authenticate
@@ -827,8 +1281,11 @@ spec:
                                   - UsernamePassword
                                   - JWT
                                 type: string
+                              clientID:
+                                description: ClientID is the clientID used to authenticate with TPP.
+                                type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: 'Deprecated: use clientID instead.'
                                 type: string
                               url:
                                 description: |-
@@ -908,9 +1365,6 @@ spec:
                                   The login URL used for obtaining the Vault token. Example:
                                   /v1/auth/oidc/login
                                 type: string
-                              clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
-                                type: string
                               role:
                                 description: |-
                                   The role defined in Vault that we want to use when authenticating to
@@ -955,6 +1409,17 @@ spec:
                               - fields
                               - secretPath
                             type: object
+                          privateKeyJWT:
+                            description: |-
+                              PrivateKeyJWT is a SecretSource step that generates a JWT token signed by the input private key.
+                              This JWT can typically be used to authenticate to the NGTS Data Plane.
+                            properties:
+                              clientID:
+                                description: ClientID is the clientID that will be encoded in the "iss" and "sub" claims of the generated JWT.
+                                type: string
+                            required:
+                              - clientID
+                            type: object
                           secret:
                             description: |-
                               Secret is a SecretSource step meant to be the first step. It retrieves secret
@@ -982,7 +1447,7 @@ spec:
                             properties:
                               audiences:
                                 description: |-
-                                  Audiences are the intendend audiences of the token. A recipient of a
+                                  Audiences are the intended audiences of the token. A recipient of a
                                   token must identify themself with an identifier in the list of
                                   audiences of the token, and otherwise should reject the token. A
                                   token issued for multiple audiences may be used to authenticate
@@ -1019,8 +1484,11 @@ spec:
                                   - UsernamePassword
                                   - JWT
                                 type: string
+                              clientID:
+                                description: ClientID is the clientID used to authenticate with TPP.
+                                type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: 'Deprecated: use clientID instead.'
                                 type: string
                               url:
                                 description: |-
@@ -1092,9 +1560,6 @@ spec:
                                   The login URL used for obtaining the Vault token. Example:
                                   /v1/auth/oidc/login
                                 type: string
-                              clientId:
-                                description: 'Deprecated: This field does nothing and will be removed in the future.'
-                                type: string
                               role:
                                 description: |-
                                   The role defined in Vault that we want to use when authenticating to
@@ -1139,6 +1604,17 @@ spec:
                               - fields
                               - secretPath
                             type: object
+                          privateKeyJWT:
+                            description: |-
+                              PrivateKeyJWT is a SecretSource step that generates a JWT token signed by the input private key.
+                              This JWT can typically be used to authenticate to the NGTS Data Plane.
+                            properties:
+                              clientID:
+                                description: ClientID is the clientID that will be encoded in the "iss" and "sub" claims of the generated JWT.
+                                type: string
+                            required:
+                              - clientID
+                            type: object
                           secret:
                             description: |-
                               Secret is a SecretSource step meant to be the first step. It retrieves secret
@@ -1166,7 +1642,7 @@ spec:
                             properties:
                               audiences:
                                 description: |-
-                                  Audiences are the intendend audiences of the token. A recipient of a
+                                  Audiences are the intended audiences of the token. A recipient of a
                                   token must identify themself with an identifier in the list of
                                   audiences of the token, and otherwise should reject the token. A
                                   token issued for multiple audiences may be used to authenticate
@@ -1203,8 +1679,11 @@ spec:
                                   - UsernamePassword
                                   - JWT
                                 type: string
+                              clientID:
+                                description: ClientID is the clientID used to authenticate with TPP.
+                                type: string
                               clientId:
-                                description: ClientID is the clientId used to authenticate with TPP.
+                                description: 'Deprecated: use clientID instead.'
                                 type: string
                               url:
                                 description: |-
