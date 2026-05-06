@@ -3,15 +3,6 @@ templates:
   - rbac.yaml
 
 tests:
-  # Test that all RBAC resources are created
-  - it: should create all RBAC resources
-    set:
-      config.clusterName: test-cluster
-      config.tsgID: "123456"
-    asserts:
-      - hasDocuments:
-          count: 8
-
   # Test Role for event emission
   - it: should create Role for event emission
     set:
@@ -181,3 +172,59 @@ tests:
       - equal:
           path: roleRef.name
           value: system:service-account-issuer-discovery
+
+  # Test ClusterRole for CRD reader
+  - it: should create ClusterRole for CRD reader
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+    documentIndex: 8
+    asserts:
+      - isKind:
+          of: ClusterRole
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-discovery-agent-crd-reader
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - cert-manager.io
+              - cas-issuer.jetstack.io
+              - awspca.cert-manager.io
+              - jetstack.io
+              - firefly.venafi.com
+              - certmanager.step.sm
+              - cert-manager.k8s.cloudflare.com
+              - certmanager.freeipa.org
+              - ejbca-issuer.keyfactor.com
+              - networking.istio.io
+              - route.openshift.io
+              - admissionregistration.k8s.io
+            resources: ["*"]
+            verbs: ["get", "list", "watch"]
+
+  # Test ClusterRoleBinding for CRD reader
+  - it: should create ClusterRoleBinding for CRD reader
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+    documentIndex: 9
+    asserts:
+      - isKind:
+          of: ClusterRoleBinding
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-discovery-agent-crd-reader
+      - equal:
+          path: roleRef.kind
+          value: ClusterRole
+      - equal:
+          path: roleRef.name
+          value: RELEASE-NAME-discovery-agent-crd-reader
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: RELEASE-NAME-discovery-agent
+            namespace: NAMESPACE
