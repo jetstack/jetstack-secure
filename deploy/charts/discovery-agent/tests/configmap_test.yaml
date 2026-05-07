@@ -71,6 +71,38 @@ tests:
           path: data["config.yaml"]
           pattern: '\^helm\\\.sh/\.\*'
 
+  # Test claimable certs when enabled
+  - it: "should include 'claimable_certs: true' when claimableCerts is true"
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      config.claimableCerts: true
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'claimable_certs: true'
+
+  # Test claimable certs when disabled
+  - it: "should not include 'claimable_certs' when claimableCerts is false"
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      config.claimableCerts: false
+    asserts:
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: 'claimable_certs'
+
+  # Test claimable certs default
+  - it: "should not include 'claimable_certs' when claimableCerts is unset"
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+    asserts:
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: 'claimable_certs'
+
   # Test data-gatherers are present
   - it: should include all data-gatherers
     set:
