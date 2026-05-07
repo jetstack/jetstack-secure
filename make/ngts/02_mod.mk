@@ -61,3 +61,19 @@ ngts-generate:
 		helm_chart_source_dir=deploy/charts/discovery-agent
 
 shared_generate_targets += ngts-generate
+
+.PHONY: list-discovery-resources
+## Dump all discovery-agent k8s-dynamic resource types to a markdown list
+## @category NGTS Discovery Agent
+list-discovery-resources: $(NEEDS_HELM) $(NEEDS_YQ)
+	@# First, template out the chart using dummy values for the required values
+	@# Then extract config.yaml, and extract all "k8s-dynamic" data gatherers
+	@# Then print "- [group/]version resource" with the first letter of resource captialised in awk
+	@$(HELM) template discovery-agent deploy/charts/discovery-agent \
+		--set-string config.tsgID=1234123412 \
+		--set config.clusterName=foo | \
+		$(YQ) '.data."config.yaml"' | \
+		$(YQ) '.data-gatherers[] | select(.kind == "k8s-dynamic") | .config.resource-type' -o json | \
+		jq -r 'if .group then "\(.group)/\(.version) \(.resource)" else "\(.version) \(.resource)" end' | \
+		awk '{$$NF = toupper(substr($$NF,1,1)) substr($$NF,2); print "- " $$0}' | \
+		sort
