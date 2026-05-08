@@ -78,7 +78,7 @@ tests:
   # Check the volumes and volumeMounts works correctly
   - it: Volumes and VolumeMounts added correctly
     values:
-      - ./values/custom-volumes.yaml
+      - ../test-values/custom-volumes.yaml
     asserts:
       - isKind:
           of: Deployment
