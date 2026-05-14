@@ -196,8 +196,8 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 
 		dynDg, isDynamicGatherer := newDg.(*k8sdynamic.DataGathererDynamic)
 		if isDynamicGatherer {
-			dynDg.ExcludeAnnotKeys = config.ExcludeAnnotationKeysRegex
-			dynDg.ExcludeLabelKeys = config.ExcludeLabelKeysRegex
+			dynDg.ExcludeAnnotKeys = append(dynDg.ExcludeAnnotKeys, config.ExcludeAnnotationKeysRegex...)
+			dynDg.ExcludeLabelKeys = append(dynDg.ExcludeLabelKeys, config.ExcludeLabelKeysRegex...)
 
 			gvr := dynDg.GVR()
 
