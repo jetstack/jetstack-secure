@@ -4,13 +4,13 @@ module github.com/jetstack/preflight
 go 1.26.0
 
 require (
-	github.com/Venafi/vcert/v5 v5.13.1
+	github.com/Venafi/vcert/v5 v5.13.2
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/fatih/color v1.19.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/jetstack/venafi-connection-lib v0.6.0
-	github.com/lestrrat-go/jwx/v3 v3.1.0
+	github.com/lestrrat-go/jwx/v3 v3.1.1
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pmylund/go-cache v2.1.0+incompatible
 	github.com/prometheus/client_golang v1.23.2
@@ -19,11 +19,11 @@ require (
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/sync v0.20.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.36.0
-	k8s.io/apimachinery v0.36.0
-	k8s.io/client-go v0.36.0
-	k8s.io/component-base v0.36.0
-	sigs.k8s.io/controller-runtime v0.24.0
+	k8s.io/api v0.36.1
+	k8s.io/apimachinery v0.36.1
+	k8s.io/client-go v0.36.1
+	k8s.io/component-base v0.36.1
+	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -56,6 +56,7 @@ require (
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/sosodev/duration v1.4.0 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
+	github.com/valyala/fastjson v1.6.10 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.30 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
