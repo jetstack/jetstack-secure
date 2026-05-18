@@ -319,7 +319,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--client-id", "5bc7d07c-45da-11ef-a878-523f1e1d7de1", "--private-key-path", privKeyPath, "--venafi-cloud"),
 		)
 		require.NoError(t, err)
-		assert.Equal(t, VenafiCloudKeypair, got.AuthMode)
+		assert.Equal(t, VenafiCloudKeypair, got.OutputMode)
 		assert.IsType(t, &client.VenafiCloudClient{}, cl)
 	})
 
