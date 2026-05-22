@@ -177,7 +177,10 @@ config:
   # to avoid YAML parsing issues with `\.`.
   #
   # Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
-  excludeAnnotationKeysRegex: []
+  excludeAnnotationKeysRegex:
+    - '^kapp\.k14s\.io/original$'
+    - '^objectset\.rio\.cattle\.io/applied$'
+    - '^banzaicloud\.com/last-applied$'
   excludeLabelKeysRegex: []
 
   # A human readable name for the cluster where the agent is deployed (optional).
