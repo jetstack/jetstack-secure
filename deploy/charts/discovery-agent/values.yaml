@@ -36,10 +36,7 @@ config:
   # to avoid YAML parsing issues with `\.`.
   #
   # Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
-  excludeAnnotationKeysRegex:
-    - '^kapp\.k14s\.io/original$'
-    - '^objectset\.rio\.cattle\.io/applied$'
-    - '^banzaicloud\.com/last-applied$'
+  excludeAnnotationKeysRegex: []
   excludeLabelKeysRegex: []
 
   # Deprecated: Client ID for the configured service account.
