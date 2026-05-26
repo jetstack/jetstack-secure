@@ -381,6 +381,10 @@ type DataGathererDynamic struct {
 	// Encryptor, if non-nil, will be used to envelope encrypt Secret data.
 	// If nil, Secret data will be redacted.
 	Encryptor envelope.Encryptor
+
+	// IncludeLastModifiedTime, if true, extracts the most recent time from
+	// metadata.managedFields and includes it as _lastModifiedTime on Secrets.
+	IncludeLastModifiedTime bool
 }
 
 func (g *DataGathererDynamic) GVR() schema.GroupVersionResource {
@@ -555,7 +559,9 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 						}
 					}
 
-					setLastModifiedTime(resource)
+					if g.IncludeLastModifiedTime {
+						setLastModifiedTime(resource)
+					}
 
 					// Redact to only selected fields
 					if err := Select(secretSelectedFields, resource); err != nil {
@@ -630,7 +636,8 @@ func setLastModifiedTime(resource *unstructured.Unstructured) {
 		return
 	}
 
-	var latestTime string
+	var latestTime time.Time
+	var latestTimeStr string
 	for _, entry := range managedFieldsRaw {
 		entryMap, ok := entry.(map[string]any)
 		if !ok {
@@ -640,16 +647,21 @@ func setLastModifiedTime(resource *unstructured.Unstructured) {
 		if !ok || timeVal == "" {
 			continue
 		}
-		if timeVal > latestTime {
-			latestTime = timeVal
+		parsed, err := time.Parse(time.RFC3339, timeVal)
+		if err != nil {
+			continue
+		}
+		if parsed.After(latestTime) {
+			latestTime = parsed
+			latestTimeStr = timeVal
 		}
 	}
 
-	if latestTime == "" {
+	if latestTimeStr == "" {
 		return
 	}
 
-	_ = unstructured.SetNestedField(resource.Object, latestTime, lastModifiedTimeFieldName)
+	_ = unstructured.SetNestedField(resource.Object, latestTimeStr, lastModifiedTimeFieldName)
 }
 
 // encryptDataField encrypts the `data` field of the given secret and stores the encrypted data

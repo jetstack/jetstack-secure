@@ -33,7 +33,7 @@ func TestSelect(t *testing.T) {
 				"finalizers":                 []string{"example.com/fake-finalizer"},
 				"generation":                 11,
 			},
-			"type":               "kubernetes.io/tls",
+			"type":              "kubernetes.io/tls",
 			"_lastModifiedTime": "2025-08-15T00:00:01Z",
 			"data": map[string]any{
 				"tls.crt":    "cert data",
@@ -61,7 +61,7 @@ func TestSelect(t *testing.T) {
 				"creationTimestamp": "2025-08-15T00:00:01Z",
 				"deletionTimestamp": "2025-08-15T00:00:02Z",
 			},
-			"type":               "kubernetes.io/tls",
+			"type":              "kubernetes.io/tls",
 			"_lastModifiedTime": "2025-08-15T00:00:01Z",
 			"data": map[string]any{
 				// The "tls.key" is ignored.
