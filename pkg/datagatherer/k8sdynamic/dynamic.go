@@ -555,6 +555,8 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 						}
 					}
 
+					setLastModifiedTime(resource)
+
 					// Redact to only selected fields
 					if err := Select(secretSelectedFields, resource); err != nil {
 						return err
@@ -616,6 +618,39 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 const encryptedDataFieldName = "_encryptedData"
 
 var encryptedDataField = FieldPath{encryptedDataFieldName}
+
+const lastModifiedTimeFieldName = "_lastModifiedTime"
+
+// setLastModifiedTime extracts the most recent time from metadata.managedFields
+// and sets it as a top-level synthetic field on the resource.
+// This must be called before Select(), which removes managedFields.
+func setLastModifiedTime(resource *unstructured.Unstructured) {
+	managedFieldsRaw, found, err := unstructured.NestedSlice(resource.Object, "metadata", "managedFields")
+	if err != nil || !found || len(managedFieldsRaw) == 0 {
+		return
+	}
+
+	var latestTime string
+	for _, entry := range managedFieldsRaw {
+		entryMap, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		timeVal, ok := entryMap["time"].(string)
+		if !ok || timeVal == "" {
+			continue
+		}
+		if timeVal > latestTime {
+			latestTime = timeVal
+		}
+	}
+
+	if latestTime == "" {
+		return
+	}
+
+	_ = unstructured.SetNestedField(resource.Object, latestTime, lastModifiedTimeFieldName)
+}
 
 // encryptDataField encrypts the `data` field of the given secret and stores the encrypted data
 // in a new field with the name of [encryptedDataFieldName]. The original `data` field is left unchanged, on the

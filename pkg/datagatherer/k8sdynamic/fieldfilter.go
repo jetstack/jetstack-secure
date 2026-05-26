@@ -30,6 +30,7 @@ var SecretSelectedFields = []FieldPath{
 	{"data", "tls.crt"},
 	{"data", "ca.crt"},
 	{"data", "conjur-map"},
+	{lastModifiedTimeFieldName},
 }
 
 // RouteSelectedFields is the list of fields sent from OpenShift Route objects to the

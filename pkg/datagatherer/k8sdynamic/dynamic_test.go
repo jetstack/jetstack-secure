@@ -1828,3 +1828,134 @@ func TestValidate_CombinedSelectors(t *testing.T) {
 		})
 	}
 }
+
+func TestSetLastModifiedTime(t *testing.T) {
+	tests := []struct {
+		name     string
+		resource *unstructured.Unstructured
+		expected string
+	}{
+		{
+			name: "picks latest time from multiple entries",
+			resource: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]any{
+						"name":      "my-secret",
+						"namespace": "default",
+						"managedFields": []any{
+							map[string]any{
+								"manager":   "kubectl",
+								"operation": "Apply",
+								"time":      "2025-01-10T10:00:00Z",
+							},
+							map[string]any{
+								"manager":   "kubectl",
+								"operation": "Update",
+								"time":      "2026-05-19T17:06:59Z",
+							},
+							map[string]any{
+								"manager":   "kube-controller-manager",
+								"operation": "Update",
+								"time":      "2025-06-01T12:00:00Z",
+							},
+						},
+					},
+				},
+			},
+			expected: "2026-05-19T17:06:59Z",
+		},
+		{
+			name: "single entry",
+			resource: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]any{
+						"name":      "my-secret",
+						"namespace": "default",
+						"managedFields": []any{
+							map[string]any{
+								"manager":   "kubectl",
+								"operation": "Apply",
+								"time":      "2025-03-15T08:30:00Z",
+							},
+						},
+					},
+				},
+			},
+			expected: "2025-03-15T08:30:00Z",
+		},
+		{
+			name: "no managedFields - field not set",
+			resource: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]any{
+						"name":      "my-secret",
+						"namespace": "default",
+					},
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "empty managedFields - field not set",
+			resource: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]any{
+						"name":          "my-secret",
+						"namespace":     "default",
+						"managedFields": []any{},
+					},
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "entries without time field are skipped",
+			resource: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]any{
+						"name":      "my-secret",
+						"namespace": "default",
+						"managedFields": []any{
+							map[string]any{
+								"manager":   "kubectl",
+								"operation": "Apply",
+							},
+							map[string]any{
+								"manager":   "kubectl",
+								"operation": "Update",
+								"time":      "2025-11-20T15:00:00Z",
+							},
+						},
+					},
+				},
+			},
+			expected: "2025-11-20T15:00:00Z",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setLastModifiedTime(tt.resource)
+
+			val, found, err := unstructured.NestedString(tt.resource.Object, lastModifiedTimeFieldName)
+			require.NoError(t, err)
+
+			if tt.expected == "" {
+				assert.False(t, found, "expected _lastModifiedTime to not be set")
+			} else {
+				assert.True(t, found, "expected _lastModifiedTime to be set")
+				assert.Equal(t, tt.expected, val)
+			}
+		})
+	}
+}
