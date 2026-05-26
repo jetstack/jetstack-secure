@@ -70,10 +70,16 @@ var RouteSelectedFields = []FieldPath{
 	{"status"},
 }
 
-// RedactFields are removed from all objects
+// RedactFields are removed from all objects.
+// Includes known GitOps tool annotations that store a full copy of the original
+// manifest (including Secret .data) to prevent private key material leaking via
+// the annotation channel.
 var RedactFields = []FieldPath{
 	{"metadata", "managedFields"},
 	{"metadata", "annotations", "kubectl.kubernetes.io/last-applied-configuration"},
+	{"metadata", "annotations", "kapp.k14s.io/original"},
+	{"metadata", "annotations", "objectset.rio.cattle.io/applied"},
+	{"metadata", "annotations", "banzaicloud.com/last-applied"},
 }
 
 type FieldPath []string
