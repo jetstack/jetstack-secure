@@ -329,6 +329,35 @@ func TestRedactPod(t *testing.T) {
 	assert.Equal(t, expectedJSON, string(bytes))
 }
 
+func TestRedactGitOpsAnnotations(t *testing.T) {
+	resource := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]any{
+				"name":      "example",
+				"namespace": "example",
+				"annotations": map[string]any{
+					"kapp.k14s.io/original":                            `{"data":{"tls.key":"c2VjcmV0"}}`,
+					"objectset.rio.cattle.io/applied":                  `{"data":{"tls.key":"c2VjcmV0"}}`,
+					"banzaicloud.com/last-applied":                     `{"data":{"tls.key":"c2VjcmV0"}}`,
+					"kubectl.kubernetes.io/last-applied-configuration": `{"data":{"tls.key":"c2VjcmV0"}}`,
+					"safe-annotation":                                  "keep-me",
+				},
+			},
+		},
+	}
+
+	Redact(RedactFields, resource)
+
+	annotations := resource.GetAnnotations()
+	assert.NotContains(t, annotations, "kapp.k14s.io/original")
+	assert.NotContains(t, annotations, "objectset.rio.cattle.io/applied")
+	assert.NotContains(t, annotations, "banzaicloud.com/last-applied")
+	assert.NotContains(t, annotations, "kubectl.kubernetes.io/last-applied-configuration")
+	assert.Equal(t, "keep-me", annotations["safe-annotation"])
+}
+
 func TestRedactMissingField(t *testing.T) {
 	resource := &unstructured.Unstructured{
 		Object: map[string]any{
