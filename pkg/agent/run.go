@@ -205,6 +205,11 @@ func Run(cmd *cobra.Command, args []string) (returnErr error) {
 				log.Info("Secret encryption enabled for datagatherer")
 				dynDg.Encryptor = encryptor
 			}
+
+			_, isCyberArk := preflightClient.(*client.CyberArkClient)
+			if isCyberArk && gvr.Resource == "secrets" && gvr.Group == "" {
+				dynDg.IncludeLastModifiedTime = true
+			}
 		}
 
 		log.V(logs.Debug).Info("Starting DataGatherer", "name", dgConfig.Name)

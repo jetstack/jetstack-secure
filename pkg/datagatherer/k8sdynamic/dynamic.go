@@ -381,6 +381,10 @@ type DataGathererDynamic struct {
 	// Encryptor, if non-nil, will be used to envelope encrypt Secret data.
 	// If nil, Secret data will be redacted.
 	Encryptor envelope.Encryptor
+
+	// IncludeLastModifiedTime, if true, extracts the most recent time from
+	// metadata.managedFields and includes it as _lastModifiedTime on Secrets.
+	IncludeLastModifiedTime bool
 }
 
 func (g *DataGathererDynamic) GVR() schema.GroupVersionResource {
@@ -555,6 +559,10 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 						}
 					}
 
+					if g.IncludeLastModifiedTime {
+						setLastModifiedTime(resource)
+					}
+
 					// Redact to only selected fields
 					if err := Select(secretSelectedFields, resource); err != nil {
 						return err
@@ -616,6 +624,45 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 const encryptedDataFieldName = "_encryptedData"
 
 var encryptedDataField = FieldPath{encryptedDataFieldName}
+
+const lastModifiedTimeFieldName = "_lastModifiedTime"
+
+// setLastModifiedTime extracts the most recent time from metadata.managedFields
+// and sets it as a top-level synthetic field on the resource.
+// This must be called before Select(), which removes managedFields.
+func setLastModifiedTime(resource *unstructured.Unstructured) {
+	managedFieldsRaw, found, err := unstructured.NestedSlice(resource.Object, "metadata", "managedFields")
+	if err != nil || !found || len(managedFieldsRaw) == 0 {
+		return
+	}
+
+	var latestTime time.Time
+	var latestTimeStr string
+	for _, entry := range managedFieldsRaw {
+		entryMap, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		timeVal, ok := entryMap["time"].(string)
+		if !ok || timeVal == "" {
+			continue
+		}
+		parsed, err := time.Parse(time.RFC3339, timeVal)
+		if err != nil {
+			continue
+		}
+		if parsed.After(latestTime) {
+			latestTime = parsed
+			latestTimeStr = timeVal
+		}
+	}
+
+	if latestTimeStr == "" {
+		return
+	}
+
+	_ = unstructured.SetNestedField(resource.Object, latestTimeStr, lastModifiedTimeFieldName)
+}
 
 // encryptDataField encrypts the `data` field of the given secret and stores the encrypted data
 // in a new field with the name of [encryptedDataFieldName]. The original `data` field is left unchanged, on the
