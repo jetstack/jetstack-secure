@@ -1,6 +1,8 @@
 # Configuration for the Discovery Agent
 config:
-  # Required: The TSG (Tenant Service Group) ID to use when connecting to SCM.
+  # The TSG (Tenant Service Group) ID to use when connecting to SCM.
+  # The production SCM server URL is derived from this value.
+  # Required unless config.serverURL is set. Mutually exclusive with config.serverURL.
   # +docs:property
   # +docs:type=number,string
   tsgID: ""
@@ -61,8 +63,9 @@ config:
   secretName: discovery-agent-credentials
 
   # Explicit SCM server URL (optional).
-  # If not set, a production SCM server URL will be created based on the TSG ID.
+  # If not set, the production SCM server URL is derived from config.tsgID.
   # This value is intended for development purposes only and should not be set in production.
+  # Mutually exclusive with config.tsgID.
   # +docs:hidden
   serverURL: ""
 

@@ -51,25 +51,46 @@ func TestNewNGTSClient(t *testing.T) {
 		errContains string
 	}{
 		{
-			name: "valid credentials and tsg id",
+			name: "valid credentials with baseURL only",
 			credentials: &NGTSServiceAccountCredentials{
 				ClientID:       "test-client-id",
 				PrivateKeyFile: keyFile,
 			},
 			baseURL: "https://test.ngts.example.com",
+			tsgID:   "",
+			wantErr: false,
+		},
+		{
+			name: "valid credentials with tsgID only",
+			credentials: &NGTSServiceAccountCredentials{
+				ClientID:       "test-client-id",
+				PrivateKeyFile: keyFile,
+			},
+			baseURL: "",
 			tsgID:   "test-tsg-id",
 			wantErr: false,
 		},
 		{
-			name: "missing tsg id",
+			name: "tsgID and baseURL are mutually exclusive",
 			credentials: &NGTSServiceAccountCredentials{
 				ClientID:       "test-client-id",
 				PrivateKeyFile: keyFile,
 			},
 			baseURL:     "https://test.ngts.example.com",
+			tsgID:       "test-tsg-id",
+			wantErr:     true,
+			errContains: "tsgID and baseURL are mutually exclusive",
+		},
+		{
+			name: "missing both tsgID and baseURL",
+			credentials: &NGTSServiceAccountCredentials{
+				ClientID:       "test-client-id",
+				PrivateKeyFile: keyFile,
+			},
+			baseURL:     "",
 			tsgID:       "",
 			wantErr:     true,
-			errContains: "tsgID cannot be empty",
+			errContains: "either tsgID or baseURL must be provided",
 		},
 		{
 			name: "missing clientID without file",
@@ -78,19 +99,9 @@ func TestNewNGTSClient(t *testing.T) {
 				PrivateKeyFile: keyFile,
 			},
 			baseURL:     "https://test.ngts.example.com",
-			tsgID:       "test-tsg-id",
+			tsgID:       "",
 			wantErr:     true,
 			errContains: "client_id cannot be empty",
-		},
-		{
-			name: "default URL when empty",
-			credentials: &NGTSServiceAccountCredentials{
-				ClientID:       "test-client-id",
-				PrivateKeyFile: keyFile,
-			},
-			baseURL: "",
-			tsgID:   "test-tsg-id",
-			wantErr: false,
 		},
 	}
 
@@ -114,7 +125,6 @@ func TestNewNGTSClient(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.NotNil(t, client)
-			assert.Equal(t, tt.tsgID, client.tsgID)
 			if tt.baseURL != "" {
 				assert.Equal(t, tt.baseURL, client.baseURL.String())
 				return
@@ -172,7 +182,7 @@ func TestNGTSClient_LoadClientIDFromFile(t *testing.T) {
 				ClusterID: "test-cluster",
 			}
 
-			client, err := NewNGTSClient(metadata, tt.credentials, "https://test.example.com", "test-tsg", nil)
+			client, err := NewNGTSClient(metadata, tt.credentials, "https://test.example.com", "", nil)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -255,7 +265,7 @@ func TestNGTSClient_LoadClientIDFromFileAlternativeNames(t *testing.T) {
 				ClusterID: "test-cluster",
 			}
 
-			client, err := NewNGTSClient(metadata, credentials, "https://test.example.com", "test-tsg", nil)
+			client, err := NewNGTSClient(metadata, credentials, "https://test.example.com", "", nil)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -312,8 +322,7 @@ func TestNGTSClient_PostDataReadingsWithOptions(t *testing.T) {
 		ClusterID: "test-cluster",
 	}
 
-	tsgID := "test-tsg-123"
-	client, err := NewNGTSClient(metadata, credentials, server.URL, tsgID, nil)
+	client, err := NewNGTSClient(metadata, credentials, server.URL, "", nil)
 	require.NoError(t, err)
 
 	// Test data upload
@@ -388,7 +397,7 @@ func TestNGTSClient_AuthenticationFlow(t *testing.T) {
 		ClusterID: "test-cluster",
 	}
 
-	client, err := NewNGTSClient(metadata, credentials, server.URL, "test-tsg", nil)
+	client, err := NewNGTSClient(metadata, credentials, server.URL, "", nil)
 	require.NoError(t, err)
 
 	// Make multiple requests - should only authenticate once
@@ -454,7 +463,7 @@ func TestNGTSClient_ErrorHandling(t *testing.T) {
 			}
 
 			metadata := &api.AgentMetadata{Version: "test", ClusterID: "test"}
-			client, err := NewNGTSClient(metadata, credentials, server.URL, "test-tsg", nil)
+			client, err := NewNGTSClient(metadata, credentials, server.URL, "", nil)
 			require.NoError(t, err)
 
 			readings := []*api.DataReading{{DataGatherer: "test", Data: &api.DynamicData{}}}

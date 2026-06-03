@@ -38,7 +38,6 @@ type NGTSClient struct {
 	baseURL       *url.URL
 	agentMetadata *api.AgentMetadata
 
-	tsgID         string
 	privateKey    crypto.PrivateKey
 	jwtSigningAlg jwt.SigningMethod
 	lock          sync.RWMutex
@@ -87,8 +86,8 @@ const (
 )
 
 // NewNGTSClient creates a new NGTS client that authenticates using keypair authentication
-// and uploads data to NGTS endpoints. The baseURL parameter can override the default
-// NGTS server URL for testing purposes.
+// and uploads data to NGTS endpoints. Exactly one of tsgID or baseURL must be provided:
+// tsgID derives the production NGTS URL; baseURL sets a custom URL for testing.
 func NewNGTSClient(agentMetadata *api.AgentMetadata, credentials *NGTSServiceAccountCredentials, baseURL string, tsgID string, rootCAs *x509.CertPool) (*NGTSClient, error) {
 	// Load ClientID from file if not provided directly
 	if err := credentials.LoadClientIDIfNeeded(); err != nil {
@@ -103,8 +102,11 @@ func NewNGTSClient(agentMetadata *api.AgentMetadata, credentials *NGTSServiceAcc
 	// https://pan.dev/scm/api/tenancy/delete-tenancy-v-1-tenant-service-groups-tsg-id/
 	// > Possible values: >= 10 characters and <= 10 characters, Value must match regular expression ^1[0-9]+$
 	// For now, leaving this check simple
-	if tsgID == "" {
-		return nil, fmt.Errorf("cannot create NGTSClient: tsgID cannot be empty")
+	switch {
+	case tsgID != "" && baseURL != "":
+		return nil, fmt.Errorf("cannot create NGTSClient: tsgID and baseURL are mutually exclusive; exactly one must be provided")
+	case tsgID == "" && baseURL == "":
+		return nil, fmt.Errorf("cannot create NGTSClient: either tsgID or baseURL must be provided")
 	}
 
 	privateKey, jwtSigningAlg, err := parsePrivateKeyAndExtractSigningMethod(credentials.PrivateKeyFile)
@@ -113,8 +115,6 @@ func NewNGTSClient(agentMetadata *api.AgentMetadata, credentials *NGTSServiceAcc
 	}
 
 	actualBaseURL := baseURL
-
-	// Create prod NGTS URL if no explicit URL provided
 	if actualBaseURL == "" {
 		actualBaseURL = fmt.Sprintf(ngtsProdURLFormat, tsgID)
 	}
@@ -145,7 +145,6 @@ func NewNGTSClient(agentMetadata *api.AgentMetadata, credentials *NGTSServiceAcc
 		agentMetadata: agentMetadata,
 		credentials:   credentials,
 		baseURL:       parsedBaseURL,
-		tsgID:         tsgID,
 		accessToken:   &ngtsAccessToken{},
 		Client: &http.Client{
 			Timeout:   time.Minute,

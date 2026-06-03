@@ -188,10 +188,13 @@ type AgentCmdFlags struct {
 	NGTSMode bool
 
 	// TSGID (--tsg-id) is the TSG (Tenant Service Group) ID for NGTS mode.
+	// The production NGTS server URL is derived from this value. Mutually
+	// exclusive with --ngts-server-url.
 	TSGID string
 
 	// NGTSServerURL (--ngts-server-url) is a hidden flag for developers to
-	// override the NGTS server URL for testing purposes.
+	// point the agent at a custom NGTS server URL for testing purposes.
+	// Mutually exclusive with --tsg-id.
 	NGTSServerURL string
 }
 
@@ -350,13 +353,15 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		"ngts",
 		false,
 		"Enables NGTS mode. The agent will authenticate using key pair authentication and send data to NGTS endpoints. "+
-			"Must be used in conjunction with --tsg-id and --private-key-path. --client-id is optional if provided in the credentials secret.",
+			"Must be used with --private-key-path and exactly one of --tsg-id or --ngts-server-url. "+
+			"--client-id is optional if provided in the credentials secret.",
 	)
 	c.PersistentFlags().StringVar(
 		&cfg.TSGID,
 		"tsg-id",
 		"",
-		"The TSG (Tenant Service Group) ID for NGTS mode. Required when using --ngts.",
+		"The TSG (Tenant Service Group) ID for NGTS mode. The production NGTS server URL is derived from this value. "+
+			"Mutually exclusive with --ngts-server-url; exactly one must be provided when using --ngts.",
 	)
 
 	ngtsServerURLFlag := "ngts-server-url"
@@ -365,7 +370,8 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		&cfg.NGTSServerURL,
 		ngtsServerURLFlag,
 		"",
-		"Override the NGTS server URL for testing purposes. This flag is intended for agent development and should not need to be set.",
+		"Override the NGTS server URL for testing purposes. This flag is intended for agent development and should not need to be set. "+
+			"Mutually exclusive with --tsg-id.",
 	)
 
 	// ngts-server-url is intended only for developers, so hide it from help
@@ -505,7 +511,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		default:
 			return CombinedConfig{}, nil, fmt.Errorf("no output mode specified. " +
 				"To enable one of the output modes, you can:\n" +
-				" - Use --ngts with --tsg-id and --private-key-path to use the " + string(NGTS) + " mode (--client-id is optional if provided in the credentials secret).\n" +
+				" - Use --ngts with --private-key-path and exactly one of --tsg-id or --ngts-server-url to use the " + string(NGTS) + " mode (--client-id is optional if provided in the credentials secret).\n" +
 				" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
 				" - Use --venafi-connection for the " + string(VenafiCloudVenafiConnection) + " mode.\n" +
 				" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
@@ -523,8 +529,11 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 
 	// Validation of NGTS mode requirements.
 	if res.OutputMode == NGTS {
-		if flags.TSGID == "" {
-			errs = multierror.Append(errs, fmt.Errorf("--tsg-id is required when using --ngts"))
+		switch {
+		case flags.TSGID != "" && flags.NGTSServerURL != "":
+			errs = multierror.Append(errs, fmt.Errorf("--tsg-id and --ngts-server-url are mutually exclusive; exactly one must be provided when using --ngts"))
+		case flags.TSGID == "" && flags.NGTSServerURL == "":
+			errs = multierror.Append(errs, fmt.Errorf("either --tsg-id or --ngts-server-url is required when using --ngts"))
 		}
 		if flags.PrivateKeyPath == "" {
 			errs = multierror.Append(errs, fmt.Errorf("--private-key-path is required when using --ngts"))

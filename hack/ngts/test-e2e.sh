@@ -20,7 +20,7 @@ set -o pipefail
 # NGTS API configuration
 : ${NGTS_CLIENT_ID?}
 : ${NGTS_PRIVATE_KEY?}
-: ${NGTS_TSG_ID?}
+: ${NGTS_TSG_URL?}
 
 # The base URL of the OCI registry used for Docker images and Helm charts
 # E.g. ttl.sh/7e6ca67c-96dc-4dea-9437-80b0f3a69fb1
@@ -77,18 +77,17 @@ pprof:
 
 fullnameOverride: discovery-agent
 
-imageRegistry: ${OCI_BASE}
+imageRegistry: "${OCI_BASE}"
 imageNamespace: ""
 
 image:
-  digest: ${NGTS_IMAGE_DIGEST}
+  digest: "${NGTS_IMAGE_DIGEST}"
 
 config:
   clusterName: "e2e-test-cluster-ngts"
   clusterDescription: "A temporary cluster for E2E testing NGTS"
   period: 10s
-  tsgID: "${NGTS_TSG_ID}"
-  serverURL: "https://${NGTS_TSG_ID}.ngts.dev.venafi.io"
+  serverURL: "${NGTS_TSG_URL}"
 
 podLabels:
   "discovery-agent.ngts/test-id": "${RANDOM}"

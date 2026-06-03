@@ -12,7 +12,7 @@ The Discovery Agent connects your Kubernetes or OpenShift cluster to Palo Alto N
 > ""
 > ```
 
-Required: The TSG (Tenant Service Group) ID to use when connecting to SCM.
+The TSG (Tenant Service Group) ID to use when connecting to SCM. The production SCM server URL is derived from this value. Required unless config.serverURL is set. Mutually exclusive with config.serverURL.
 
 
 #### **config.clusterName** ~ `string`
