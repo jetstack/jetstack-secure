@@ -41,8 +41,9 @@ type Config struct {
 	// Server is the base URL for the Preflight server. It defaults to
 	// https://preflight.jetstack.io in Jetstack Secure OAuth and Jetstack
 	// Secure API Token modes, and https://api.venafi.cloud in Venafi Cloud Key
-	// Pair Service Account mode. It is ignored in Venafi Cloud VenafiConnection
-	// mode and in MachineHub mode.
+	// Pair Service Account mode. It is ignored in VenafiConnection mode (the
+	// backend URL is taken from the VenafiConnection resource), in NGTS mode
+	// (use --tsg-id or --ngts-server-url instead) and in MachineHub mode.
 	Server string `yaml:"server"`
 
 	// OrganizationID is only used in Jetstack Secure OAuth and Jetstack Secure
@@ -160,7 +161,9 @@ type AgentCmdFlags struct {
 	APIToken string
 
 	// VenConnName (--venafi-connection) is the name of the VenafiConnection
-	// resource to use. Using this flag will enable Venafi Connection mode.
+	// resource to use. Using this flag will enable VenafiConnection mode. The
+	// upload backend (Venafi Cloud or NGTS) is selected by the spec of the
+	// referenced VenafiConnection resource.
 	VenConnName string
 
 	// VenConnNS (--venafi-connection-namespace) is the namespace of the
@@ -183,8 +186,13 @@ type AgentCmdFlags struct {
 	// Prometheus (--enable-metrics) enables the Prometheus metrics server.
 	Prometheus bool
 
-	// NGTSMode (--ngts) turns on the NGTS mode. The agent will authenticate
-	// using key pair authentication and send data to NGTS endpoints.
+	// NGTSMode (--ngts) turns on the NGTS keypair mode. The agent will
+	// authenticate to the NGTS endpoint using an NGTS built-in service account
+	// key pair (--client-id and --private-key-path).
+	//
+	// To authenticate to NGTS through a VenafiConnection resource instead, use
+	// --venafi-connection (without --ngts) and point it at a VenafiConnection
+	// whose spec selects the NGTS backend.
 	NGTSMode bool
 
 	// TSGID (--tsg-id) is the TSG (Tenant Service Group) ID for NGTS mode.
@@ -291,8 +299,10 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		&cfg.VenConnName,
 		"venafi-connection",
 		"",
-		"Turns on the "+string(VenafiCloudVenafiConnection)+" mode. "+
-			"This flag configures the name of the VenafiConnection to be used.",
+		"Turns on the "+string(VenafiConnection)+" mode. The upload backend (Venafi Cloud "+
+			"or NGTS) is selected by the spec of the referenced VenafiConnection "+
+			"resource. This flag configures the name of the VenafiConnection to "+
+			"be used.",
 	)
 	c.PersistentFlags().StringVar(
 		&cfg.VenConnNS,
@@ -352,9 +362,10 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 		&cfg.NGTSMode,
 		"ngts",
 		false,
-		"Enables NGTS mode. The agent will authenticate using key pair authentication and send data to NGTS endpoints. "+
+		"Enables NGTS keypair mode. The agent will authenticate to NGTS using an NGTS built-in service account key pair. "+
 			"Must be used with --private-key-path and exactly one of --tsg-id or --ngts-server-url. "+
-			"--client-id is optional if provided in the credentials secret.",
+			"--client-id is optional if provided in the credentials secret. "+
+			"To authenticate to NGTS through a VenafiConnection resource instead, use --venafi-connection without this flag.",
 	)
 	c.PersistentFlags().StringVar(
 		&cfg.TSGID,
@@ -386,13 +397,13 @@ func InitAgentCmdFlags(c *cobra.Command, cfg *AgentCmdFlags) {
 type OutputMode string
 
 const (
-	JetstackSecureOAuth         OutputMode = "Jetstack Secure OAuth"
-	JetstackSecureAPIToken      OutputMode = "Jetstack Secure API Token"
-	VenafiCloudKeypair          OutputMode = "Venafi Cloud Key Pair Service Account"
-	VenafiCloudVenafiConnection OutputMode = "Venafi Cloud VenafiConnection"
-	LocalFile                   OutputMode = "Local File"
-	MachineHub                  OutputMode = "MachineHub"
-	NGTS                        OutputMode = "NGTS"
+	JetstackSecureOAuth    OutputMode = "Jetstack Secure OAuth"
+	JetstackSecureAPIToken OutputMode = "Jetstack Secure API Token"
+	VenafiCloudKeypair     OutputMode = "Venafi Cloud Key Pair Service Account"
+	VenafiConnection       OutputMode = "VenafiConnection"
+	LocalFile              OutputMode = "Local File"
+	MachineHub             OutputMode = "MachineHub"
+	NGTS                   OutputMode = "NGTS"
 )
 
 // The command-line flags and the config file and some environment variables are
@@ -411,7 +422,9 @@ type CombinedConfig struct {
 	ClusterID string
 
 	// Used by JetstackSecureOAuth, JetstackSecureAPIToken, and
-	// VenafiCloudKeypair. Ignored in VenafiCloudVenafiConnection mode.
+	// VenafiCloudKeypair. Ignored in VenafiConnection mode (the
+	// backend URL is taken from the VenafiConnection resource) and in NGTS
+	// mode (set via --tsg-id or --ngts-server-url instead).
 	Server string
 
 	// JetstackSecureOAuth and JetstackSecureAPIToken modes only.
@@ -434,11 +447,11 @@ type CombinedConfig struct {
 	// false (default) = certs are owned by this cluster's tenant.
 	ClaimableCerts bool
 
-	// VenafiCloudVenafiConnection mode only.
+	// VenafiConnection mode only.
 	VenConnName string
 	VenConnNS   string
 
-	// VenafiCloudKeypair and VenafiCloudVenafiConnection modes only.
+	// Applied to all data gatherers regardless of OutputMode.
 	ExcludeAnnotationKeysRegex []*regexp.Regexp
 	ExcludeLabelKeysRegex      []*regexp.Regexp
 
@@ -490,7 +503,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			reason = "--client-id and --private-key-path were specified"
 			keysAndValues = []any{"clientID", flags.ClientID, "privateKeyPath", flags.PrivateKeyPath}
 		case flags.VenConnName != "":
-			mode = VenafiCloudVenafiConnection
+			mode = VenafiConnection
 			reason = "--venafi-connection was specified"
 			keysAndValues = []any{"venConnName", flags.VenConnName}
 		case flags.APIToken != "":
@@ -513,7 +526,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 				"To enable one of the output modes, you can:\n" +
 				" - Use --ngts with --private-key-path and exactly one of --tsg-id or --ngts-server-url to use the " + string(NGTS) + " mode (--client-id is optional if provided in the credentials secret).\n" +
 				" - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the " + string(VenafiCloudKeypair) + " mode.\n" +
-				" - Use --venafi-connection for the " + string(VenafiCloudVenafiConnection) + " mode.\n" +
+				" - Use --venafi-connection for the " + string(VenafiConnection) + " mode (the upload backend - Venafi Cloud or NGTS - is selected by the VenafiConnection resource).\n" +
 				" - Use --credentials-file alone if you want to use the " + string(JetstackSecureOAuth) + " mode.\n" +
 				" - Use --api-token if you want to use the " + string(JetstackSecureAPIToken) + " mode.\n" +
 				" - Use --machine-hub if you want to use the " + string(MachineHub) + " mode.\n" +
@@ -544,9 +557,13 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			errs = multierror.Append(errs, fmt.Errorf("--machine-hub cannot be used with --ngts. These are mutually exclusive modes."))
 		}
 
-		// Error if VenafiConnection mode flags are used
+		// Error if VenafiConnection mode flags are used. The --ngts flag
+		// selects NGTS keypair auth; to authenticate to NGTS through a
+		// VenafiConnection resource, drop --ngts and use --venafi-connection
+		// on its own (the agent picks the NGTS backend from the
+		// VenafiConnection's spec).
 		if flags.VenConnName != "" {
-			errs = multierror.Append(errs, fmt.Errorf("--venafi-connection cannot be used with --ngts. Use --client-id and --private-key-path instead."))
+			errs = multierror.Append(errs, fmt.Errorf("--venafi-connection cannot be used with --ngts. Either drop --ngts to authenticate to NGTS through a VenafiConnection resource, or drop --venafi-connection and use --client-id and --private-key-path for NGTS keypair auth."))
 		}
 
 		// Error if Jetstack Secure OAuth mode flags are used
@@ -602,12 +619,14 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		case !hasServerField && !hasEndpointField:
 			server = "https://preflight.jetstack.io"
 			if res.OutputMode == VenafiCloudKeypair {
-				// The VenafiCloudVenafiConnection mode doesn't need a server.
+				// VenafiConnection mode (VCP or NGTS) takes its server from
+				// the VenafiConnection resource and doesn't need one here.
 				server = client.VenafiCloudProdURL
 			}
 			if res.OutputMode == NGTS {
-				// In NGTS mode, use NGTSServerURL if provided, otherwise we'll use a default
-				// (which will be determined when creating the client)
+				// In NGTS keypair mode, use NGTSServerURL if provided, otherwise
+				// we'll use a default (derived from --tsg-id at client construction
+				// time).
 				server = res.NGTSServerURL
 			}
 		}
@@ -633,8 +652,8 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			errs = multierror.Append(errs, fmt.Errorf("server %q is not a valid URL", server))
 		}
 
-		if res.OutputMode == VenafiCloudVenafiConnection && server != "" {
-			log.Info(fmt.Sprintf("ignoring the server field specified in the config file. In %s mode, this field is not needed.", VenafiCloudVenafiConnection))
+		if res.OutputMode == VenafiConnection && server != "" {
+			log.Info(fmt.Sprintf("ignoring the server field specified in the config file. In %s mode, this field is not needed.", VenafiConnection))
 			server = ""
 		}
 
@@ -658,7 +677,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			}
 
 			uploadPath = cfg.VenafiCloud.UploadPath
-		case VenafiCloudVenafiConnection:
+		case VenafiConnection:
 			// The venafi-cloud.upload_path was initially meant to let users
 			// configure HTTP proxies, but it has never been used since HTTP
 			// proxies don't rewrite paths. Thus, we've disabled the ability to
@@ -706,7 +725,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			}
 			clusterName = cfg.ClusterName
 			// cluster_id and organization_id were already validated to not be present in NGTS mode
-		case VenafiCloudKeypair, VenafiCloudVenafiConnection:
+		case VenafiCloudKeypair, VenafiConnection:
 			// For backwards compatibility, use the agent config's `cluster_id` as
 			// ClusterName if `cluster_name` is not set.
 			if cfg.ClusterName == "" && cfg.ClusterID == "" {
@@ -795,7 +814,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			var err error
 			installNS, err = getInClusterNamespace()
 			if err != nil {
-				if res.OutputMode == VenafiCloudVenafiConnection {
+				if res.OutputMode == VenafiConnection {
 					errs = multierror.Append(errs, fmt.Errorf("could not guess which namespace the agent is running in: %w", err))
 				}
 			}
@@ -804,7 +823,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	}
 
 	// Validation of --venafi-connection and --venafi-connection-namespace.
-	if res.OutputMode == VenafiCloudVenafiConnection {
+	if res.OutputMode == VenafiConnection {
 		res.VenConnName = flags.VenConnName
 		venConnNS := flags.VenConnNS
 		if flags.VenConnNS == "" {
@@ -933,7 +952,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		// arbitrary value.
 		uploaderID := "no"
 
-		// We don't do this for the VenafiCloudVenafiConnection mode because
+		// We don't do this for the VenafiConnection mode because
 		// the upload_path field is ignored in that mode.
 		log.Info("Loading upload_path from \"venafi-cloud\" configuration.")
 
@@ -942,7 +961,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
-	case VenafiCloudVenafiConnection:
+	case VenafiConnection:
 		var restCfg *rest.Config
 		restCfg, err := kubeconfig.LoadRESTConfig("")
 		if err != nil {

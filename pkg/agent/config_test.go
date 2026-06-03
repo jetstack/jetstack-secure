@@ -197,7 +197,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			no output mode specified. To enable one of the output modes, you can:
 			 - Use --ngts with --private-key-path and exactly one of --tsg-id or --ngts-server-url to use the NGTS mode (--client-id is optional if provided in the credentials secret).
 			 - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the Venafi Cloud Key Pair Service Account mode.
-			 - Use --venafi-connection for the Venafi Cloud VenafiConnection mode.
+			 - Use --venafi-connection for the VenafiConnection mode (the upload backend - Venafi Cloud or NGTS - is selected by the VenafiConnection resource).
 			 - Use --credentials-file alone if you want to use the Jetstack Secure OAuth mode.
 			 - Use --api-token if you want to use the Jetstack Secure API Token mode.
 			 - Use --machine-hub if you want to use the MachineHub mode.
@@ -585,15 +585,15 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--venafi-connection", "venafi-components"))
 		require.NoError(t, err)
 		assert.Equal(t, testutil.Undent(`
-			INFO Output mode selected venConnName="venafi-components" mode="Venafi Cloud VenafiConnection" reason="--venafi-connection was specified"
-			INFO ignoring the server field specified in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
+			INFO Output mode selected venConnName="venafi-components" mode="VenafiConnection" reason="--venafi-connection was specified"
+			INFO ignoring the server field specified in the config file. In VenafiConnection mode, this field is not needed.
 			INFO Using cluster_id as cluster_name for backwards compatibility clusterID="legacy cluster_id as cluster name"
 			INFO Using period from config period="1h0m0s"
 		`), gotLogs.String())
 		assert.Equal(t, CombinedConfig{
 			Period:         1 * time.Hour,
 			ClusterName:    "legacy cluster_id as cluster name",
-			OutputMode:     VenafiCloudVenafiConnection,
+			OutputMode:     VenafiConnection,
 			VenConnName:    "venafi-components",
 			VenConnNS:      "venafi",
 			InstallNS:      "venafi",
@@ -620,14 +620,14 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		)
 		require.NoError(t, err)
 		assert.Equal(t, testutil.Undent(`
-			INFO Output mode selected venConnName="venafi-components" mode="Venafi Cloud VenafiConnection" reason="--venafi-connection was specified"
-			INFO ignoring the server field specified in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
-			INFO ignoring the venafi-cloud.upload_path field in the config file. In Venafi Cloud VenafiConnection mode, this field is not needed.
-			INFO ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in Venafi Cloud VenafiConnection mode.
-			INFO Ignoring the cluster_id field in the config file. This field is not needed in Venafi Cloud VenafiConnection mode.
+			INFO Output mode selected venConnName="venafi-components" mode="VenafiConnection" reason="--venafi-connection was specified"
+			INFO ignoring the server field specified in the config file. In VenafiConnection mode, this field is not needed.
+			INFO ignoring the venafi-cloud.upload_path field in the config file. In VenafiConnection mode, this field is not needed.
+			INFO ignoring the venafi-cloud.uploader_id field in the config file. This field is not needed in VenafiConnection mode.
+			INFO Ignoring the cluster_id field in the config file. This field is not needed in VenafiConnection mode.
 			INFO Using period from config period="1h0m0s"
 		`), gotLogs.String())
-		assert.Equal(t, VenafiCloudVenafiConnection, got.OutputMode)
+		assert.Equal(t, VenafiConnection, got.OutputMode)
 		assert.IsType(t, &client.VenConnClient{}, gotCl)
 	})
 
@@ -642,7 +642,20 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			`)),
 			withCmdLineFlags("--venafi-connection", "venafi-components"))
 		require.NoError(t, err)
-		assert.Equal(t, VenafiCloudVenafiConnection, got.OutputMode)
+		assert.Equal(t, VenafiConnection, got.OutputMode)
+	})
+
+	t.Run("venafi-cloud-workload-identity-auth: --venafi-cloud is tolerated alongside --venafi-connection for backwards compatibility with older rendered charts", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
+		got, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: cluster-1
+			`)),
+			withCmdLineFlags("--venafi-connection", "venafi-components", "--venafi-cloud"))
+		require.NoError(t, err)
+		assert.Equal(t, VenafiConnection, got.OutputMode)
 	})
 
 	const arkUsername = "cluster-1-region-1-cloud-1@cyberark.cloud.123456"
@@ -864,7 +877,7 @@ func Test_ValidateAndCombineConfig_VenafiConnection(t *testing.T) {
 		_, _, err := ValidateAndCombineConfig(discardLogs(),
 			Config{Server: "http://should-be-ignored", Period: 1 * time.Hour},
 			AgentCmdFlags{VenConnName: "venafi-components", InstallNS: "venafi"})
-		assert.EqualError(t, err, "1 error occurred:\n\t* cluster_name or cluster_id is required in Venafi Cloud VenafiConnection mode\n\n")
+		assert.EqualError(t, err, "1 error occurred:\n\t* cluster_name or cluster_id is required in VenafiConnection mode\n\n")
 	})
 
 	t.Run("the server field is ignored when VenafiConnection is used", func(t *testing.T) {

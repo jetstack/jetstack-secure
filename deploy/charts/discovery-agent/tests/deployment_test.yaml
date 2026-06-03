@@ -373,3 +373,131 @@ tests:
           path: spec.template.spec.imagePullSecrets
           content:
             name: my-secret
+
+  # VenafiConnection mode wires the connection name/namespace through as flags
+  # and skips both the --ngts/--tsg-id flags and the keypair Secret mount. The
+  # agent picks the actual upload backend (NGTS or VCP) from the
+  # VenafiConnection resource at runtime.
+  - it: VenafiConnection mode passes the connection flags and omits NGTS/keypair flags
+    set:
+      config.clusterName: test-cluster
+      config.venafiConnection.enabled: true
+      config.venafiConnection.name: my-venconn
+      config.venafiConnection.namespace: my-ns
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --venafi-connection
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: my-venconn
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --venafi-connection-namespace
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: my-ns
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --ngts
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --tsg-id
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --ngts-server-url
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --client-id
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --private-key-path
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: credentials
+            mountPath: "/etc/discovery-agent/credentials"
+            readOnly: true
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: credentials
+            secret:
+              secretName: discovery-agent-credentials
+              optional: false
+
+  # VenafiConnection mode does not require config.tsgID, since the agent reads
+  # the TSG ID from the VenafiConnection resource at runtime.
+  - it: VenafiConnection mode does not require config.tsgID
+    set:
+      config.clusterName: test-cluster
+      config.venafiConnection.enabled: true
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+
+  # Keypair-mode fields must not be set in VenafiConnection mode; the chart
+  # should fail to render rather than silently dropping the values, so users
+  # don't end up with a config that looks wired but isn't.
+  - it: VenafiConnection mode rejects config.tsgID
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "999"
+      config.venafiConnection.enabled: true
+    template: deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "config.tsgID must not be set when config.venafiConnection.enabled is true; the TSG ID is read from the VenafiConnection's spec.ngts"
+
+  - it: VenafiConnection mode rejects config.serverURL
+    set:
+      config.clusterName: test-cluster
+      config.serverURL: "https://should-be-rejected.example.com"
+      config.venafiConnection.enabled: true
+    template: deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "config.serverURL must not be set when config.venafiConnection.enabled is true; the server URL is read from the VenafiConnection's spec"
+
+  - it: VenafiConnection mode rejects config.clientID
+    set:
+      config.clusterName: test-cluster
+      config.clientID: "should-be-rejected"
+      config.venafiConnection.enabled: true
+    template: deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "config.clientID must not be set when config.venafiConnection.enabled is true; authentication is performed via the VenafiConnection resource"
+
+  - it: VenafiConnection mode rejects config.clientId
+    set:
+      config.clusterName: test-cluster
+      config.clientId: "should-be-rejected"
+      config.venafiConnection.enabled: true
+    template: deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "config.clientId must not be set when config.venafiConnection.enabled is true; authentication is performed via the VenafiConnection resource"
+
+  - it: VenafiConnection mode rejects a non-default config.secretName
+    set:
+      config.clusterName: test-cluster
+      config.secretName: custom-credentials-secret
+      config.venafiConnection.enabled: true
+    template: deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "config.secretName must not be set when config.venafiConnection.enabled is true; the credentials Secret is not mounted in this mode (authentication is performed via the VenafiConnection resource)"
+
+  - it: VenafiConnection mode accepts the default config.secretName
+    set:
+      config.clusterName: test-cluster
+      config.venafiConnection.enabled: true
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment

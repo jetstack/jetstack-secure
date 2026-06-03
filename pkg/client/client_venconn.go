@@ -13,8 +13,10 @@ import (
 	"time"
 
 	venapi "github.com/jetstack/venafi-connection-lib/api/v1alpha1"
-	"github.com/jetstack/venafi-connection-lib/chain/sources/venafi"
+	"github.com/jetstack/venafi-connection-lib/connection_details"
+	"github.com/jetstack/venafi-connection-lib/sources/venafi"
 	"github.com/jetstack/venafi-connection-lib/venafi_client"
+	"github.com/microcosm-cc/bluemonday"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -137,17 +139,25 @@ func (c *VenConnClient) PostDataReadingsWithOptions(ctx context.Context, reading
 	if err != nil {
 		return fmt.Errorf("while loading the VenafiConnection %s/%s: %w", c.venConnNS, c.venConnName, err)
 	}
-	if details.TPP != nil {
-		return fmt.Errorf(`VenafiConnection %s/%s: the agent cannot be used with TPP`, c.venConnNS, c.venConnName)
-	}
-	if details.VCP != nil && details.VCP.APIKey != "" {
+	server := details.ServerDetails()
+	switch server.BackendAuth {
+	case connection_details.VCPAccessToken, connection_details.NGTSAccessToken:
+		// Supported.
+	case connection_details.TPPAccessToken:
+		return fmt.Errorf(`VenafiConnection %s/%s: the agent does not support the TPP backend`, c.venConnNS, c.venConnName)
+	case connection_details.DistributedIssuerAccessToken:
+		return fmt.Errorf(`VenafiConnection %s/%s: the agent does not support the Distributed Issuer backend`, c.venConnNS, c.venConnName)
+	case connection_details.VCPAPIKey:
 		// Although it is technically possible to use an API key, we have
 		// decided to not allow it as it isn't recommended and will eventually
 		// be phased out.
-		return fmt.Errorf(`VenafiConnection %s/%s: the agent cannot be used with an API key`, c.venConnNS, c.venConnName)
+		return fmt.Errorf(`VenafiConnection %s/%s: the agent does not support API key authentication with the VCP backend`, c.venConnNS, c.venConnName)
+	default:
+		return fmt.Errorf(`VenafiConnection %s/%s: the agent does not support backend auth %q`, c.venConnNS, c.venConnName, server.BackendAuth)
 	}
-	if details.VCP == nil || details.VCP.AccessToken == "" {
-		return fmt.Errorf(`programmer mistake: VenafiConnection %s/%s: TPPAccessToken is empty in the token returned by connHandler.Get: %v`, c.venConnNS, c.venConnName, details)
+	token := details.Credential()
+	if token == "" {
+		return fmt.Errorf(`programmer mistake: VenafiConnection %s/%s: access token is empty in the connection details returned by connHandler.Get`, c.venConnNS, c.venConnName)
 	}
 
 	payload := api.DataReadingsPost{
@@ -160,9 +170,10 @@ func (c *VenConnClient) PostDataReadingsWithOptions(ctx context.Context, reading
 		return err
 	}
 
+	uploadURL := fullURL(server.BaseURL, "/v1/tlspk/upload/clusterdata/no")
 	klog.FromContext(ctx).V(2).Info(
 		"uploading data readings",
-		"url", fullURL(details.VCP.URL, "/v1/tlspk/upload/clusterdata/no"),
+		"url", uploadURL,
 		"cluster_name", opts.ClusterName,
 		"data_readings_count", len(readings),
 		"data_size_bytes", len(data),
@@ -171,21 +182,30 @@ func (c *VenConnClient) PostDataReadingsWithOptions(ctx context.Context, reading
 	// The path parameter "no" is a dummy parameter to make the Venafi Cloud
 	// backend happy. This parameter, named `uploaderID` in the backend, is not
 	// actually used by the backend.
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL(details.VCP.URL, "/v1/tlspk/upload/clusterdata/no"), bytes.NewReader(data))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, bytes.NewReader(data))
 	if err != nil {
 		return err
 	}
 
+	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", details.VCP.AccessToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	version.SetUserAgent(req)
 
-	q := req.URL.Query()
-	q.Set("name", opts.ClusterName)
-	if opts.ClusterDescription != "" {
-		q.Set("description", base64.RawURLEncoding.EncodeToString([]byte(opts.ClusterDescription)))
+	query := req.URL.Query()
+	stripHTML := bluemonday.StrictPolicy()
+	if opts.ClusterName != "" {
+		query.Add("name", stripHTML.Sanitize(opts.ClusterName))
 	}
-	req.URL.RawQuery = q.Encode()
+	if opts.ClusterDescription != "" {
+		query.Add("description", base64.RawURLEncoding.EncodeToString([]byte(stripHTML.Sanitize(opts.ClusterDescription))))
+	}
+	if isNGTS := server.BackendAuth == connection_details.NGTSAccessToken; isNGTS && opts.ClaimableCerts {
+		// The TLSPK backend reads "certOwnership=unassigned" — this is the backend contract.
+		query.Add("certOwnership", "unassigned")
+	}
+
+	req.URL.RawQuery = query.Encode()
 
 	res, err := c.Client.Do(req)
 	if err != nil {
