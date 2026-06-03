@@ -482,3 +482,22 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "config.clientId must not be set when config.venafiConnection.enabled is true; authentication is performed via the VenafiConnection resource"
+
+  - it: VenafiConnection mode rejects a non-default config.secretName
+    set:
+      config.clusterName: test-cluster
+      config.secretName: custom-credentials-secret
+      config.venafiConnection.enabled: true
+    template: deployment.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "config.secretName must not be set when config.venafiConnection.enabled is true; the credentials Secret is not mounted in this mode (authentication is performed via the VenafiConnection resource)"
+
+  - it: VenafiConnection mode accepts the default config.secretName
+    set:
+      config.clusterName: test-cluster
+      config.venafiConnection.enabled: true
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment

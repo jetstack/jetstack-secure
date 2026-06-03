@@ -176,7 +176,7 @@
     },
     "helm-values.config.secretName": {
       "default": "discovery-agent-credentials",
-      "description": "The name of the Secret containing the NGTS built-in service account credentials.\nThe Secret must contain the following key:\n- privatekey.pem: PEM-encoded private key for the service account\nThe Secret should also contain the following key:\n- clientID:       Service account client ID (config.clientID must be set if not present)\nIgnored when config.venafiConnection.enabled is true.",
+      "description": "The name of the Secret containing the NGTS built-in service account credentials.\nThe Secret must contain the following key:\n- privatekey.pem: PEM-encoded private key for the service account\nThe Secret should also contain the following key:\n- clientID:       Service account client ID (config.clientID must be set if not present)\nMust not be set when config.venafiConnection.enabled is true (the credentials Secret is not mounted in that mode).",
       "type": "string"
     },
     "helm-values.config.serverURL": {

@@ -85,7 +85,7 @@ The Secret must contain the following key:
 - privatekey.pem: PEM-encoded private key for the service account  
 The Secret should also contain the following key:  
 - clientID:       Service account client ID (config.clientID must be set if not present)  
-Ignored when config.venafiConnection.enabled is true.
+Must not be set when config.venafiConnection.enabled is true (the credentials Secret is not mounted in that mode).
 
 #### **config.venafiConnection.enabled** ~ `bool`
 > Default value:

@@ -84,6 +84,9 @@ spec:
             {{- if .Values.config.clientId }}
               {{- fail "config.clientId must not be set when config.venafiConnection.enabled is true; authentication is performed via the VenafiConnection resource" }}
             {{- end }}
+            {{- if ne .Values.config.secretName "discovery-agent-credentials" }}
+              {{- fail "config.secretName must not be set when config.venafiConnection.enabled is true; the credentials Secret is not mounted in this mode (authentication is performed via the VenafiConnection resource)" }}
+            {{- end }}
             - --venafi-connection
             - {{ .Values.config.venafiConnection.name | quote }}
             - --venafi-connection-namespace
