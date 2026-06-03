@@ -159,8 +159,8 @@ func (c *OAuthClient) post(ctx context.Context, path string, body io.Reader) (*h
 		return nil, err
 	}
 
+	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-
 	version.SetUserAgent(req)
 
 	if len(token.bearer) > 0 {

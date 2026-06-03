@@ -81,8 +81,8 @@ spec:
             - {{ .Values.config.clientId | quote }}
             - "--private-key-path"
             - "/etc/venafi/agent/key/{{ .Values.authentication.secretKey }}"
-            {{- end }}
             - --venafi-cloud
+            {{- end }}
             {{- if .Values.metrics.enabled }}
             - --enable-metrics
             {{- end }}

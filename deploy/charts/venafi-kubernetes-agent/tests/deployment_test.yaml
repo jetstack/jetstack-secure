@@ -133,3 +133,71 @@ tests:
       - lengthEqual :
           path: spec.template.spec.containers[0].env
           count: 4
+
+  # VenafiConnection mode (used for both VCP and NGTS backends) wires the
+  # connection name/namespace through as flags and skips mounting the keypair
+  # Secret. The Secret-based --client-id / --private-key-path flags must not be
+  # present in this mode.
+  - it: VenafiConnection mode passes the connection flags and omits the credentials Secret
+    set:
+      authentication.venafiConnection.enabled: true
+      authentication.venafiConnection.name: my-venconn
+      authentication.venafiConnection.namespace: my-ns
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --venafi-connection
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: my-venconn
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --venafi-connection-namespace
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: my-ns
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --client-id
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --private-key-path
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --venafi-cloud
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: credentials
+            mountPath: /etc/venafi/agent/key
+            readOnly: true
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: credentials
+            secret:
+              secretName: agent-credentials
+              optional: false
+
+  # Keypair mode (the default, used when authentication.venafiConnection.enabled
+  # is false) still renders --venafi-cloud since the agent's mode-resolution
+  # treats keypair as a Venafi Cloud backend.
+  - it: Keypair mode still passes --venafi-cloud
+    set:
+      config.clientId: "00000000-0000-0000-0000-000000000000"
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --venafi-cloud
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --client-id
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --private-key-path

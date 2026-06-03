@@ -645,6 +645,19 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		assert.Equal(t, VenafiCloudVenafiConnection, got.OutputMode)
 	})
 
+	t.Run("venafi-cloud-workload-identity-auth: --venafi-cloud is tolerated alongside --venafi-connection for backwards compatibility with older rendered charts", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
+		got, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: cluster-1
+			`)),
+			withCmdLineFlags("--venafi-connection", "venafi-components", "--venafi-cloud"))
+		require.NoError(t, err)
+		assert.Equal(t, VenafiCloudVenafiConnection, got.OutputMode)
+	})
+
 	const arkUsername = "cluster-1-region-1-cloud-1@cyberark.cloud.123456"
 
 	t.Run("--machine-hub selects MachineHub mode", func(t *testing.T) {
