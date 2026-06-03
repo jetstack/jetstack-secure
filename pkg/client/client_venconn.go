@@ -192,8 +192,6 @@ func (c *VenConnClient) PostDataReadingsWithOptions(ctx context.Context, reading
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	version.SetUserAgent(req)
 
-	isNGTS := server.BackendAuth == connection_details.NGTSAccessToken
-
 	query := req.URL.Query()
 	stripHTML := bluemonday.StrictPolicy()
 	if opts.ClusterName != "" {
@@ -202,9 +200,9 @@ func (c *VenConnClient) PostDataReadingsWithOptions(ctx context.Context, reading
 	if opts.ClusterDescription != "" {
 		query.Add("description", base64.RawURLEncoding.EncodeToString([]byte(stripHTML.Sanitize(opts.ClusterDescription))))
 	}
-	if isNGTS && opts.ClaimableCerts {
+	if isNGTS := server.BackendAuth == connection_details.NGTSAccessToken; isNGTS && opts.ClaimableCerts {
 		// The TLSPK backend reads "certOwnership=unassigned" — this is the backend contract.
-		query.Set("certOwnership", "unassigned")
+		query.Add("certOwnership", "unassigned")
 	}
 
 	req.URL.RawQuery = query.Encode()

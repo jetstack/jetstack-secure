@@ -158,6 +158,63 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 		expectReadyCondMsg: "Generated a new token",
 		expectErr:          "VenafiConnection error-when-the-apikey-field-is-used/venafi-components: the agent does not support API key authentication with the VCP backend",
 	}))
+	t.Run("error when the distributedIssuer field is used", run_TestVenConnClient_PostDataReadingsWithOptions(ctx, restconf, kclient, testcase{
+		// The Firefly / Distributed Issuer backend reaches the
+		// `connection_details.DistributedIssuerAccessToken` branch, which the
+		// agent rejects since it only supports VCP and NGTS upload backends.
+		given: testutil.Undent(`
+			apiVersion: jetstack.io/v1alpha1
+			kind: VenafiConnection
+			metadata:
+			  name: venafi-components
+			  namespace: TEST_NAMESPACE
+			spec:
+			  distributedIssuer:
+			    url: FAKE_TPP_URL
+			    accessToken:
+			      - secret:
+			          name: accesstoken
+			          fields: [accesstoken]
+			  allowReferencesFrom:
+			    matchExpressions:
+			      - {key: kubernetes.io/metadata.name, operator: In, values: [venafi]}
+			---
+			apiVersion: v1
+			kind: Secret
+			metadata:
+			  name: accesstoken
+			  namespace: TEST_NAMESPACE
+			stringData:
+			  accesstoken: VALID_ACCESS_TOKEN
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: Role
+			metadata:
+			  name: venafi-connection-accesstoken-reader
+			  namespace: TEST_NAMESPACE
+			rules:
+			- apiGroups: [""]
+			  resources: ["secrets"]
+			  verbs: ["get"]
+			  resourceNames: ["accesstoken"]
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: RoleBinding
+			metadata:
+			  name: venafi-connection-accesstoken-reader
+			  namespace: TEST_NAMESPACE
+			roleRef:
+			  apiGroup: rbac.authorization.k8s.io
+			  kind: Role
+			  name: venafi-connection-accesstoken-reader
+			subjects:
+			- kind: ServiceAccount
+			  name: venafi-connection
+			  namespace: venafi
+		`),
+		expectReadyCondMsg: "Generated a new token",
+		expectErr:          "VenafiConnection error-when-the-distributedissuer-field-is-used/venafi-components: the agent does not support the Distributed Issuer backend",
+	}))
 	t.Run("error when the tpp field is used", run_TestVenConnClient_PostDataReadingsWithOptions(ctx, restconf, kclient, testcase{
 		// IMPORTANT: The user may think they can use 'tpp', spend time
 		// debugging and making the venafi connection work, and then find out
