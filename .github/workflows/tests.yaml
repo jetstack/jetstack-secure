@@ -146,9 +146,9 @@ jobs:
       - run: make -j ngts-test-e2e
         env:
           OCI_BASE: ${{ secrets.NGTS_OCI_BASE }}
-          NGTS_CLIENT_ID: ${{ secrets.NGTS_CLIENT_ID }}
+          NGTS_CLIENT_ID: e3c8bde7-5f13-11f1-99f4-5e067e231041
           NGTS_PRIVATE_KEY: ${{ secrets.NGTS_PRIVATE_KEY }}
-          NGTS_TSG_ID: ${{ secrets.NGTS_TSG_ID }}
+          NGTS_TSG_URL: https://1806660206.ngts.qa.venafi.io
 
   test-e2e:
     if: contains(github.event.pull_request.labels.*.name, 'test-e2e')
