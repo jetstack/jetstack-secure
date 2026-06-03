@@ -72,11 +72,14 @@ spec:
             - "-c"
             - "/etc/discovery-agent/config.yaml"
             - --ngts
-            - --tsg-id
-            - {{ required "config.tsgID is required" .Values.config.tsgID | include "discovery-agent.stringOrNumber" | quote }}
-            {{- with .Values.config.serverURL }}
+            {{- if and .Values.config.tsgID .Values.config.serverURL }}
+              {{- fail "config.tsgID and config.serverURL are mutually exclusive; set exactly one" }}
+            {{- else if .Values.config.serverURL }}
             - --ngts-server-url
-            - {{ . | quote }}
+            - {{ .Values.config.serverURL | quote }}
+            {{- else }}
+            - --tsg-id
+            - {{ required "config.tsgID is required when config.serverURL is not set" .Values.config.tsgID | include "discovery-agent.stringOrNumber" | quote }}
             {{- end }}
             {{- if or .Values.config.clientID .Values.config.clientId }}
             - --client-id

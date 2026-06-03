@@ -195,7 +195,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		)
 		assert.EqualError(t, err, testutil.Undent(`
 			no output mode specified. To enable one of the output modes, you can:
-			 - Use --ngts with --tsg-id and --private-key-path to use the NGTS mode (--client-id is optional if provided in the credentials secret).
+			 - Use --ngts with --private-key-path and exactly one of --tsg-id or --ngts-server-url to use the NGTS mode (--client-id is optional if provided in the credentials secret).
 			 - Use (--venafi-cloud with --credentials-file) or (--client-id with --private-key-path) to use the Venafi Cloud Key Pair Service Account mode.
 			 - Use --venafi-connection for the Venafi Cloud VenafiConnection mode.
 			 - Use --credentials-file alone if you want to use the Jetstack Secure OAuth mode.
@@ -1124,11 +1124,38 @@ func Test_ValidateAndCombineConfig_NGTS(t *testing.T) {
 				period: 1h
 				cluster_name: test-cluster
 			`)),
-			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath, "--ngts-server-url", "https://ngts.test.example.com"))
+			withCmdLineFlags("--ngts", "--client-id", "test-client-id", "--private-key-path", privKeyPath, "--ngts-server-url", "https://ngts.test.example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, NGTS, got.OutputMode)
+		assert.Equal(t, "", got.TSGID)
 		assert.Equal(t, "https://ngts.test.example.com", got.NGTSServerURL)
 		assert.IsType(t, &client.NGTSClient{}, cl)
+	})
+
+	t.Run("ngts: --tsg-id and --ngts-server-url are mutually exclusive", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+			`)),
+			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath, "--ngts-server-url", "https://ngts.test.example.com"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--tsg-id and --ngts-server-url are mutually exclusive")
+	})
+
+	t.Run("ngts: missing both --tsg-id and --ngts-server-url should error", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		privKeyPath := withFile(t, fakePrivKeyPEM)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				period: 1h
+				cluster_name: test-cluster
+			`)),
+			withCmdLineFlags("--ngts", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "either --tsg-id or --ngts-server-url is required when using --ngts")
 	})
 
 	t.Run("ngts: missing --ngts flag should not trigger NGTS mode", func(t *testing.T) {
@@ -1143,19 +1170,6 @@ func Test_ValidateAndCombineConfig_NGTS(t *testing.T) {
 		// Should select VenafiCloudKeypair mode instead when --ngts is not specified
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "venafi-cloud.upload_path")
-	})
-
-	t.Run("ngts: missing --tsg-id should error", func(t *testing.T) {
-		t.Setenv("POD_NAMESPACE", "venafi")
-		privKeyPath := withFile(t, fakePrivKeyPEM)
-		_, _, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(testutil.Undent(`
-				period: 1h
-				cluster_name: test-cluster
-			`)),
-			withCmdLineFlags("--ngts", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--tsg-id is required when using --ngts")
 	})
 
 	t.Run("ngts: missing --client-id should error", func(t *testing.T) {

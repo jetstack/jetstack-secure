@@ -178,12 +178,12 @@
     },
     "helm-values.config.serverURL": {
       "default": "",
-      "description": "Explicit SCM server URL (optional).\nIf not set, a production SCM server URL will be created based on the TSG ID. This value is intended for development purposes only and should not be set in production.",
+      "description": "Explicit SCM server URL (optional).\nIf not set, the production SCM server URL is derived from config.tsgID. This value is intended for development purposes only and should not be set in production.\nMutually exclusive with config.tsgID.",
       "type": "string"
     },
     "helm-values.config.tsgID": {
       "default": "",
-      "description": "Required: The TSG (Tenant Service Group) ID to use when connecting to SCM."
+      "description": "The TSG (Tenant Service Group) ID to use when connecting to SCM. The production SCM server URL is derived from this value. Required unless config.serverURL is set. Mutually exclusive with config.serverURL."
     },
     "helm-values.extraArgs": {
       "default": [],

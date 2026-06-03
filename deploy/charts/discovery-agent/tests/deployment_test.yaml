@@ -165,10 +165,9 @@ tests:
           path: spec.template.spec.containers[0].args
           content: --enable-pprof
 
-  - it: should include custom server URL when set
+  - it: should include custom server URL when set, omitting --tsg-id
     set:
       config.clusterName: test-cluster
-      config.tsgID: "123456"
       config.serverURL: "https://custom.example.com"
     asserts:
       - contains:
@@ -177,6 +176,25 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].args
           content: "https://custom.example.com"
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --tsg-id
+
+  - it: should fail when both tsgID and serverURL are set
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      config.serverURL: "https://custom.example.com"
+    asserts:
+      - failedTemplate:
+          errorMessage: "config.tsgID and config.serverURL are mutually exclusive; set exactly one"
+
+  - it: should fail when neither tsgID nor serverURL is set
+    set:
+      config.clusterName: test-cluster
+    asserts:
+      - failedTemplate:
+          errorMessage: "config.tsgID is required when config.serverURL is not set"
 
   - it: should include client ID when set
     set:
