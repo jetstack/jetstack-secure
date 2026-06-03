@@ -240,13 +240,13 @@ authentication:
   venafiConnection:
     # When set to true, the Discovery Agent will authenticate to its upload
     # backend using the configuration in a VenafiConnection resource. The
-    # backend is determined by the VenafiConnection's spec: use `spec.vcp` for
-    # CyberArk Certificate Manager (CMSaaS), or `spec.ngts` (with `tsgID` or
+    # backend is determined by the VenafiConnection's spec: use `spec.vcp`
+    # for CyberArk Certificate Manager (CMSaaS), or `spec.ngts` (with `tsgID` or
     # `url`, and a `jwt` source) for NGTS / Palo Alto Networks. `spec.tpp` and
     # `spec.vcp.apiKey` are rejected by the agent.
     # Use `venafiConnection.enabled=true` for [secretless authentication](https://docs.cyberark.com/mis-saas/vaas/k8s-components/t-install-tlspk-agent/).
-    # When set to true, the `authentication.secret` values will be ignored and the
-    # Secret with `authentication.secretName` will _not_ be mounted into the
+    # When set to true, the `authentication.secret` values will be ignored and
+    # the Secret with `authentication.secretName` will _not_ be mounted into the
     # Discovery Agent Pod.
     enabled: false
     # The name of a VenafiConnection resource which contains the configuration
