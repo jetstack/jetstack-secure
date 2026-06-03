@@ -126,6 +126,9 @@
         },
         "tsgID": {
           "$ref": "#/$defs/helm-values.config.tsgID"
+        },
+        "venafiConnection": {
+          "$ref": "#/$defs/helm-values.config.venafiConnection"
         }
       },
       "type": "object"
@@ -137,12 +140,12 @@
     },
     "helm-values.config.clientID": {
       "default": "",
-      "description": "Deprecated: Client ID for the configured service account. The client ID should be provided in the \"clientID\" field of the authentication secret (see config.secretName). This field is provided for compatibility for users migrating from the \"venafi-kubernetes-agent\" chart.",
+      "description": "Deprecated: Client ID for the configured service account. The client ID should be provided in the \"clientID\" field of the authentication secret (see config.secretName). This field is provided for compatibility for users migrating from the \"venafi-kubernetes-agent\" chart. Must not be set when config.venafiConnection.enabled is true.",
       "type": "string"
     },
     "helm-values.config.clientId": {
       "default": "",
-      "description": "Deprecated: Client ID for the configured service account (alternative to clientID). The client ID should be provided in the \"clientID\" field of the authentication secret (see config.secretName). This field is provided for compatibility for users migrating from the \"venafi-kubernetes-agent\" chart. If both clientID and clientId are set, clientID takes precedence.",
+      "description": "Deprecated: Client ID for the configured service account (alternative to clientID). The client ID should be provided in the \"clientID\" field of the authentication secret (see config.secretName). This field is provided for compatibility for users migrating from the \"venafi-kubernetes-agent\" chart. If both clientID and clientId are set, clientID takes precedence. Must not be set when config.venafiConnection.enabled is true.",
       "type": "string"
     },
     "helm-values.config.clusterDescription": {
@@ -173,17 +176,47 @@
     },
     "helm-values.config.secretName": {
       "default": "discovery-agent-credentials",
-      "description": "The name of the Secret containing the NGTS built-in service account credentials.\nThe Secret must contain the following key:\n- privatekey.pem: PEM-encoded private key for the service account\nThe Secret should also contain the following key:\n- clientID:       Service account client ID (config.clientID must be set if not present)",
+      "description": "The name of the Secret containing the NGTS built-in service account credentials.\nThe Secret must contain the following key:\n- privatekey.pem: PEM-encoded private key for the service account\nThe Secret should also contain the following key:\n- clientID:       Service account client ID (config.clientID must be set if not present)\nIgnored when config.venafiConnection.enabled is true.",
       "type": "string"
     },
     "helm-values.config.serverURL": {
       "default": "",
-      "description": "Explicit SCM server URL (optional).\nIf not set, the production SCM server URL is derived from config.tsgID. This value is intended for development purposes only and should not be set in production.\nMutually exclusive with config.tsgID.",
+      "description": "Explicit SCM server URL (optional).\nIf not set, the production SCM server URL is derived from config.tsgID. This value is intended for development purposes only and should not be set in production.\nMutually exclusive with config.tsgID.\nMust not be set when config.venafiConnection.enabled is true.",
       "type": "string"
     },
     "helm-values.config.tsgID": {
       "default": "",
-      "description": "The TSG (Tenant Service Group) ID to use when connecting to SCM. The production SCM server URL is derived from this value. Required unless config.serverURL is set. Mutually exclusive with config.serverURL."
+      "description": "The TSG (Tenant Service Group) ID to use when connecting to SCM. The production SCM server URL is derived from this value. Required unless config.serverURL is set. Mutually exclusive with config.serverURL. Must not be set when config.venafiConnection.enabled is true (the TSG ID is taken from the VenafiConnection's `spec.ngts` instead)."
+    },
+    "helm-values.config.venafiConnection": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "$ref": "#/$defs/helm-values.config.venafiConnection.enabled"
+        },
+        "name": {
+          "$ref": "#/$defs/helm-values.config.venafiConnection.name"
+        },
+        "namespace": {
+          "$ref": "#/$defs/helm-values.config.venafiConnection.namespace"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.config.venafiConnection.enabled": {
+      "default": false,
+      "description": "When set to true, config.tsgID, config.serverURL, config.clientID and config.clientId must not be set (the chart will fail to render otherwise), and the Secret named by config.secretName will _not_ be mounted into the Discovery Agent Pod.",
+      "type": "boolean"
+    },
+    "helm-values.config.venafiConnection.name": {
+      "default": "venafi-components",
+      "description": "The name of a VenafiConnection resource which contains the configuration for authenticating to the upload backend.",
+      "type": "string"
+    },
+    "helm-values.config.venafiConnection.namespace": {
+      "default": "venafi",
+      "description": "The namespace of a VenafiConnection resource which contains the configuration for authenticating to the upload backend.",
+      "type": "string"
     },
     "helm-values.extraArgs": {
       "default": [],

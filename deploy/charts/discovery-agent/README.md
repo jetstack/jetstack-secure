@@ -12,7 +12,7 @@ The Discovery Agent connects your Kubernetes or OpenShift cluster to Palo Alto N
 > ""
 > ```
 
-The TSG (Tenant Service Group) ID to use when connecting to SCM. The production SCM server URL is derived from this value. Required unless config.serverURL is set. Mutually exclusive with config.serverURL.
+The TSG (Tenant Service Group) ID to use when connecting to SCM. The production SCM server URL is derived from this value. Required unless config.serverURL is set. Mutually exclusive with config.serverURL. Must not be set when config.venafiConnection.enabled is true (the TSG ID is taken from the VenafiConnection's `spec.ngts` instead).
 
 
 #### **config.clusterName** ~ `string`
@@ -72,7 +72,7 @@ Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
 > ""
 > ```
 
-Deprecated: Client ID for the configured service account. The client ID should be provided in the "clientID" field of the authentication secret (see config.secretName). This field is provided for compatibility for users migrating from the "venafi-kubernetes-agent" chart.
+Deprecated: Client ID for the configured service account. The client ID should be provided in the "clientID" field of the authentication secret (see config.secretName). This field is provided for compatibility for users migrating from the "venafi-kubernetes-agent" chart. Must not be set when config.venafiConnection.enabled is true.
 
 #### **config.secretName** ~ `string`
 > Default value:
@@ -84,8 +84,30 @@ The name of the Secret containing the NGTS built-in service account credentials.
 The Secret must contain the following key:  
 - privatekey.pem: PEM-encoded private key for the service account  
 The Secret should also contain the following key:  
-- clientID:       Service account client ID (config.clientID must be set if not present)
+- clientID:       Service account client ID (config.clientID must be set if not present)  
+Ignored when config.venafiConnection.enabled is true.
 
+#### **config.venafiConnection.enabled** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+When set to true, config.tsgID, config.serverURL, config.clientID and config.clientId must not be set (the chart will fail to render otherwise), and the Secret named by config.secretName will _not_ be mounted into the Discovery Agent Pod.
+#### **config.venafiConnection.name** ~ `string`
+> Default value:
+> ```yaml
+> venafi-components
+> ```
+
+The name of a VenafiConnection resource which contains the configuration for authenticating to the upload backend.
+#### **config.venafiConnection.namespace** ~ `string`
+> Default value:
+> ```yaml
+> venafi
+> ```
+
+The namespace of a VenafiConnection resource which contains the configuration for authenticating to the upload backend.
 #### **replicaCount** ~ `number`
 > Default value:
 > ```yaml
