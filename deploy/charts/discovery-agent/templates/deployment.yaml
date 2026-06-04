@@ -91,6 +91,10 @@ spec:
             - {{ .Values.config.venafiConnection.name | quote }}
             - --venafi-connection-namespace
             - {{ .Values.config.venafiConnection.namespace | quote }}
+            {{- with .Values.venafiConnection.serviceAccountNamespace }}
+            - --install-namespace
+            - {{ . | quote }}
+            {{- end }}
             {{- else }}
             - --ngts
             {{- if and .Values.config.tsgID .Values.config.serverURL }}

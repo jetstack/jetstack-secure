@@ -1,0 +1,13 @@
+{{/* DO NOT EDIT. Use 'make generate-crds-venconn' to regenerate. */}}
+{{- if .Values.venafiConnection.include }}
+{{- if not (semverCompare "<1.25" .Capabilities.KubeVersion.GitVersion) }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: "venaficonnections.jetstack.io"
+  annotations:
+    # This annotation prevents the CRD from being pruned by Helm when this chart
+    # is deleted.
+    helm.sh/resource-policy: keep
+  labels:
+  {{- include "venafi-connection.labels" . | nindent 4 }}

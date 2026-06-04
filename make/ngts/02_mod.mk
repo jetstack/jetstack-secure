@@ -51,16 +51,16 @@ ngts-verify:
 		helm_chart_source_dir=deploy/charts/discovery-agent \
 		helm_chart_image_name=$(NGTS_CHART)
 
-shared_verify_targets += ngts-verify
+shared_verify_targets_dirty += ngts-verify
 
 .PHONY: ngts-generate
-## Generate Helm chart documentation and schema
+## Generate Helm chart documentation, schema and the VenafiConnection CRD
 ## @category NGTS Discovery Agent
 ngts-generate:
-	$(MAKE) generate-helm-docs generate-helm-schema \
+	$(MAKE) generate-helm-docs generate-helm-schema generate-crds-venconn \
 		helm_chart_source_dir=deploy/charts/discovery-agent
 
-shared_generate_targets += ngts-generate
+shared_generate_targets_dirty += ngts-generate
 
 .PHONY: list-discovery-resources
 ## Dump all discovery-agent k8s-dynamic resource types to a markdown list
