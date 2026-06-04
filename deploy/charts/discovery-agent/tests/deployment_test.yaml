@@ -501,3 +501,54 @@ tests:
     asserts:
       - isKind:
           of: Deployment
+
+  # When venafiConnection.serviceAccountNamespace is set in VenafiConnection
+  # mode, the chart should pass --install-namespace to the agent so it knows
+  # which namespace holds the 'venafi-connection' service account used for
+  # token issuance / credential reads.
+  - it: VenafiConnection mode passes --install-namespace when serviceAccountNamespace is set
+    set:
+      config.clusterName: test-cluster
+      config.venafiConnection.enabled: true
+      venafiConnection.serviceAccountNamespace: venafi
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: --install-namespace
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: venafi
+
+  # When venafiConnection.serviceAccountNamespace is unset (the default), the
+  # --install-namespace flag must NOT be passed; the agent falls back to
+  # POD_NAMESPACE in that case.
+  - it: VenafiConnection mode omits --install-namespace when serviceAccountNamespace is unset
+    set:
+      config.clusterName: test-cluster
+      config.venafiConnection.enabled: true
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --install-namespace
+
+  # --install-namespace is only emitted in VenafiConnection mode. In keypair
+  # (NGTS/TSG) mode it must be omitted even if venafiConnection.serviceAccountNamespace
+  # is set, since that value only applies to the VenafiConnection flow.
+  - it: keypair mode omits --install-namespace even when serviceAccountNamespace is set
+    set:
+      config.clusterName: test-cluster
+      config.tsgID: "123456"
+      venafiConnection.serviceAccountNamespace: venafi
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: --install-namespace

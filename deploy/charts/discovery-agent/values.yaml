@@ -1,3 +1,18 @@
+# +docs:section=Venafi Connection
+
+venafiConnection:
+  # When set to false, the rendered output does not contain the VenafiConnection CRDs
+  # and RBAC. This is useful for when the Venafi Connection resoures are already installed separately.
+  include: false
+
+  # The namespace in which the 'venafi-connection' service account lives. This is the service account
+  # that is used to create JWT tokens for SAs or read credential secrets. (defaults to the namespace
+  # in which the controller is running)
+  # +docs:property
+  # serviceAccountNamespace: venafi
+
+# +docs:section=Discovery Agent
+
 # Configuration for the Discovery Agent
 config:
   # The TSG (Tenant Service Group) ID to use when connecting to SCM.

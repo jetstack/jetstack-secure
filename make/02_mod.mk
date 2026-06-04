@@ -31,7 +31,7 @@ $(helm_chart_source_dir)/crd_bases/jetstack.io_venaficonnections.yaml: go.mod | 
 	echo "# DO NOT EDIT: Use 'make generate-crds-venconn' to regenerate." >$@
 	$(GO) run ./make/connection_crd >>$@
 
-$(helm_chart_source_dir)/templates/venafi-connection-crd.without-validations.yaml: $(helm_chart_source_dir)/crd_bases/jetstack.io_venaficonnections.yaml $(helm_chart_source_dir)/crd_bases/crd.header.yaml $(helm_chart_source_dir)/crd_bases/crd.footer.yaml | $(NEEDS_YQ)
+$(helm_chart_source_dir)/templates/venafi-connection-crd.without-validations.yaml: $(helm_chart_source_dir)/crd_bases/jetstack.io_venaficonnections.yaml $(helm_chart_source_dir)/crd_bases/crd.header-without-validations.yaml $(helm_chart_source_dir)/crd_bases/crd.footer.yaml | $(NEEDS_YQ)
 	cat $(helm_chart_source_dir)/crd_bases/crd.header-without-validations.yaml >$@
 	$(YQ) -I2 '{"spec": .spec}' $< | $(YQ) 'del(.. | ."x-kubernetes-validations"?) | del(.metadata.creationTimestamp)' | grep -v "DO NOT EDIT" >>$@
 	cat $(helm_chart_source_dir)/crd_bases/crd.footer.yaml >>$@
@@ -41,10 +41,7 @@ $(helm_chart_source_dir)/templates/venafi-connection-crd.yaml: $(helm_chart_sour
 	$(YQ) -I2 '{"spec": .spec}' $< | $(YQ) 'del(.metadata.creationTimestamp)' | grep -v "DO NOT EDIT" >>$@
 	cat $(helm_chart_source_dir)/crd_bases/crd.footer.yaml >>$@
 
-# The generate-crds target doesn't need to be run anymore when running
-# "generate". Let's replace it with "generate-crds-venconn".
-shared_generate_targets := $(filter-out generate-crds,$(shared_generate_targets))
-shared_generate_targets += generate-crds-venconn
+shared_generate_targets_dirty += generate-crds-venconn
 
 .PHONY: test-e2e-gke
 ## Run a basic E2E test on a GKE cluster

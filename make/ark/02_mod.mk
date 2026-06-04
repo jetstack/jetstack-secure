@@ -51,7 +51,7 @@ ark-verify:
 		helm_chart_source_dir=deploy/charts/disco-agent \
 		helm_chart_image_name=$(ARK_CHART)
 
-shared_verify_targets += ark-verify
+shared_verify_targets_dirty += ark-verify
 
 .PHONY: ark-generate
 ## Generate Helm chart documentation and schema

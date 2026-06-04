@@ -78,6 +78,9 @@
         "tolerations": {
           "$ref": "#/$defs/helm-values.tolerations"
         },
+        "venafiConnection": {
+          "$ref": "#/$defs/helm-values.venafiConnection"
+        },
         "volumeMounts": {
           "$ref": "#/$defs/helm-values.volumeMounts"
         },
@@ -511,6 +514,27 @@
       "default": [],
       "items": {},
       "type": "array"
+    },
+    "helm-values.venafiConnection": {
+      "additionalProperties": false,
+      "properties": {
+        "include": {
+          "$ref": "#/$defs/helm-values.venafiConnection.include"
+        },
+        "serviceAccountNamespace": {
+          "$ref": "#/$defs/helm-values.venafiConnection.serviceAccountNamespace"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.venafiConnection.include": {
+      "default": false,
+      "description": "When set to false, the rendered output does not contain the VenafiConnection CRDs and RBAC. This is useful for when the Venafi Connection resoures are already installed separately.",
+      "type": "boolean"
+    },
+    "helm-values.venafiConnection.serviceAccountNamespace": {
+      "description": "The namespace in which the 'venafi-connection' service account lives. This is the service account that is used to create JWT tokens for SAs or read credential secrets. (defaults to the namespace in which the controller is running)",
+      "type": "string"
     },
     "helm-values.volumeMounts": {
       "default": [],

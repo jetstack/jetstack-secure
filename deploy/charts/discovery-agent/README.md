@@ -6,6 +6,21 @@ The Discovery Agent connects your Kubernetes or OpenShift cluster to Palo Alto N
 
 <!-- AUTO-GENERATED -->
 
+### Venafi Connection
+
+#### **venafiConnection.include** ~ `bool`
+> Default value:
+> ```yaml
+> false
+> ```
+
+When set to false, the rendered output does not contain the VenafiConnection CRDs and RBAC. This is useful for when the Venafi Connection resoures are already installed separately.
+#### **venafiConnection.serviceAccountNamespace** ~ `string`
+
+The namespace in which the 'venafi-connection' service account lives. This is the service account that is used to create JWT tokens for SAs or read credential secrets. (defaults to the namespace in which the controller is running)
+
+### Discovery Agent
+
 #### **config.tsgID** ~ `number,string`
 > Default value:
 > ```yaml
