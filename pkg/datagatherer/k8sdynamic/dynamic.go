@@ -572,6 +572,14 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 					if err := Select(RouteSelectedFields, resource); err != nil {
 						return err
 					}
+				} else if gvk.Kind == "SecretProviderClass" && gvk.Group == "secrets-store.csi.x-k8s.io" {
+					if err := Select(SecretProviderClassSelectedFields, resource); err != nil {
+						return err
+					}
+				} else if gvk.Kind == "SecretProviderClassPodStatus" && gvk.Group == "secrets-store.csi.x-k8s.io" {
+					if err := Select(SecretProviderClassPodStatusSelectedFields, resource); err != nil {
+						return err
+					}
 				}
 			}
 

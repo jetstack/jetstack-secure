@@ -88,6 +88,10 @@ type Snapshot struct {
 	ClusterExternalSecrets []runtime.Object `json:"clusterexternalsecrets"`
 	// ClusterSecretStores is a list of ClusterSecretStore resources in the cluster.
 	ClusterSecretStores []runtime.Object `json:"clustersecretstores"`
+	// SecretProviderClasses is a list of SecretProviderClass resources in the cluster.
+	SecretProviderClasses []runtime.Object `json:"secretproviderclasses"`
+	// SecretProviderClassPodStatuses is a list of SecretProviderClassPodStatus resources in the cluster.
+	SecretProviderClassPodStatuses []runtime.Object `json:"secretproviderclasspodstatuses"`
 	// Roles is a list of Role resources in the cluster.
 	Roles []runtime.Object `json:"roles"`
 	// ClusterRoles is a list of ClusterRole resources in the cluster.

@@ -91,6 +91,8 @@ var defaultDynamicDatagathererNames = []string{
 	"ark/esosecretstores",
 	"ark/esoclusterexternalsecrets",
 	"ark/esoclustersecretstores",
+	"ark/secretproviderclasses",
+	"ark/secretproviderclasspodstatuses",
 	"ark/roles",
 	"ark/clusterroles",
 	"ark/rolebindings",

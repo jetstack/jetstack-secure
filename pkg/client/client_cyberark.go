@@ -244,6 +244,12 @@ var defaultExtractorFunctions = map[string]func(*api.DataReading, *dataupload.Sn
 	"ark/esoclustersecretstores": func(r *api.DataReading, s *dataupload.Snapshot) error {
 		return extractResourceListFromReading(r, &s.ClusterSecretStores)
 	},
+	"ark/secretproviderclasses": func(r *api.DataReading, s *dataupload.Snapshot) error {
+		return extractResourceListFromReading(r, &s.SecretProviderClasses)
+	},
+	"ark/secretproviderclasspodstatuses": func(r *api.DataReading, s *dataupload.Snapshot) error {
+		return extractResourceListFromReading(r, &s.SecretProviderClassPodStatuses)
+	},
 }
 
 // convertDataReadings processes a list of DataReadings using the provided

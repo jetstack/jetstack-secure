@@ -815,6 +815,188 @@ func TestConvertDataReadings_ClusterSecretStores(t *testing.T) {
 	assert.Equal(t, "aws-cluster-secret-store", css2.GetName())
 }
 
+// TestConvertDataReadings_SecretProviderClasses tests that secretproviderclasses are correctly converted.
+func TestConvertDataReadings_SecretProviderClasses(t *testing.T) {
+	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+		"ark/discovery": extractClusterIDAndServerVersionFromReading,
+		"ark/secretproviderclasses": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.SecretProviderClasses)
+		},
+	}
+
+	readings := []*api.DataReading{
+		{
+			DataGatherer: "ark/discovery",
+			Data: &api.DiscoveryData{
+				ClusterID: "test-cluster-id",
+				ServerVersion: &version.Info{
+					GitVersion: "v1.21.0",
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/secretproviderclasses",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "secrets-store.csi.x-k8s.io/v1",
+								"kind":       "SecretProviderClass",
+								"metadata": map[string]any{
+									"name":      "conjur-spc",
+									"namespace": "default",
+								},
+								"spec": map[string]any{
+									"provider": "conjur",
+								},
+							},
+						},
+					},
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "secrets-store.csi.x-k8s.io/v1",
+								"kind":       "SecretProviderClass",
+								"metadata": map[string]any{
+									"name":      "vault-spc",
+									"namespace": "default",
+								},
+								"spec": map[string]any{
+									"provider": "vault",
+								},
+							},
+						},
+					},
+					// Deleted secretproviderclass should be ignored
+					{
+						DeletedAt: api.Time{Time: time.Now()},
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "secrets-store.csi.x-k8s.io/v1",
+								"kind":       "SecretProviderClass",
+								"metadata": map[string]any{
+									"name":      "deleted-spc",
+									"namespace": "default",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var snapshot dataupload.Snapshot
+	err := convertDataReadings(extractorFunctions, readings, &snapshot)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test-cluster-id", snapshot.ClusterID)
+	require.Len(t, snapshot.SecretProviderClasses, 2, "should have 2 secretproviderclasses (deleted one should be excluded)")
+
+	spc1, ok := snapshot.SecretProviderClasses[0].(*unstructured.Unstructured)
+	require.True(t, ok, "secretproviderclass should be unstructured")
+	assert.Equal(t, "SecretProviderClass", spc1.GetKind())
+	assert.Equal(t, "conjur-spc", spc1.GetName())
+
+	spc2, ok := snapshot.SecretProviderClasses[1].(*unstructured.Unstructured)
+	require.True(t, ok, "secretproviderclass should be unstructured")
+	assert.Equal(t, "SecretProviderClass", spc2.GetKind())
+	assert.Equal(t, "vault-spc", spc2.GetName())
+}
+
+// TestConvertDataReadings_SecretProviderClassPodStatuses tests that secretproviderclasspodstatuses are correctly converted.
+func TestConvertDataReadings_SecretProviderClassPodStatuses(t *testing.T) {
+	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
+		"ark/discovery": extractClusterIDAndServerVersionFromReading,
+		"ark/secretproviderclasspodstatuses": func(reading *api.DataReading, snapshot *dataupload.Snapshot) error {
+			return extractResourceListFromReading(reading, &snapshot.SecretProviderClassPodStatuses)
+		},
+	}
+
+	readings := []*api.DataReading{
+		{
+			DataGatherer: "ark/discovery",
+			Data: &api.DiscoveryData{
+				ClusterID: "test-cluster-id",
+				ServerVersion: &version.Info{
+					GitVersion: "v1.21.0",
+				},
+			},
+		},
+		{
+			DataGatherer: "ark/secretproviderclasspodstatuses",
+			Data: &api.DynamicData{
+				Items: []*api.GatheredResource{
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "secrets-store.csi.x-k8s.io/v1",
+								"kind":       "SecretProviderClassPodStatus",
+								"metadata": map[string]any{
+									"name":      "my-pod-conjur-spc",
+									"namespace": "default",
+								},
+								"status": map[string]any{
+									"mounted": true,
+									"podName": "my-pod",
+								},
+							},
+						},
+					},
+					{
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "secrets-store.csi.x-k8s.io/v1",
+								"kind":       "SecretProviderClassPodStatus",
+								"metadata": map[string]any{
+									"name":      "other-pod-conjur-spc",
+									"namespace": "default",
+								},
+								"status": map[string]any{
+									"mounted": false,
+									"podName": "other-pod",
+								},
+							},
+						},
+					},
+					// Deleted secretproviderclasspodstatus should be ignored
+					{
+						DeletedAt: api.Time{Time: time.Now()},
+						Resource: &unstructured.Unstructured{
+							Object: map[string]any{
+								"apiVersion": "secrets-store.csi.x-k8s.io/v1",
+								"kind":       "SecretProviderClassPodStatus",
+								"metadata": map[string]any{
+									"name":      "deleted-pod-spc",
+									"namespace": "default",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	var snapshot dataupload.Snapshot
+	err := convertDataReadings(extractorFunctions, readings, &snapshot)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test-cluster-id", snapshot.ClusterID)
+	require.Len(t, snapshot.SecretProviderClassPodStatuses, 2, "should have 2 secretproviderclasspodstatuses (deleted one should be excluded)")
+
+	spcps1, ok := snapshot.SecretProviderClassPodStatuses[0].(*unstructured.Unstructured)
+	require.True(t, ok, "secretproviderclasspodstatus should be unstructured")
+	assert.Equal(t, "SecretProviderClassPodStatus", spcps1.GetKind())
+	assert.Equal(t, "my-pod-conjur-spc", spcps1.GetName())
+
+	spcps2, ok := snapshot.SecretProviderClassPodStatuses[1].(*unstructured.Unstructured)
+	require.True(t, ok, "secretproviderclasspodstatus should be unstructured")
+	assert.Equal(t, "SecretProviderClassPodStatus", spcps2.GetKind())
+	assert.Equal(t, "other-pod-conjur-spc", spcps2.GetName())
+}
+
 // TestConvertDataReadings_ServiceAccounts tests that serviceaccounts are correctly converted.
 func TestConvertDataReadings_ServiceAccounts(t *testing.T) {
 	extractorFunctions := map[string]func(*api.DataReading, *dataupload.Snapshot) error{
