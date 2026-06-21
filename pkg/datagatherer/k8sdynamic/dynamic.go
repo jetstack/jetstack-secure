@@ -544,8 +544,8 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 
 			// Redact item if it is a Secret or a Route.
 			for _, gvk := range gvks {
-				// secret object
-				if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
+				switch {
+				case gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == ""):
 					// Note: We must redact data field in all cases!
 					// If encryption is enabled, we encrypt the data and preserve it, but we still need to redact later.
 					// If encryption is enabled and _fails_, we MUST still redact the data field to avoid leaking sensitive information.
@@ -567,16 +567,15 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 					if err := Select(secretSelectedFields, resource); err != nil {
 						return err
 					}
-				} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io" {
-					// route object
+				case gvk.Kind == "Route" && gvk.Group == "route.openshift.io":
 					if err := Select(RouteSelectedFields, resource); err != nil {
 						return err
 					}
-				} else if gvk.Kind == "SecretProviderClass" && gvk.Group == "secrets-store.csi.x-k8s.io" {
+				case gvk.Kind == "SecretProviderClass" && gvk.Group == "secrets-store.csi.x-k8s.io":
 					if err := Select(SecretProviderClassSelectedFields, resource); err != nil {
 						return err
 					}
-				} else if gvk.Kind == "SecretProviderClassPodStatus" && gvk.Group == "secrets-store.csi.x-k8s.io" {
+				case gvk.Kind == "SecretProviderClassPodStatus" && gvk.Group == "secrets-store.csi.x-k8s.io":
 					if err := Select(SecretProviderClassPodStatusSelectedFields, resource); err != nil {
 						return err
 					}
