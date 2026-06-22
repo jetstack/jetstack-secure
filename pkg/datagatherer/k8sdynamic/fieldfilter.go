@@ -83,8 +83,8 @@ var RedactFields = []FieldPath{
 }
 
 // SecretProviderClassSelectedFields is the list of fields sent from SecretProviderClass objects to the
-// backend. Only the provider, secretObjects, and known Conjur-specific parameters are retained.
-// Other vendor-specific parameters may contain sensitive material and are not collected.
+// backend. Metadata is retained for identification; within spec only the provider, secretObjects, and known
+// Conjur-specific parameters are retained.
 var SecretProviderClassSelectedFields = []FieldPath{
 	{"kind"},
 	{"apiVersion"},
