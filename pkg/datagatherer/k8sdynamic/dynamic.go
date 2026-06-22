@@ -542,10 +542,10 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 
 			resource := item
 
-			// Redact item if it is a Secret or Route.
+			// Redact item if it is a Secret or a Route.
 			for _, gvk := range gvks {
-				switch {
-				case gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == ""):
+			    // secret object
+				if gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == "") {
 					// Note: We must redact data field in all cases!
 					// If encryption is enabled, we encrypt the data and preserve it, but we still need to redact later.
 					// If encryption is enabled and _fails_, we MUST still redact the data field to avoid leaking sensitive information.
@@ -567,7 +567,8 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 					if err := Select(secretSelectedFields, resource); err != nil {
 						return err
 					}
-				case gvk.Kind == "Route" && gvk.Group == "route.openshift.io":
+				} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io"{
+				    // route object
 					if err := Select(RouteSelectedFields, resource); err != nil {
 						return err
 					}

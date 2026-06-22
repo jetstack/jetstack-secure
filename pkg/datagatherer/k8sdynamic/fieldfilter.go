@@ -82,7 +82,6 @@ var RedactFields = []FieldPath{
 	{"metadata", "annotations", "banzaicloud.com/last-applied"},
 }
 
-
 type FieldPath []string
 
 // Select removes all but the supplied fields from the resource
