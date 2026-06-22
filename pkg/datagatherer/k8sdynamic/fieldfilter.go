@@ -82,50 +82,6 @@ var RedactFields = []FieldPath{
 	{"metadata", "annotations", "banzaicloud.com/last-applied"},
 }
 
-// SecretProviderClassSelectedFields is the list of fields sent from SecretProviderClass objects to the
-// backend. Metadata is retained for identification; within spec only the provider, secretObjects, and known
-// Conjur-specific parameters are retained.
-var SecretProviderClassSelectedFields = []FieldPath{
-	{"kind"},
-	{"apiVersion"},
-	{"metadata", "annotations"},
-	{"metadata", "labels"},
-	{"metadata", "name"},
-	{"metadata", "namespace"},
-	{"metadata", "uid"},
-	{"metadata", "creationTimestamp"},
-	{"metadata", "deletionTimestamp"},
-	{"metadata", "resourceVersion"},
-
-	{"spec", "provider"},
-	{"spec", "secretObjects"},
-
-	{"spec", "parameters", "applianceUrl"},
-	{"spec", "parameters", "authnId"},
-	{"spec", "parameters", "account"},
-	{"spec", "parameters", "conjur.org/configurationVersion"},
-	{"spec", "parameters", "sslCertificate"},
-	{"spec", "parameters", "identity"},
-}
-
-// SecretProviderClassPodStatusSelectedFields is the list of fields sent from SecretProviderClassPodStatus
-// objects to the backend. The full status block is retained as it contains only runtime metadata
-// (mount status, pod name, Conjur variable paths) and no sensitive values.
-var SecretProviderClassPodStatusSelectedFields = []FieldPath{
-	{"kind"},
-	{"apiVersion"},
-	{"metadata", "annotations"},
-	{"metadata", "labels"},
-	{"metadata", "name"},
-	{"metadata", "namespace"},
-	{"metadata", "ownerReferences"},
-	{"metadata", "uid"},
-	{"metadata", "creationTimestamp"},
-	{"metadata", "deletionTimestamp"},
-	{"metadata", "resourceVersion"},
-
-	{"status"},
-}
 
 type FieldPath []string
 

@@ -542,7 +542,7 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 
 			resource := item
 
-			// Redact item if it is a Secret, Route, SecretProviderClass, or SecretProviderClassPodStatus.
+			// Redact item if it is a Secret or Route.
 			for _, gvk := range gvks {
 				switch {
 				case gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == ""):
@@ -569,14 +569,6 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 					}
 				case gvk.Kind == "Route" && gvk.Group == "route.openshift.io":
 					if err := Select(RouteSelectedFields, resource); err != nil {
-						return err
-					}
-				case gvk.Kind == "SecretProviderClass" && gvk.Group == "secrets-store.csi.x-k8s.io":
-					if err := Select(SecretProviderClassSelectedFields, resource); err != nil {
-						return err
-					}
-				case gvk.Kind == "SecretProviderClassPodStatus" && gvk.Group == "secrets-store.csi.x-k8s.io":
-					if err := Select(SecretProviderClassPodStatusSelectedFields, resource); err != nil {
 						return err
 					}
 				}
