@@ -542,7 +542,7 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 
 			resource := item
 
-			// Redact item if it is a Secret or a Route.
+			// Redact item if it is a Secret, Route, SecretProviderClass, or SecretProviderClassPodStatus.
 			for _, gvk := range gvks {
 				switch {
 				case gvk.Kind == "Secret" && (gvk.Group == "core" || gvk.Group == ""):
