@@ -567,8 +567,8 @@ func (g *DataGathererDynamic) redactList(ctx context.Context, list []*api.Gather
 					if err := Select(secretSelectedFields, resource); err != nil {
 						return err
 					}
-				} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io"{
-				    // route object
+				} else if gvk.Kind == "Route" && gvk.Group == "route.openshift.io" {
+			        // route object
 					if err := Select(RouteSelectedFields, resource); err != nil {
 						return err
 					}
