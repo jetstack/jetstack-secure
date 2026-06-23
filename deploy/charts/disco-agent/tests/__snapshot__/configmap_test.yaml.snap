@@ -133,6 +133,20 @@ custom-cluster-description:
               group: external-secrets.io
               version: v1
               resource: clustersecretstores
+        - kind: k8s-dynamic
+          name: ark/secretproviderclasses
+          config:
+            resource-type:
+              group: secrets-store.csi.x-k8s.io
+              version: v1
+              resource: secretproviderclasses
+        - kind: k8s-dynamic
+          name: ark/secretproviderclasspodstatuses
+          config:
+            resource-type:
+              group: secrets-store.csi.x-k8s.io
+              version: v1
+              resource: secretproviderclasspodstatuses
     kind: ConfigMap
     metadata:
       labels:
@@ -278,6 +292,20 @@ custom-cluster-name:
               group: external-secrets.io
               version: v1
               resource: clustersecretstores
+        - kind: k8s-dynamic
+          name: ark/secretproviderclasses
+          config:
+            resource-type:
+              group: secrets-store.csi.x-k8s.io
+              version: v1
+              resource: secretproviderclasses
+        - kind: k8s-dynamic
+          name: ark/secretproviderclasspodstatuses
+          config:
+            resource-type:
+              group: secrets-store.csi.x-k8s.io
+              version: v1
+              resource: secretproviderclasspodstatuses
     kind: ConfigMap
     metadata:
       labels:
@@ -423,6 +451,20 @@ custom-period:
               group: external-secrets.io
               version: v1
               resource: clustersecretstores
+        - kind: k8s-dynamic
+          name: ark/secretproviderclasses
+          config:
+            resource-type:
+              group: secrets-store.csi.x-k8s.io
+              version: v1
+              resource: secretproviderclasses
+        - kind: k8s-dynamic
+          name: ark/secretproviderclasspodstatuses
+          config:
+            resource-type:
+              group: secrets-store.csi.x-k8s.io
+              version: v1
+              resource: secretproviderclasspodstatuses
     kind: ConfigMap
     metadata:
       labels:
@@ -568,6 +610,20 @@ defaults:
               group: external-secrets.io
               version: v1
               resource: clustersecretstores
+        - kind: k8s-dynamic
+          name: ark/secretproviderclasses
+          config:
+            resource-type:
+              group: secrets-store.csi.x-k8s.io
+              version: v1
+              resource: secretproviderclasses
+        - kind: k8s-dynamic
+          name: ark/secretproviderclasspodstatuses
+          config:
+            resource-type:
+              group: secrets-store.csi.x-k8s.io
+              version: v1
+              resource: secretproviderclasspodstatuses
     kind: ConfigMap
     metadata:
       labels:

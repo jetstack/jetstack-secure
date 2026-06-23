@@ -145,3 +145,17 @@ data:
           group: external-secrets.io
           version: v1
           resource: clustersecretstores
+    - kind: k8s-dynamic
+      name: ark/secretproviderclasses
+      config:
+        resource-type:
+          group: secrets-store.csi.x-k8s.io
+          version: v1
+          resource: secretproviderclasses
+    - kind: k8s-dynamic
+      name: ark/secretproviderclasspodstatuses
+      config:
+        resource-type:
+          group: secrets-store.csi.x-k8s.io
+          version: v1
+          resource: secretproviderclasspodstatuses
