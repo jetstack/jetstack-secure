@@ -9,10 +9,7 @@ import (
 func SkipIfNoEnv(t testing.TB) {
 	t.Helper()
 
-	if os.Getenv("ARK_SUBDOMAIN") == "" ||
-		os.Getenv("ARK_USERNAME") == "" ||
-		os.Getenv("ARK_SECRET") == "" {
-		t.Skip("Skipping test because one of ARK_SUBDOMAIN, ARK_USERNAME or ARK_SECRET isn't set")
+	if os.Getenv("ARK_SUBDOMAIN") == "" {
+		t.Skip("Skipping test because ARK_SUBDOMAIN isn't set")
 	}
-
 }
