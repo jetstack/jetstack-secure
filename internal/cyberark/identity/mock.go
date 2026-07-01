@@ -32,6 +32,18 @@ const (
 	// mock server in response to a successful AdvanceAuthentication request
 	// Must match what's in testdata/advance_authentication_success.json
 	mockSuccessfulStartAuthenticationToken = "success-token"
+
+	// actionAnswer is the string sent to an AdvanceAuthentication request to indicate we're
+	// providing credentials as plain text.
+	actionAnswer = "Answer"
+)
+
+// Exported credentials that MockIdentityServer accepts as a successful
+// username/password login. Used by other packages' tests that exercise the
+// legacy UP auth path against the mock server.
+const (
+	MockSuccessUser     = successUser
+	MockSuccessPassword = successPassword
 )
 
 var (
@@ -213,7 +225,7 @@ func (mis *mockIdentityServer) handleAdvanceAuthentication(w http.ResponseWriter
 
 	if advanceBody.SessionID != successSessionID ||
 		advanceBody.MechanismID != successMechanismID ||
-		advanceBody.Action != ActionAnswer ||
+		advanceBody.Action != actionAnswer ||
 		advanceBody.Answer != successPassword {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(advanceAuthenticationFailureResponse))

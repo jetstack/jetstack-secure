@@ -16,26 +16,36 @@ kubectl create ns "$NAMESPACE" || true
 
 ### Add credentials to a Secret
 
-You will require tenant details and credentials for the CyberArk Identity Security Platform.
-Put them in the following environment variables:
+The agent supports **two authentication methods**, selected automatically by
+config:
+
+| Set this | Method used |
+|---|---|
+| `config.cyberark.serviceId` (Conjur authn-jwt service-id) | **Conjur JWT exchange** — exchanges a projected ServiceAccount token for a short-lived Conjur access token. No stored password. Preferred for new installs. |
+| `ARK_USERNAME` + `ARK_SECRET` in the Secret (and no `serviceId`) | **Legacy CyberArk Identity username/password** — backward compatible with existing GA installs. |
+
+If **both** are set, the Conjur `serviceId` wins (so a migrating install can add
+the service-id before removing its old credentials) and a warning is logged. If
+**neither** is set, the agent fails closed at startup.
+
+The only credential always required in the Kubernetes Secret is the CyberArk
+tenant subdomain (`ARK_SUBDOMAIN`).
 
 ```sh
-export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain e.g. tlskp-test
-export ARK_USERNAME=       # your CyberArk username
-export ARK_SECRET=         # your CyberArk password
-# OPTIONAL: the URL for the CyberArk Discovery API if not using the production environment
+export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain, e.g. tlskp-test
+# OPTIONAL: Discovery API URL for non-production environments
 export ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/
 ```
 
-Create a Secret containing the tenant details and credentials:
+Create the Secret:
 
 ```sh
 kubectl create secret generic agent-credentials \
         --namespace "$NAMESPACE" \
-        --from-literal=ARK_USERNAME=$ARK_USERNAME \
-        --from-literal=ARK_SECRET=$ARK_SECRET \
-        --from-literal=ARK_SUBDOMAIN=$ARK_SUBDOMAIN \
-        --from-literal=ARK_DISCOVERY_API=$ARK_DISCOVERY_API
+        --from-literal=ARK_SUBDOMAIN=$ARK_SUBDOMAIN
+# Add the optional key only if targeting a non-production Discovery API:
+# kubectl patch secret agent-credentials -n "$NAMESPACE" \
+#   --type=json -p '[{"op":"add","path":"/data/ARK_DISCOVERY_API","value":"'"$(echo -n $ARK_DISCOVERY_API | base64)"'"}]'
 ```
 
 Alternatively, use the following Secret as a template:
@@ -49,23 +59,114 @@ metadata:
   namespace: cyberark
 type: Opaque
 stringData:
-  ARK_SUBDOMAIN: $ARK_SUBDOMAIN # your CyberArk tenant subdomain e.g. tlskp-test
-  ARK_SECRET: $ARK_SECRET       # your CyberArk password
-  ARK_USERNAME: $ARK_USERNAME   # your CyberArk username
-  # OPTIONAL: the URL for the CyberArk Discovery API if not using the production environment
+  ARK_SUBDOMAIN: "tlskp-test"   # your CyberArk tenant subdomain
+  # OPTIONAL: uncomment for non-production Discovery API
   # ARK_DISCOVERY_API: https://platform-discovery.integration-cyberark.cloud/
+  # LEGACY (only if NOT using Conjur serviceId) — username/password auth:
+  # ARK_USERNAME: "svc-agent@tenant"
+  # ARK_SECRET: "<password>"
 ```
 
-### Deploy the agent
+### Configure Conjur JWT authentication
 
-Deploy the agent:
+> Skip this section if you are using the legacy username/password method
+> (set `ARK_USERNAME`/`ARK_SECRET` in the Secret and leave `serviceId` empty).
+
+Set `config.cyberark.serviceId` to the authn-jwt authenticator service ID
+configured for this cluster in your Conjur tenant. This is the **bare service-id
+segment** (e.g. `disco-agent`), NOT the policy path `conjur/authn-jwt/disco-agent`
+— the agent builds the authenticate URL as
+`<base>/authn-jwt/<serviceId>/<account>/authenticate`, so a path here would
+double the `conjur/authn-jwt` prefix. The remaining defaults are correct for
+CyberArk-hosted tenants:
+
+| Value | Default | Description |
+|---|---|---|
+| `config.cyberark.serviceId` | `""` | Conjur authn-jwt service ID (required). Example: `conjur/authn-jwt/disco-agent` |
+| `config.cyberark.account` | `conjur` | Conjur account name. Always `conjur` for CyberArk-hosted tenants. |
+| `config.cyberark.jwtSource` | `file` | Token source. `file` = projected SA-token volume (default). `spiffe` deferred. |
+| `config.cyberark.jwtFilePath` | `/var/run/secrets/tokens/jwt` | Path to the projected token file. Auto-mounted by the chart when `jwtSource=file`. |
+
+The chart automatically renders a projected ServiceAccount token volume
+(audience=`conjur`, expiry 600 s) and mounts it at `/var/run/secrets/tokens`
+when `config.cyberark.jwtSource` is `file` (the default). No manual volume
+configuration is required.
+
+### Per-tenant Conjur onboarding
+
+Before deploying the agent against a new tenant, complete the following steps
+in the Conjur tenant:
+
+1. **Enable the authn-jwt authenticator** with `audience=conjur` and
+   `token-app-property=sub`.
+
+   ```yaml
+   # conjur-authn-jwt-policy.yml
+   - !policy
+     id: conjur/authn-jwt/disco-agent
+     body:
+       - !webservice
+
+       - !variable jwks-uri
+       - !variable token-app-property
+       - !variable issuer
+       - !variable audience
+
+       - !group hosts
+       - !permit
+         role: !group hosts
+         privilege: [ read, authenticate ]
+         resource: !webservice
+   ```
+
+2. **Set the authenticator variables** (values shown as examples):
+
+   ```sh
+   conjur variable set -i conjur/authn-jwt/disco-agent/token-app-property -v sub
+   conjur variable set -i conjur/authn-jwt/disco-agent/audience           -v conjur
+   conjur variable set -i conjur/authn-jwt/disco-agent/issuer             -v https://kubernetes.default.svc.cluster.local
+   conjur variable set -i conjur/authn-jwt/disco-agent/jwks-uri           -v https://kubernetes.default.svc.cluster.local/openid/v1/jwks
+   ```
+
+3. **Pre-create a Conjur host** for the agent ServiceAccount. The `id` must
+   match the Kubernetes ServiceAccount's `sub` claim
+   (`system:serviceaccount:<namespace>:<sa-name>`):
+
+   ```yaml
+   # conjur-agent-host-policy.yml
+   - !host
+     id: system:serviceaccount/cyberark/disco-agent
+     annotations:
+       authn-jwt/disco-agent/sub: system:serviceaccount/cyberark/disco-agent
+   ```
+
+4. **Add the host to the `data/disco/snapshot-uploaders` group** so the
+   authorizer grants it upload access:
+
+   ```yaml
+   - !grant
+     role: !group data/disco/snapshot-uploaders
+     member: !host system:serviceaccount/cyberark/disco-agent
+   ```
+
+5. **Add the host to the authn-jwt authenticator's hosts group**:
+
+   ```yaml
+   - !grant
+     role: !group conjur/authn-jwt/disco-agent/hosts
+     member: !host system:serviceaccount/cyberark/disco-agent
+   ```
+
+### Deploy the agent
 
 ```sh
 helm upgrade agent "oci://${OCI_BASE}/charts/disco-agent" \
      --install \
      --create-namespace \
      --namespace "$NAMESPACE" \
-     --set fullnameOverride=disco-agent
+     --set fullnameOverride=disco-agent \
+     --set config.cyberark.serviceId=disco-agent \
+     --set acceptTerms=true
 ```
 
 ### Troubleshooting
@@ -79,6 +180,14 @@ Check the logs:
 ```sh
 kubectl logs deployments/disco-agent --namespace "${NAMESPACE}" --follow
 ```
+
+#### Conjur authentication errors
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Agent logs `401 Unauthorized` from Conjur | ServiceAccount token `audience` does not match the authenticator's configured `audience` value, or the authn-jwt authenticator is not enabled for the account | Confirm `audience=conjur` in both the projected volume (chart default) and the Conjur `conjur/authn-jwt/<serviceId>/audience` variable; ensure the authenticator is enabled (`CONJUR_AUTHENTICATORS` includes `authn-jwt/<serviceId>`) |
+| Agent logs `403 Forbidden` from the upload API | The agent's Conjur host is not a member of `data/disco/snapshot-uploaders` | Add the host to the group per step 4 of the onboarding runbook above |
+| Agent logs `500` / no upload attempt | Conjur is unreachable or returned an unexpected error | Check network policy / DNS; inspect Conjur audit logs for the host identity |
 
 ## Values
 

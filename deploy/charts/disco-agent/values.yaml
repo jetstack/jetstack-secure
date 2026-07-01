@@ -202,6 +202,33 @@ config:
   # a key managed by CyberArk, fetched from the Discovery and Context service.
   sendSecretValues: true
 
+  # CyberArk Conjur JWT authentication settings.
+  # The agent exchanges a projected ServiceAccount token (audience=conjur) for a
+  # short-lived Conjur access token, then uses that token to authenticate to the
+  # Discovery & Context upload API.
+  cyberark:
+    # The Conjur authn-jwt authenticator service ID configured for this tenant.
+    # Set this to use the Conjur JWT exchange (preferred). Leave empty to use the
+    # legacy CyberArk Identity username/password method (ARK_USERNAME/ARK_SECRET
+    # in the credentials Secret) for backward compatibility. If both are set, the
+    # serviceId (Conjur) wins.
+    # NOTE: bare service-id segment (e.g. "disco-agent"), NOT the policy path
+    # "conjur/authn-jwt/disco-agent" — the agent builds the URL as
+    # <base>/authn-jwt/<serviceId>/<account>/authenticate.
+    serviceId: ""
+
+    # The Conjur account name. For CyberArk-hosted tenants this is always "conjur".
+    account: "conjur"
+
+    # Token source for Conjur JWT authentication.
+    # "file" — read the token from jwtFilePath (projected SA-token volume, default).
+    # "spiffe" — deferred; not implemented in this POC.
+    jwtSource: file
+
+    # Path to the projected ServiceAccount token file.
+    # The chart auto-mounts a projected volume at this path when jwtSource is "file".
+    jwtFilePath: /var/run/secrets/tokens/jwt
+
 authentication:
   secretName: agent-credentials
 

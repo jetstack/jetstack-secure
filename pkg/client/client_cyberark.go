@@ -34,19 +34,25 @@ type CyberArkClient struct {
 
 var _ Client = &CyberArkClient{}
 
-// NewCyberArk initializes a CyberArk client using configuration from environment variables.
-// It requires an HTTP client to be provided, which will be used for making requests.
-// The environment variables ARK_SUBDOMAIN, ARK_USERNAME, and ARK_SECRET must be set for authentication.
-// Sending secrets is controlled by the ARK_SEND_SECRETS environment variable (defaults to "false").
-// If sending secrets is enabled, the hardcoded public key will be loaded and an encryptor will be created.
-// If the configuration is invalid or missing, an error is returned.
-func NewCyberArk(httpClient *http.Client) (*CyberArkClient, error) {
-	configLoader := cyberark.LoadClientConfigFromEnvironment
-
-	cfg, err := configLoader()
+// NewCyberArk initializes a CyberArk client.
+// Subdomain, and the legacy username/password credentials, are loaded from the
+// environment (ARK_SUBDOMAIN, ARK_USERNAME, ARK_SECRET). The remaining fields
+// (serviceID, account, jwtSource, jwtFilePath) come from the agent YAML config
+// (config.cyberark.*) and select the Conjur JWT exchange when serviceID is set.
+// Sending secrets is controlled by the ARK_SEND_SECRETS environment variable
+// (defaults to "false"). If the configuration is invalid or missing, an error
+// is returned.
+func NewCyberArk(httpClient *http.Client, serviceID, account, jwtSource, jwtFilePath string) (*CyberArkClient, error) {
+	cfg, err := cyberark.LoadClientConfigFromEnvironment()
 	if err != nil {
 		return nil, err
 	}
+	cfg.ServiceID = serviceID
+	cfg.Account = account
+	cfg.JWTSource = jwtSource
+	cfg.JWTFilePath = jwtFilePath
+
+	configLoader := func() (cyberark.ClientConfig, error) { return cfg, nil }
 
 	return &CyberArkClient{
 		configLoader:    configLoader,

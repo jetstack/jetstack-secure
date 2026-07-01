@@ -658,21 +658,39 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		assert.Equal(t, VenafiConnection, got.OutputMode)
 	})
 
-	const arkUsername = "cluster-1-region-1-cloud-1@cyberark.cloud.123456"
-
 	t.Run("--machine-hub selects MachineHub mode", func(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
 		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
 		t.Setenv("ARK_SUBDOMAIN", "tlspk")
-		t.Setenv("ARK_USERNAME", arkUsername)
-		t.Setenv("ARK_SECRET", "test-secret")
 		got, cl, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(""),
+			withConfig(testutil.Undent(`
+				cluster_name: my-cluster
+				cyberark:
+				  service_id: dev-cluster
+			`)),
 			withCmdLineFlags("--period", "1m", "--machine-hub"))
 		require.NoError(t, err)
 		assert.Equal(t, MachineHub, got.OutputMode)
-		assert.Equal(t, arkUsername, got.ClusterName,
-			"the ClusterName should default to the ARK_USERNAME value if the cluster_name in the config file is empty")
+		assert.Equal(t, "my-cluster", got.ClusterName)
+		assert.Equal(t, "dev-cluster", got.CyberArk.ServiceID)
+		assert.IsType(t, &client.CyberArkClient{}, cl)
+	})
+
+	t.Run("--machine-hub with cluster_id fallback when cluster_name is empty", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
+		t.Setenv("ARK_SUBDOMAIN", "tlspk")
+		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				cluster_id: my-cluster-id
+				cyberark:
+				  service_id: dev-cluster
+			`)),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.NoError(t, err)
+		assert.Equal(t, MachineHub, got.OutputMode)
+		assert.Equal(t, "my-cluster-id", got.ClusterName,
+			"cluster_id should be used as cluster_name when cluster_name is empty")
 		assert.IsType(t, &client.CyberArkClient{}, cl)
 	})
 
@@ -680,34 +698,34 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
 		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
 		t.Setenv("ARK_SUBDOMAIN", "tlspk")
-		t.Setenv("ARK_USERNAME", arkUsername)
-		t.Setenv("ARK_SECRET", "test-secret")
 		got, cl, err := ValidateAndCombineConfig(discardLogs(),
 			withConfig(testutil.Undent(`
 				cluster_name: override-cluster-name
-            `)),
+				cyberark:
+				  service_id: dev-cluster
+			`)),
 			withCmdLineFlags("--period", "1m", "--machine-hub"))
 		require.NoError(t, err)
 		assert.Equal(t, MachineHub, got.OutputMode)
-		assert.Equal(t, "override-cluster-name", got.ClusterName,
-			"the cluster_name in the config file should be used if not empty, even if ARK_USERNAME is set")
+		assert.Equal(t, "override-cluster-name", got.ClusterName)
 		assert.IsType(t, &client.CyberArkClient{}, cl)
 	})
 
-	t.Run("--machine-hub without required environment variables", func(t *testing.T) {
+	t.Run("--machine-hub without ARK_SUBDOMAIN environment variable", func(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
 		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
 		t.Setenv("ARK_SUBDOMAIN", "")
-		t.Setenv("ARK_USERNAME", "")
-		t.Setenv("ARK_SECRET", "")
 		got, cl, err := ValidateAndCombineConfig(discardLogs(),
-			withConfig(""),
+			withConfig(testutil.Undent(`
+				cyberark:
+				  service_id: dev-cluster
+			`)),
 			withCmdLineFlags("--period", "1m", "--machine-hub"))
 		assert.Equal(t, CombinedConfig{}, got)
 		assert.Nil(t, cl)
 		assert.EqualError(t, err, testutil.Undent(`
 			validating creds: failed loading config using the MachineHub mode: 1 error occurred:
-				* missing environment variables: ARK_SUBDOMAIN, ARK_USERNAME, ARK_SECRET
+				* missing environment variables: ARK_SUBDOMAIN
 
 	   `))
 	})
@@ -1300,6 +1318,114 @@ func Test_ValidateAndCombineConfig_NGTS(t *testing.T) {
 			withCmdLineFlags("--ngts", "--tsg-id", "test-tsg-123", "--client-id", "test-client-id", "--private-key-path", privKeyPath))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "cluster_id in config file is not supported in NGTS mode")
+	})
+}
+
+func TestConfig_CyberArk_Validation(t *testing.T) {
+	// Common env setup: ARK_SUBDOMAIN is the only required env var for MachineHub mode.
+	setEnv := func(t *testing.T) {
+		t.Helper()
+		t.Setenv("POD_NAMESPACE", "venafi")
+		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
+		t.Setenv("ARK_SUBDOMAIN", "tlspk")
+	}
+
+	t.Run("empty service_id produces an error", func(t *testing.T) {
+		setEnv(t)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				cyberark:
+				  service_id: ""
+			`)),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cyberark.service_id is required in MachineHub mode")
+	})
+
+	t.Run("missing cyberark block produces a service_id error", func(t *testing.T) {
+		setEnv(t)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(""),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cyberark.service_id is required in MachineHub mode")
+	})
+
+	t.Run("jwt_source spiffe is rejected", func(t *testing.T) {
+		setEnv(t)
+		_, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				cyberark:
+				  service_id: dev-cluster
+				  jwt_source: spiffe
+			`)),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `cyberark.jwt_source "spiffe" is not supported`)
+	})
+
+	t.Run("jwt_source file is accepted", func(t *testing.T) {
+		setEnv(t)
+		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				cyberark:
+				  service_id: dev-cluster
+				  jwt_source: file
+				  jwt_file_path: /var/run/secrets/tokens/agent-token
+			`)),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.NoError(t, err)
+		assert.Equal(t, "dev-cluster", got.CyberArk.ServiceID)
+		assert.Equal(t, "file", got.CyberArk.JWTSource)
+		assert.Equal(t, "/var/run/secrets/tokens/agent-token", got.CyberArk.JWTFilePath)
+		assert.IsType(t, &client.CyberArkClient{}, cl)
+	})
+
+	t.Run("jwt_source empty string is accepted", func(t *testing.T) {
+		setEnv(t)
+		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				cyberark:
+				  service_id: dev-cluster
+			`)),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.NoError(t, err)
+		assert.Equal(t, "dev-cluster", got.CyberArk.ServiceID)
+		assert.Equal(t, "", got.CyberArk.JWTSource)
+		assert.IsType(t, &client.CyberArkClient{}, cl)
+	})
+
+	t.Run("account and jwt_file_path are optional", func(t *testing.T) {
+		setEnv(t)
+		got, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				cyberark:
+				  service_id: dev-cluster
+				  account: myaccount
+				  jwt_file_path: /tmp/token
+			`)),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.NoError(t, err)
+		assert.Equal(t, "myaccount", got.CyberArk.Account)
+		assert.Equal(t, "/tmp/token", got.CyberArk.JWTFilePath)
+	})
+
+	t.Run("cyberark block is ignored in non-MachineHub modes", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		fakeCredsPath := withFile(t, `{"user_id":"foo","user_secret":"bar","client_id": "baz","client_secret": "foobar","auth_server_domain":"bazbar"}`)
+		got, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				server: https://preflight.jetstack.io
+				organization_id: my-org
+				cluster_id: my-cluster
+				period: 1h
+				cyberark:
+				  service_id: should-be-ignored
+			`)),
+			withCmdLineFlags("--credentials-file", fakeCredsPath))
+		require.NoError(t, err)
+		// CyberArk config is not copied into CombinedConfig for non-MachineHub modes.
+		assert.Equal(t, CyberArkConfig{}, got.CyberArk)
 	})
 }
 

@@ -58,16 +58,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
-          - name: ARK_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.authentication.secretName }}
-                key: ARK_USERNAME
-          - name: ARK_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.authentication.secretName }}
-                key: ARK_SECRET
           - name: ARK_SUBDOMAIN
             valueFrom:
               secretKeyRef:
@@ -78,6 +68,22 @@ spec:
               secretKeyRef:
                 name: {{ .Values.authentication.secretName }}
                 key: ARK_DISCOVERY_API
+                optional: true
+          # Legacy CyberArk Identity username/password (backward compatibility).
+          # Used only when config.cyberark.serviceId is empty; otherwise the
+          # agent uses the Conjur JWT exchange and ignores these. Optional so
+          # JWT-only installs need not set them.
+          - name: ARK_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.authentication.secretName }}
+                key: ARK_USERNAME
+                optional: true
+          - name: ARK_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.authentication.secretName }}
+                key: ARK_SECRET
                 optional: true
           - name: ARK_SEND_SECRET_VALUES
             value: {{ .Values.config.sendSecretValues | default "false" | quote }}
@@ -116,6 +122,11 @@ spec:
             - name: config
               mountPath: "/etc/disco-agent"
               readOnly: true
+            {{- if or (not .Values.config.cyberark.jwtSource) (eq .Values.config.cyberark.jwtSource "file") }}
+            - name: conjur-token
+              mountPath: /var/run/secrets/tokens
+              readOnly: true
+            {{- end }}
             {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -127,6 +138,15 @@ spec:
           configMap:
             name: {{ include "disco-agent.fullname" . }}-config
             optional: false
+        {{- if or (not .Values.config.cyberark.jwtSource) (eq .Values.config.cyberark.jwtSource "file") }}
+        - name: conjur-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: jwt
+                  audience: conjur
+                  expirationSeconds: 600
+        {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

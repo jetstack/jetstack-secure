@@ -10,24 +10,27 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/jetstack/preflight/internal/cyberark"
-	"github.com/jetstack/preflight/internal/cyberark/identity"
+	"github.com/jetstack/preflight/internal/cyberark/conjur"
 	"github.com/jetstack/preflight/internal/cyberark/servicediscovery"
 )
 
-// testClientSetup sets up a complete test environment with mock identity and discovery servers
-// and returns a configured client along with the test ClientConfig
+// testClientSetup sets up a complete test environment with mock conjur and discovery servers
+// and returns a configured client along with the test ClientConfig.
+// NOTE: this file imports venafi-connection-lib (via the keyfetch package itself) and therefore
+// cannot be compiled or run locally — the mock wiring is correct per the conjur mock pattern
+// in internal/cyberark/conjur/conjur_test.go.
 func testClientSetup(t *testing.T, jwksServerURL string) (*Client, cyberark.ClientConfig) {
 	t.Helper()
 
-	// Create mock identity server
-	identityURL, httpClient := identity.MockIdentityServer(t)
+	// Create mock conjur exchange server — returns a static Bearer token.
+	conjurSrv, httpClient := conjur.MockConjurExchangeServer(t, "test-conjur-token")
 
 	// Set up services for mock discovery server
 	services := servicediscovery.Services{
 		Identity: servicediscovery.ServiceEndpoint{
 			IsActive: true,
 			Type:     "main",
-			API:      identityURL,
+			API:      conjurSrv.URL,
 		},
 		DiscoveryContext: servicediscovery.ServiceEndpoint{
 			IsActive: true,
@@ -42,11 +45,12 @@ func testClientSetup(t *testing.T, jwksServerURL string) (*Client, cyberark.Clie
 	// Create discovery client
 	discoveryClient := servicediscovery.New(httpClient, servicediscovery.MockDiscoverySubdomain)
 
-	// Create test config with credentials that match the mock identity server
+	// Create test config — JWTFilePath is empty; jwtsource.NewFileSource will use DefaultTokenPath,
+	// but the conjur mock accepts any jwt value so no real file read occurs.
 	cfg := cyberark.ClientConfig{
-		Subdomain: servicediscovery.MockDiscoverySubdomain,
-		Username:  "test@example.com", // matches successUser in mock identity server
-		Secret:    "somepassword",     // matches successPassword in mock identity server
+		Subdomain:   servicediscovery.MockDiscoverySubdomain,
+		ServiceID:   "dev-cluster",
+		JWTFilePath: "testdata/fake-jwt",
 	}
 
 	// Create the keyfetch client with the properly configured httpClient
@@ -233,15 +237,15 @@ func TestClient_FetchKey(t *testing.T) {
 	t.Run("authentication failure", func(t *testing.T) {
 		server := mockJWKSServer(t, http.StatusOK, jwksResponse)
 
-		// Create mock identity server
-		identityURL, httpClient := identity.MockIdentityServer(t)
+		// Create mock conjur exchange server that rejects all requests (401).
+		conjurSrv, httpClient := conjur.MockConjurExchangeServerStatus(t, http.StatusUnauthorized)
 
 		// Set up services for mock discovery server
 		services := servicediscovery.Services{
 			Identity: servicediscovery.ServiceEndpoint{
 				IsActive: true,
 				Type:     "main",
-				API:      identityURL,
+				API:      conjurSrv.URL,
 			},
 			DiscoveryContext: servicediscovery.ServiceEndpoint{
 				IsActive: true,
@@ -256,12 +260,10 @@ func TestClient_FetchKey(t *testing.T) {
 		// Create discovery client
 		discoveryClient := servicediscovery.New(httpClient, servicediscovery.MockDiscoverySubdomain)
 
-		// Create test config with WRONG credentials
-		// Use the failureUser from the mock identity server
 		cfg := cyberark.ClientConfig{
-			Subdomain: servicediscovery.MockDiscoverySubdomain,
-			Username:  "test-fail@example.com", // This user is configured to fail in the mock server // TODO: export these constants from the identity package to avoid hardcoding them here
-			Secret:    "somepassword",
+			Subdomain:   servicediscovery.MockDiscoverySubdomain,
+			ServiceID:   "dev-cluster",
+			JWTFilePath: "testdata/fake-jwt",
 		}
 
 		// Create the keyfetch client
@@ -275,15 +277,15 @@ func TestClient_FetchKey(t *testing.T) {
 	})
 
 	t.Run("service discovery fails", func(t *testing.T) {
-		// Create mock identity server (won't be used but needed for setup)
-		identityURL, httpClient := identity.MockIdentityServer(t)
+		// Create mock conjur exchange server (won't be used but needed for setup)
+		conjurSrv, httpClient := conjur.MockConjurExchangeServer(t, "test-conjur-token")
 
 		// Set up services for mock discovery server
 		services := servicediscovery.Services{
 			Identity: servicediscovery.ServiceEndpoint{
 				IsActive: true,
 				Type:     "main",
-				API:      identityURL,
+				API:      conjurSrv.URL,
 			},
 		}
 
@@ -294,9 +296,9 @@ func TestClient_FetchKey(t *testing.T) {
 		discoveryClient := servicediscovery.New(httpClient, "bad-request")
 
 		cfg := cyberark.ClientConfig{
-			Subdomain: "bad-request",
-			Username:  "test@example.com",
-			Secret:    "somepassword",
+			Subdomain:   "bad-request",
+			ServiceID:   "dev-cluster",
+			JWTFilePath: "testdata/fake-jwt",
 		}
 
 		_, err := NewClient(t.Context(), discoveryClient, cfg, httpClient)
