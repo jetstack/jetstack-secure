@@ -50,8 +50,7 @@ type PublicKey struct {
 // and ignored other types.
 type Client struct {
 	discoveryClient *servicediscovery.Client
-	identityClient  *identity.Client
-	cfg             cyberark.ClientConfig
+	authenticate    identity.RequestAuthenticator
 
 	// httpClient is the HTTP client used for requests
 	httpClient *http.Client
@@ -62,8 +61,9 @@ type Client struct {
 }
 
 // NewClient creates a new key fetching client.
-// Uses CyberArk service discovery to derive the JWKS endpoint and CyberArk identity client for authentication.
-// Constructing the client involves a service discovery call to initialise the identity client,
+// Uses CyberArk service discovery to derive the JWKS endpoint and the configured
+// CyberArk authentication method (Conjur JWT exchange or legacy username/password).
+// Constructing the client involves a service discovery call to initialise the authenticator,
 // so this may return an error if the discovery client is not able to connect to the service discovery endpoint.
 // If httpClient is nil, a default HTTP client will be created.
 func NewClient(ctx context.Context, discoveryClient *servicediscovery.Client, cfg cyberark.ClientConfig, httpClient *http.Client) (*Client, error) {
@@ -77,10 +77,14 @@ func NewClient(ctx context.Context, discoveryClient *servicediscovery.Client, cf
 		return nil, fmt.Errorf("failed to get services from discovery client for initialising identity client: %w", err)
 	}
 
+	authenticate, err := cyberark.NewRequestAuthenticator(ctx, httpClient, services, cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
 		discoveryClient: discoveryClient,
-		identityClient:  identity.New(httpClient, services.Identity.API, cfg.Subdomain),
-		cfg:             cfg,
+		authenticate:    authenticate,
 		httpClient:      httpClient,
 	}, nil
 }
@@ -102,11 +106,6 @@ func (c *Client) FetchKey(ctx context.Context) (PublicKey, error) {
 		return PublicKey{}, fmt.Errorf("failed to get services from discovery client: %w", err)
 	}
 
-	err = c.identityClient.LoginUsernamePassword(ctx, c.cfg.Username, []byte(c.cfg.Secret))
-	if err != nil {
-		return PublicKey{}, fmt.Errorf("failed to authenticate for fetching JWKs: %w", err)
-	}
-
 	endpoint, err := url.JoinPath(services.DiscoveryContext.API, "discovery-context/jwks")
 	if err != nil {
 		return PublicKey{}, fmt.Errorf("failed to construct endpoint URL: %w", err)
@@ -117,7 +116,7 @@ func (c *Client) FetchKey(ctx context.Context) (PublicKey, error) {
 		return PublicKey{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	_, err = c.identityClient.AuthenticateRequest(req)
+	_, err = c.authenticate(req)
 	if err != nil {
 		return PublicKey{}, fmt.Errorf("failed to authenticate request: %s", err)
 	}

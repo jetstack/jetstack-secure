@@ -124,6 +124,9 @@
         "clusterName": {
           "$ref": "#/$defs/helm-values.config.clusterName"
         },
+        "cyberark": {
+          "$ref": "#/$defs/helm-values.config.cyberark"
+        },
         "excludeAnnotationKeysRegex": {
           "$ref": "#/$defs/helm-values.config.excludeAnnotationKeysRegex"
         },
@@ -147,6 +150,45 @@
     "helm-values.config.clusterName": {
       "default": "",
       "description": "A human readable name for the cluster where the agent is deployed (optional).\n\nThis cluster name will be associated with the data that the agent uploads to the Discovery and Context service. If empty (the default), the service account name will be used instead.",
+      "type": "string"
+    },
+    "helm-values.config.cyberark": {
+      "additionalProperties": false,
+      "description": "CyberArk Conjur JWT authentication settings. The agent exchanges a projected ServiceAccount token (audience=conjur) for a short-lived Conjur access token used to authenticate to the Discovery & Context upload API.",
+      "properties": {
+        "account": {
+          "$ref": "#/$defs/helm-values.config.cyberark.account"
+        },
+        "jwtFilePath": {
+          "$ref": "#/$defs/helm-values.config.cyberark.jwtFilePath"
+        },
+        "jwtSource": {
+          "$ref": "#/$defs/helm-values.config.cyberark.jwtSource"
+        },
+        "serviceId": {
+          "$ref": "#/$defs/helm-values.config.cyberark.serviceId"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.config.cyberark.account": {
+      "default": "conjur",
+      "description": "The Conjur account name. For CyberArk-hosted tenants this is always \"conjur\".",
+      "type": "string"
+    },
+    "helm-values.config.cyberark.jwtFilePath": {
+      "default": "/var/run/secrets/tokens/jwt",
+      "description": "Path to the projected ServiceAccount token file. The chart auto-mounts a projected volume at this path when jwtSource is \"file\".",
+      "type": "string"
+    },
+    "helm-values.config.cyberark.jwtSource": {
+      "default": "file",
+      "description": "Token source for Conjur JWT authentication. \"file\" reads the token from jwtFilePath (projected SA-token volume). \"spiffe\" is deferred and not implemented in this POC.",
+      "type": "string"
+    },
+    "helm-values.config.cyberark.serviceId": {
+      "default": "",
+      "description": "The Conjur authn-jwt authenticator service ID configured for this tenant. Example: conjur/authn-jwt/disco-agent",
       "type": "string"
     },
     "helm-values.config.excludeAnnotationKeysRegex": {

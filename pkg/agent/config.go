@@ -64,6 +64,9 @@ type Config struct {
 	DataGatherers  []DataGatherer     `yaml:"data-gatherers"`
 	VenafiCloud    *VenafiCloudConfig `yaml:"venafi-cloud,omitempty"`
 
+	// CyberArk holds configuration for MachineHub mode (POC).
+	CyberArk *CyberArkConfig `yaml:"cyberark,omitempty"`
+
 	// For testing purposes.
 	InputPath string `yaml:"input-path"`
 	// For testing purposes.
@@ -99,6 +102,19 @@ type VenafiCloudConfig struct {
 	// UploadPath is the endpoint path for the upload API. Only used in Venafi
 	// Cloud Key Pair Service Account mode.
 	UploadPath string `yaml:"upload_path,omitempty"`
+}
+
+// CyberArkConfig holds YAML configuration for MachineHub (CyberArk) mode (POC).
+type CyberArkConfig struct {
+	// ServiceID is the authn-jwt service ID configured in Conjur (e.g. "dev-cluster").
+	ServiceID string `yaml:"service_id"`
+	// Account is the Conjur account name. Defaults to "conjur" when empty.
+	Account string `yaml:"account"`
+	// JWTSource selects how the agent obtains its JWT. Must be "" or "file" in the POC.
+	JWTSource string `yaml:"jwt_source"`
+	// JWTFilePath is the path to the JWT file when jwt_source is "file".
+	// Defaults to the standard projected service-account token path when empty.
+	JWTFilePath string `yaml:"jwt_file_path"`
 }
 
 type AgentCmdFlags struct {
@@ -459,6 +475,9 @@ type CombinedConfig struct {
 	TSGID         string
 	NGTSServerURL string
 
+	// MachineHub mode only.
+	CyberArk CyberArkConfig
+
 	// Only used for testing purposes.
 	OutputPath string
 	InputPath  string
@@ -753,17 +772,15 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			clusterID = cfg.ClusterID
 		case MachineHub:
 			clusterName = cfg.ClusterName
-			if clusterName == "" {
-				if arkUsername, found := os.LookupEnv("ARK_USERNAME"); found {
-					log.Info("Using ARK_USERNAME environment variable as cluster name", "clusterName", arkUsername)
-					clusterName = arkUsername
-				}
+			if clusterName == "" && cfg.ClusterID != "" {
+				log.Info("Using cluster_id as cluster_name for backwards compatibility", "clusterID", cfg.ClusterID)
+				clusterName = cfg.ClusterID
 			}
 			if cfg.OrganizationID != "" {
 				log.Info(fmt.Sprintf(`Ignoring the organization_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
 			}
-			if cfg.ClusterID != "" {
-				log.Info(fmt.Sprintf(`Ignoring the cluster_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
+			if clusterName == "" && cfg.ClusterID == "" {
+				log.Info("cluster_name is not set in MachineHub mode; cluster name will be empty")
 			}
 		}
 		res.OrganizationID = organizationID
@@ -771,6 +788,24 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		res.ClusterName = clusterName
 		res.ClusterDescription = cfg.ClusterDescription
 		res.ClaimableCerts = cfg.ClaimableCerts
+	}
+
+	// Validation of `cyberark.*` (MachineHub mode only).
+	if res.OutputMode == MachineHub {
+		ark := CyberArkConfig{}
+		if cfg.CyberArk != nil {
+			ark = *cfg.CyberArk
+		}
+		// service_id selects the Conjur JWT exchange. It is no longer required:
+		// the agent also supports the legacy username/password method via
+		// ARK_USERNAME/ARK_SECRET (env, not visible here) for backward
+		// compatibility. The auth method is chosen at runtime by
+		// cyberark.selectAuthenticator, which fails closed if neither a
+		// service_id nor username/password credentials are configured.
+		if ark.JWTSource != "" && ark.JWTSource != "file" {
+			errs = multierror.Append(errs, fmt.Errorf("cyberark.jwt_source %q is not supported (POC only supports \"\" or \"file\")", ark.JWTSource))
+		}
+		res.CyberArk = ark
 	}
 
 	// Validation of `data-gatherers`.
@@ -987,7 +1022,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			rootCAs *x509.CertPool
 		)
 		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
-		outputClient, err = client.NewCyberArk(httpClient)
+		outputClient, err = client.NewCyberArk(httpClient, cfg.CyberArk.ServiceID, cfg.CyberArk.Account, cfg.CyberArk.JWTSource, cfg.CyberArk.JWTFilePath)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
