@@ -47,6 +47,10 @@ func (c *Client) exchange(ctx context.Context) (string, error) {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	// Request the base64-encoded access token — Conjur's canonical wire form for
+	// the token. The DisCo authorizer accepts this base64 blob directly (passes it
+	// to /whoami as-is, base64-decodes only for routing).
+	req.Header.Set("Accept-Encoding", "base64")
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("authn-jwt exchange transport error: %w", err)

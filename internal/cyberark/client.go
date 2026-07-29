@@ -100,7 +100,7 @@ func selectAuthenticator(ctx context.Context, httpClient *http.Client, serviceMa
 		}
 		account := cfg.Account
 		if account == "" {
-			account = "conjur" // POC default; open item #2
+			account = "conjur"
 		}
 		src := jwtsource.NewFileSource(cfg.JWTFilePath)
 		conjurClient := conjur.New(httpClient, identityAPI, cfg.ServiceID, account, src)
