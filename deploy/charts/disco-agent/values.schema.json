@@ -188,7 +188,7 @@
     },
     "helm-values.config.cyberark.serviceId": {
       "default": "",
-      "description": "The Conjur authn-jwt authenticator service ID configured for this tenant. Example: conjur/authn-jwt/disco-agent",
+      "description": "The Conjur authn-jwt authenticator service ID configured for this tenant. Bare segment, not the policy path. Example: disco-agent",
       "type": "string"
     },
     "helm-values.config.excludeAnnotationKeysRegex": {

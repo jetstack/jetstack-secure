@@ -1330,25 +1330,30 @@ func TestConfig_CyberArk_Validation(t *testing.T) {
 		t.Setenv("ARK_SUBDOMAIN", "tlspk")
 	}
 
-	t.Run("empty service_id produces an error", func(t *testing.T) {
+	// service_id is no longer required at config-validation time: the agent
+	// also supports the legacy username/password method (ARK_USERNAME/ARK_SECRET,
+	// set via env, not config), and cyberark.selectAuthenticator fails closed at
+	// runtime (ErrNoAuthMethod) if neither method ends up configured. See the
+	// comment on this validation block in config.go.
+	t.Run("empty service_id is valid at config time", func(t *testing.T) {
 		setEnv(t)
-		_, _, err := ValidateAndCombineConfig(discardLogs(),
+		_, combined, err := ValidateAndCombineConfig(discardLogs(),
 			withConfig(testutil.Undent(`
 				cyberark:
 				  service_id: ""
 			`)),
 			withCmdLineFlags("--period", "1m", "--machine-hub"))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "cyberark.service_id is required in MachineHub mode")
+		require.NoError(t, err)
+		assert.Equal(t, "", combined.CyberArk.ServiceID)
 	})
 
-	t.Run("missing cyberark block produces a service_id error", func(t *testing.T) {
+	t.Run("missing cyberark block is valid at config time", func(t *testing.T) {
 		setEnv(t)
-		_, _, err := ValidateAndCombineConfig(discardLogs(),
+		_, combined, err := ValidateAndCombineConfig(discardLogs(),
 			withConfig(""),
 			withCmdLineFlags("--period", "1m", "--machine-hub"))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "cyberark.service_id is required in MachineHub mode")
+		require.NoError(t, err)
+		assert.Equal(t, "", combined.CyberArk.ServiceID)
 	})
 
 	t.Run("jwt_source spiffe is rejected", func(t *testing.T) {
