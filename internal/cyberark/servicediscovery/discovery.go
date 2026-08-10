@@ -28,6 +28,14 @@ const (
 	// in responses from the Service Discovery API.
 	DiscoveryContextServiceName = "discoverycontext"
 
+	// SecretsManagerServiceName is the name of the Secrets Manager (Conjur
+	// Cloud) API in responses from the Service Discovery API. This is the host
+	// that serves `authn-jwt/<service-id>/<account>/authenticate` — NOT the
+	// identity_administration host. The DisCo authorizer resolves the same
+	// service name when it validates the resulting token (see conjur_token.py
+	// `_SMS_SERVICE_NAME`).
+	SecretsManagerServiceName = "secrets_manager"
+
 	// maxDiscoverBodySize is the maximum allowed size for a response body from the CyberArk Service Discovery subdomain endpoint
 	// As of 2025-04-16, a response from the integration environment is ~4kB
 	maxDiscoverBodySize = 2 * 1024 * 1024
@@ -101,11 +109,13 @@ type ServiceEndpoint struct {
 	API      string `json:"api"`
 }
 
-// This is a convenience struct to hold the two ServiceEndpoints we care about.
-// Currently, we only care about the Identity API and the Discovery Context API.
+// This is a convenience struct to hold the ServiceEndpoints we care about:
+// the Identity API, the Discovery Context API, and the Secrets Manager
+// (Conjur Cloud) API used for the authn-jwt token exchange.
 type Services struct {
 	Identity         ServiceEndpoint
 	DiscoveryContext ServiceEndpoint
+	SecretsManager   ServiceEndpoint
 }
 
 // DiscoverServices fetches from the service discovery service for the configured subdomain
@@ -163,7 +173,7 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 		}
 		return nil, "", fmt.Errorf("failed to parse JSON from otherwise successful request to service discovery endpoint: %s", err)
 	}
-	var identityAPI, discoveryContextAPI string
+	var identityAPI, discoveryContextAPI, secretsManagerAPI string
 	for _, svc := range discoveryResp.Services {
 		switch svc.ServiceName {
 		case IdentityServiceName:
@@ -180,6 +190,13 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 					break
 				}
 			}
+		case SecretsManagerServiceName:
+			for _, ep := range svc.Endpoints {
+				if ep.Type == "main" && ep.IsActive && ep.API != "" {
+					secretsManagerAPI = ep.API
+					break
+				}
+			}
 		}
 	}
 
@@ -192,6 +209,7 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 	services := &Services{
 		Identity:         ServiceEndpoint{API: identityAPI},
 		DiscoveryContext: ServiceEndpoint{API: discoveryContextAPI},
+		SecretsManager:   ServiceEndpoint{API: secretsManagerAPI},
 	}
 
 	c.cachedResponse = services

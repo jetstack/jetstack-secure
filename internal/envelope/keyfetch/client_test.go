@@ -30,12 +30,18 @@ func testClientSetup(t *testing.T, jwksServerURL string) (*Client, cyberark.Clie
 		Identity: servicediscovery.ServiceEndpoint{
 			IsActive: true,
 			Type:     "main",
-			API:      conjurSrv.URL,
+			// Unused by the Conjur path, but service discovery requires it.
+			API: "https://identity.example.invalid",
 		},
 		DiscoveryContext: servicediscovery.ServiceEndpoint{
 			IsActive: true,
 			Type:     "main",
 			API:      jwksServerURL,
+		},
+		SecretsManager: servicediscovery.ServiceEndpoint{
+			IsActive: true,
+			Type:     "main",
+			API:      conjurSrv.URL,
 		},
 	}
 
@@ -245,12 +251,18 @@ func TestClient_FetchKey(t *testing.T) {
 			Identity: servicediscovery.ServiceEndpoint{
 				IsActive: true,
 				Type:     "main",
-				API:      conjurSrv.URL,
+				// Unused by the Conjur path, but service discovery requires it.
+				API: "https://identity.example.invalid",
 			},
 			DiscoveryContext: servicediscovery.ServiceEndpoint{
 				IsActive: true,
 				Type:     "main",
 				API:      server.URL,
+			},
+			SecretsManager: servicediscovery.ServiceEndpoint{
+				IsActive: true,
+				Type:     "main",
+				API:      conjurSrv.URL,
 			},
 		}
 
@@ -283,6 +295,12 @@ func TestClient_FetchKey(t *testing.T) {
 		// Set up services for mock discovery server
 		services := servicediscovery.Services{
 			Identity: servicediscovery.ServiceEndpoint{
+				IsActive: true,
+				Type:     "main",
+				// Unused by the Conjur path, but service discovery requires it.
+				API: "https://identity.example.invalid",
+			},
+			SecretsManager: servicediscovery.ServiceEndpoint{
 				IsActive: true,
 				Type:     "main",
 				API:      conjurSrv.URL,

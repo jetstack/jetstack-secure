@@ -25,6 +25,7 @@ const (
 
 	mockIdentityAPIURL         = "https://ajp5871.id.integration-cyberark.cloud"
 	mockDiscoveryContextAPIURL = "https://venafi-test.inventory.integration-cyberark.cloud/"
+	mockSecretsManagerAPIURL   = "https://venafi-test.secretsmgr.integration-cyberark.cloud/api"
 	prefix                     = "/api/public/tenant-discovery?bySubdomain="
 )
 

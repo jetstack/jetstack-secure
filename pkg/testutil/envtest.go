@@ -287,10 +287,14 @@ func FakeCyberArk(t testing.TB) (httpClient *http.Client, jwtFilePath string) {
 	discoveryContextAPI, _ := dataupload.MockDataUploadServer(t)
 	httpClient = servicediscovery.MockDiscoveryServer(t, servicediscovery.Services{
 		Identity: servicediscovery.ServiceEndpoint{
-			API: conjurSrv.URL, // conjur exchange endpoint base
+			// Unused by the Conjur path, but service discovery requires it.
+			API: "https://identity.example.invalid",
 		},
 		DiscoveryContext: servicediscovery.ServiceEndpoint{
 			API: discoveryContextAPI,
+		},
+		SecretsManager: servicediscovery.ServiceEndpoint{
+			API: conjurSrv.URL, // conjur authn-jwt exchange endpoint base
 		},
 	})
 	return httpClient, jwtFile.Name()

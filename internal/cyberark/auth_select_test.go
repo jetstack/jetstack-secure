@@ -40,17 +40,25 @@ func TestNewDatauploadClient_AuthMethodSelection(t *testing.T) {
 		return f.Name()
 	}
 
-	// stack builds a service map whose Identity API points at the given endpoint
-	// and whose DiscoveryContext points at a dataupload mock. The dataupload mock
-	// requires Authorization: Bearer success-token.
-	stack := func(t *testing.T, identityAPI string) *servicediscovery.Services {
+	// stack builds a service map whose DiscoveryContext points at a dataupload
+	// mock (which requires Authorization: Bearer success-token). The Identity
+	// and SecretsManager endpoints are supplied separately and deliberately
+	// differ: the username/password path must use Identity and the Conjur
+	// authn-jwt exchange must use SecretsManager, so pointing a mock at only
+	// one of them proves which endpoint the code actually called.
+	stack := func(t *testing.T, identityAPI, smsAPI string) *servicediscovery.Services {
 		t.Helper()
 		discoveryContextAPI, _ := dataupload.MockDataUploadServer(t)
 		return &servicediscovery.Services{
 			Identity:         servicediscovery.ServiceEndpoint{API: identityAPI},
 			DiscoveryContext: servicediscovery.ServiceEndpoint{API: discoveryContextAPI},
+			SecretsManager:   servicediscovery.ServiceEndpoint{API: smsAPI},
 		}
 	}
+
+	// Endpoints that must never be dialled by the path under test.
+	const unusedIdentity = "https://identity.example.invalid"
+	const unusedSMS = "https://secretsmgr.example.invalid"
 
 	t.Run("serviceID set -> conjur path", func(t *testing.T) {
 		conjurSrv, _ := conjur.MockConjurExchangeServer(t, conjurToken)
@@ -60,7 +68,7 @@ func TestNewDatauploadClient_AuthMethodSelection(t *testing.T) {
 			ServiceID:   "dev-cluster",
 			JWTFilePath: writeJWT(t),
 		}
-		_, err := cyberark.NewDatauploadClient(ctx, conjurSrv.Client(), stack(t, conjurSrv.URL), "tenant", cfg)
+		_, err := cyberark.NewDatauploadClient(ctx, conjurSrv.Client(), stack(t, unusedIdentity, conjurSrv.URL), "tenant", cfg)
 		require.NoError(t, err)
 	})
 
@@ -73,7 +81,7 @@ func TestNewDatauploadClient_AuthMethodSelection(t *testing.T) {
 			Secret:    []byte(identity.MockSuccessPassword),
 		}
 		// Login happens during construction; success proves the UP path ran.
-		_, err := cyberark.NewDatauploadClient(ctx, httpClient, stack(t, identityURL), "tenant", cfg)
+		_, err := cyberark.NewDatauploadClient(ctx, httpClient, stack(t, identityURL, unusedSMS), "tenant", cfg)
 		require.NoError(t, err)
 	})
 
@@ -89,13 +97,13 @@ func TestNewDatauploadClient_AuthMethodSelection(t *testing.T) {
 			Username: "should-not-be-used@example.com",
 			Secret:   []byte("wrong-password"),
 		}
-		_, err := cyberark.NewDatauploadClient(ctx, conjurSrv.Client(), stack(t, conjurSrv.URL), "tenant", cfg)
+		_, err := cyberark.NewDatauploadClient(ctx, conjurSrv.Client(), stack(t, unusedIdentity, conjurSrv.URL), "tenant", cfg)
 		require.NoError(t, err) // conjur path used; bogus UP creds never exercised
 	})
 
 	t.Run("neither set -> ErrNoAuthMethod", func(t *testing.T) {
 		cfg := cyberark.ClientConfig{Subdomain: "tenant-sub"}
-		_, err := cyberark.NewDatauploadClient(ctx, &http.Client{}, stack(t, "https://identity.example"), "tenant", cfg)
+		_, err := cyberark.NewDatauploadClient(ctx, &http.Client{}, stack(t, unusedIdentity, unusedSMS), "tenant", cfg)
 		require.ErrorIs(t, err, cyberark.ErrNoAuthMethod)
 	})
 }

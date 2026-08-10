@@ -35,9 +35,9 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 		ctx := klog.NewContext(t.Context(), logger)
 
-		httpClient := testutil.FakeCyberArk(t)
+		httpClient, jwtFilePath := testutil.FakeCyberArk(t)
 
-		c, err := client.NewCyberArk(httpClient)
+		c, err := client.NewCyberArk(httpClient, "test-service", "", "file", jwtFilePath)
 		require.NoError(t, err)
 
 		readings := fakeReadings()
@@ -66,7 +66,8 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 		var rootCAs *x509.CertPool
 		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
 
-		c, err := client.NewCyberArk(httpClient)
+		serviceID := os.Getenv("ARK_SERVICE_ID")
+		c, err := client.NewCyberArk(httpClient, serviceID, "", "", "")
 		if err != nil {
 			if errors.Is(err, cyberark.ErrMissingEnvironmentVariables) {
 				t.Skipf("Skipping: %s", err)

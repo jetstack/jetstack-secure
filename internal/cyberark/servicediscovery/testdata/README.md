@@ -9,6 +9,7 @@ NOTE: This API is not implemented yet as of 02.09.2025 but is expected to be fin
 curl -fsSL "${ARK_DISCOVERY_API}?bySubdomain=${ARK_SUBDOMAIN}" | jq
 ```
 
-Then replace `identity_administration.api` with `{{ .Identity.API }}` and
-`discoverycontext.api` with `{{ .DiscoveryContext.API }}`. Those Go template
+Then replace `identity_administration.api` with `{{ .Identity.API }}`,
+`discoverycontext.api` with `{{ .DiscoveryContext.API }}`, and
+`secrets_manager.api` with `{{ .SecretsManager.API }}`. Those Go template
 fields will be substituted in the tests.

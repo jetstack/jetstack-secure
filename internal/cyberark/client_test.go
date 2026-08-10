@@ -39,12 +39,19 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 
 	discoveryContextAPI, _ := dataupload.MockDataUploadServer(t)
 
+	// Unused by the Conjur path, but service discovery requires it to be set.
+	const identitySrv = "https://identity.example.invalid"
+
 	httpClient := servicediscovery.MockDiscoveryServer(t, servicediscovery.Services{
 		Identity: servicediscovery.ServiceEndpoint{
-			API: conjurSrv.URL,
+			API: identitySrv,
 		},
 		DiscoveryContext: servicediscovery.ServiceEndpoint{
 			API: discoveryContextAPI,
+		},
+		// The authn-jwt exchange lives on secrets_manager, not identity.
+		SecretsManager: servicediscovery.ServiceEndpoint{
+			API: conjurSrv.URL,
 		},
 	})
 
@@ -99,10 +106,14 @@ func TestNewDatauploadClient_UsesConjurExchanger(t *testing.T) {
 
 	serviceMap := &servicediscovery.Services{
 		Identity: servicediscovery.ServiceEndpoint{
-			API: conjurSrv.URL, // conjur exchange endpoint base
+			// Unused by the Conjur path, but service discovery requires it.
+			API: "https://identity.example.invalid",
 		},
 		DiscoveryContext: servicediscovery.ServiceEndpoint{
 			API: discoveryContextAPI,
+		},
+		SecretsManager: servicediscovery.ServiceEndpoint{
+			API: conjurSrv.URL, // conjur authn-jwt exchange endpoint base
 		},
 	}
 

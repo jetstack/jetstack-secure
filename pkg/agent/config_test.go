@@ -1337,7 +1337,7 @@ func TestConfig_CyberArk_Validation(t *testing.T) {
 	// comment on this validation block in config.go.
 	t.Run("empty service_id is valid at config time", func(t *testing.T) {
 		setEnv(t)
-		_, combined, err := ValidateAndCombineConfig(discardLogs(),
+		combined, _, err := ValidateAndCombineConfig(discardLogs(),
 			withConfig(testutil.Undent(`
 				cyberark:
 				  service_id: ""
@@ -1349,7 +1349,7 @@ func TestConfig_CyberArk_Validation(t *testing.T) {
 
 	t.Run("missing cyberark block is valid at config time", func(t *testing.T) {
 		setEnv(t)
-		_, combined, err := ValidateAndCombineConfig(discardLogs(),
+		combined, _, err := ValidateAndCombineConfig(discardLogs(),
 			withConfig(""),
 			withCmdLineFlags("--period", "1m", "--machine-hub"))
 		require.NoError(t, err)
