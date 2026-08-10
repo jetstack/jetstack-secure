@@ -94,33 +94,20 @@ configuration is required.
 
 ### Per-tenant Conjur onboarding
 
-Onboarding uses the Conjur Cloud **v2 REST API** (JSON objects), not v1 policy
-files — run `hack/onboard-disco-agent.sh` against the target tenant before
-deploying the agent. The script performs all of it with the **customer's own**
-Conjur Cloud admin token; DisCo holds no Conjur identity of its own:
+Before deploying the agent, the target tenant must be onboarded in Conjur
+Cloud: an `authn-jwt` authenticator scoped to the cluster's OIDC issuer and
+JWKS, a registered workload for the agent's ServiceAccount, and the grants that
+let that workload authenticate and upload. Onboarding is performed through the
+CyberArk web console — see the product documentation for the current
+walkthrough.
 
-```sh
-CONJUR_TOKEN="$(cat admin-token.txt)" \
-  hack/onboard-disco-agent.sh \
-    --ark-subdomain <tenant-subdomain> \
-    --issuer https://kubernetes.default.svc.cluster.local
-```
+Onboarding needs only the tenant administrator's own Conjur Cloud credentials.
+The agent itself holds no Conjur identity beyond its projected ServiceAccount
+token, and nothing in this chart requires a Conjur admin credential at deploy
+time.
 
-Tenant-level (once per tenant per provider type): creates the `data/disco`
-branch, a per-type uploader group, and a value-less "probe" secret that only
-the uploader group can `read`+`execute` — that probe is the entire
-authorization decision at request time (no policy `!permit`/`!grant` needed).
-
-Per-cluster (each onboard): creates `data/<provider-type>/<cluster-UUID>` and
-its `workloads` sub-branch, an `authn-jwt` authenticator scoped to the
-cluster's real OIDC issuer + JWKS, registers the agent's workload under that
-branch, and grants it both the authenticator's `apps` group (to authenticate)
-and the uploader group (to pass the probe, i.e. to authorize).
-
-`CLUSTER_UUID` (the `kube-system` namespace UID), the OIDC issuer, and the JWKS
-are auto-derived from the current `kubectl` context if not passed explicitly.
-See the script's header comment for the full `--dry-run`/`--skip-deploy` flag
-reference.
+Once onboarding is complete, note the authenticator's service ID — that is the
+value for `config.cyberark.serviceId` below.
 
 ### Deploy the agent
 
@@ -151,7 +138,7 @@ kubectl logs deployments/disco-agent --namespace "${NAMESPACE}" --follow
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Agent logs `401 Unauthorized` from Conjur | ServiceAccount token `audience` does not match the authenticator's configured `audience` value, or the authn-jwt authenticator is not enabled for the account | Confirm `audience=conjur` in both the projected volume (chart default) and the Conjur `conjur/authn-jwt/<serviceId>/audience` variable; ensure the authenticator is enabled (`CONJUR_AUTHENTICATORS` includes `authn-jwt/<serviceId>`) |
-| Agent logs `403 Forbidden` from the upload API | The agent's workload is not a member of `data/disco/<type>-uploaders` (fails the authz probe) | Re-run `hack/onboard-disco-agent.sh` for this cluster — it's idempotent |
+| Agent logs `403 Forbidden` from the upload API | The agent's workload is authenticated but not authorized to upload | Confirm in the CyberArk console that this cluster's workload was granted the uploader permission during onboarding |
 | Agent logs `500` / no upload attempt | Conjur is unreachable or returned an unexpected error | Check network policy / DNS; inspect Conjur audit logs for the host identity |
 
 ## Values

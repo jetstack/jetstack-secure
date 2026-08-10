@@ -31,9 +31,8 @@ const (
 	// SecretsManagerServiceName is the name of the Secrets Manager (Conjur
 	// Cloud) API in responses from the Service Discovery API. This is the host
 	// that serves `authn-jwt/<service-id>/<account>/authenticate` — NOT the
-	// identity_administration host. The DisCo authorizer resolves the same
-	// service name when it validates the resulting token (see conjur_token.py
-	// `_SMS_SERVICE_NAME`).
+	// identity_administration host. The server that validates the resulting
+	// token resolves this same service name.
 	SecretsManagerServiceName = "secrets_manager"
 
 	// maxDiscoverBodySize is the maximum allowed size for a response body from the CyberArk Service Discovery subdomain endpoint

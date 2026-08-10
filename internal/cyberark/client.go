@@ -103,10 +103,10 @@ func selectAuthenticator(ctx context.Context, httpClient *http.Client, serviceMa
 			account = "conjur"
 		}
 		// The authn-jwt exchange is served by Secrets Manager (Conjur Cloud),
-		// not by identity_administration. Onboarding registers the
-		// authenticator on that same host (hack/onboard-disco-agent.sh builds
-		// https://<subdomain>.secretsmgr.<env>-cyberark.cloud/api), and the
-		// DisCo authorizer resolves it the same way when validating the token.
+		// not by identity_administration — those are different hosts. Tenant
+		// onboarding registers the authenticator on the Secrets Manager host,
+		// and the server that later validates the resulting token resolves the
+		// same service from service discovery.
 		smsAPI := serviceMap.SecretsManager.API
 		if smsAPI == "" {
 			return nil, errors.New("service discovery returned an empty secrets_manager API, which is required for the Conjur JWT exchange")

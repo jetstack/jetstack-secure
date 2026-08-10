@@ -48,8 +48,8 @@ func (c *Client) exchange(ctx context.Context) (string, error) {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	// Request the base64-encoded access token — Conjur's canonical wire form for
-	// the token. The DisCo authorizer accepts this base64 blob directly (passes it
-	// to /whoami as-is, base64-decodes only for routing).
+	// the token. It is sent onwards as an opaque Bearer credential, so no
+	// decoding is needed on this side.
 	req.Header.Set("Accept-Encoding", "base64")
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
