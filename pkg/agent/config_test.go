@@ -707,7 +707,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		assert.Nil(t, cl)
 		assert.EqualError(t, err, testutil.Undent(`
 			validating creds: failed loading config using the MachineHub mode: 1 error occurred:
-				* missing environment variables: ARK_SUBDOMAIN, ARK_USERNAME, ARK_SECRET
+				* missing environment variables: ARK_SUBDOMAIN
 
 	   `))
 	})
