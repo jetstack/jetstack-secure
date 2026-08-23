@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/jetstack/preflight/api"
+	"github.com/jetstack/preflight/internal/cyberark"
 	"github.com/jetstack/preflight/pkg/client"
 	"github.com/jetstack/preflight/pkg/datagatherer"
 	"github.com/jetstack/preflight/pkg/datagatherer/k8sdiscovery"
@@ -64,6 +65,9 @@ type Config struct {
 	DataGatherers  []DataGatherer     `yaml:"data-gatherers"`
 	VenafiCloud    *VenafiCloudConfig `yaml:"venafi-cloud,omitempty"`
 
+	// CyberArk holds configuration for MachineHub mode (POC).
+	CyberArk *CyberArkConfig `yaml:"cyberark,omitempty"`
+
 	// For testing purposes.
 	InputPath string `yaml:"input-path"`
 	// For testing purposes.
@@ -99,6 +103,19 @@ type VenafiCloudConfig struct {
 	// UploadPath is the endpoint path for the upload API. Only used in Venafi
 	// Cloud Key Pair Service Account mode.
 	UploadPath string `yaml:"upload_path,omitempty"`
+}
+
+// CyberArkConfig holds YAML configuration for MachineHub (CyberArk) mode (POC).
+type CyberArkConfig struct {
+	// ServiceID is the authn-jwt service ID configured in Conjur (e.g. "dev-cluster").
+	ServiceID string `yaml:"service_id"`
+	// Account is the Conjur account name. Defaults to "conjur" when empty.
+	Account string `yaml:"account"`
+	// JWTSource selects how the agent obtains its JWT. Must be "" or "file" in the POC.
+	JWTSource string `yaml:"jwt_source"`
+	// JWTFilePath is the path to the JWT file when jwt_source is "file".
+	// Defaults to the standard projected service-account token path when empty.
+	JWTFilePath string `yaml:"jwt_file_path"`
 }
 
 type AgentCmdFlags struct {
@@ -459,6 +476,9 @@ type CombinedConfig struct {
 	TSGID         string
 	NGTSServerURL string
 
+	// MachineHub mode only.
+	CyberArk CyberArkConfig
+
 	// Only used for testing purposes.
 	OutputPath string
 	InputPath  string
@@ -753,17 +773,31 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 			clusterID = cfg.ClusterID
 		case MachineHub:
 			clusterName = cfg.ClusterName
+			if clusterName == "" && cfg.ClusterID != "" {
+				log.Info("Using cluster_id as cluster_name", "clusterID", cfg.ClusterID)
+				clusterName = cfg.ClusterID
+			}
 			if clusterName == "" {
-				if arkUsername, found := os.LookupEnv("ARK_USERNAME"); found {
-					log.Info("Using ARK_USERNAME environment variable as cluster name", "clusterName", arkUsername)
+				// Legacy fallback: pre-Conjur installs set neither
+				// cluster_name nor cluster_id — the chart only ever emitted
+				// cluster_name — and were named after ARK_USERNAME. Kept
+				// below both config fields so explicit configuration always
+				// wins; this never overrides a value the operator actually
+				// set. Naming a cluster after a login identity is an
+				// accident of the original design, worth retiring once
+				// installs set cluster_name explicitly, but the env var
+				// itself stays since it's still the username/password
+				// credential.
+				if arkUsername := os.Getenv("ARK_USERNAME"); arkUsername != "" {
+					log.Info("Using ARK_USERNAME as cluster name because neither cluster_name nor cluster_id is set; prefer setting cluster_name explicitly", "clusterName", arkUsername)
 					clusterName = arkUsername
 				}
 			}
 			if cfg.OrganizationID != "" {
 				log.Info(fmt.Sprintf(`Ignoring the organization_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
 			}
-			if cfg.ClusterID != "" {
-				log.Info(fmt.Sprintf(`Ignoring the cluster_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
+			if clusterName == "" {
+				log.Info("cluster_name is not set in MachineHub mode; cluster name will be empty")
 			}
 		}
 		res.OrganizationID = organizationID
@@ -771,6 +805,27 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		res.ClusterName = clusterName
 		res.ClusterDescription = cfg.ClusterDescription
 		res.ClaimableCerts = cfg.ClaimableCerts
+	}
+
+	// Validation of `cyberark.*` (MachineHub mode only).
+	if res.OutputMode == MachineHub {
+		ark := CyberArkConfig{}
+		if cfg.CyberArk != nil {
+			ark = *cfg.CyberArk
+		}
+		// service_id selects the Conjur JWT exchange. It is no longer required:
+		// the agent also supports the legacy username/password method via
+		// ARK_USERNAME/ARK_SECRET. Checked here, at config-validation time,
+		// rather than left to cyberark.selectAuthenticator alone — that only
+		// runs at first upload, so a misconfigured agent would otherwise
+		// report healthy for up to a full config.period before failing.
+		if ark.ServiceID == "" && (os.Getenv("ARK_USERNAME") == "" || os.Getenv("ARK_SECRET") == "") {
+			errs = multierror.Append(errs, fmt.Errorf("MachineHub mode requires either cyberark.service_id or ARK_USERNAME/ARK_SECRET"))
+		}
+		if err := cyberark.ValidateJWTSource(ark.JWTSource); err != nil {
+			errs = multierror.Append(errs, fmt.Errorf("cyberark.jwt_source %w", err))
+		}
+		res.CyberArk = ark
 	}
 
 	// Validation of `data-gatherers`.
@@ -987,7 +1042,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			rootCAs *x509.CertPool
 		)
 		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
-		outputClient, err = client.NewCyberArk(httpClient)
+		outputClient, err = client.NewCyberArk(httpClient, cfg.CyberArk.ServiceID, cfg.CyberArk.Account, cfg.CyberArk.JWTSource, cfg.CyberArk.JWTFilePath)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}
