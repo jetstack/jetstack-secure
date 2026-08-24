@@ -31,7 +31,7 @@
           "is_active": true,
           "type": "main",
           "ui": "https://ui.test-conjur.cloud",
-          "api": "https://venafi-test.secretsmgr.integration-cyberark.cloud/api"
+          "api": "{{ .SecretsManager.API }}"
         }
       ]
     },
