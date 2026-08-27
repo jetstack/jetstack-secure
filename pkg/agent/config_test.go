@@ -1323,11 +1323,19 @@ func Test_ValidateAndCombineConfig_NGTS(t *testing.T) {
 
 func TestConfig_CyberArk_Validation(t *testing.T) {
 	// Common env setup: ARK_SUBDOMAIN is the only required env var for MachineHub mode.
+	// ARK_USERNAME/ARK_SECRET are cleared unconditionally rather than left
+	// ambient — CI sets both from real secrets at the job level (for the
+	// separate ARK_LIVE_TEST-gated live test), so leaving them untouched here
+	// would let real credentials leak into subtests that assert on an empty
+	// username/secret. Subtests needing non-empty values set them explicitly
+	// after calling setEnv.
 	setEnv := func(t *testing.T) {
 		t.Helper()
 		t.Setenv("POD_NAMESPACE", "venafi")
 		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
 		t.Setenv("ARK_SUBDOMAIN", "tlspk")
+		t.Setenv("ARK_USERNAME", "")
+		t.Setenv("ARK_SECRET", "")
 	}
 
 	// service_id is not required at config-validation time as long as the
