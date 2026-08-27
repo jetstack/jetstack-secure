@@ -34,6 +34,14 @@ const (
 	mockSuccessfulStartAuthenticationToken = "success-token"
 )
 
+// Exported credentials that MockIdentityServer accepts as a successful
+// username/password login. Used by other packages' tests that exercise the
+// legacy UP auth path against the mock server.
+const (
+	MockSuccessUser     = successUser
+	MockSuccessPassword = successPassword
+)
+
 var (
 	//go:embed testdata/start_authentication_success.json
 	startAuthenticationSuccessResponse string
