@@ -35,15 +35,59 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 		ctx := klog.NewContext(t.Context(), logger)
 
-		httpClient := testutil.FakeCyberArk(t)
+		httpClient, jwtFilePath := testutil.FakeCyberArk(t)
 
-		c, err := client.NewCyberArk(httpClient)
+		c, err := client.NewCyberArk(httpClient, "test-service", "", "file", jwtFilePath)
 		require.NoError(t, err)
 
 		readings := fakeReadings()
 		err = c.PostDataReadingsWithOptions(ctx, readings, client.Options{})
 		require.NoError(t, err)
 	})
+}
+
+// TestCyberArkClient_PostDataReadingsWithOptions_UsernamePasswordMockAPI is
+// the legacy-auth-path counterpart to the Conjur test above. Without it, the
+// only integration-level test of NewCyberArk's username/password path is one
+// that sets ARK_USERNAME/ARK_SECRET but then also passes a non-empty
+// serviceID — which selectAuthenticator prioritises, so it silently exercises
+// Conjur regardless of those env vars. This test leaves serviceID empty so
+// the username/password path is what's actually under test.
+func TestCyberArkClient_PostDataReadingsWithOptions_UsernamePasswordMockAPI(t *testing.T) {
+	t.Setenv("ARK_SUBDOMAIN", servicediscovery.MockDiscoverySubdomain)
+	httpClient, username, password := testutil.FakeCyberArkUsernamePassword(t)
+	t.Setenv("ARK_USERNAME", username)
+	t.Setenv("ARK_SECRET", password)
+
+	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+	ctx := klog.NewContext(t.Context(), logger)
+
+	c, err := client.NewCyberArk(httpClient, "", "", "", "")
+	require.NoError(t, err)
+
+	readings := fakeReadings()
+	err = c.PostDataReadingsWithOptions(ctx, readings, client.Options{})
+	require.NoError(t, err)
+}
+
+// TestCyberArkClient_PostDataReadingsWithOptions_UsernamePasswordSecondUpload
+// is a regression test for the client's cfg.Secret ([]byte, not string) being
+// shared — via NewCyberArk's configLoader closure — across every upload
+// cycle. LoginUsernamePassword used to zero the slice it was handed, which
+// zeroed cfg.Secret in place, so the second upload's login always failed
+// with a real password. A single upload could never catch this.
+func TestCyberArkClient_PostDataReadingsWithOptions_UsernamePasswordSecondUpload(t *testing.T) {
+	t.Setenv("ARK_SUBDOMAIN", servicediscovery.MockDiscoverySubdomain)
+	httpClient, username, password := testutil.FakeCyberArkUsernamePassword(t)
+	t.Setenv("ARK_USERNAME", username)
+	t.Setenv("ARK_SECRET", password)
+
+	c, err := client.NewCyberArk(httpClient, "", "", "", "")
+	require.NoError(t, err)
+
+	readings := fakeReadings()
+	require.NoError(t, c.PostDataReadingsWithOptions(t.Context(), readings, client.Options{}), "first upload")
+	require.NoError(t, c.PostDataReadingsWithOptions(t.Context(), readings, client.Options{}), "second upload")
 }
 
 // TestCyberArkClient_PostDataReadingsWithOptions_RealAPI demonstrates that the
@@ -66,7 +110,8 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 		var rootCAs *x509.CertPool
 		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
 
-		c, err := client.NewCyberArk(httpClient)
+		serviceID := os.Getenv("ARK_SERVICE_ID")
+		c, err := client.NewCyberArk(httpClient, serviceID, "", "", "")
 		if err != nil {
 			if errors.Is(err, cyberark.ErrMissingEnvironmentVariables) {
 				t.Skipf("Skipping: %s", err)

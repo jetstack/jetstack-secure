@@ -25,6 +25,7 @@ import (
 	ctrlruntime "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
+	"github.com/jetstack/preflight/internal/cyberark/conjur"
 	"github.com/jetstack/preflight/internal/cyberark/dataupload"
 	"github.com/jetstack/preflight/internal/cyberark/identity"
 	"github.com/jetstack/preflight/internal/cyberark/servicediscovery"
@@ -262,31 +263,64 @@ func FakeTPP(t testing.TB) (*httptest.Server, *x509.Certificate) {
 	return server, cert
 }
 
-// FakeCyberArk returns an HTTP client that will route requests to mock CyberArk
-// Service Discovery, Identity and Discovery and Context APIs. This is useful
-// for testing code that uses all those APIs, such as
-// `cyberark.NewDatauploadClient`.
-//
-// The environment variable `ARK_DISCOVERY_API` is set to the URL of the mock
-// Service Discovery API, for the supplied `testing.TB` so that the client under
-// test will use the mock Service Discovery API.
+// FakeCyberArk returns an HTTP client and JWT file path for use with mock CyberArk
+// Service Discovery, Conjur exchange, and Discovery and Context APIs. This is useful
+// for testing code that uses all those APIs, such as `cyberark.NewDatauploadClient`.
 //
 // The returned HTTP client has a transport which logs requests and responses
 // depending on log level of the logger supplied in the context.
-func FakeCyberArk(t testing.TB) *http.Client {
+// The returned jwtFilePath is the path to a temporary JWT file that contains
+// a fake service-account JWT; pass it as the jwtFilePath argument to NewCyberArk.
+func FakeCyberArk(t testing.TB) (httpClient *http.Client, jwtFilePath string) {
 	t.Helper()
 
-	identityAPI, _ := identity.MockIdentityServer(t)
+	// Write a temp JWT file so jwtsource.NewFileSource can read a token.
+	jwtFile, err := os.CreateTemp(t.TempDir(), "jwt-*")
+	require.NoError(t, err)
+	_, err = jwtFile.WriteString("fake-service-account-jwt")
+	require.NoError(t, err)
+	require.NoError(t, jwtFile.Close())
+
+	// "success-token" matches the dataupload mock's expected bearer token.
+	conjurSrv, _ := conjur.MockConjurExchangeServer(t, "success-token")
+	t.Cleanup(conjurSrv.Close)
+
 	discoveryContextAPI, _ := dataupload.MockDataUploadServer(t)
-	httpClient := servicediscovery.MockDiscoveryServer(t, servicediscovery.Services{
+	httpClient = servicediscovery.MockDiscoveryServer(t, servicediscovery.Services{
 		Identity: servicediscovery.ServiceEndpoint{
-			API: identityAPI,
+			// Required unconditionally by DiscoverServices, present for every
+			// healthy tenant — see servicediscovery/discovery.go. Unused by
+			// the Conjur path itself.
+			API: "https://identity.example.invalid",
+		},
+		DiscoveryContext: servicediscovery.ServiceEndpoint{
+			API: discoveryContextAPI,
+		},
+		SecretsManager: servicediscovery.ServiceEndpoint{
+			API: conjurSrv.URL, // conjur authn-jwt exchange endpoint base
+		},
+	})
+	return httpClient, jwtFile.Name()
+}
+
+// FakeCyberArkUsernamePassword is like FakeCyberArk but wires up the legacy
+// CyberArk Identity username/password auth path instead of Conjur — returns
+// the httpClient and the username/password to set as ARK_USERNAME/ARK_SECRET
+// (or pass to identity.Client.LoginUsernamePassword directly).
+func FakeCyberArkUsernamePassword(t testing.TB) (httpClient *http.Client, username, password string) {
+	t.Helper()
+
+	identityBaseURL, _ := identity.MockIdentityServer(t)
+	discoveryContextAPI, _ := dataupload.MockDataUploadServer(t)
+	httpClient = servicediscovery.MockDiscoveryServer(t, servicediscovery.Services{
+		Identity: servicediscovery.ServiceEndpoint{
+			API: identityBaseURL,
 		},
 		DiscoveryContext: servicediscovery.ServiceEndpoint{
 			API: discoveryContextAPI,
 		},
 	})
-	return httpClient
+	return httpClient, identity.MockSuccessUser, identity.MockSuccessPassword
 }
 
 // Generated using:
