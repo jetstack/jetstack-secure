@@ -10,6 +10,10 @@ data:
     cluster_name: {{ .Values.config.clusterName | quote }}
     cluster_description: {{ .Values.config.clusterDescription | quote }}
     period: {{ .Values.config.period | quote }}
+    cyberark:
+      service_id: {{ .Values.config.cyberark.serviceId | quote }}
+      account: {{ .Values.config.cyberark.account | quote }}
+      jwt_source: {{ .Values.config.cyberark.jwtSource | quote }}
     {{- with .Values.config.excludeAnnotationKeysRegex }}
     exclude-annotation-keys-regex:
       {{- . | toYaml | nindent 6 }}

@@ -116,3 +116,13 @@ usage through tuple/variable indirection.
 	{{- printf "%s" $defaultReference -}}
 {{- end -}}
 {{- end }}
+
+{{/*
+Whether the Conjur JWT projected-token volume is needed: only when
+serviceId selects the Conjur JWT auth path AND jwtSource is unset or "file"
+(the only supported source in this POC) — a pure username/password install
+(serviceId unset) has no use for it.
+*/}}
+{{- define "disco-agent.conjurJWTEnabled" -}}
+{{- and .Values.config.cyberark.serviceId (or (not .Values.config.cyberark.jwtSource) (eq .Values.config.cyberark.jwtSource "file")) -}}
+{{- end }}

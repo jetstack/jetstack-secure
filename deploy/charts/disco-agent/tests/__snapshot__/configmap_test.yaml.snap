@@ -6,6 +6,10 @@ custom-cluster-description:
         cluster_name: ""
         cluster_description: "A cloud hosted Kubernetes cluster hosting production workloads.\n\nteam: team-1\nemail: team-1@example.com\npurpose: Production workloads\n"
         period: "12h0m0s"
+        cyberark:
+          service_id: ""
+          account: "conjur"
+          jwt_source: "file"
         data-gatherers:
         - kind: oidc
           name: ark/oidc
@@ -165,6 +169,10 @@ custom-cluster-name:
         cluster_name: "cluster-1 region-1 cloud-1 "
         cluster_description: ""
         period: "12h0m0s"
+        cyberark:
+          service_id: ""
+          account: "conjur"
+          jwt_source: "file"
         data-gatherers:
         - kind: oidc
           name: ark/oidc
@@ -324,6 +332,10 @@ custom-period:
         cluster_name: ""
         cluster_description: ""
         period: "1m"
+        cyberark:
+          service_id: ""
+          account: "conjur"
+          jwt_source: "file"
         data-gatherers:
         - kind: oidc
           name: ark/oidc
@@ -483,6 +495,10 @@ defaults:
         cluster_name: ""
         cluster_description: ""
         period: "12h0m0s"
+        cyberark:
+          service_id: ""
+          account: "conjur"
+          jwt_source: "file"
         data-gatherers:
         - kind: oidc
           name: ark/oidc

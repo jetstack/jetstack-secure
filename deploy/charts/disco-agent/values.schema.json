@@ -124,6 +124,9 @@
         "clusterName": {
           "$ref": "#/$defs/helm-values.config.clusterName"
         },
+        "cyberark": {
+          "$ref": "#/$defs/helm-values.config.cyberark"
+        },
         "excludeAnnotationKeysRegex": {
           "$ref": "#/$defs/helm-values.config.excludeAnnotationKeysRegex"
         },
@@ -147,6 +150,36 @@
     "helm-values.config.clusterName": {
       "default": "",
       "description": "A human readable name for the cluster where the agent is deployed (optional).\n\nThis cluster name will be associated with the data that the agent uploads to the Discovery and Context service. If empty (the default), the service account name will be used instead.",
+      "type": "string"
+    },
+    "helm-values.config.cyberark": {
+      "additionalProperties": false,
+      "properties": {
+        "account": {
+          "$ref": "#/$defs/helm-values.config.cyberark.account"
+        },
+        "jwtSource": {
+          "$ref": "#/$defs/helm-values.config.cyberark.jwtSource"
+        },
+        "serviceId": {
+          "$ref": "#/$defs/helm-values.config.cyberark.serviceId"
+        }
+      },
+      "type": "object"
+    },
+    "helm-values.config.cyberark.account": {
+      "default": "conjur",
+      "description": "The Conjur account name. For CyberArk-hosted tenants this is always \"conjur\".",
+      "type": "string"
+    },
+    "helm-values.config.cyberark.jwtSource": {
+      "default": "file",
+      "description": "Token source for Conjur JWT authentication.\n\"file\" — read the token from the chart's own projected SA-token volume\n  (default; the mount path is fixed, not configurable).\n\"spiffe\" — deferred; not implemented in this POC.",
+      "type": "string"
+    },
+    "helm-values.config.cyberark.serviceId": {
+      "default": "",
+      "description": "The Conjur authn-jwt authenticator service ID configured for this tenant. Set this to use the Conjur JWT exchange (preferred). Leave empty to use the legacy CyberArk Identity username/password method (ARK_USERNAME/ARK_SECRET in the credentials Secret) for backward compatibility. If both are set, the serviceId (Conjur) wins. NOTE: bare service-id segment (e.g. \"disco-agent\"), NOT the policy path\n\"conjur/authn-jwt/disco-agent\" — the agent builds the URL as\n<base>/authn-jwt/<serviceId>/<account>/authenticate.",
       "type": "string"
     },
     "helm-values.config.excludeAnnotationKeysRegex": {

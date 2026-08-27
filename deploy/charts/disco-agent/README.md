@@ -16,24 +16,38 @@ kubectl create ns "$NAMESPACE" || true
 
 ### Add credentials to a Secret
 
-You will require tenant details and credentials for the CyberArk Identity Security Platform.
-Put them in the following environment variables:
+The agent supports **two authentication methods**, selected automatically by
+config:
+
+| Set this | Method used |
+|---|---|
+| `config.cyberark.serviceId` (Conjur authn-jwt service-id) | **Conjur JWT exchange** — exchanges a projected ServiceAccount token for a short-lived Conjur access token. No stored password. Preferred for new installs. |
+| `ARK_USERNAME` + `ARK_SECRET` in the Secret (and no `serviceId`) | **Legacy CyberArk Identity username/password** — backward compatible with existing GA installs. |
+
+If **both** are set, the Conjur `serviceId` wins (so a migrating install can add
+the service-id before removing its old credentials) and a warning is logged. If
+**neither** is set, the agent fails closed at startup.
+
+The only credential always required in the Kubernetes Secret is the CyberArk
+tenant subdomain (`ARK_SUBDOMAIN`).
 
 ```sh
-export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain e.g. tlskp-test
-export ARK_USERNAME=       # your CyberArk username
-export ARK_SECRET=         # your CyberArk password
-# OPTIONAL: the URL for the CyberArk Discovery API if not using the production environment
+export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain, e.g. tlskp-test
+# OPTIONAL: Discovery API URL for non-production environments
 export ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/
 ```
 
-Create a Secret containing the tenant details and credentials:
+Create the Secret:
 
 ```sh
+# Production (no ARK_DISCOVERY_API override needed):
 kubectl create secret generic agent-credentials \
         --namespace "$NAMESPACE" \
-        --from-literal=ARK_USERNAME=$ARK_USERNAME \
-        --from-literal=ARK_SECRET=$ARK_SECRET \
+        --from-literal=ARK_SUBDOMAIN=$ARK_SUBDOMAIN
+
+# Non-production, targeting a non-default Discovery API:
+kubectl create secret generic agent-credentials \
+        --namespace "$NAMESPACE" \
         --from-literal=ARK_SUBDOMAIN=$ARK_SUBDOMAIN \
         --from-literal=ARK_DISCOVERY_API=$ARK_DISCOVERY_API
 ```
@@ -49,23 +63,67 @@ metadata:
   namespace: cyberark
 type: Opaque
 stringData:
-  ARK_SUBDOMAIN: $ARK_SUBDOMAIN # your CyberArk tenant subdomain e.g. tlskp-test
-  ARK_SECRET: $ARK_SECRET       # your CyberArk password
-  ARK_USERNAME: $ARK_USERNAME   # your CyberArk username
-  # OPTIONAL: the URL for the CyberArk Discovery API if not using the production environment
+  ARK_SUBDOMAIN: "tlskp-test"   # your CyberArk tenant subdomain
+  # OPTIONAL: uncomment for non-production Discovery API
   # ARK_DISCOVERY_API: https://platform-discovery.integration-cyberark.cloud/
+  # LEGACY (only if NOT using Conjur serviceId) — username/password auth:
+  # ARK_USERNAME: "svc-agent@tenant"
+  # ARK_SECRET: "<password>"
 ```
 
-### Deploy the agent
+### Configure Conjur JWT authentication
 
-Deploy the agent:
+> Skip this section if you are using the legacy username/password method
+> (set `ARK_USERNAME`/`ARK_SECRET` in the Secret and leave `serviceId` empty).
+
+Set `config.cyberark.serviceId` to the authn-jwt authenticator service ID
+configured for this cluster in your Conjur tenant. This is the **bare service-id
+segment** (e.g. `disco-agent`), NOT the policy path `conjur/authn-jwt/disco-agent`
+— the agent builds the authenticate URL as
+`<base>/authn-jwt/<serviceId>/<account>/authenticate`, so a path here would
+double the `conjur/authn-jwt` prefix. The remaining defaults are correct for
+CyberArk-hosted tenants:
+
+| Value | Default | Description |
+|---|---|---|
+| `config.cyberark.serviceId` | `""` | Conjur authn-jwt service ID (required). Example: `disco-agent` |
+| `config.cyberark.account` | `conjur` | Conjur account name. Always `conjur` for CyberArk-hosted tenants. |
+| `config.cyberark.jwtSource` | `file` | Token source. `file` = projected SA-token volume (default). `spiffe` deferred. |
+
+When `config.cyberark.serviceId` is set and `jwtSource` is `file` (the
+default), the chart automatically renders a projected ServiceAccount token
+volume (audience=`conjur`, expiry 600 s) and mounts it at the fixed path the
+agent expects (`/var/run/secrets/tokens/jwt`) — this path isn't configurable,
+so there's one fewer way to misconfigure it. No manual volume configuration
+is required.
+
+### Per-tenant Conjur onboarding
+
+Before deploying the agent, the target tenant must be onboarded in Conjur
+Cloud: an `authn-jwt` authenticator scoped to the cluster's OIDC issuer and
+JWKS, a registered workload for the agent's ServiceAccount, and the grants that
+let that workload authenticate and upload. Onboarding is performed through the
+CyberArk web console — see the product documentation for the current
+walkthrough.
+
+Onboarding needs only the tenant administrator's own Conjur Cloud credentials.
+The agent itself holds no Conjur identity beyond its projected ServiceAccount
+token, and nothing in this chart requires a Conjur admin credential at deploy
+time.
+
+Once onboarding is complete, note the authenticator's service ID — that is the
+value for `config.cyberark.serviceId` below.
+
+### Deploy the agent
 
 ```sh
 helm upgrade agent "oci://${OCI_BASE}/charts/disco-agent" \
      --install \
      --create-namespace \
      --namespace "$NAMESPACE" \
-     --set fullnameOverride=disco-agent
+     --set fullnameOverride=disco-agent \
+     --set config.cyberark.serviceId=disco-agent \
+     --set acceptTerms=true
 ```
 
 ### Troubleshooting
@@ -79,6 +137,14 @@ Check the logs:
 ```sh
 kubectl logs deployments/disco-agent --namespace "${NAMESPACE}" --follow
 ```
+
+#### Conjur authentication errors
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Agent logs `401 Unauthorized` from Conjur | ServiceAccount token `audience` does not match the authenticator's configured `audience` value, or the authn-jwt authenticator is not enabled for the account | The chart's projected volume always requests `audience=conjur` — this is fixed, not a values.yaml setting. Confirm the Conjur `conjur/authn-jwt/<serviceId>/audience` variable is also set to `conjur`, and that the authenticator is enabled (`CONJUR_AUTHENTICATORS` includes `authn-jwt/<serviceId>`) |
+| Agent logs `403 Forbidden` from the upload API | The agent's workload is authenticated but not authorized to upload | Confirm in the CyberArk console that this cluster's workload was granted the uploader permission during onboarding |
+| Agent logs `500` / no upload attempt | Conjur is unreachable or returned an unexpected error | Check network policy / DNS; inspect Conjur audit logs for the host identity |
 
 ## Values
 
@@ -352,6 +418,32 @@ This description will be associated with the data that the agent uploads to the 
 > ```
 
 Enable sending of Secret values to CyberArk in addition to metadata. Metadata is always sent, but the actual values of Secrets are not sent by default. When enabled, Secret data is encrypted using envelope encryption using a key managed by CyberArk, fetched from the Discovery and Context service.
+#### **config.cyberark.serviceId** ~ `string`
+> Default value:
+> ```yaml
+> ""
+> ```
+
+The Conjur authn-jwt authenticator service ID configured for this tenant. Set this to use the Conjur JWT exchange (preferred). Leave empty to use the legacy CyberArk Identity username/password method (ARK_USERNAME/ARK_SECRET in the credentials Secret) for backward compatibility. If both are set, the serviceId (Conjur) wins. NOTE: bare service-id segment (e.g. "disco-agent"), NOT the policy path  
+"conjur/authn-jwt/disco-agent" — the agent builds the URL as  
+<base>/authn-jwt/<serviceId>/<account>/authenticate.
+#### **config.cyberark.account** ~ `string`
+> Default value:
+> ```yaml
+> conjur
+> ```
+
+The Conjur account name. For CyberArk-hosted tenants this is always "conjur".
+#### **config.cyberark.jwtSource** ~ `string`
+> Default value:
+> ```yaml
+> file
+> ```
+
+Token source for Conjur JWT authentication.  
+"file" — read the token from the chart's own projected SA-token volume  
+  (default; the mount path is fixed, not configurable).  
+"spiffe" — deferred; not implemented in this POC.
 #### **authentication.secretName** ~ `string`
 > Default value:
 > ```yaml
@@ -457,4 +549,3 @@ endpointAdditionalProperties:
 ```
 
 <!-- /AUTO-GENERATED -->
-
