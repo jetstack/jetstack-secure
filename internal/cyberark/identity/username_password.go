@@ -180,8 +180,13 @@ type advanceAuthenticationResponseResult struct {
 	// Other fields omitted as they're not needed
 }
 
-// LoginUsernamePassword performs a blocking call to fetch an auth token from CyberArk Identity using the given username and password.
-// The password is zeroed after use.
+// LoginUsernamePassword performs a blocking call to fetch an auth token from
+// CyberArk Identity using the given username and password. It keeps its own
+// internal copy of both so AuthenticateRequest can re-login on its own once
+// the token ages out, without the password being passed in again — it does
+// NOT zero the caller's slice: a caller (e.g. NewCyberArk's ClientConfig,
+// reused across every upload) may need to pass the same slice into a future
+// call, and wiping it here would silently break that on the second call.
 // Tokens are cached internally and are not directly accessible to code; use Client.AuthenticateRequest to add credentials
 // to an *http.Request.
 func (c *Client) LoginUsernamePassword(ctx context.Context, username string, password []byte) error {
@@ -190,13 +195,16 @@ func (c *Client) LoginUsernamePassword(ctx context.Context, username string, pas
 	c.tokenCachedMutex.Lock()
 	defer c.tokenCachedMutex.Unlock()
 
-	defer func() {
-		for i := range password {
-			password[i] = 0x00
-		}
-	}()
+	c.username = username
+	c.secret = append([]byte(nil), password...)
 
-	if time.Since(c.tokenCachedTime) < 15*time.Minute && c.tokenCached.Username == username {
+	return c.login(ctx, username, c.secret)
+}
+
+// login performs the actual login flow, reusing the cached token if it's
+// still fresh. Callers must hold tokenCachedMutex.
+func (c *Client) login(ctx context.Context, username string, password []byte) error {
+	if time.Since(c.tokenCachedTime) < c.tokenTTL && c.tokenCached.Username == username && c.tokenCached.Token != "" {
 		// If the cached token is recent and for the same username, we can reuse it.
 		klog.FromContext(ctx).V(2).Info("reusing cached token for user", "username", username)
 		return nil
@@ -209,12 +217,7 @@ func (c *Client) LoginUsernamePassword(ctx context.Context, username string, pas
 
 	// NB: We explicitly pass advanceRequestBody by value here so that when we add the password
 	// in doAdvanceAuthentication we don't create a copy of the password slice elsewhere.
-	err = c.doAdvanceAuthentication(ctx, username, &password, advanceRequestBody)
-	if err != nil {
-		return err
-	}
-
-	return err
+	return c.doAdvanceAuthentication(ctx, username, &password, advanceRequestBody)
 }
 
 // doStartAuthentication performs the initial request to start the login process using a username and password.

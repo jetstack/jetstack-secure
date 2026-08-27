@@ -25,6 +25,16 @@ const (
 	// minRSAKeySize is the minimum RSA key size in bits; we'd expect that keys will be larger but 2048 is a sane floor
 	// to enforce to ensure that a weak key can't accidentally be used
 	minRSAKeySize = 2048
+
+	// defaultCachedKeyTTL is the fallback JWKS cache lifetime. It's a Client
+	// field, not a const, so tests can shrink it.
+	defaultCachedKeyTTL = 15 * time.Minute
+
+	// maxResponseBytes bounds how much of the JWKS endpoint's response is read
+	// into memory. A JWKS document is a few KiB; without a bound a compromised
+	// or misbehaving endpoint could drive the agent to OOM, and the agent has
+	// no memory limit by default.
+	maxResponseBytes = 1 << 20 // 1 MiB
 )
 
 // KeyFetcher is an interface for fetching public keys.
@@ -50,8 +60,7 @@ type PublicKey struct {
 // and ignored other types.
 type Client struct {
 	discoveryClient *servicediscovery.Client
-	identityClient  *identity.Client
-	cfg             cyberark.ClientConfig
+	authenticate    identity.RequestAuthenticator
 
 	// httpClient is the HTTP client used for requests
 	httpClient *http.Client
@@ -59,11 +68,13 @@ type Client struct {
 	cachedKey      PublicKey
 	cachedKeyMutex sync.Mutex
 	cachedKeyTime  time.Time
+	cachedKeyTTL   time.Duration
 }
 
 // NewClient creates a new key fetching client.
-// Uses CyberArk service discovery to derive the JWKS endpoint and CyberArk identity client for authentication.
-// Constructing the client involves a service discovery call to initialise the identity client,
+// Uses CyberArk service discovery to derive the JWKS endpoint and the configured
+// CyberArk authentication method (Conjur JWT exchange or legacy username/password).
+// Constructing the client involves a service discovery call to initialise the authenticator,
 // so this may return an error if the discovery client is not able to connect to the service discovery endpoint.
 // If httpClient is nil, a default HTTP client will be created.
 func NewClient(ctx context.Context, discoveryClient *servicediscovery.Client, cfg cyberark.ClientConfig, httpClient *http.Client) (*Client, error) {
@@ -77,11 +88,16 @@ func NewClient(ctx context.Context, discoveryClient *servicediscovery.Client, cf
 		return nil, fmt.Errorf("failed to get services from discovery client for initialising identity client: %w", err)
 	}
 
+	authenticate, err := cyberark.NewRequestAuthenticator(ctx, httpClient, services, cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
 		discoveryClient: discoveryClient,
-		identityClient:  identity.New(httpClient, services.Identity.API, cfg.Subdomain),
-		cfg:             cfg,
+		authenticate:    authenticate,
 		httpClient:      httpClient,
+		cachedKeyTTL:    defaultCachedKeyTTL,
 	}, nil
 }
 
@@ -92,7 +108,7 @@ func (c *Client) FetchKey(ctx context.Context) (PublicKey, error) {
 	c.cachedKeyMutex.Lock()
 	defer c.cachedKeyMutex.Unlock()
 
-	if time.Since(c.cachedKeyTime) < 15*time.Minute {
+	if time.Since(c.cachedKeyTime) < c.cachedKeyTTL {
 		klog.FromContext(ctx).WithName("keyfetch").V(2).Info("using cached key", "fetchedAt", c.cachedKeyTime.Format(time.RFC3339Nano), "kid", c.cachedKey.KeyID)
 		return c.cachedKey, nil
 	}
@@ -100,11 +116,6 @@ func (c *Client) FetchKey(ctx context.Context) (PublicKey, error) {
 	services, _, err := c.discoveryClient.DiscoverServices(ctx)
 	if err != nil {
 		return PublicKey{}, fmt.Errorf("failed to get services from discovery client: %w", err)
-	}
-
-	err = c.identityClient.LoginUsernamePassword(ctx, c.cfg.Username, []byte(c.cfg.Secret))
-	if err != nil {
-		return PublicKey{}, fmt.Errorf("failed to authenticate for fetching JWKs: %w", err)
 	}
 
 	endpoint, err := url.JoinPath(services.DiscoveryContext.API, "discovery-context/jwks")
@@ -117,7 +128,7 @@ func (c *Client) FetchKey(ctx context.Context) (PublicKey, error) {
 		return PublicKey{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	_, err = c.identityClient.AuthenticateRequest(req)
+	_, err = c.authenticate(req)
 	if err != nil {
 		return PublicKey{}, fmt.Errorf("failed to authenticate request: %s", err)
 	}
@@ -132,11 +143,11 @@ func (c *Client) FetchKey(ctx context.Context) (PublicKey, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 		return PublicKey{}, fmt.Errorf("unexpected status code %d from %s: %s", resp.StatusCode, endpoint, string(body))
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
 		return PublicKey{}, fmt.Errorf("failed to read response body: %w", err)
 	}
