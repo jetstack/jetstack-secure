@@ -62,6 +62,9 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 				DiscoveryContext: ServiceEndpoint{
 					API: mockDiscoveryContextAPIURL,
 				},
+				SecretsManager: ServiceEndpoint{
+					API: mockSecretsManagerAPIURL,
+				},
 			})
 
 			client := New(httpClient, testSpec.subdomain)
@@ -76,6 +79,13 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 			if services.Identity.API != testSpec.expectedURL {
 				t.Errorf("expected API URL=%s\nobserved API URL=%s", testSpec.expectedURL, services.Identity.API)
 			}
+			// The Conjur authn-jwt exchange is served by secrets_manager, not
+			// by identity_administration. Parsing it into the wrong field means
+			// every live token exchange 404s/401s, which the Conjur unit tests
+			// cannot catch because they point their mock at whichever field the
+			// code reads.
+			assert.Equal(t, mockSecretsManagerAPIURL, services.SecretsManager.API)
+			assert.NotEqual(t, services.Identity.API, services.SecretsManager.API)
 		})
 	}
 }
