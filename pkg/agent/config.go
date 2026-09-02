@@ -793,6 +793,14 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 					clusterName = arkUsername
 				}
 			}
+			if clusterName == "" && cfg.CyberArk != nil && cfg.CyberArk.ServiceID != "" {
+				// Conjur JWT installs have no ARK_USERNAME to fall back to.
+				// cyberark.service_id (the Conjur authn-jwt service ID,
+				// typically the cluster UUID) is always set for these
+				// installs, so it's a better last resort than an empty name.
+				log.Info("Using cyberark.service_id as cluster name because cluster_name, cluster_id, and ARK_USERNAME are all unset; prefer setting cluster_name explicitly", "clusterName", cfg.CyberArk.ServiceID)
+				clusterName = cfg.CyberArk.ServiceID
+			}
 			if cfg.OrganizationID != "" {
 				log.Info(fmt.Sprintf(`Ignoring the organization_id field in the config file. This field is not needed in %s mode.`, res.OutputMode))
 			}
