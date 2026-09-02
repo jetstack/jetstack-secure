@@ -401,7 +401,7 @@ Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
 
 A human readable name for the cluster where the agent is deployed (optional).  
   
-This cluster name will be associated with the data that the agent uploads to the Discovery and Context service. If empty (the default), the service account name will be used instead.
+This cluster name will be associated with the data that the agent uploads to the Discovery and Context service. If empty (the default) and using the legacy username/password authentication, ARK_USERNAME is used instead. If empty and using Conjur JWT authentication (no ARK_USERNAME), the cyberark.serviceId below is used instead. There is no service-account-name fallback — set this explicitly for a meaningful cluster name.
 #### **config.clusterDescription** ~ `string`
 > Default value:
 > ```yaml

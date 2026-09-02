@@ -1449,13 +1449,23 @@ func TestConfig_CyberArk_Validation(t *testing.T) {
 		assert.Equal(t, "dev-cluster", got.ClusterName)
 	})
 
-	// The config-validation gate (either service_id or ARK_USERNAME+ARK_SECRET
-	// must be set) combined with the fallback chain means a valid MachineHub
-	// config can no longer produce an empty ClusterName: whichever of the two
-	// auth methods satisfies validation also satisfies a cluster_name
-	// fallback. There is deliberately no test asserting an empty ClusterName
-	// here — every combination that reaches this point has a non-empty
-	// fallback available.
+	// The only way ClusterName ends up empty is if config-validation already
+	// failed: whichever of the two auth methods (service_id, or
+	// ARK_USERNAME+ARK_SECRET) satisfies the gate at config.go's cyberark
+	// validation block also satisfies a cluster_name fallback above. Assert
+	// the gate directly, rather than only in prose, so a future change that
+	// makes either auth method optional without updating the fallback chain
+	// fails this test instead of silently reintroducing an empty
+	// cluster_name for a config that validates successfully.
+	t.Run("empty ClusterName only occurs when config validation also fails", func(t *testing.T) {
+		setEnv(t)
+		got, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(""),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "MachineHub mode requires either cyberark.service_id or ARK_USERNAME/ARK_SECRET")
+		assert.Equal(t, "", got.ClusterName)
+	})
 
 	t.Run("jwt_source spiffe is rejected", func(t *testing.T) {
 		setEnv(t)
