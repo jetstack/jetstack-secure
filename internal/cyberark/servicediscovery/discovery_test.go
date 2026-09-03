@@ -50,6 +50,76 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 		},
 	}
 
+	t.Run("identity API host outside the allowed CyberArk domains is rejected", func(t *testing.T) {
+		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+		ctx := klog.NewContext(t.Context(), logger)
+
+		httpClient := MockDiscoveryServer(t, Services{
+			Identity: ServiceEndpoint{
+				API: "https://ajp5871.id.attacker.example",
+			},
+			DiscoveryContext: ServiceEndpoint{
+				API: mockDiscoveryContextAPIURL,
+			},
+			SecretsManager: ServiceEndpoint{
+				API: mockSecretsManagerAPIURL,
+			},
+		})
+
+		client := New(httpClient, MockDiscoverySubdomain)
+		services, _, err := client.DiscoverServices(ctx)
+		require.Error(t, err)
+		assert.Nil(t, services)
+	})
+
+	t.Run("secrets_manager and discovery_context hosts outside the allowed CyberArk domains are dropped, not fatal", func(t *testing.T) {
+		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+		ctx := klog.NewContext(t.Context(), logger)
+
+		httpClient := MockDiscoveryServer(t, Services{
+			Identity: ServiceEndpoint{
+				API: mockIdentityAPIURL,
+			},
+			DiscoveryContext: ServiceEndpoint{
+				API: "https://venafi-test.inventory.attacker.example",
+			},
+			SecretsManager: ServiceEndpoint{
+				API: "https://venafi-test.secretsmgr.attacker.example",
+			},
+		})
+
+		client := New(httpClient, MockDiscoverySubdomain)
+		services, _, err := client.DiscoverServices(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, mockIdentityAPIURL, services.Identity.API)
+		assert.Equal(t, "", services.DiscoveryContext.API)
+		assert.Equal(t, "", services.SecretsManager.API)
+	})
+
+	t.Run("gov-cloud root domains are accepted", func(t *testing.T) {
+		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+		ctx := klog.NewContext(t.Context(), logger)
+
+		httpClient := MockDiscoveryServer(t, Services{
+			Identity: ServiceEndpoint{
+				API: "https://ajp5871.id.cyberarkgov.cloud",
+			},
+			DiscoveryContext: ServiceEndpoint{
+				API: "https://venafi-test.inventory.integration-cyberarkgov.cloud",
+			},
+			SecretsManager: ServiceEndpoint{
+				API: "https://venafi-test.secretsmgr.dev-cyberarkgov.com",
+			},
+		})
+
+		client := New(httpClient, MockDiscoverySubdomain)
+		services, _, err := client.DiscoverServices(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, "https://ajp5871.id.cyberarkgov.cloud", services.Identity.API)
+		assert.Equal(t, "https://venafi-test.inventory.integration-cyberarkgov.cloud", services.DiscoveryContext.API)
+		assert.Equal(t, "https://venafi-test.secretsmgr.dev-cyberarkgov.com", services.SecretsManager.API)
+	})
+
 	for name, testSpec := range tests {
 		t.Run(name, func(t *testing.T) {
 			logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
