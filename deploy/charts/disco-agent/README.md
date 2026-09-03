@@ -97,14 +97,15 @@ agent expects (`/var/run/secrets/tokens/jwt`) — this path isn't configurable,
 so there's one fewer way to misconfigure it. No manual volume configuration
 is required.
 
-### Per-tenant Conjur onboarding
+### Per-cluster Conjur onboarding
 
-Before deploying the agent, the target tenant must be onboarded in Conjur
+Before deploying the agent, the target cluster must be onboarded in Conjur
 Cloud: an `authn-jwt` authenticator scoped to the cluster's OIDC issuer and
 JWKS, a registered workload for the agent's ServiceAccount, and the grants that
-let that workload authenticate and upload. Onboarding is performed through the
-CyberArk web console — see the product documentation for the current
-walkthrough.
+let that workload authenticate and upload. Each cluster gets its own
+authenticator and service ID — the value is not shared across a tenant's
+clusters. Onboarding is performed through the CyberArk web console — see the
+product documentation for the current walkthrough.
 
 Onboarding needs only the tenant administrator's own Conjur Cloud credentials.
 The agent itself holds no Conjur identity beyond its projected ServiceAccount
@@ -117,12 +118,13 @@ value for `config.cyberark.serviceId` below.
 ### Deploy the agent
 
 ```sh
+# $SERVICE_ID is this cluster's own authn-jwt service ID from onboarding above — do not reuse it across clusters.
 helm upgrade agent "oci://${OCI_BASE}/charts/disco-agent" \
      --install \
      --create-namespace \
      --namespace "$NAMESPACE" \
      --set fullnameOverride=disco-agent \
-     --set config.cyberark.serviceId=disco-agent \
+     --set config.cyberark.serviceId="$SERVICE_ID" \
      --set acceptTerms=true
 ```
 
