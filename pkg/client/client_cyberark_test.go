@@ -27,6 +27,19 @@ import (
 // dataupload code works with the mock CyberArk APIs.
 // The environment variables are chosen to match those expected by the mock
 // server.
+//
+// ARK_USERNAME/ARK_SECRET are set here deliberately, alongside a non-empty
+// serviceID (test plan Track F, case F2 -- migrating install, add serviceId
+// while old creds are still present). This is not incidental: it is the
+// integration-level proof that selectAuthenticator's Conjur-wins precedence
+// actually holds through the full NewCyberArk/PostDataReadingsWithOptions
+// path, not just in the selectAuthenticator unit tests (auth_select_test.go).
+// It works because FakeCyberArk's Identity.API is an unreachable
+// `.invalid` host: if the username/password path were mistakenly chosen
+// instead of Conjur, the login attempt would fail with a connection error
+// and this test would fail. Do not remove these two lines as "unnecessary" --
+// doing so would silently delete this test's only coverage of migration
+// precedence.
 func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 	t.Setenv("ARK_SUBDOMAIN", servicediscovery.MockDiscoverySubdomain)
 	t.Setenv("ARK_USERNAME", "test@example.com")
