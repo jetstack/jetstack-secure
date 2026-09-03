@@ -13,9 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/klog/v2"
+
 	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
 	"github.com/jetstack/preflight/pkg/version"
-	"k8s.io/klog/v2"
 )
 
 const (
