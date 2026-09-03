@@ -96,6 +96,30 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 		assert.Equal(t, "", services.SecretsManager.API)
 	})
 
+	t.Run("gov-cloud root domains are accepted", func(t *testing.T) {
+		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+		ctx := klog.NewContext(t.Context(), logger)
+
+		httpClient := MockDiscoveryServer(t, Services{
+			Identity: ServiceEndpoint{
+				API: "https://ajp5871.id.cyberarkgov.cloud",
+			},
+			DiscoveryContext: ServiceEndpoint{
+				API: "https://venafi-test.inventory.integration-cyberarkgov.cloud",
+			},
+			SecretsManager: ServiceEndpoint{
+				API: "https://venafi-test.secretsmgr.dev-cyberarkgov.com",
+			},
+		})
+
+		client := New(httpClient, MockDiscoverySubdomain)
+		services, _, err := client.DiscoverServices(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, "https://ajp5871.id.cyberarkgov.cloud", services.Identity.API)
+		assert.Equal(t, "https://venafi-test.inventory.integration-cyberarkgov.cloud", services.DiscoveryContext.API)
+		assert.Equal(t, "https://venafi-test.secretsmgr.dev-cyberarkgov.com", services.SecretsManager.API)
+	})
+
 	for name, testSpec := range tests {
 		t.Run(name, func(t *testing.T) {
 			logger := ktesting.NewLogger(t, ktesting.DefaultConfig)

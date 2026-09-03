@@ -51,6 +51,12 @@ const (
 // allowlist already enforced on the discoverycontext-regional-resources side
 // (token.py, for the JWT `iss` host) — copied by value here since these
 // domains rarely change and the agent has no access to that env-keyed map.
+//
+// Source of truth is the `everest_env_utils` package's ROOT_DOMAIN map
+// (published to Artifactory as everest_env_utils_cyberark, v2.0.117 as of
+// 2026-09-03), not the Lambda's local commercial-only clone — that clone
+// omits the GOV_* environments entirely, which would have made this
+// allowlist silently break every gov-cloud tenant's agent.
 var allowedRootDomains = []string{
 	"cyberark.cloud",
 	"cyberark-everest-dev.com",
@@ -63,6 +69,15 @@ var allowedRootDomains = []string{
 	"cyberark-everest-preinteg.cloud",
 	"cyberark-everest-perf.cloud",
 	"cyberark-everest-pre-prod.cloud",
+	// Gov-cloud environments.
+	"dev-cyberarkgov.com",
+	"test-cyberarkgov.com",
+	"stage-cyberarkgov.com",
+	"integdev-cyberarkgov.cloud",
+	"integration-cyberarkgov.cloud",
+	"preprod-cyberarkgov.cloud",
+	"dum-preprod-cyberarkgov.cloud",
+	"cyberarkgov.cloud",
 }
 
 // isAllowedServiceHost reports whether host is, or is a subdomain of, one of
