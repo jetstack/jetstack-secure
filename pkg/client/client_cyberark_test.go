@@ -27,6 +27,11 @@ import (
 // dataupload code works with the mock CyberArk APIs.
 // The environment variables are chosen to match those expected by the mock
 // server.
+//
+// ARK_USERNAME/ARK_SECRET are set here on purpose alongside a non-empty
+// serviceID: selectAuthenticator ignores them once serviceID is set, and
+// FakeCyberArk's Identity.API is an unreachable `.invalid` host -- a
+// mistaken fallback to username/password would fail this test.
 func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 	t.Setenv("ARK_SUBDOMAIN", servicediscovery.MockDiscoverySubdomain)
 	t.Setenv("ARK_USERNAME", "test@example.com")
@@ -47,12 +52,9 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 }
 
 // TestCyberArkClient_PostDataReadingsWithOptions_UsernamePasswordMockAPI is
-// the legacy-auth-path counterpart to the Conjur test above. Without it, the
-// only integration-level test of NewCyberArk's username/password path is one
-// that sets ARK_USERNAME/ARK_SECRET but then also passes a non-empty
-// serviceID — which selectAuthenticator prioritises, so it silently exercises
-// Conjur regardless of those env vars. This test leaves serviceID empty so
-// the username/password path is what's actually under test.
+// the legacy-auth-path counterpart to the Conjur test above (see its comment
+// for why serviceID must stay empty here for this test to actually exercise
+// the username/password path).
 func TestCyberArkClient_PostDataReadingsWithOptions_UsernamePasswordMockAPI(t *testing.T) {
 	t.Setenv("ARK_SUBDOMAIN", servicediscovery.MockDiscoverySubdomain)
 	httpClient, username, password := testutil.FakeCyberArkUsernamePassword(t)
