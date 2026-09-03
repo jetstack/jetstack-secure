@@ -290,8 +290,9 @@ func FakeCyberArk(t testing.TB) (httpClient *http.Client, jwtFilePath string) {
 		Identity: servicediscovery.ServiceEndpoint{
 			// Required unconditionally by DiscoverServices, present for every
 			// healthy tenant — see servicediscovery/discovery.go. Unused by
-			// the Conjur path itself.
-			API: "https://identity.example.invalid",
+			// the Conjur path itself. Never dialed, so it just needs a host
+			// servicediscovery's allowlist accepts.
+			API: "https://identity.example.integration-cyberark.cloud",
 		},
 		DiscoveryContext: servicediscovery.ServiceEndpoint{
 			API: discoveryContextAPI,

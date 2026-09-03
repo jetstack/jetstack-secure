@@ -40,7 +40,8 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 	discoveryContextAPI, _ := dataupload.MockDataUploadServer(t)
 
 	// Unused by the Conjur path, but service discovery requires it to be set.
-	const identitySrv = "https://identity.example.invalid"
+	// Never dialed, so it just needs a host servicediscovery's allowlist accepts.
+	const identitySrv = "https://identity.example.integration-cyberark.cloud"
 
 	httpClient := servicediscovery.MockDiscoveryServer(t, servicediscovery.Services{
 		Identity: servicediscovery.ServiceEndpoint{

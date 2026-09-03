@@ -9,11 +9,13 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
 	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
 	"github.com/jetstack/preflight/pkg/version"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -39,6 +41,66 @@ const (
 	// As of 2025-04-16, a response from the integration environment is ~4kB
 	maxDiscoverBodySize = 2 * 1024 * 1024
 )
+
+// allowedRootDomains are the only root domains a discovery response is
+// allowed to point us at for identity/discoverycontext/secrets_manager.
+// Without this, mainActiveAPI's ep.API is trusted verbatim from the response
+// body and handed straight to the Conjur/Identity clients, which then POST
+// the agent's SA token (or username/password) to it — an SSRF-shaped hole if
+// the response is ever tampered with. Mirrors the per-env ROOT_DOMAIN
+// allowlist already enforced on the discoverycontext-regional-resources side
+// (token.py, for the JWT `iss` host) — copied by value here since these
+// domains rarely change and the agent has no access to that env-keyed map.
+var allowedRootDomains = []string{
+	"cyberark.cloud",
+	"cyberark-everest-dev.com",
+	"cyberark-everest-test.com",
+	"cyberark-everest-stage.com",
+	"sandbox-cyberark.cloud",
+	"integration-cyberark.cloud",
+	"pt-cyberark.cloud",
+	"cyberark-everest-integdev.cloud",
+	"cyberark-everest-preinteg.cloud",
+	"cyberark-everest-perf.cloud",
+	"cyberark-everest-pre-prod.cloud",
+}
+
+// isAllowedServiceHost reports whether host is, or is a subdomain of, one of
+// allowedRootDomains — or is exactly discoveryHost, the host we just made a
+// successful, TLS-authenticated discovery call to. The latter matters for
+// ARK_DISCOVERY_API-overridden (dev/CI/test) discovery endpoints: whatever
+// host that override already points at is exactly as trusted as the
+// discovery call itself, so a service response pointing back at that same
+// host can't be a new SSRF target.
+func isAllowedServiceHost(host, discoveryHost string) bool {
+	if host == discoveryHost {
+		return true
+	}
+	for _, root := range allowedRootDomains {
+		if host == root || strings.HasSuffix(host, "."+root) {
+			return true
+		}
+	}
+	return false
+}
+
+// sanitizeServiceAPI returns rawAPI unchanged if its host is allowed, or ""
+// (treated the same as "service not present in the response") if not.
+func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI, discoveryHost string) string {
+	if rawAPI == "" {
+		return ""
+	}
+	u, err := url.Parse(rawAPI)
+	if err != nil || u.Hostname() == "" {
+		klog.FromContext(ctx).Info("dropping unparseable service discovery API URL", "service", serviceName, "api", rawAPI)
+		return ""
+	}
+	if !isAllowedServiceHost(u.Hostname(), discoveryHost) {
+		klog.FromContext(ctx).Info("dropping service discovery API URL outside the allowed CyberArk domains", "service", serviceName, "host", u.Hostname())
+		return ""
+	}
+	return rawAPI
+}
 
 // Client is a Golang client for interacting with the CyberArk Discovery Service. It allows
 // users to fetch URLs for various APIs available in CyberArk. This client is specialised to
@@ -194,6 +256,14 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 			secretsManagerAPI = mainActiveAPI(svc.Endpoints)
 		}
 	}
+
+	// Drop any of the three API URLs whose host isn't one of the CyberArk
+	// domains we actually trust, before anything downstream authenticates
+	// against it. A dropped URL is treated exactly like one absent from the
+	// response — see the required/optional distinction below.
+	identityAPI = sanitizeServiceAPI(ctx, IdentityServiceName, identityAPI, u.Hostname())
+	discoveryContextAPI = sanitizeServiceAPI(ctx, DiscoveryContextServiceName, discoveryContextAPI, u.Hostname())
+	secretsManagerAPI = sanitizeServiceAPI(ctx, SecretsManagerServiceName, secretsManagerAPI, u.Hostname())
 
 	// identityAPI is required unconditionally, unlike discoveryContextAPI and
 	// secretsManagerAPI below: it's present and active for every healthy
