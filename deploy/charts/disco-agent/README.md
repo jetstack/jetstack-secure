@@ -424,8 +424,7 @@ Enable sending of Secret values to CyberArk in addition to metadata. Metadata is
 > ""
 > ```
 
-The Conjur authn-jwt authenticator service ID configured for this tenant. Set this to use the Conjur JWT exchange (preferred). Leave empty to use the legacy CyberArk Identity username/password method (ARK_USERNAME/ARK_SECRET in the credentials Secret) for backward compatibility. If both are set, the serviceId (Conjur) wins. NOTE: bare service-id segment (e.g. "disco-agent"), NOT the policy path  
-"conjur/authn-jwt/disco-agent" — the agent builds the URL as  
+The Conjur authn-jwt authenticator service ID configured for this cluster (one authenticator per cluster, not shared across a tenant's clusters — see config.clusterName above, which falls back to this value and depends on it being cluster-unique). Set this to use the Conjur JWT exchange (preferred). Leave empty to use the legacy CyberArk Identity username/password method (ARK_USERNAME/ARK_SECRET in the credentials Secret) for backward compatibility. If both are set, the serviceId (Conjur) wins. NOTE: bare service-id segment (e.g. a UUID chosen at onboarding), NOT the policy path "conjur/authn-jwt/<serviceId>" — the agent builds the URL as  
 <base>/authn-jwt/<serviceId>/<account>/authenticate.
 #### **config.cyberark.account** ~ `string`
 > Default value:
