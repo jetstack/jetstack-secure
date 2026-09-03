@@ -1388,14 +1388,17 @@ func TestConfig_CyberArk_Validation(t *testing.T) {
 	})
 
 	// cluster_name fallback order: cluster_name > cluster_id > ARK_USERNAME >
-	// empty. Explicit config (cluster_name, cluster_id) always wins over the
-	// env var; ARK_USERNAME is a legacy fallback kept only for pre-Conjur
-	// installs that set neither config field — the chart never emits
-	// cluster_id, so a chart-installed agent can't have set it, and
-	// ARK_USERNAME still applies. This also covers a migrating install
+	// cyberark.service_id > empty. Explicit config (cluster_name, cluster_id)
+	// always wins over the env var; ARK_USERNAME is a legacy fallback kept
+	// only for pre-Conjur installs that set neither config field — the chart
+	// never emits cluster_id, so a chart-installed agent can't have set it,
+	// and ARK_USERNAME still applies. This also covers a migrating install
 	// (service_id set to test Conjur alongside still-present ARK_USERNAME,
 	// no cluster_id yet): its reported name doesn't change just because
-	// service_id was added.
+	// service_id was added. service_id is checked last, below ARK_USERNAME,
+	// so it only kicks in for pure Conjur-JWT installs that have nothing
+	// else set — the onboarding wizard always sets it, so it's a real
+	// fallback even if the generated Helm command omits cluster_name.
 	t.Run("cluster_name falls back to cluster_id when set, even if ARK_USERNAME is also set", func(t *testing.T) {
 		setEnv(t)
 		t.Setenv("ARK_USERNAME", "svc-agent@tenant")
@@ -1434,7 +1437,7 @@ func TestConfig_CyberArk_Validation(t *testing.T) {
 		assert.Equal(t, "svc-agent@tenant", got.ClusterName)
 	})
 
-	t.Run("cluster_name is empty when cluster_name, cluster_id, and ARK_USERNAME are all unset", func(t *testing.T) {
+	t.Run("cluster_name falls back to cyberark.service_id when cluster_name, cluster_id, and ARK_USERNAME are all unset", func(t *testing.T) {
 		setEnv(t)
 		got, _, err := ValidateAndCombineConfig(discardLogs(),
 			withConfig(testutil.Undent(`
@@ -1443,6 +1446,24 @@ func TestConfig_CyberArk_Validation(t *testing.T) {
 			`)),
 			withCmdLineFlags("--period", "1m", "--machine-hub"))
 		require.NoError(t, err)
+		assert.Equal(t, "dev-cluster", got.ClusterName)
+	})
+
+	// The only way ClusterName ends up empty is if config-validation already
+	// failed: whichever of the two auth methods (service_id, or
+	// ARK_USERNAME+ARK_SECRET) satisfies the gate at config.go's cyberark
+	// validation block also satisfies a cluster_name fallback above. Assert
+	// the gate directly, rather than only in prose, so a future change that
+	// makes either auth method optional without updating the fallback chain
+	// fails this test instead of silently reintroducing an empty
+	// cluster_name for a config that validates successfully.
+	t.Run("empty ClusterName only occurs when config validation also fails", func(t *testing.T) {
+		setEnv(t)
+		got, _, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(""),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "MachineHub mode requires either cyberark.service_id or ARK_USERNAME/ARK_SECRET")
 		assert.Equal(t, "", got.ClusterName)
 	})
 

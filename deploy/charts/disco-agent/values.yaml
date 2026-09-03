@@ -183,8 +183,11 @@ config:
   # A human readable name for the cluster where the agent is deployed (optional).
   #
   # This cluster name will be associated with the data that the agent uploads to
-  # the Discovery and Context service. If empty (the default), the service
-  # account name will be used instead.
+  # the Discovery and Context service. If empty (the default) and using the
+  # legacy username/password authentication, ARK_USERNAME is used instead. If
+  # empty and using Conjur JWT authentication (no ARK_USERNAME), the
+  # cyberark.serviceId below is used instead. There is no service-account-name
+  # fallback — set this explicitly for a meaningful cluster name.
   clusterName: ""
 
   # A short description of the cluster where the agent is deployed (optional).
@@ -207,13 +210,16 @@ config:
   # short-lived Conjur access token, then uses that token to authenticate to the
   # Discovery & Context upload API.
   cyberark:
-    # The Conjur authn-jwt authenticator service ID configured for this tenant.
+    # The Conjur authn-jwt authenticator service ID configured for this
+    # cluster (one authenticator per cluster, not shared across a tenant's
+    # clusters — see config.clusterName above, which falls back to this
+    # value and depends on it being cluster-unique).
     # Set this to use the Conjur JWT exchange (preferred). Leave empty to use the
     # legacy CyberArk Identity username/password method (ARK_USERNAME/ARK_SECRET
     # in the credentials Secret) for backward compatibility. If both are set, the
     # serviceId (Conjur) wins.
-    # NOTE: bare service-id segment (e.g. "disco-agent"), NOT the policy path
-    # "conjur/authn-jwt/disco-agent" — the agent builds the URL as
+    # NOTE: bare service-id segment (e.g. a UUID chosen at onboarding), NOT the
+    # policy path "conjur/authn-jwt/<serviceId>" — the agent builds the URL as
     # <base>/authn-jwt/<serviceId>/<account>/authenticate.
     serviceId: ""
 

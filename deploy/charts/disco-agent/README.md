@@ -97,14 +97,15 @@ agent expects (`/var/run/secrets/tokens/jwt`) — this path isn't configurable,
 so there's one fewer way to misconfigure it. No manual volume configuration
 is required.
 
-### Per-tenant Conjur onboarding
+### Per-cluster Conjur onboarding
 
-Before deploying the agent, the target tenant must be onboarded in Conjur
+Before deploying the agent, the target cluster must be onboarded in Conjur
 Cloud: an `authn-jwt` authenticator scoped to the cluster's OIDC issuer and
 JWKS, a registered workload for the agent's ServiceAccount, and the grants that
-let that workload authenticate and upload. Onboarding is performed through the
-CyberArk web console — see the product documentation for the current
-walkthrough.
+let that workload authenticate and upload. Each cluster gets its own
+authenticator and service ID — the value is not shared across a tenant's
+clusters. Onboarding is performed through the CyberArk web console — see the
+product documentation for the current walkthrough.
 
 Onboarding needs only the tenant administrator's own Conjur Cloud credentials.
 The agent itself holds no Conjur identity beyond its projected ServiceAccount
@@ -117,12 +118,13 @@ value for `config.cyberark.serviceId` below.
 ### Deploy the agent
 
 ```sh
+# $SERVICE_ID is this cluster's own authn-jwt service ID from onboarding above — do not reuse it across clusters.
 helm upgrade agent "oci://${OCI_BASE}/charts/disco-agent" \
      --install \
      --create-namespace \
      --namespace "$NAMESPACE" \
      --set fullnameOverride=disco-agent \
-     --set config.cyberark.serviceId=disco-agent \
+     --set config.cyberark.serviceId="$SERVICE_ID" \
      --set acceptTerms=true
 ```
 
@@ -401,7 +403,7 @@ Example: excludeAnnotationKeysRegex: ['^kapp\.k14s\.io/original.*']
 
 A human readable name for the cluster where the agent is deployed (optional).  
   
-This cluster name will be associated with the data that the agent uploads to the Discovery and Context service. If empty (the default), the service account name will be used instead.
+This cluster name will be associated with the data that the agent uploads to the Discovery and Context service. If empty (the default) and using the legacy username/password authentication, ARK_USERNAME is used instead. If empty and using Conjur JWT authentication (no ARK_USERNAME), the cyberark.serviceId below is used instead. There is no service-account-name fallback — set this explicitly for a meaningful cluster name.
 #### **config.clusterDescription** ~ `string`
 > Default value:
 > ```yaml
@@ -424,8 +426,7 @@ Enable sending of Secret values to CyberArk in addition to metadata. Metadata is
 > ""
 > ```
 
-The Conjur authn-jwt authenticator service ID configured for this tenant. Set this to use the Conjur JWT exchange (preferred). Leave empty to use the legacy CyberArk Identity username/password method (ARK_USERNAME/ARK_SECRET in the credentials Secret) for backward compatibility. If both are set, the serviceId (Conjur) wins. NOTE: bare service-id segment (e.g. "disco-agent"), NOT the policy path  
-"conjur/authn-jwt/disco-agent" — the agent builds the URL as  
+The Conjur authn-jwt authenticator service ID configured for this cluster (one authenticator per cluster, not shared across a tenant's clusters — see config.clusterName above, which falls back to this value and depends on it being cluster-unique). Set this to use the Conjur JWT exchange (preferred). Leave empty to use the legacy CyberArk Identity username/password method (ARK_USERNAME/ARK_SECRET in the credentials Secret) for backward compatibility. If both are set, the serviceId (Conjur) wins. NOTE: bare service-id segment (e.g. a UUID chosen at onboarding), NOT the policy path "conjur/authn-jwt/<serviceId>" — the agent builds the URL as  
 <base>/authn-jwt/<serviceId>/<account>/authenticate.
 #### **config.cyberark.account** ~ `string`
 > Default value:
