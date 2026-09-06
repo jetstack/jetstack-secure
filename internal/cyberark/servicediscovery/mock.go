@@ -5,15 +5,20 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"text/template"
 
 	"k8s.io/client-go/transport"
 
 	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
+	cyberarktesting "github.com/jetstack/preflight/internal/cyberark/testing"
 	"github.com/jetstack/preflight/pkg/version"
 
 	_ "embed"
@@ -37,6 +42,33 @@ type mockDiscoveryServer struct {
 	successResponse string
 }
 
+var fakeHostCounter atomic.Uint64
+
+// launderIfLoopback rewrites rawURL to an allowlisted-domain-looking
+// hostname and registers a dial redirect (via cyberarktesting.RegisterMockHost)
+// to its real address, if rawURL's host is a loopback IP (a real httptest
+// mock server address). Any other value — including deliberately-invalid
+// test hosts like "attacker.example" — is returned unchanged, since those
+// must still be rejected by the code under test, not laundered into passing.
+func launderIfLoopback(rawURL string) string {
+	if rawURL == "" {
+		return rawURL
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	ip := net.ParseIP(u.Hostname())
+	if ip == nil || !ip.IsLoopback() {
+		return rawURL
+	}
+	fakeHost := fmt.Sprintf("mock-%d.integration-cyberark.cloud", fakeHostCounter.Add(1))
+	cyberarktesting.RegisterMockHost(fakeHost, u.Host)
+	u.Host = fakeHost
+	u.Scheme = "https"
+	return u.String()
+}
+
 // MockDiscoveryServer starts a mocked CyberArk service discovery server and
 // returns an HTTP client with the CA certs needed to connect to it.
 //
@@ -49,25 +81,53 @@ type mockDiscoveryServer struct {
 // supplied in `services`.
 // Other subdomains, can be used to trigger various failure responses.
 //
+// Any of services' API fields that point at a real loopback mock server
+// (rather than a fake CyberArk-domain-looking test hostname) is laundered —
+// see launderIfLoopback — into a fake CyberArk-domain hostname, with a dial
+// redirect registered via cyberarktesting.RegisterMockHost so any
+// WrapMockTransport-wrapped client (not just this one) can still reach it.
+// This keeps DiscoverServices' domain/HTTPS allowlist (which now also
+// covers ARK_DISCOVERY_API itself, see CP-26002) from stripping out real
+// dataupload/conjur/identity mock addresses that other packages' tests
+// embed here.
+//
 // The returned HTTP client has a transport which logs requests and responses
 // depending on log level of the logger supplied in the context.
 func MockDiscoveryServer(t testing.TB, services Services) *http.Client {
-	tmpl := template.Must(template.New("mockDiscoverySuccess").Parse(discoverySuccessTemplate))
-	buf := &bytes.Buffer{}
-	err := tmpl.Execute(buf, services)
-	if err != nil {
-		panic(err)
-	}
-	mds := &mockDiscoveryServer{
-		t:               t,
-		successResponse: buf.String(),
-	}
+	mds := &mockDiscoveryServer{t: t}
 	server := httptest.NewTLSServer(mds)
 	t.Cleanup(server.Close)
-	t.Setenv("ARK_DISCOVERY_API", server.URL)
+
 	httpClient := server.Client()
-	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
+	baseTransport := httpClient.Transport.(*http.Transport).Clone()
+	cyberarktesting.WrapMockTransport(baseTransport)
+
+	discoveryFakeHost := fmt.Sprintf("mock-%d.integration-cyberark.cloud", fakeHostCounter.Add(1))
+	cyberarktesting.RegisterMockHost(discoveryFakeHost, mustHostPort(t, server.URL))
+	t.Setenv("ARK_DISCOVERY_API", "https://"+discoveryFakeHost)
+
+	services.Identity.API = launderIfLoopback(services.Identity.API)
+	services.DiscoveryContext.API = launderIfLoopback(services.DiscoveryContext.API)
+	services.SecretsManager.API = launderIfLoopback(services.SecretsManager.API)
+
+	tmpl := template.Must(template.New("mockDiscoverySuccess").Parse(discoverySuccessTemplate))
+	buf := &bytes.Buffer{}
+	if err := tmpl.Execute(buf, services); err != nil {
+		panic(err)
+	}
+	mds.successResponse = buf.String()
+
+	httpClient.Transport = transport.NewDebuggingRoundTripper(baseTransport, transport.DebugByContext)
 	return httpClient
+}
+
+func mustHostPort(t testing.TB, rawURL string) string {
+	t.Helper()
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("MockDiscoveryServer: invalid server URL %q: %v", rawURL, err)
+	}
+	return u.Host
 }
 
 func (mds *mockDiscoveryServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {

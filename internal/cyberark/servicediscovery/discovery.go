@@ -43,15 +43,19 @@ const (
 	maxDiscoverBodySize = 2 * 1024 * 1024
 )
 
-// allowedRootDomains are the only root domains a discovery response is
-// allowed to point us at for identity/discoverycontext/secrets_manager.
-// Without this, mainActiveAPI's ep.API is trusted verbatim from the response
-// body and handed straight to the Conjur/Identity clients, which then POST
-// the agent's SA token (or username/password) to it — an SSRF-shaped hole if
-// the response is ever tampered with. Mirrors the per-env ROOT_DOMAIN
-// allowlist already enforced on the discoverycontext-regional-resources side
-// (token.py, for the JWT `iss` host) — copied by value here since these
-// domains rarely change and the agent has no access to that env-keyed map.
+// allowedRootDomains are the only root domains trusted for both (a) the
+// discovery bootstrap call itself — c.baseURL, which is ARK_DISCOVERY_API if
+// set — and (b) the identity/discoverycontext/secrets_manager hosts that
+// call's response points us at. Without (b), mainActiveAPI's ep.API is
+// trusted verbatim from the response body and handed straight to the
+// Conjur/Identity clients, which then POST the agent's SA token (or
+// username/password) to it. Without (a), ARK_DISCOVERY_API write access
+// (e.g. a tampered pod spec or Helm values) bootstraps the entire trust
+// chain from arbitrary infrastructure regardless of (b) — see CP-26002 /
+// CP-23593. Mirrors the per-env ROOT_DOMAIN allowlist already enforced on
+// the discoverycontext-regional-resources side (token.py, for the JWT `iss`
+// host) — copied by value here since these domains rarely change and the
+// agent has no access to that env-keyed map.
 //
 // Source of truth is the `everest_env_utils` package's ROOT_DOMAIN map
 // (published to Artifactory as everest_env_utils_cyberark, v2.0.117 as of
@@ -81,26 +85,14 @@ var allowedRootDomains = []string{
 	"cyberarkgov.cloud",
 }
 
-// isAllowedServiceHost reports whether host is, or is a subdomain of, one of
-// allowedRootDomains — or is exactly discoveryHost, the host the discovery
-// request was addressed to. The latter matters for ARK_DISCOVERY_API-
-// overridden (dev/CI/test) discovery endpoints: whatever host that override
-// already points at is at least as trusted as the discovery call itself.
+// hostOnAllowedRootDomain reports whether host is, or is a subdomain of, one
+// of allowedRootDomains.
 //
-// This comparison is hostname-only: discoveryHost carries no port, and
-// ARK_DISCOVERY_API is not guaranteed to be HTTPS or to be the host the
-// request actually landed on after redirects — the follow-up in CP-26002
-// (validating ARK_DISCOVERY_API itself against allowedRootDomains, removing
-// this whole escape hatch) is the actual fix for both gaps; a host:port
-// comparison here alone would break every test that currently relies on
-// same-host-different-port mocks without that same rework.
-func isAllowedServiceHost(host, discoveryHost string) bool {
-	// DNS is case-insensitive and net/url doesn't normalise host case (it
-	// lowercases the scheme but not the host), so a discovery response with
-	// any uppercase in a legitimate hostname must still match here.
-	if strings.EqualFold(host, discoveryHost) {
-		return true
-	}
+// DNS is case-insensitive and net/url doesn't normalise host case (it
+// lowercases the scheme but not the host — verified), so a discovery
+// response with any uppercase in an otherwise-legitimate hostname must
+// still match here.
+func hostOnAllowedRootDomain(host string) bool {
 	host = strings.ToLower(host)
 	for _, root := range allowedRootDomains {
 		if host == root || strings.HasSuffix(host, "."+root) {
@@ -111,9 +103,9 @@ func isAllowedServiceHost(host, discoveryHost string) bool {
 }
 
 // sanitizeServiceAPI returns rawAPI unchanged if its scheme is https and its
-// host is allowed, or "" (treated the same as "service not present in the
-// response") if not.
-func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI, discoveryHost string) string {
+// host is on an allowed root domain, or "" (treated the same as "service not
+// present in the response") if not.
+func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI string) string {
 	if rawAPI == "" {
 		return ""
 	}
@@ -123,15 +115,10 @@ func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI, discoveryHost 
 		return ""
 	}
 	if u.Scheme != "https" {
-		// Rejecting plain HTTP also closes the loopback-attacker shape of
-		// the isAllowedServiceHost "same host as discoveryHost" case: a
-		// same-host rogue endpoint (e.g. an attacker-controlled
-		// ARK_DISCOVERY_API pointing at 127.0.0.1) can't present a
-		// certificate this client's TLS verification will accept.
 		klog.FromContext(ctx).Info("dropping non-HTTPS service discovery API URL", "service", serviceName, "scheme", u.Scheme)
 		return ""
 	}
-	if !isAllowedServiceHost(u.Hostname(), discoveryHost) {
+	if !hostOnAllowedRootDomain(u.Hostname()) {
 		klog.FromContext(ctx).Info("dropping service discovery API URL outside the allowed CyberArk domains", "service", serviceName, "host", u.Hostname())
 		return ""
 	}
@@ -242,6 +229,18 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 		return nil, "", fmt.Errorf("invalid base URL for service discovery: %w", err)
 	}
 
+	// CP-26002: the discovery bootstrap call itself must be to an allowed
+	// CyberArk domain over HTTPS too — otherwise ARK_DISCOVERY_API write
+	// access (e.g. a tampered pod spec or Helm values) would let an attacker
+	// point trust-chain bootstrap at arbitrary infrastructure, which the
+	// sanitizeServiceAPI checks below wouldn't catch on their own: they used
+	// to also accept anything matching this same host, on the assumption
+	// that whatever ARK_DISCOVERY_API pointed at was already trusted as much
+	// as the discovery call itself. It no longer is assumed; it's checked.
+	if u.Scheme != "https" || !hostOnAllowedRootDomain(u.Hostname()) {
+		return nil, "", fmt.Errorf("service discovery base URL %q is not HTTPS on an allowed CyberArk domain; refusing to bootstrap trust from it", c.baseURL)
+	}
+
 	u.Path = path.Join(u.Path, "api/public/tenant-discovery")
 	u.RawQuery = url.Values{"bySubdomain": []string{c.subdomain}}.Encode()
 
@@ -298,9 +297,9 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 	// against it. A dropped URL is treated exactly like one absent from the
 	// response — see the required/optional distinction below.
 	rawIdentityAPI := identityAPI
-	identityAPI = sanitizeServiceAPI(ctx, IdentityServiceName, identityAPI, u.Hostname())
-	discoveryContextAPI = sanitizeServiceAPI(ctx, DiscoveryContextServiceName, discoveryContextAPI, u.Hostname())
-	secretsManagerAPI = sanitizeServiceAPI(ctx, SecretsManagerServiceName, secretsManagerAPI, u.Hostname())
+	identityAPI = sanitizeServiceAPI(ctx, IdentityServiceName, identityAPI)
+	discoveryContextAPI = sanitizeServiceAPI(ctx, DiscoveryContextServiceName, discoveryContextAPI)
+	secretsManagerAPI = sanitizeServiceAPI(ctx, SecretsManagerServiceName, secretsManagerAPI)
 
 	// identityAPI is required unconditionally, unlike discoveryContextAPI and
 	// secretsManagerAPI below: it's present and active for every healthy

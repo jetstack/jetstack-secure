@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/transport"
 
 	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
+	cyberarktesting "github.com/jetstack/preflight/internal/cyberark/testing"
 	"github.com/jetstack/preflight/pkg/version"
 
 	_ "embed"
@@ -81,6 +82,11 @@ func MockIdentityServer(t testing.TB) (string, *http.Client) {
 	server := httptest.NewTLSServer(mis)
 	t.Cleanup(server.Close)
 	httpClient := server.Client()
+	// So this client can also reach a fake CyberArk-domain-looking host
+	// registered by another mock (servicediscovery.MockDiscoveryServer), in
+	// case a test reuses it to make a discovery call rather than discovery's
+	// own client.
+	cyberarktesting.WrapMockTransport(httpClient.Transport.(*http.Transport))
 	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
 	return server.URL, httpClient
 }

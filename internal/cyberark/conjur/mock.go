@@ -4,7 +4,20 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	cyberarktesting "github.com/jetstack/preflight/internal/cyberark/testing"
 )
+
+// mockClientFor wraps srv's client so it can also reach any fake
+// CyberArk-domain-looking host registered by another mock's
+// cyberarktesting.RegisterMockHost (e.g. servicediscovery.MockDiscoveryServer),
+// since a test may reuse this client to make a discovery call rather than
+// discovery's own — see servicediscovery.MockDiscoveryServer's doc comment.
+func mockClientFor(srv *httptest.Server) *http.Client {
+	client := srv.Client()
+	cyberarktesting.WrapMockTransport(client.Transport.(*http.Transport))
+	return client
+}
 
 // MockConjurExchangeServer returns a TLS server whose authn-jwt endpoint returns the given token.
 func MockConjurExchangeServer(t testing.TB, token string) (*httptest.Server, *http.Client) {
@@ -16,7 +29,7 @@ func MockConjurExchangeServer(t testing.TB, token string) (*httptest.Server, *ht
 		}
 		_, _ = w.Write([]byte(token))
 	}))
-	return srv, srv.Client()
+	return srv, mockClientFor(srv)
 }
 
 func MockConjurExchangeServerStatus(t testing.TB, status int) (*httptest.Server, *http.Client) {
@@ -33,5 +46,5 @@ func MockConjurExchangeServerStatusBody(t testing.TB, status int, body []byte) (
 		w.WriteHeader(status)
 		_, _ = w.Write(body)
 	}))
-	return srv, srv.Client()
+	return srv, mockClientFor(srv)
 }
