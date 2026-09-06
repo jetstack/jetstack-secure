@@ -96,6 +96,52 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 		assert.Equal(t, "", services.SecretsManager.API)
 	})
 
+	t.Run("plain-HTTP identity host is rejected even though the hostname is allowlisted", func(t *testing.T) {
+		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+		ctx := klog.NewContext(t.Context(), logger)
+
+		httpClient := MockDiscoveryServer(t, Services{
+			Identity: ServiceEndpoint{
+				API: "http://ajp5871.id.integration-cyberark.cloud",
+			},
+			DiscoveryContext: ServiceEndpoint{
+				API: mockDiscoveryContextAPIURL,
+			},
+			SecretsManager: ServiceEndpoint{
+				API: mockSecretsManagerAPIURL,
+			},
+		})
+
+		client := New(httpClient, MockDiscoverySubdomain)
+		services, _, err := client.DiscoverServices(ctx)
+		require.Error(t, err)
+		assert.Nil(t, services)
+	})
+
+	t.Run("plain-HTTP secrets_manager and discovery_context hosts are dropped, not fatal", func(t *testing.T) {
+		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+		ctx := klog.NewContext(t.Context(), logger)
+
+		httpClient := MockDiscoveryServer(t, Services{
+			Identity: ServiceEndpoint{
+				API: mockIdentityAPIURL,
+			},
+			DiscoveryContext: ServiceEndpoint{
+				API: "http://venafi-test.inventory.integration-cyberark.cloud",
+			},
+			SecretsManager: ServiceEndpoint{
+				API: "http://venafi-test.secretsmgr.integration-cyberark.cloud",
+			},
+		})
+
+		client := New(httpClient, MockDiscoverySubdomain)
+		services, _, err := client.DiscoverServices(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, mockIdentityAPIURL, services.Identity.API)
+		assert.Equal(t, "", services.DiscoveryContext.API)
+		assert.Equal(t, "", services.SecretsManager.API)
+	})
+
 	t.Run("gov-cloud root domains are accepted", func(t *testing.T) {
 		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 		ctx := klog.NewContext(t.Context(), logger)

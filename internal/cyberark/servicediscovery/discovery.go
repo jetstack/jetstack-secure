@@ -100,8 +100,9 @@ func isAllowedServiceHost(host, discoveryHost string) bool {
 	return false
 }
 
-// sanitizeServiceAPI returns rawAPI unchanged if its host is allowed, or ""
-// (treated the same as "service not present in the response") if not.
+// sanitizeServiceAPI returns rawAPI unchanged if its scheme is https and its
+// host is allowed, or "" (treated the same as "service not present in the
+// response") if not.
 func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI, discoveryHost string) string {
 	if rawAPI == "" {
 		return ""
@@ -109,6 +110,15 @@ func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI, discoveryHost 
 	u, err := url.Parse(rawAPI)
 	if err != nil || u.Hostname() == "" {
 		klog.FromContext(ctx).Info("dropping unparseable service discovery API URL", "service", serviceName, "api", rawAPI)
+		return ""
+	}
+	if u.Scheme != "https" {
+		// Rejecting plain HTTP also closes the loopback-attacker shape of
+		// the isAllowedServiceHost "same host as discoveryHost" case: a
+		// same-host rogue endpoint (e.g. an attacker-controlled
+		// ARK_DISCOVERY_API pointing at 127.0.0.1) can't present a
+		// certificate this client's TLS verification will accept.
+		klog.FromContext(ctx).Info("dropping non-HTTPS service discovery API URL", "service", serviceName, "scheme", u.Scheme)
 		return ""
 	}
 	if !isAllowedServiceHost(u.Hostname(), discoveryHost) {
