@@ -46,14 +46,29 @@ const (
 // allowedRootDomains are the only root domains trusted for both (a) the
 // discovery bootstrap call itself — c.baseURL, which is ARK_DISCOVERY_API if
 // set — and (b) the identity/discoverycontext/secrets_manager hosts that
-// call's response points us at. Without (b), mainActiveAPI's ep.API is
+// call's response points us at.
+//
+// This is defence-in-depth against our own service, not a fix for a
+// compromised transport. The discovery call is already HTTPS against system
+// roots, so a plain network attacker can't alter what comes back, and an
+// attacker who *can* defeat that TLS session could equally intercept
+// whichever host this allowlist would have permitted instead — the
+// allowlist buys nothing against either. What it does constrain is (b): if
+// the discovery service itself is compromised, buggy, or returns a host
+// influenced by something else, mainActiveAPI's ep.API would otherwise be
 // trusted verbatim from the response body and handed straight to the
 // Conjur/Identity clients, which then POST the agent's SA token (or
-// username/password) to it. Without (a), ARK_DISCOVERY_API write access
-// (e.g. a tampered pod spec or Helm values) bootstraps the entire trust
-// chain from arbitrary infrastructure regardless of (b) — see CP-26002 /
-// CP-23593. Mirrors the per-env ROOT_DOMAIN allowlist already enforced on
-// the discoverycontext-regional-resources side (token.py, for the JWT `iss`
+// username/password) to it — here, and only here, does the allowlist bind.
+// (a) is the same control applied to the bootstrap call's own base URL, so a
+// tampered ARK_DISCOVERY_API (pod spec/Helm values) can't redirect (b)'s
+// trust anchor off-domain either — see CP-26002 / CP-23593. Note
+// `cyberark.cloud` still admits every tenant's host, so this doesn't stop a
+// misbehaving discovery service naming a different tenant's host; that gap
+// is tracked separately (hostLeadingLabelMatchesSubdomain, CP-26094,
+// warn-only pending more evidence).
+//
+// Mirrors the per-env ROOT_DOMAIN allowlist already enforced on the
+// discoverycontext-regional-resources side (token.py, for the JWT `iss`
 // host) — copied by value here since these domains rarely change and the
 // agent has no access to that env-keyed map.
 //
