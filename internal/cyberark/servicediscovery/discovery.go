@@ -102,10 +102,38 @@ func hostOnAllowedRootDomain(host string) bool {
 	return false
 }
 
+// hostLeadingLabelMatchesSubdomain reports whether host's leading label
+// names subdomain, tolerating the two label shapes actually observed on
+// CyberArk API Gateway hosts (mirrors discoverycontext-regional-resources'
+// _is_host_subdomain_matching, token.py:197-212, used there to validate the
+// inbound Host header against a JWT's subdomain claim):
+//   - {subdomain}.{service}.{domain}   e.g. eh1c6a8z1wf8hi.inventory.integration-cyberark.cloud
+//   - {subdomain}-{service}.{domain}   e.g. disco4asaf-discoverycontext.integration-cyberark.cloud
+//
+// Unlike token.py, this doesn't check against one fixed service-name suffix
+// (identity/discoverycontext/secrets_manager each render under a different,
+// undocumented service label — "id"/"inventory"/"secretsmgr" observed live,
+// not the JSON service_name values) — it accepts any hyphen suffix, which is
+// looser than token.py's exact match but appropriate for a warn-only check.
+func hostLeadingLabelMatchesSubdomain(host, subdomain string) bool {
+	if subdomain == "" {
+		return true
+	}
+	label, _, _ := strings.Cut(host, ".")
+	return label == subdomain || strings.HasPrefix(label, subdomain+"-")
+}
+
 // sanitizeServiceAPI returns rawAPI unchanged if its scheme is https and its
 // host is on an allowed root domain, or "" (treated the same as "service not
 // present in the response") if not.
-func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI string) string {
+//
+// subdomain is used only for a warn-only check, not enforcement: see
+// hostLeadingLabelMatchesSubdomain's doc comment for why — we don't yet have
+// live evidence covering all three services' host shapes across every
+// environment, and fail-closed on an unverified assumption risks a real
+// outage. CP-26010 tracks turning this into enforcement once telemetry
+// confirms it holds.
+func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI, subdomain string) string {
 	if rawAPI == "" {
 		return ""
 	}
@@ -121,6 +149,14 @@ func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI string) string 
 	if !hostOnAllowedRootDomain(u.Hostname()) {
 		klog.FromContext(ctx).Info("dropping service discovery API URL outside the allowed CyberArk domains", "service", serviceName, "host", u.Hostname())
 		return ""
+	}
+	if !hostLeadingLabelMatchesSubdomain(u.Hostname(), subdomain) {
+		// Not dropped -- see the function doc comment. A tampered response
+		// could still redirect within the same allowed root domain to a
+		// different tenant's host; this is the visibility half of closing
+		// that gap, not the enforcement half.
+		klog.FromContext(ctx).Info("service discovery API URL's host doesn't look like it belongs to this tenant's subdomain",
+			"service", serviceName, "host", u.Hostname(), "subdomain", subdomain)
 	}
 	return rawAPI
 }
@@ -297,9 +333,9 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 	// against it. A dropped URL is treated exactly like one absent from the
 	// response — see the required/optional distinction below.
 	rawIdentityAPI := identityAPI
-	identityAPI = sanitizeServiceAPI(ctx, IdentityServiceName, identityAPI)
-	discoveryContextAPI = sanitizeServiceAPI(ctx, DiscoveryContextServiceName, discoveryContextAPI)
-	secretsManagerAPI = sanitizeServiceAPI(ctx, SecretsManagerServiceName, secretsManagerAPI)
+	identityAPI = sanitizeServiceAPI(ctx, IdentityServiceName, identityAPI, c.subdomain)
+	discoveryContextAPI = sanitizeServiceAPI(ctx, DiscoveryContextServiceName, discoveryContextAPI, c.subdomain)
+	secretsManagerAPI = sanitizeServiceAPI(ctx, SecretsManagerServiceName, secretsManagerAPI, c.subdomain)
 
 	// identityAPI is required unconditionally, unlike discoveryContextAPI and
 	// secretsManagerAPI below: it's present and active for every healthy

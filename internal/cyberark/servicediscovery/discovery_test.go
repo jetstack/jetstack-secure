@@ -12,6 +12,26 @@ import (
 	_ "k8s.io/klog/v2/ktesting/init"
 )
 
+func Test_hostLeadingLabelMatchesSubdomain(t *testing.T) {
+	tests := map[string]struct {
+		host, subdomain string
+		want            bool
+	}{
+		"dot shape, matches":          {"eh1c6a8z1wf8hi.inventory.integration-cyberark.cloud", "eh1c6a8z1wf8hi", true},
+		"dot shape, different tenant": {"eh1c6a8z1wf8hi.inventory.integration-cyberark.cloud", "someone-else", false},
+		"hyphen shape, matches":       {"disco4asaf-discoverycontext.integration-cyberark.cloud", "disco4asaf", true},
+		"hyphen shape, different tenant": {
+			"disco4asaf-discoverycontext.integration-cyberark.cloud", "someone-else", false,
+		},
+		"empty subdomain never flags anything": {"anything.at.all", "", true},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tt.want, hostLeadingLabelMatchesSubdomain(tt.host, tt.subdomain))
+		})
+	}
+}
+
 func Test_DiscoverIdentityAPIURL(t *testing.T) {
 	tests := map[string]struct {
 		subdomain     string
@@ -191,6 +211,34 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 		services, _, err := client.DiscoverServices(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, "https://AJP5871.ID.Integration-CyberArk.Cloud", services.Identity.API)
+	})
+
+	t.Run("a host on the allowed domain but a different tenant's subdomain is warned about, not dropped", func(t *testing.T) {
+		// Deliberately not enforcement -- see sanitizeServiceAPI's doc
+		// comment for why. This also matches every other test in this file:
+		// none of the mock*APIURL constants' leading labels are
+		// MockDiscoverySubdomain ("tlskp-test"), and none of those tests
+		// fail, which already exercises this path -- this test just makes
+		// the "not dropped" property explicit and named.
+		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+		ctx := klog.NewContext(t.Context(), logger)
+
+		httpClient := MockDiscoveryServer(t, Services{
+			Identity: ServiceEndpoint{
+				API: "https://some-other-tenant.id.integration-cyberark.cloud",
+			},
+			DiscoveryContext: ServiceEndpoint{
+				API: mockDiscoveryContextAPIURL,
+			},
+			SecretsManager: ServiceEndpoint{
+				API: mockSecretsManagerAPIURL,
+			},
+		})
+
+		client := New(httpClient, MockDiscoverySubdomain)
+		services, _, err := client.DiscoverServices(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, "https://some-other-tenant.id.integration-cyberark.cloud", services.Identity.API)
 	})
 
 	for name, testSpec := range tests {
