@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -118,6 +119,16 @@ func (c *Client) FetchKey(ctx context.Context) (PublicKey, error) {
 		return PublicKey{}, fmt.Errorf("failed to get services from discovery client: %w", err)
 	}
 
+	if services.DiscoveryContext.API == "" {
+		// Mirrors cyberark.NewDatauploadClient's check on the same field —
+		// without this, url.JoinPath("", ...) silently returns a relative
+		// path and the request below fails with the opaque
+		// "unsupported protocol scheme \"\"" instead of naming the real cause
+		// (service discovery didn't return a discoverycontext endpoint, e.g.
+		// because its host isn't on the allowed CyberArk domain list).
+		return PublicKey{}, errors.New("service discovery returned an empty discovery API")
+	}
+
 	endpoint, err := url.JoinPath(services.DiscoveryContext.API, "discovery-context/jwks")
 	if err != nil {
 		return PublicKey{}, fmt.Errorf("failed to construct endpoint URL: %w", err)
@@ -143,8 +154,15 @@ func (c *Client) FetchKey(ctx context.Context) (PublicKey, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		// The response body isn't included in the returned error — same leak
+		// class as CP-25964 (conjur.go's authn-jwt exchange error), just
+		// against the discoverycontext host instead. This error doesn't
+		// currently reach a Pod Event (only postData failures do, via
+		// eventf), but keep the body out of it so that stays true if the
+		// call sites ever change.
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
-		return PublicKey{}, fmt.Errorf("unexpected status code %d from %s: %s", resp.StatusCode, endpoint, string(body))
+		logger.V(2).Info("unexpected status code fetching JWKS", "statusCode", resp.StatusCode, "endpoint", endpoint, "body", string(body))
+		return PublicKey{}, fmt.Errorf("unexpected status code %d from %s", resp.StatusCode, endpoint)
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))

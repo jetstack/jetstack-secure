@@ -82,16 +82,26 @@ var allowedRootDomains = []string{
 }
 
 // isAllowedServiceHost reports whether host is, or is a subdomain of, one of
-// allowedRootDomains — or is exactly discoveryHost, the host we just made a
-// successful, TLS-authenticated discovery call to. The latter matters for
-// ARK_DISCOVERY_API-overridden (dev/CI/test) discovery endpoints: whatever
-// host that override already points at is exactly as trusted as the
-// discovery call itself, so a service response pointing back at that same
-// host can't be a new SSRF target.
+// allowedRootDomains — or is exactly discoveryHost, the host the discovery
+// request was addressed to. The latter matters for ARK_DISCOVERY_API-
+// overridden (dev/CI/test) discovery endpoints: whatever host that override
+// already points at is at least as trusted as the discovery call itself.
+//
+// This comparison is hostname-only: discoveryHost carries no port, and
+// ARK_DISCOVERY_API is not guaranteed to be HTTPS or to be the host the
+// request actually landed on after redirects — the follow-up in CP-26002
+// (validating ARK_DISCOVERY_API itself against allowedRootDomains, removing
+// this whole escape hatch) is the actual fix for both gaps; a host:port
+// comparison here alone would break every test that currently relies on
+// same-host-different-port mocks without that same rework.
 func isAllowedServiceHost(host, discoveryHost string) bool {
-	if host == discoveryHost {
+	// DNS is case-insensitive and net/url doesn't normalise host case (it
+	// lowercases the scheme but not the host), so a discovery response with
+	// any uppercase in a legitimate hostname must still match here.
+	if strings.EqualFold(host, discoveryHost) {
 		return true
 	}
+	host = strings.ToLower(host)
 	for _, root := range allowedRootDomains {
 		if host == root || strings.HasSuffix(host, "."+root) {
 			return true
@@ -287,6 +297,7 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 	// domains we actually trust, before anything downstream authenticates
 	// against it. A dropped URL is treated exactly like one absent from the
 	// response — see the required/optional distinction below.
+	rawIdentityAPI := identityAPI
 	identityAPI = sanitizeServiceAPI(ctx, IdentityServiceName, identityAPI, u.Hostname())
 	discoveryContextAPI = sanitizeServiceAPI(ctx, DiscoveryContextServiceName, discoveryContextAPI, u.Hostname())
 	secretsManagerAPI = sanitizeServiceAPI(ctx, SecretsManagerServiceName, secretsManagerAPI, u.Hostname())
@@ -296,8 +307,16 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 	// tenant, so callers may rely on it being non-empty without checking it
 	// themselves again.
 	if identityAPI == "" {
-		return nil, "", fmt.Errorf("didn't find %s in service discovery response, "+
-			"which may indicate a suspended tenant; unable to detect CyberArk Identity API URL", IdentityServiceName)
+		if rawIdentityAPI == "" {
+			return nil, "", fmt.Errorf("didn't find %s in service discovery response, "+
+				"which may indicate a suspended tenant; unable to detect CyberArk Identity API URL", IdentityServiceName)
+		}
+		// The response did name an identity_administration endpoint, but its
+		// host isn't on our allowlist — a distinct, more actionable failure
+		// than "suspended tenant" (see sanitizeServiceAPI's Info log for
+		// which host was rejected and why).
+		return nil, "", fmt.Errorf("%s endpoint %q is not on an allowed CyberArk domain over HTTPS; refusing to use it",
+			IdentityServiceName, rawIdentityAPI)
 	}
 	// discoveryContextAPI and secretsManagerAPI are deliberately not required
 	// here, unlike identityAPI above: not every caller needs both, and

@@ -290,9 +290,12 @@ func FakeCyberArk(t testing.TB) (httpClient *http.Client, jwtFilePath string) {
 		Identity: servicediscovery.ServiceEndpoint{
 			// Required unconditionally by DiscoverServices, present for every
 			// healthy tenant — see servicediscovery/discovery.go. Unused by
-			// the Conjur path itself. Never dialed, so it just needs a host
-			// servicediscovery's allowlist accepts.
-			API: "https://identity.example.integration-cyberark.cloud",
+			// the Conjur path itself. Never dialed, so a loopback address is
+			// fine — it passes the allowlist via the same-host-as-discovery
+			// escape hatch (MockDiscoveryServer's ARK_DISCOVERY_API is also
+			// 127.0.0.1) without depending on a real, resolvable CyberArk
+			// zone name for something this test never intends to reach.
+			API: "https://127.0.0.1:1",
 		},
 		DiscoveryContext: servicediscovery.ServiceEndpoint{
 			API: discoveryContextAPI,

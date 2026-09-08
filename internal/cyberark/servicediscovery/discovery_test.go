@@ -70,6 +70,11 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 		services, _, err := client.DiscoverServices(ctx)
 		require.Error(t, err)
 		assert.Nil(t, services)
+		// The error must say the host was rejected, not the unrelated
+		// "suspended tenant" message reserved for a genuinely absent
+		// identity_administration entry (see the no-identity-in-response
+		// case in the tests map above, which still gets that message).
+		assert.Contains(t, err.Error(), "not on an allowed CyberArk domain")
 	})
 
 	t.Run("secrets_manager and discovery_context hosts outside the allowed CyberArk domains are dropped, not fatal", func(t *testing.T) {
@@ -164,6 +169,28 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 		assert.Equal(t, "https://ajp5871.id.cyberarkgov.cloud", services.Identity.API)
 		assert.Equal(t, "https://venafi-test.inventory.integration-cyberarkgov.cloud", services.DiscoveryContext.API)
 		assert.Equal(t, "https://venafi-test.secretsmgr.dev-cyberarkgov.com", services.SecretsManager.API)
+	})
+
+	t.Run("uppercase host is still accepted (net/url doesn't lowercase the host)", func(t *testing.T) {
+		logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+		ctx := klog.NewContext(t.Context(), logger)
+
+		httpClient := MockDiscoveryServer(t, Services{
+			Identity: ServiceEndpoint{
+				API: "https://AJP5871.ID.Integration-CyberArk.Cloud",
+			},
+			DiscoveryContext: ServiceEndpoint{
+				API: mockDiscoveryContextAPIURL,
+			},
+			SecretsManager: ServiceEndpoint{
+				API: mockSecretsManagerAPIURL,
+			},
+		})
+
+		client := New(httpClient, MockDiscoverySubdomain)
+		services, _, err := client.DiscoverServices(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, "https://AJP5871.ID.Integration-CyberArk.Cloud", services.Identity.API)
 	})
 
 	for name, testSpec := range tests {

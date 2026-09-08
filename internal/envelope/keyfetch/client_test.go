@@ -32,7 +32,10 @@ func testClientSetup(t *testing.T, jwksServerURL string) (*Client, cyberark.Clie
 			IsActive: true,
 			Type:     "main",
 			// Unused by the Conjur path, but service discovery requires it.
-			API: "https://identity.example.integration-cyberark.cloud",
+			// Never dialed, so a loopback address is fine — passes the
+			// allowlist via the same-host-as-discovery escape hatch rather
+			// than depending on a real, resolvable CyberArk zone name.
+			API: "https://127.0.0.1:1",
 		},
 		DiscoveryContext: servicediscovery.ServiceEndpoint{
 			IsActive: true,
@@ -288,7 +291,9 @@ func TestClient_FetchKey(t *testing.T) {
 				IsActive: true,
 				Type:     "main",
 				// Unused by the Conjur path, but service discovery requires it.
-				API: "https://identity.example.integration-cyberark.cloud",
+				// Never dialed, so a loopback address is fine — see the
+				// comment on the identical field above.
+				API: "https://127.0.0.1:1",
 			},
 			DiscoveryContext: servicediscovery.ServiceEndpoint{
 				IsActive: true,
@@ -334,7 +339,9 @@ func TestClient_FetchKey(t *testing.T) {
 				IsActive: true,
 				Type:     "main",
 				// Unused by the Conjur path, but service discovery requires it.
-				API: "https://identity.example.integration-cyberark.cloud",
+				// Never dialed, so a loopback address is fine — see the
+				// comment on the identical field above.
+				API: "https://127.0.0.1:1",
 			},
 			SecretsManager: servicediscovery.ServiceEndpoint{
 				IsActive: true,
@@ -448,6 +455,21 @@ func TestClient_FetchKey(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no valid RSA keys found")
+	})
+
+	t.Run("empty discoverycontext API from discovery fails with a clear error, not an opaque one", func(t *testing.T) {
+		// An empty jwksServerURL makes DiscoveryContext.API "" in the
+		// discovery response (mainActiveAPI requires a non-empty api field,
+		// same as a genuinely absent/inactive service) — e.g. because its
+		// host wasn't on the allowed CyberArk domain list. Without the
+		// explicit check this fails with url.JoinPath("", ...) producing a
+		// relative path and client.Do erroring with the opaque
+		// `unsupported protocol scheme ""`.
+		client, _ := testClientSetup(t, "")
+		_, err := client.FetchKey(t.Context())
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "service discovery returned an empty discovery API")
 	})
 }
 
