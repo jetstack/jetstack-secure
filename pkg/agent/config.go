@@ -684,7 +684,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 	// Validation of `venafi-cloud.upload_path`.
 	{
 		var uploadPath string
-		switch res.OutputMode { // nolint:exhaustive
+		switch res.OutputMode { //nolint:exhaustive
 		case VenafiCloudKeypair:
 			if cfg.VenafiCloud == nil || cfg.VenafiCloud.UploadPath == "" {
 				errs = multierror.Append(errs, fmt.Errorf("the venafi-cloud.upload_path field is required when using the %s mode", res.OutputMode))
@@ -737,7 +737,7 @@ func ValidateAndCombineConfig(log logr.Logger, cfg Config, flags AgentCmdFlags) 
 		var clusterName string    // Required by venafi cloud modes. Optional for MachineHub mode.
 		var clusterID string      // Required by the old jetstack-secure mode deprecated for venafi cloud modes.
 		var organizationID string // Only used by the old jetstack-secure mode.
-		switch res.OutputMode {   // nolint:exhaustive
+		switch res.OutputMode {   //nolint:exhaustive
 		case NGTS:
 			// NGTS mode requires cluster_name
 			if cfg.ClusterName == "" {

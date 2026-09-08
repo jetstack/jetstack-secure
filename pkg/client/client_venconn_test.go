@@ -358,7 +358,7 @@ func run_TestVenConnClient_PostDataReadingsWithOptions(ctx context.Context, rest
 //
 // Only the last part of the test name is used.
 //
-// nolint:dupword
+//nolint:dupword
 func testNameToNamespace(t testing.TB) string {
 	regex := regexp.MustCompile("[^a-zA-Z0-9-]")
 

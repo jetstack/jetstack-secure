@@ -16,11 +16,17 @@ import (
 
 func TestFileClient_PostDataReadingsWithOptions(t *testing.T) {
 	type testCase struct {
-		name          string
-		path          string
-		readings      []*api.DataReading
-		expectedJSON  string
+		name         string
+		path         string
+		readings     []*api.DataReading
+		expectedJSON string
+		// expectedError asserts the whole error message.
 		expectedError string
+		// expectedErrorContains asserts fragments instead, for messages that
+		// embed a standard library type name. Go 1.27 re-implemented
+		// encoding/json on top of encoding/json/v2, so a MarshalJSON error
+		// against a json.RawMessage now names *jsontext.Value.
+		expectedErrorContains []string
 	}
 	tests := []testCase{
 		{
@@ -43,8 +49,11 @@ func TestFileClient_PostDataReadingsWithOptions(t *testing.T) {
 					Data: json.RawMessage("x"),
 				},
 			},
-			expectedError: "failed to marshal JSON: json: error calling MarshalJSON for type json.RawMessage: invalid character 'x' looking for beginning of value",
-			expectedJSON:  "[]",
+			expectedErrorContains: []string{
+				"failed to marshal JSON",
+				"invalid character 'x' looking for beginning of value",
+			},
+			expectedJSON: "[]",
 		},
 		{
 			name:          "no-such-file-or-directory",
@@ -70,6 +79,12 @@ func TestFileClient_PostDataReadingsWithOptions(t *testing.T) {
 
 			if expectedError != "" {
 				assert.EqualError(t, err, expectedError)
+				return
+			}
+			if len(tc.expectedErrorContains) > 0 {
+				for _, want := range tc.expectedErrorContains {
+					assert.ErrorContains(t, err, want)
+				}
 				return
 			}
 			require.NoError(t, err)
