@@ -154,12 +154,9 @@ func (c *Client) FetchKey(ctx context.Context) (PublicKey, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		// The response body isn't included in the returned error — same leak
-		// class as CP-25964 (conjur.go's authn-jwt exchange error), just
-		// against the discoverycontext host instead. This error doesn't
-		// currently reach a Pod Event (only postData failures do, via
-		// eventf), but keep the body out of it so that stays true if the
-		// call sites ever change.
+		// Body logged, not returned — it can contain server-side details we
+		// don't want surfacing in a Kubernetes Event if this error ever
+		// reaches one.
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 		logger.V(2).Info("unexpected status code fetching JWKS", "statusCode", resp.StatusCode, "endpoint", endpoint, "body", string(body))
 		return PublicKey{}, fmt.Errorf("unexpected status code %d from %s", resp.StatusCode, endpoint)

@@ -65,7 +65,6 @@ func launderIfLoopback(rawURL string) string {
 	fakeHost := fmt.Sprintf("mock-%d.integration-cyberark.cloud", fakeHostCounter.Add(1))
 	cyberarktesting.RegisterMockHost(fakeHost, u.Host)
 	u.Host = fakeHost
-	u.Scheme = "https"
 	return u.String()
 }
 
@@ -94,7 +93,17 @@ func launderIfLoopback(rawURL string) string {
 // The returned HTTP client has a transport which logs requests and responses
 // depending on log level of the logger supplied in the context.
 func MockDiscoveryServer(t testing.TB, services Services) *http.Client {
-	mds := &mockDiscoveryServer{t: t}
+	services.Identity.API = launderIfLoopback(services.Identity.API)
+	services.DiscoveryContext.API = launderIfLoopback(services.DiscoveryContext.API)
+	services.SecretsManager.API = launderIfLoopback(services.SecretsManager.API)
+
+	tmpl := template.Must(template.New("mockDiscoverySuccess").Parse(discoverySuccessTemplate))
+	buf := &bytes.Buffer{}
+	if err := tmpl.Execute(buf, services); err != nil {
+		panic(err)
+	}
+
+	mds := &mockDiscoveryServer{t: t, successResponse: buf.String()}
 	server := httptest.NewTLSServer(mds)
 	t.Cleanup(server.Close)
 
@@ -105,17 +114,6 @@ func MockDiscoveryServer(t testing.TB, services Services) *http.Client {
 	discoveryFakeHost := fmt.Sprintf("mock-%d.integration-cyberark.cloud", fakeHostCounter.Add(1))
 	cyberarktesting.RegisterMockHost(discoveryFakeHost, mustHostPort(t, server.URL))
 	t.Setenv("ARK_DISCOVERY_API", "https://"+discoveryFakeHost)
-
-	services.Identity.API = launderIfLoopback(services.Identity.API)
-	services.DiscoveryContext.API = launderIfLoopback(services.DiscoveryContext.API)
-	services.SecretsManager.API = launderIfLoopback(services.SecretsManager.API)
-
-	tmpl := template.Must(template.New("mockDiscoverySuccess").Parse(discoverySuccessTemplate))
-	buf := &bytes.Buffer{}
-	if err := tmpl.Execute(buf, services); err != nil {
-		panic(err)
-	}
-	mds.successResponse = buf.String()
 
 	httpClient.Transport = transport.NewDebuggingRoundTripper(baseTransport, transport.DebugByContext)
 	return httpClient

@@ -2,6 +2,7 @@ package servicediscovery
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,46 @@ func Test_hostLeadingLabelMatchesSubdomain(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			assert.Equal(t, tt.want, hostLeadingLabelMatchesSubdomain(tt.host, tt.subdomain))
+		})
+	}
+}
+
+func Test_hostOnAllowedRootDomain(t *testing.T) {
+	tests := map[string]struct {
+		host string
+		want bool
+	}{
+		"exact match":              {"cyberark.cloud", true},
+		"subdomain":                {"id.cyberark.cloud", true},
+		"uppercase":                {"ID.CyberArk.Cloud", true},
+		"trailing dot":             {"id.cyberark.cloud.", true},
+		"unrelated domain":         {"attacker.example", false},
+		"looks like a suffix only": {"notcyberark.cloud", false},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tt.want, hostOnAllowedRootDomain(tt.host))
+		})
+	}
+}
+
+func Test_DiscoverServices_RejectsDisallowedBaseURL(t *testing.T) {
+	tests := map[string]string{
+		"plain HTTP":          "http://platform-discovery.cyberark.cloud/",
+		"disallowed domain":   "https://attacker.example/",
+		"host with no scheme": "platform-discovery.cyberark.cloud",
+	}
+	for name, baseURL := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("ARK_DISCOVERY_API", baseURL)
+
+			logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+			ctx := klog.NewContext(t.Context(), logger)
+
+			client := New(&http.Client{}, MockDiscoverySubdomain)
+			services, _, err := client.DiscoverServices(ctx)
+			require.Error(t, err)
+			assert.Nil(t, services)
 		})
 	}
 }

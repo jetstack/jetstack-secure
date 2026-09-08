@@ -46,37 +46,14 @@ const (
 // allowedRootDomains are the only root domains trusted for both (a) the
 // discovery bootstrap call itself — c.baseURL, which is ARK_DISCOVERY_API if
 // set — and (b) the identity/discoverycontext/secrets_manager hosts that
-// call's response points us at.
-//
-// This is defence-in-depth against our own service, not a fix for a
-// compromised transport. The discovery call is already HTTPS against system
-// roots, so a plain network attacker can't alter what comes back, and an
-// attacker who *can* defeat that TLS session could equally intercept
-// whichever host this allowlist would have permitted instead — the
-// allowlist buys nothing against either. What it does constrain is (b): if
-// the discovery service itself is compromised, buggy, or returns a host
-// influenced by something else, mainActiveAPI's ep.API would otherwise be
-// trusted verbatim from the response body and handed straight to the
-// Conjur/Identity clients, which then POST the agent's SA token (or
-// username/password) to it — here, and only here, does the allowlist bind.
-// (a) is the same control applied to the bootstrap call's own base URL, so a
-// tampered ARK_DISCOVERY_API (pod spec/Helm values) can't redirect (b)'s
-// trust anchor off-domain either — see CP-26002 / CP-23593. Note
-// `cyberark.cloud` still admits every tenant's host, so this doesn't stop a
-// misbehaving discovery service naming a different tenant's host; that gap
-// is tracked separately (hostLeadingLabelMatchesSubdomain, CP-26094,
-// warn-only pending more evidence).
-//
-// Mirrors the per-env ROOT_DOMAIN allowlist already enforced on the
-// discoverycontext-regional-resources side (token.py, for the JWT `iss`
-// host) — copied by value here since these domains rarely change and the
-// agent has no access to that env-keyed map.
-//
-// Source of truth is the `everest_env_utils` package's ROOT_DOMAIN map
-// (published to Artifactory as everest_env_utils_cyberark, v2.0.117 as of
-// 2026-09-03), not the Lambda's local commercial-only clone — that clone
-// omits the GOV_* environments entirely, which would have made this
-// allowlist silently break every gov-cloud tenant's agent.
+// call's response points us at. Without this, a compromised or misbehaving
+// discovery service could point (b) at an arbitrary host and this client
+// would POST the agent's SA token (or username/password) straight to it.
+// This doesn't defend against a network-level attacker capable of
+// tampering with an HTTPS response in transit — that's a separate problem —
+// it constrains what a bad discovery response itself can point us at. Note
+// it doesn't distinguish between tenants either: any host on these domains
+// is accepted regardless of which tenant it belongs to.
 var allowedRootDomains = []string{
 	"cyberark.cloud",
 	"cyberark-everest-dev.com",
@@ -101,14 +78,10 @@ var allowedRootDomains = []string{
 }
 
 // hostOnAllowedRootDomain reports whether host is, or is a subdomain of, one
-// of allowedRootDomains.
-//
-// DNS is case-insensitive and net/url doesn't normalise host case (it
-// lowercases the scheme but not the host — verified), so a discovery
-// response with any uppercase in an otherwise-legitimate hostname must
-// still match here.
+// of allowedRootDomains. Hostnames are case-insensitive and may carry a
+// trailing dot (a legal absolute FQDN), so normalise before comparing.
 func hostOnAllowedRootDomain(host string) bool {
-	host = strings.ToLower(host)
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
 	for _, root := range allowedRootDomains {
 		if host == root || strings.HasSuffix(host, "."+root) {
 			return true
@@ -118,18 +91,9 @@ func hostOnAllowedRootDomain(host string) bool {
 }
 
 // hostLeadingLabelMatchesSubdomain reports whether host's leading label
-// names subdomain, tolerating the two label shapes actually observed on
-// CyberArk API Gateway hosts (mirrors discoverycontext-regional-resources'
-// _is_host_subdomain_matching, token.py:197-212, used there to validate the
-// inbound Host header against a JWT's subdomain claim):
-//   - {subdomain}.{service}.{domain}   e.g. eh1c6a8z1wf8hi.inventory.integration-cyberark.cloud
-//   - {subdomain}-{service}.{domain}   e.g. disco4asaf-discoverycontext.integration-cyberark.cloud
-//
-// Unlike token.py, this doesn't check against one fixed service-name suffix
-// (identity/discoverycontext/secrets_manager each render under a different,
-// undocumented service label — "id"/"inventory"/"secretsmgr" observed live,
-// not the JSON service_name values) — it accepts any hyphen suffix, which is
-// looser than token.py's exact match but appropriate for a warn-only check.
+// names subdomain, tolerating the two label shapes observed in practice:
+//   - {subdomain}.{service}.{domain}
+//   - {subdomain}-{service}.{domain}
 func hostLeadingLabelMatchesSubdomain(host, subdomain string) bool {
 	if subdomain == "" {
 		return true
@@ -142,12 +106,9 @@ func hostLeadingLabelMatchesSubdomain(host, subdomain string) bool {
 // host is on an allowed root domain, or "" (treated the same as "service not
 // present in the response") if not.
 //
-// subdomain is used only for a warn-only check, not enforcement: see
-// hostLeadingLabelMatchesSubdomain's doc comment for why — we don't yet have
-// live evidence covering all three services' host shapes across every
-// environment, and fail-closed on an unverified assumption risks a real
-// outage. CP-26010 tracks turning this into enforcement once telemetry
-// confirms it holds.
+// subdomain is used only for a warn-only check, not enforcement — we don't
+// yet have enough evidence to fail closed on it without risking breaking
+// real agents.
 func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI, subdomain string) string {
 	if rawAPI == "" {
 		return ""
@@ -280,14 +241,9 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 		return nil, "", fmt.Errorf("invalid base URL for service discovery: %w", err)
 	}
 
-	// CP-26002: the discovery bootstrap call itself must be to an allowed
-	// CyberArk domain over HTTPS too — otherwise ARK_DISCOVERY_API write
-	// access (e.g. a tampered pod spec or Helm values) would let an attacker
-	// point trust-chain bootstrap at arbitrary infrastructure, which the
-	// sanitizeServiceAPI checks below wouldn't catch on their own: they used
-	// to also accept anything matching this same host, on the assumption
-	// that whatever ARK_DISCOVERY_API pointed at was already trusted as much
-	// as the discovery call itself. It no longer is assumed; it's checked.
+	// The bootstrap call itself must be to an allowed domain over HTTPS too,
+	// not just the hosts it later points us at — otherwise ARK_DISCOVERY_API
+	// alone could bootstrap trust from arbitrary infrastructure.
 	if u.Scheme != "https" || !hostOnAllowedRootDomain(u.Hostname()) {
 		return nil, "", fmt.Errorf("service discovery base URL %q is not HTTPS on an allowed CyberArk domain; refusing to bootstrap trust from it", c.baseURL)
 	}

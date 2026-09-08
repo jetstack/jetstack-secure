@@ -2,6 +2,7 @@ package testing
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"sync"
@@ -40,7 +41,11 @@ func RegisterMockHost(fakeHost, realHostPort string) {
 // host registered by any other mock, regardless of which mock's client a
 // test ends up reusing for a given call.
 func WrapMockTransport(transport *http.Transport) {
-	transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{}
+	} else {
+		transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+	}
 	transport.TLSClientConfig.InsecureSkipVerify = true
 	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		if host, _, err := net.SplitHostPort(addr); err == nil {
