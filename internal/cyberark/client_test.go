@@ -40,7 +40,10 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 	discoveryContextAPI, _ := dataupload.MockDataUploadServer(t)
 
 	// Unused by the Conjur path, but service discovery requires it to be set.
-	const identitySrv = "https://identity.example.invalid"
+	// Never dialed, so a loopback address is fine — see pkg/testutil/envtest.go's
+	// identical const for why this is preferred over a real, resolvable
+	// CyberArk zone name.
+	const identitySrv = "https://127.0.0.1:1"
 
 	httpClient := servicediscovery.MockDiscoveryServer(t, servicediscovery.Services{
 		Identity: servicediscovery.ServiceEndpoint{

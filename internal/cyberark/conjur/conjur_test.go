@@ -213,7 +213,14 @@ func TestInvalidate_ForcesReexchange(t *testing.T) {
 	require.Equal(t, 2, exchanges, "Invalidate must force the next AuthenticateRequest call to re-exchange")
 }
 
-func TestAuthenticateRequest_ExchangeErrorIncludesConjurResponseBody(t *testing.T) {
+// This error propagates all the way up to a Kubernetes Pod Event
+// (pkg/agent/run.go's PushingErr notification), readable by anyone with `get
+// events` in the namespace — so Conjur's response body (which can contain
+// policy structure, service IDs and host identities) must not appear in it.
+// The body is still logged at V(2) for an operator to go find, but that's
+// exercised via the "authn-jwt exchange rejected" log line, not asserted
+// here — ktesting has no easy log-buffer assertion in this codebase.
+func TestAuthenticateRequest_ExchangeErrorOmitsConjurResponseBody(t *testing.T) {
 	srv, httpClient := MockConjurExchangeServerStatusBody(t, http.StatusUnauthorized, []byte(`{"error":{"message":"CONJ00001E Invalid JWT token"}}`))
 	defer srv.Close()
 
@@ -221,5 +228,6 @@ func TestAuthenticateRequest_ExchangeErrorIncludesConjurResponseBody(t *testing.
 	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com/x", nil)
 	_, err := c.AuthenticateRequest(req)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "CONJ00001E Invalid JWT token")
+	require.NotContains(t, err.Error(), "CONJ00001E Invalid JWT token")
+	require.Contains(t, err.Error(), "authn-jwt exchange rejected (401)")
 }

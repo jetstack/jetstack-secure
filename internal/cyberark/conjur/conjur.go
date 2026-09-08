@@ -85,16 +85,21 @@ func (c *Client) exchange(ctx context.Context) (string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		// Conjur returns a JSON error body with the actual reason; include a
-		// bounded prefix so the operator doesn't have to go read Conjur's own
-		// audit log to find out why. 401 here most often means the SA token
-		// audience != authenticator audience=conjur.
+		// Conjur returns a JSON error body with the actual reason. It can
+		// contain policy structure, service IDs and host identities, and this
+		// error is surfaced all the way up to a Kubernetes Pod Event
+		// (pkg/agent/run.go's PushingErr notification), which anyone with
+		// `get events` in the namespace can read — so the body is logged at
+		// V(2) for an operator to go find, not embedded in the returned
+		// error. 401 here most often means the SA token audience != the
+		// authenticator's audience=conjur.
 		errBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4*1024))
 		// Drain the rest so the connection can be reused, bounded so a
 		// misbehaving server can't make this read unboundedly.
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024*1024))
-		return "", fmt.Errorf("authn-jwt exchange rejected (%d): %s; verify service_id, the authenticator is enabled, and the SA token audience is 'conjur'",
-			resp.StatusCode, strings.TrimSpace(string(errBody)))
+		klog.FromContext(ctx).V(2).Info("authn-jwt exchange rejected", "statusCode", resp.StatusCode, "body", strings.TrimSpace(string(errBody)))
+		return "", fmt.Errorf("authn-jwt exchange rejected (%d); verify service_id, the authenticator is enabled, and the SA token audience is 'conjur' (run with -v=2 to see Conjur's response body)",
+			resp.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil {
