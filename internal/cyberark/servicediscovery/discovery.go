@@ -319,10 +319,12 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 		}
 		// The response did name an identity_administration endpoint, but its
 		// host isn't on our allowlist — a distinct, more actionable failure
-		// than "suspended tenant" (see sanitizeServiceAPI's Info log for
-		// which host was rejected and why).
-		return nil, "", fmt.Errorf("%s endpoint %q is not on an allowed CyberArk domain over HTTPS; refusing to use it",
-			IdentityServiceName, rawIdentityAPI)
+		// than "suspended tenant". The rejected value itself isn't embedded
+		// here (see sanitizeServiceAPI's Info log for that) since this error
+		// can reach a Kubernetes Event, and the value is untrusted, unbounded
+		// input from the discovery response.
+		return nil, "", fmt.Errorf("%s endpoint is not on an allowed CyberArk domain over HTTPS; refusing to use it "+
+			"(see the agent's logs for the rejected value)", IdentityServiceName)
 	}
 	// discoveryContextAPI and secretsManagerAPI are deliberately not required
 	// here, unlike identityAPI above: not every caller needs both, and
