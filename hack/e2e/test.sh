@@ -194,14 +194,13 @@ kubectl -n team-1 wait certificate app-0 --for=condition=Ready
 
 # Wait 60s for log message indicating success.
 # Parse logs as JSON using jq to ensure logs are all JSON formatted.
-# Disable pipefail to prevent SIGPIPE (141) errors from tee
-# See https://unix.stackexchange.com/questions/274120/pipe-fail-141-when-piping-output-into-tee-why
-set +o pipefail
-kubectl logs deployments/venafi-kubernetes-agent \
-        --follow \
-        --namespace venafi \
-    | timeout 60 jq 'if .msg | test("Data sent successfully") then . | halt_error(0) end'
-set -o pipefail
+#
+# Supply the logs by process substitution rather than a pipe, so that `timeout`
+# bounds jq itself. The pipe form has to disable pipefail to survive the SIGPIPE
+# it provokes in kubectl. Matches hack/ark/test-e2e.sh and hack/ngts/test-e2e.sh.
+timeout 60 jq -n \
+        'inputs | if .msg | test("Data sent successfully") then . | halt_error(0) else . end' \
+        <(kubectl logs deployments/venafi-kubernetes-agent --follow --namespace venafi)
 
 # Create a unique TLS Secret and wait for it to appear in the Venafi certificate
 # inventory API. The case conversion is due to macOS' version of uuidgen which
@@ -210,6 +209,9 @@ commonname="venafi-kubernetes-agent-e2e.$(uuidgen | tr '[:upper:]' '[:lower:]')"
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /tmp/tls.key -out /tmp/tls.crt -subj "/CN=$commonname"
 kubectl create secret tls "$commonname" --cert=/tmp/tls.crt --key=/tmp/tls.key -o yaml --dry-run=client | kubectl apply -f -
 
+# --max-time bounds the poll itself. curl has no default overall limit, and the
+# deadline below is only checked between polls, so a connection that stalls
+# after being accepted would hang here and never reach it.
 getCertificate() {
     jq -n '{
         "expression": {
@@ -226,10 +228,24 @@ getCertificate() {
     }' --arg commonname "${commonname}" \
     | curl "https://${VEN_API_HOST}/outagedetection/v1/certificatesearch?excludeSupersededInstances=true&ownershipTree=true" \
          -fsSL \
+         --max-time 30 \
          -H "tppl-api-key: $VEN_API_KEY" \
          --json @- \
     | jq 'if .count == 0 then . | halt_error(1) end'
 }
 
 # Wait 5 minutes for the certificate to appear.
-for ((i=0;;i++)); do if getCertificate; then exit 0; fi; sleep 30; done | timeout -v -- 5m cat
+#
+# Do not put the retry loop on the left of a pipe into `timeout`. That only
+# bounds the reader: while getCertificate is failing the loop writes nothing, so
+# it never takes a SIGPIPE, and Bash blocks forever waiting for it after
+# `timeout` has killed `cat`.
+certificate_timeout_seconds=300
+deadline=$((SECONDS + certificate_timeout_seconds))
+until getCertificate; do
+  if ((SECONDS >= deadline)); then
+    echo "Timed out after ${certificate_timeout_seconds}s waiting for certificate ${commonname} to appear in the Venafi inventory" >&2
+    exit 1
+  fi
+  sleep 30
+done
