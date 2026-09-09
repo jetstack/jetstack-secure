@@ -419,7 +419,9 @@ This description will be associated with the data that the agent uploads to the 
 > true
 > ```
 
-Enable sending of Secret values to CyberArk in addition to metadata. Metadata is always sent, but the actual values of Secrets are not sent by default. When enabled, Secret data is encrypted using envelope encryption using a key managed by CyberArk, fetched from the Discovery and Context service.
+Enable sending of Secret values to CyberArk in addition to metadata. Metadata is always sent, and Secret values are sent by default too.  
+Set this to false to send metadata only.  
+When enabled, Secret data is encrypted using envelope encryption using a key managed by CyberArk, fetched from the Discovery and Context service.
 #### **config.cyberark.serviceId** ~ `string`
 > Default value:
 > ```yaml
