@@ -3,6 +3,10 @@ on:
   push:
     branches: [master]
   pull_request: {}
+  # Lets us run the e2e suites against master, which the label gates below
+  # cannot do: they read github.event.pull_request.labels, which is empty for
+  # a push. Needed before tagging a release.
+  workflow_dispatch: {}
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -80,7 +84,7 @@ jobs:
     # where the e2e fails with a 400 error relating to "conflicting tagging values"
     # The test is flaky, not broken and re-running eventually makes it pass - but that delays progress on
     # other unrelated work.
-    if: contains(github.event.pull_request.labels.*.name, 'test-ark')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'test-ark')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -117,7 +121,7 @@ jobs:
 
   ngts-test-e2e:
     # TEMPORARY: require an explicit label to test NGTS until we have a stable test environment
-    if: contains(github.event.pull_request.labels.*.name, 'test-ngts')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'test-ngts')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -151,7 +155,7 @@ jobs:
           NGTS_TSG_URL: https://1806660206.ngts.qa.venafi.io
 
   test-e2e:
-    if: contains(github.event.pull_request.labels.*.name, 'test-e2e')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'test-e2e')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
