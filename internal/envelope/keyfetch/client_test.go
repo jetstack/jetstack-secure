@@ -31,10 +31,8 @@ func testClientSetup(t *testing.T, jwksServerURL string) (*Client, cyberark.Clie
 		Identity: servicediscovery.ServiceEndpoint{
 			IsActive: true,
 			Type:     "main",
-			// Unused by the Conjur path, but service discovery requires it.
-			// Never dialed, so a loopback address is fine — passes the
-			// allowlist via the same-host-as-discovery escape hatch rather
-			// than depending on a real, resolvable CyberArk zone name.
+			// Required by service discovery, unused here, never dialed.
+			// MockDiscoveryServer relaxes the allowlist to loopback.
 			API: "https://127.0.0.1:1",
 		},
 		DiscoveryContext: servicediscovery.ServiceEndpoint{
@@ -53,7 +51,8 @@ func testClientSetup(t *testing.T, jwksServerURL string) (*Client, cyberark.Clie
 	_ = servicediscovery.MockDiscoveryServer(t, services)
 
 	// Create discovery client
-	discoveryClient := servicediscovery.New(httpClient, servicediscovery.MockDiscoverySubdomain)
+	discoveryClient, err := servicediscovery.New(httpClient, servicediscovery.MockDiscoverySubdomain)
+	require.NoError(t, err)
 
 	// Create test config — JWTFilePath is empty; jwtsource.NewFileSource will use DefaultTokenPath,
 	// but the conjur mock accepts any jwt value so no real file read occurs.
@@ -94,7 +93,8 @@ func testKeyfetchClientWithIdentityAuth(t *testing.T, jwksServerURL string) (*Cl
 		},
 	}
 	_ = servicediscovery.MockDiscoveryServer(t, services)
-	discoveryClient := servicediscovery.New(httpClient, servicediscovery.MockDiscoverySubdomain)
+	discoveryClient, err := servicediscovery.New(httpClient, servicediscovery.MockDiscoverySubdomain)
+	require.NoError(t, err)
 
 	client := &Client{
 		discoveryClient: discoveryClient,
@@ -311,7 +311,8 @@ func TestClient_FetchKey(t *testing.T) {
 		_ = servicediscovery.MockDiscoveryServer(t, services)
 
 		// Create discovery client
-		discoveryClient := servicediscovery.New(httpClient, servicediscovery.MockDiscoverySubdomain)
+		discoveryClient, err := servicediscovery.New(httpClient, servicediscovery.MockDiscoverySubdomain)
+		require.NoError(t, err)
 
 		cfg := cyberark.ClientConfig{
 			Subdomain:   servicediscovery.MockDiscoverySubdomain,
@@ -354,7 +355,8 @@ func TestClient_FetchKey(t *testing.T) {
 		_ = servicediscovery.MockDiscoveryServer(t, services)
 
 		// Create discovery client with a subdomain that triggers failure
-		discoveryClient := servicediscovery.New(httpClient, "bad-request")
+		discoveryClient, err := servicediscovery.New(httpClient, "bad-request")
+		require.NoError(t, err)
 
 		cfg := cyberark.ClientConfig{
 			Subdomain:   "bad-request",
@@ -362,7 +364,7 @@ func TestClient_FetchKey(t *testing.T) {
 			JWTFilePath: "testdata/fake-jwt",
 		}
 
-		_, err := NewClient(t.Context(), discoveryClient, cfg, httpClient)
+		_, err = NewClient(t.Context(), discoveryClient, cfg, httpClient)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get services from discovery client")

@@ -50,7 +50,10 @@ func run(ctx context.Context) error {
 	var rootCAs *x509.CertPool
 	httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
 
-	sdClient := servicediscovery.New(httpClient, subdomain)
+	sdClient, err := servicediscovery.New(httpClient, subdomain)
+	if err != nil {
+		return err
+	}
 	services, _, err := sdClient.DiscoverServices(ctx)
 	if err != nil {
 		return fmt.Errorf("while performing service discovery: %s", err)

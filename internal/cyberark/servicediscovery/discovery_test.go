@@ -52,25 +52,53 @@ func Test_hostOnAllowedRootDomain(t *testing.T) {
 	}
 }
 
-func Test_DiscoverServices_RejectsDisallowedBaseURL(t *testing.T) {
+// failOnDial is an http.RoundTripper that fails the test if it is ever used.
+// It pins the property the base-URL guard exists to provide: a disallowed
+// ARK_DISCOVERY_API must be rejected without a request being issued.
+type failOnDial struct{ t *testing.T }
+
+func (f failOnDial) RoundTrip(req *http.Request) (*http.Response, error) {
+	f.t.Errorf("no request should be made for a disallowed base URL, got one to %q", req.URL.Redacted())
+	return nil, fmt.Errorf("unexpected request")
+}
+
+func Test_RejectsDisallowedBaseURL(t *testing.T) {
 	tests := map[string]string{
-		"plain HTTP":          "http://platform-discovery.cyberark.cloud/",
-		"disallowed domain":   "https://attacker.example/",
-		"host with no scheme": "platform-discovery.cyberark.cloud",
+		"plain HTTP":            "http://platform-discovery.cyberark.cloud/",
+		"disallowed domain":     "https://attacker.example/",
+		"host with no scheme":   "platform-discovery.cyberark.cloud",
+		"loopback when not set": "https://127.0.0.1:1234/",
 	}
 	for name, baseURL := range tests {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("ARK_DISCOVERY_API", baseURL)
 
-			logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
-			ctx := klog.NewContext(t.Context(), logger)
-
-			client := New(&http.Client{}, MockDiscoverySubdomain)
-			services, _, err := client.DiscoverServices(ctx)
+			// Rejected at construction, so no client is built and no
+			// request is ever attempted.
+			client, err := New(&http.Client{Transport: failOnDial{t}}, MockDiscoverySubdomain)
 			require.Error(t, err)
-			assert.Nil(t, services)
+			require.ErrorContains(t, err, "refusing to bootstrap trust")
+			assert.Nil(t, client)
 		})
 	}
+}
+
+// Test_DiscoverServices_RevalidatesBaseURL covers the defence-in-depth repeat
+// of the check inside DiscoverServices, for a Client not built via New().
+func Test_DiscoverServices_RevalidatesBaseURL(t *testing.T) {
+	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+	ctx := klog.NewContext(t.Context(), logger)
+
+	client := &Client{
+		client:    &http.Client{Transport: failOnDial{t}},
+		baseURL:   "http://platform-discovery.cyberark.cloud/",
+		subdomain: MockDiscoverySubdomain,
+	}
+
+	services, _, err := client.DiscoverServices(ctx)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "refusing to bootstrap trust")
+	assert.Nil(t, services)
 }
 
 func Test_DiscoverIdentityAPIURL(t *testing.T) {
@@ -127,7 +155,8 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 			},
 		})
 
-		client := New(httpClient, MockDiscoverySubdomain)
+		client, err := New(httpClient, MockDiscoverySubdomain)
+		require.NoError(t, err)
 		services, _, err := client.DiscoverServices(ctx)
 		require.Error(t, err)
 		assert.Nil(t, services)
@@ -154,7 +183,8 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 			},
 		})
 
-		client := New(httpClient, MockDiscoverySubdomain)
+		client, err := New(httpClient, MockDiscoverySubdomain)
+		require.NoError(t, err)
 		services, _, err := client.DiscoverServices(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, mockIdentityAPIURL, services.Identity.API)
@@ -178,7 +208,8 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 			},
 		})
 
-		client := New(httpClient, MockDiscoverySubdomain)
+		client, err := New(httpClient, MockDiscoverySubdomain)
+		require.NoError(t, err)
 		services, _, err := client.DiscoverServices(ctx)
 		require.Error(t, err)
 		assert.Nil(t, services)
@@ -200,7 +231,8 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 			},
 		})
 
-		client := New(httpClient, MockDiscoverySubdomain)
+		client, err := New(httpClient, MockDiscoverySubdomain)
+		require.NoError(t, err)
 		services, _, err := client.DiscoverServices(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, mockIdentityAPIURL, services.Identity.API)
@@ -224,7 +256,8 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 			},
 		})
 
-		client := New(httpClient, MockDiscoverySubdomain)
+		client, err := New(httpClient, MockDiscoverySubdomain)
+		require.NoError(t, err)
 		services, _, err := client.DiscoverServices(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, "https://ajp5871.id.cyberarkgov.cloud", services.Identity.API)
@@ -248,7 +281,8 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 			},
 		})
 
-		client := New(httpClient, MockDiscoverySubdomain)
+		client, err := New(httpClient, MockDiscoverySubdomain)
+		require.NoError(t, err)
 		services, _, err := client.DiscoverServices(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, "https://AJP5871.ID.Integration-CyberArk.Cloud", services.Identity.API)
@@ -276,7 +310,8 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 			},
 		})
 
-		client := New(httpClient, MockDiscoverySubdomain)
+		client, err := New(httpClient, MockDiscoverySubdomain)
+		require.NoError(t, err)
 		services, _, err := client.DiscoverServices(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, "https://some-other-tenant.id.integration-cyberark.cloud", services.Identity.API)
@@ -299,7 +334,8 @@ func Test_DiscoverIdentityAPIURL(t *testing.T) {
 				},
 			})
 
-			client := New(httpClient, testSpec.subdomain)
+			client, err := New(httpClient, testSpec.subdomain)
+			require.NoError(t, err)
 
 			services, _, err := client.DiscoverServices(ctx)
 			if testSpec.expectedError != nil {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -54,6 +55,12 @@ const (
 // it constrains what a bad discovery response itself can point us at. Note
 // it doesn't distinguish between tenants either: any host on these domains
 // is accepted regardless of which tenant it belongs to.
+//
+// This mirrors an authoritative allowlist maintained outside this repository
+// and must be kept in step with it: because it now also gates the bootstrap
+// URL, a missing root domain stops those agents starting at all. Keep the
+// gov-cloud entries — an earlier draft omitted them, which would have broken
+// every gov-cloud agent.
 var allowedRootDomains = []string{
 	"cyberark.cloud",
 	"cyberark-everest-dev.com",
@@ -77,11 +84,21 @@ var allowedRootDomains = []string{
 	"cyberarkgov.cloud",
 }
 
+// allowLoopbackHosts additionally accepts loopback addresses, so tests can
+// use a local httptest server. Unreachable in production: unexported, and
+// only MockDiscoveryServer (which requires a testing.TB) sets it.
+var allowLoopbackHosts bool
+
 // hostOnAllowedRootDomain reports whether host is, or is a subdomain of, one
 // of allowedRootDomains. Hostnames are case-insensitive and may carry a
 // trailing dot (a legal absolute FQDN), so normalise before comparing.
 func hostOnAllowedRootDomain(host string) bool {
 	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	if allowLoopbackHosts {
+		if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+			return true
+		}
+	}
 	for _, root := range allowedRootDomains {
 		if host == root || strings.HasSuffix(host, "."+root) {
 			return true
@@ -91,15 +108,23 @@ func hostOnAllowedRootDomain(host string) bool {
 }
 
 // hostLeadingLabelMatchesSubdomain reports whether host's leading label
-// names subdomain, tolerating the two label shapes observed in practice:
-//   - {subdomain}.{service}.{domain}
-//   - {subdomain}-{service}.{domain}
+// names subdomain, tolerating the two label shapes seen in practice:
+// {subdomain}.{service}.{domain} and {subdomain}-{service}.{domain}.
 func hostLeadingLabelMatchesSubdomain(host, subdomain string) bool {
 	if subdomain == "" {
 		return true
 	}
-	label, _, _ := strings.Cut(host, ".")
+	label, _, _ := strings.Cut(strings.ToLower(host), ".")
+	subdomain = strings.ToLower(subdomain)
 	return label == subdomain || strings.HasPrefix(label, subdomain+"-")
+}
+
+// subdomainCheckApplies excludes identity_administration, whose host is keyed
+// on the Identity tenant's own identifier rather than the platform subdomain
+// (subdomain "venafi-test" is served identity at "ajp5871.id.<domain>"), so
+// the check would warn for every healthy tenant.
+func subdomainCheckApplies(serviceName string) bool {
+	return serviceName != IdentityServiceName
 }
 
 // sanitizeServiceAPI returns rawAPI unchanged if its scheme is https and its
@@ -126,7 +151,7 @@ func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI, subdomain stri
 		klog.FromContext(ctx).Info("dropping service discovery API URL outside the allowed CyberArk domains", "service", serviceName, "host", u.Hostname())
 		return ""
 	}
-	if !hostLeadingLabelMatchesSubdomain(u.Hostname(), subdomain) {
+	if subdomainCheckApplies(serviceName) && !hostLeadingLabelMatchesSubdomain(u.Hostname(), subdomain) {
 		// Not dropped -- see the function doc comment. A tampered response
 		// could still redirect within the same allowed root domain to a
 		// different tenant's host; this is the visibility half of closing
@@ -162,13 +187,37 @@ func mainActiveAPI(eps []ServiceEndpoint) string {
 	return ""
 }
 
+// validateBaseURL reports whether rawURL is usable as the discovery bootstrap
+// endpoint: parseable, HTTPS, and on an allowed root domain.
+//
+// The error names only the scheme and host, never rawURL: ARK_DISCOVERY_API
+// can carry credentials, and this error reaches a Kubernetes Event.
+func validateBaseURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("not a valid URL")
+	}
+	if u.Scheme != "https" || !hostOnAllowedRootDomain(u.Hostname()) {
+		return fmt.Errorf("%s://%s is not HTTPS on an allowed CyberArk domain", u.Scheme, u.Hostname())
+	}
+	return nil
+}
+
 // New creates a new CyberArk Service Discovery client. If the ARK_DISCOVERY_API
 // environment variable is set, it is used as the base URL for the service
 // discovery API. Otherwise, the production URL is used.
-func New(httpClient *http.Client, subdomain string) *Client {
+//
+// The base URL is validated here so that a bad ARK_DISCOVERY_API is reported
+// as the configuration error it is, at startup, rather than surfacing later as
+// a repeating push failure.
+func New(httpClient *http.Client, subdomain string) (*Client, error) {
 	baseURL := os.Getenv("ARK_DISCOVERY_API")
 	if baseURL == "" {
 		baseURL = ProdDiscoveryAPIBaseURL
+	}
+
+	if err := validateBaseURL(baseURL); err != nil {
+		return nil, fmt.Errorf("invalid service discovery base URL (from ARK_DISCOVERY_API): %w; refusing to bootstrap trust from it", err)
 	}
 
 	client := &Client{
@@ -182,7 +231,7 @@ func New(httpClient *http.Client, subdomain string) *Client {
 		cachedResponseMutex: sync.Mutex{},
 	}
 
-	return client
+	return client, nil
 }
 
 // DiscoveryResponse represents the full JSON response returned by the CyberArk api/tenant-discovery/public API
@@ -236,16 +285,19 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 		return c.cachedResponse, c.cachedTenantID, nil
 	}
 
+	// Repeats New()'s check, so the guarantee holds for a Client built any
+	// other way and no request is issued if it doesn't.
+	//
+	// Note this validates the host we address, not the host that answers:
+	// only the Conjur exchange sets CheckRedirect, so elsewhere a 3xx can
+	// still move a request to a host that was never checked.
+	if err := validateBaseURL(c.baseURL); err != nil {
+		return nil, "", fmt.Errorf("invalid service discovery base URL: %w; refusing to bootstrap trust from it", err)
+	}
+
 	u, err := url.Parse(c.baseURL)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid base URL for service discovery: %w", err)
-	}
-
-	// The bootstrap call itself must be to an allowed domain over HTTPS too,
-	// not just the hosts it later points us at — otherwise ARK_DISCOVERY_API
-	// alone could bootstrap trust from arbitrary infrastructure.
-	if u.Scheme != "https" || !hostOnAllowedRootDomain(u.Hostname()) {
-		return nil, "", fmt.Errorf("service discovery base URL %q is not HTTPS on an allowed CyberArk domain; refusing to bootstrap trust from it", c.baseURL)
 	}
 
 	u.Path = path.Join(u.Path, "api/public/tenant-discovery")
