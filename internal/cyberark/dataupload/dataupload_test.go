@@ -63,7 +63,8 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 			},
 			authenticate: setToken("fail-token"),
 			requireFn: func(t *testing.T, err error) {
-				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500: should authenticate using the correct bearer token")
+				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500")
+				require.NotContains(t, err.Error(), "should authenticate using the correct bearer token")
 			},
 		},
 		{
@@ -85,7 +86,8 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 			},
 			authenticate: setToken("success-token"),
 			requireFn: func(t *testing.T, err error) {
-				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500: mock error")
+				require.ErrorContains(t, err, "while retrieving snapshot upload URL: received response with status code 500")
+				require.NotContains(t, err.Error(), "mock error")
 			},
 		},
 	}
@@ -103,4 +105,24 @@ func TestCyberArkClient_PutSnapshot_MockAPI(t *testing.T) {
 			tc.requireFn(t, err)
 		})
 	}
+}
+
+// TestCyberArkClient_PutSnapshot_LogsResponseBodyOnError proves the response
+// body dropped from the returned error (see the test above) is still visible
+// to an operator via the log, not just absent from the error.
+func TestCyberArkClient_PutSnapshot_LogsResponseBodyOnError(t *testing.T) {
+	logger := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.BufferLogs(true), ktesting.Verbosity(2)))
+	buf := logger.GetSink().(ktesting.Underlier).GetBuffer()
+	ctx := klog.NewContext(t.Context(), logger)
+
+	datauploadAPIBaseURL, httpClient := dataupload.MockDataUploadServer(t)
+	authenticate := func(req *http.Request) (string, error) {
+		req.Header.Set("Authorization", "Bearer fail-token")
+		return "foo@example.com", nil
+	}
+	cyberArkClient := dataupload.New(httpClient, datauploadAPIBaseURL, "test-tenant-uuid", authenticate)
+
+	err := cyberArkClient.PutSnapshot(ctx, dataupload.Snapshot{ClusterID: "test", AgentVersion: "test-version"})
+	require.Error(t, err)
+	require.Contains(t, buf.String(), "should authenticate using the correct bearer token")
 }

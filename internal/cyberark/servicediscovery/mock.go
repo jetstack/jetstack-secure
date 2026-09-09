@@ -49,22 +49,28 @@ type mockDiscoveryServer struct {
 // supplied in `services`.
 // Other subdomains, can be used to trigger various failure responses.
 //
+// Sets allowLoopbackHosts for the duration of the test, so DiscoverServices'
+// allowlist accepts these loopback mocks. Deliberately invalid test hosts
+// (attacker.example, plain http://) are unaffected and still rejected.
+//
 // The returned HTTP client has a transport which logs requests and responses
 // depending on log level of the logger supplied in the context.
 func MockDiscoveryServer(t testing.TB, services Services) *http.Client {
 	tmpl := template.Must(template.New("mockDiscoverySuccess").Parse(discoverySuccessTemplate))
 	buf := &bytes.Buffer{}
-	err := tmpl.Execute(buf, services)
-	if err != nil {
+	if err := tmpl.Execute(buf, services); err != nil {
 		panic(err)
 	}
-	mds := &mockDiscoveryServer{
-		t:               t,
-		successResponse: buf.String(),
-	}
+
+	mds := &mockDiscoveryServer{t: t, successResponse: buf.String()}
 	server := httptest.NewTLSServer(mds)
 	t.Cleanup(server.Close)
+
+	allowLoopbackHosts = true
+	t.Cleanup(func() { allowLoopbackHosts = false })
+
 	t.Setenv("ARK_DISCOVERY_API", server.URL)
+
 	httpClient := server.Client()
 	httpClient.Transport = transport.NewDebuggingRoundTripper(httpClient.Transport, transport.DebugByContext)
 	return httpClient

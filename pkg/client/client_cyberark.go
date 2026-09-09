@@ -54,10 +54,15 @@ func NewCyberArk(httpClient *http.Client, serviceID, account, jwtSource, jwtFile
 
 	configLoader := func() (cyberark.ClientConfig, error) { return cfg, nil }
 
+	discoveryClient, err := servicediscovery.New(httpClient, cfg.Subdomain)
+	if err != nil {
+		return nil, err
+	}
+
 	return &CyberArkClient{
 		configLoader:    configLoader,
 		httpClient:      httpClient,
-		discoveryClient: servicediscovery.New(httpClient, cfg.Subdomain),
+		discoveryClient: discoveryClient,
 	}, nil
 }
 

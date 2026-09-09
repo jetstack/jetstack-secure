@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -43,21 +44,23 @@ const (
 	maxDiscoverBodySize = 2 * 1024 * 1024
 )
 
-// allowedRootDomains are the only root domains a discovery response is
-// allowed to point us at for identity/discoverycontext/secrets_manager.
-// Without this, mainActiveAPI's ep.API is trusted verbatim from the response
-// body and handed straight to the Conjur/Identity clients, which then POST
-// the agent's SA token (or username/password) to it — an SSRF-shaped hole if
-// the response is ever tampered with. Mirrors the per-env ROOT_DOMAIN
-// allowlist already enforced on the discoverycontext-regional-resources side
-// (token.py, for the JWT `iss` host) — copied by value here since these
-// domains rarely change and the agent has no access to that env-keyed map.
+// allowedRootDomains are the only root domains trusted for both (a) the
+// discovery bootstrap call itself — c.baseURL, which is ARK_DISCOVERY_API if
+// set — and (b) the identity/discoverycontext/secrets_manager hosts that
+// call's response points us at. Without this, a compromised or misbehaving
+// discovery service could point (b) at an arbitrary host and this client
+// would POST the agent's SA token (or username/password) straight to it.
+// This doesn't defend against a network-level attacker capable of
+// tampering with an HTTPS response in transit — that's a separate problem —
+// it constrains what a bad discovery response itself can point us at. Note
+// it doesn't distinguish between tenants either: any host on these domains
+// is accepted regardless of which tenant it belongs to.
 //
-// Source of truth is the `everest_env_utils` package's ROOT_DOMAIN map
-// (published to Artifactory as everest_env_utils_cyberark, v2.0.117 as of
-// 2026-09-03), not the Lambda's local commercial-only clone — that clone
-// omits the GOV_* environments entirely, which would have made this
-// allowlist silently break every gov-cloud tenant's agent.
+// This mirrors an authoritative allowlist maintained outside this repository
+// and must be kept in step with it: because it now also gates the bootstrap
+// URL, a missing root domain stops those agents starting at all. Keep the
+// gov-cloud entries — an earlier draft omitted them, which would have broken
+// every gov-cloud agent.
 var allowedRootDomains = []string{
 	"cyberark.cloud",
 	"cyberark-everest-dev.com",
@@ -81,27 +84,21 @@ var allowedRootDomains = []string{
 	"cyberarkgov.cloud",
 }
 
-// isAllowedServiceHost reports whether host is, or is a subdomain of, one of
-// allowedRootDomains — or is exactly discoveryHost, the host the discovery
-// request was addressed to. The latter matters for ARK_DISCOVERY_API-
-// overridden (dev/CI/test) discovery endpoints: whatever host that override
-// already points at is at least as trusted as the discovery call itself.
-//
-// This comparison is hostname-only: discoveryHost carries no port, and
-// ARK_DISCOVERY_API is not guaranteed to be HTTPS or to be the host the
-// request actually landed on after redirects — the follow-up in CP-26002
-// (validating ARK_DISCOVERY_API itself against allowedRootDomains, removing
-// this whole escape hatch) is the actual fix for both gaps; a host:port
-// comparison here alone would break every test that currently relies on
-// same-host-different-port mocks without that same rework.
-func isAllowedServiceHost(host, discoveryHost string) bool {
-	// DNS is case-insensitive and net/url doesn't normalise host case (it
-	// lowercases the scheme but not the host), so a discovery response with
-	// any uppercase in a legitimate hostname must still match here.
-	if strings.EqualFold(host, discoveryHost) {
-		return true
+// allowLoopbackHosts additionally accepts loopback addresses, so tests can
+// use a local httptest server. Unreachable in production: unexported, and
+// only MockDiscoveryServer (which requires a testing.TB) sets it.
+var allowLoopbackHosts bool
+
+// hostOnAllowedRootDomain reports whether host is, or is a subdomain of, one
+// of allowedRootDomains. Hostnames are case-insensitive and may carry a
+// trailing dot (a legal absolute FQDN), so normalise before comparing.
+func hostOnAllowedRootDomain(host string) bool {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	if allowLoopbackHosts {
+		if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+			return true
+		}
 	}
-	host = strings.ToLower(host)
 	for _, root := range allowedRootDomains {
 		if host == root || strings.HasSuffix(host, "."+root) {
 			return true
@@ -110,10 +107,34 @@ func isAllowedServiceHost(host, discoveryHost string) bool {
 	return false
 }
 
+// hostLeadingLabelMatchesSubdomain reports whether host's leading label
+// names subdomain, tolerating the two label shapes seen in practice:
+// {subdomain}.{service}.{domain} and {subdomain}-{service}.{domain}.
+func hostLeadingLabelMatchesSubdomain(host, subdomain string) bool {
+	if subdomain == "" {
+		return true
+	}
+	label, _, _ := strings.Cut(strings.ToLower(host), ".")
+	subdomain = strings.ToLower(subdomain)
+	return label == subdomain || strings.HasPrefix(label, subdomain+"-")
+}
+
+// subdomainCheckApplies excludes identity_administration, whose host is keyed
+// on the Identity tenant's own identifier rather than the platform subdomain
+// (subdomain "venafi-test" is served identity at "ajp5871.id.<domain>"), so
+// the check would warn for every healthy tenant.
+func subdomainCheckApplies(serviceName string) bool {
+	return serviceName != IdentityServiceName
+}
+
 // sanitizeServiceAPI returns rawAPI unchanged if its scheme is https and its
-// host is allowed, or "" (treated the same as "service not present in the
-// response") if not.
-func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI, discoveryHost string) string {
+// host is on an allowed root domain, or "" (treated the same as "service not
+// present in the response") if not.
+//
+// subdomain is used only for a warn-only check, not enforcement — we don't
+// yet have enough evidence to fail closed on it without risking breaking
+// real agents.
+func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI, subdomain string) string {
 	if rawAPI == "" {
 		return ""
 	}
@@ -123,17 +144,20 @@ func sanitizeServiceAPI(ctx context.Context, serviceName, rawAPI, discoveryHost 
 		return ""
 	}
 	if u.Scheme != "https" {
-		// Rejecting plain HTTP also closes the loopback-attacker shape of
-		// the isAllowedServiceHost "same host as discoveryHost" case: a
-		// same-host rogue endpoint (e.g. an attacker-controlled
-		// ARK_DISCOVERY_API pointing at 127.0.0.1) can't present a
-		// certificate this client's TLS verification will accept.
 		klog.FromContext(ctx).Info("dropping non-HTTPS service discovery API URL", "service", serviceName, "scheme", u.Scheme)
 		return ""
 	}
-	if !isAllowedServiceHost(u.Hostname(), discoveryHost) {
+	if !hostOnAllowedRootDomain(u.Hostname()) {
 		klog.FromContext(ctx).Info("dropping service discovery API URL outside the allowed CyberArk domains", "service", serviceName, "host", u.Hostname())
 		return ""
+	}
+	if subdomainCheckApplies(serviceName) && !hostLeadingLabelMatchesSubdomain(u.Hostname(), subdomain) {
+		// Not dropped -- see the function doc comment. A tampered response
+		// could still redirect within the same allowed root domain to a
+		// different tenant's host; this is the visibility half of closing
+		// that gap, not the enforcement half.
+		klog.FromContext(ctx).Info("service discovery API URL's host doesn't look like it belongs to this tenant's subdomain",
+			"service", serviceName, "host", u.Hostname(), "subdomain", subdomain)
 	}
 	return rawAPI
 }
@@ -163,13 +187,37 @@ func mainActiveAPI(eps []ServiceEndpoint) string {
 	return ""
 }
 
+// validateBaseURL reports whether rawURL is usable as the discovery bootstrap
+// endpoint: parseable, HTTPS, and on an allowed root domain.
+//
+// The error names only the scheme and host, never rawURL: ARK_DISCOVERY_API
+// can carry credentials, and this error reaches a Kubernetes Event.
+func validateBaseURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("not a valid URL")
+	}
+	if u.Scheme != "https" || !hostOnAllowedRootDomain(u.Hostname()) {
+		return fmt.Errorf("%s://%s is not HTTPS on an allowed CyberArk domain", u.Scheme, u.Hostname())
+	}
+	return nil
+}
+
 // New creates a new CyberArk Service Discovery client. If the ARK_DISCOVERY_API
 // environment variable is set, it is used as the base URL for the service
 // discovery API. Otherwise, the production URL is used.
-func New(httpClient *http.Client, subdomain string) *Client {
+//
+// The base URL is validated here so that a bad ARK_DISCOVERY_API is reported
+// as the configuration error it is, at startup, rather than surfacing later as
+// a repeating push failure.
+func New(httpClient *http.Client, subdomain string) (*Client, error) {
 	baseURL := os.Getenv("ARK_DISCOVERY_API")
 	if baseURL == "" {
 		baseURL = ProdDiscoveryAPIBaseURL
+	}
+
+	if err := validateBaseURL(baseURL); err != nil {
+		return nil, fmt.Errorf("invalid service discovery base URL (from ARK_DISCOVERY_API): %w; refusing to bootstrap trust from it", err)
 	}
 
 	client := &Client{
@@ -183,7 +231,7 @@ func New(httpClient *http.Client, subdomain string) *Client {
 		cachedResponseMutex: sync.Mutex{},
 	}
 
-	return client
+	return client, nil
 }
 
 // DiscoveryResponse represents the full JSON response returned by the CyberArk api/tenant-discovery/public API
@@ -235,6 +283,16 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 
 	if c.cachedResponse != nil && time.Since(c.cachedResponseTime) < 1*time.Hour {
 		return c.cachedResponse, c.cachedTenantID, nil
+	}
+
+	// Repeats New()'s check, so the guarantee holds for a Client built any
+	// other way and no request is issued if it doesn't.
+	//
+	// Note this validates the host we address, not the host that answers:
+	// only the Conjur exchange sets CheckRedirect, so elsewhere a 3xx can
+	// still move a request to a host that was never checked.
+	if err := validateBaseURL(c.baseURL); err != nil {
+		return nil, "", fmt.Errorf("invalid service discovery base URL: %w; refusing to bootstrap trust from it", err)
 	}
 
 	u, err := url.Parse(c.baseURL)
@@ -298,9 +356,9 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 	// against it. A dropped URL is treated exactly like one absent from the
 	// response — see the required/optional distinction below.
 	rawIdentityAPI := identityAPI
-	identityAPI = sanitizeServiceAPI(ctx, IdentityServiceName, identityAPI, u.Hostname())
-	discoveryContextAPI = sanitizeServiceAPI(ctx, DiscoveryContextServiceName, discoveryContextAPI, u.Hostname())
-	secretsManagerAPI = sanitizeServiceAPI(ctx, SecretsManagerServiceName, secretsManagerAPI, u.Hostname())
+	identityAPI = sanitizeServiceAPI(ctx, IdentityServiceName, identityAPI, c.subdomain)
+	discoveryContextAPI = sanitizeServiceAPI(ctx, DiscoveryContextServiceName, discoveryContextAPI, c.subdomain)
+	secretsManagerAPI = sanitizeServiceAPI(ctx, SecretsManagerServiceName, secretsManagerAPI, c.subdomain)
 
 	// identityAPI is required unconditionally, unlike discoveryContextAPI and
 	// secretsManagerAPI below: it's present and active for every healthy
@@ -313,10 +371,12 @@ func (c *Client) DiscoverServices(ctx context.Context) (*Services, string, error
 		}
 		// The response did name an identity_administration endpoint, but its
 		// host isn't on our allowlist — a distinct, more actionable failure
-		// than "suspended tenant" (see sanitizeServiceAPI's Info log for
-		// which host was rejected and why).
-		return nil, "", fmt.Errorf("%s endpoint %q is not on an allowed CyberArk domain over HTTPS; refusing to use it",
-			IdentityServiceName, rawIdentityAPI)
+		// than "suspended tenant". The rejected value itself isn't embedded
+		// here (see sanitizeServiceAPI's Info log for that) since this error
+		// can reach a Kubernetes Event, and the value is untrusted, unbounded
+		// input from the discovery response.
+		return nil, "", fmt.Errorf("%s endpoint is not on an allowed CyberArk domain over HTTPS; refusing to use it "+
+			"(see the agent's logs for the rejected value)", IdentityServiceName)
 	}
 	// discoveryContextAPI and secretsManagerAPI are deliberately not required
 	// here, unlike identityAPI above: not every caller needs both, and

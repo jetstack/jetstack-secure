@@ -10,6 +10,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/ktesting"
+
+	_ "k8s.io/klog/v2/ktesting/init"
 )
 
 type staticSource struct{ tok string }
@@ -217,17 +221,25 @@ func TestInvalidate_ForcesReexchange(t *testing.T) {
 // (pkg/agent/run.go's PushingErr notification), readable by anyone with `get
 // events` in the namespace — so Conjur's response body (which can contain
 // policy structure, service IDs and host identities) must not appear in it.
-// The body is still logged at V(2) for an operator to go find, but that's
-// exercised via the "authn-jwt exchange rejected" log line, not asserted
-// here — ktesting has no easy log-buffer assertion in this codebase.
+// The body is still logged at V(2) for an operator to go find — asserted
+// below via the log buffer, not just by omission from the returned error, so
+// a future change that deletes the klog line entirely (removing the
+// operator's only way to see Conjur's response) would fail this test too.
 func TestAuthenticateRequest_ExchangeErrorOmitsConjurResponseBody(t *testing.T) {
 	srv, httpClient := MockConjurExchangeServerStatusBody(t, http.StatusUnauthorized, []byte(`{"error":{"message":"CONJ00001E Invalid JWT token"}}`))
 	defer srv.Close()
 
 	c := New(httpClient, srv.URL, "dev-cluster", "conjur", staticSource{tok: "the-jwt"})
-	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com/x", nil)
+
+	logger := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.BufferLogs(true), ktesting.Verbosity(2)))
+	buf := logger.GetSink().(ktesting.Underlier).GetBuffer()
+	ctx := klog.NewContext(t.Context(), logger)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com/x", nil)
+
 	_, err := c.AuthenticateRequest(req)
 	require.Error(t, err)
 	require.NotContains(t, err.Error(), "CONJ00001E Invalid JWT token")
 	require.Contains(t, err.Error(), "authn-jwt exchange rejected (401)")
+	require.Contains(t, buf.String(), "authn-jwt exchange rejected")
+	require.Contains(t, buf.String(), "CONJ00001E Invalid JWT token")
 }

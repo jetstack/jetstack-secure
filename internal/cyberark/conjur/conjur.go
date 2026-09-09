@@ -46,7 +46,16 @@ type Client struct {
 }
 
 func New(httpClient *http.Client, baseURL, serviceID, account string, src jwtsource.Source) *Client {
-	return &Client{httpClient: httpClient, baseURL: baseURL, serviceID: serviceID, account: account, src: src, tokenTTL: defaultTokenTTL}
+	// The exchange POSTs the agent's service-account token as a form field.
+	// Go strips Authorization across a host change but never strips bodies, so
+	// a 3xx here would re-send that token to an unvalidated host. Nothing on
+	// this path legitimately redirects. Shallow copy, so the Transport and its
+	// connection pool are still shared.
+	noRedirect := *httpClient
+	noRedirect.CheckRedirect = func(req *http.Request, _ []*http.Request) error {
+		return fmt.Errorf("refusing to follow a redirect to %q: the authn-jwt exchange carries the agent's token in its body", req.URL.Hostname())
+	}
+	return &Client{httpClient: &noRedirect, baseURL: baseURL, serviceID: serviceID, account: account, src: src, tokenTTL: defaultTokenTTL}
 }
 
 // Invalidate clears the cached token, forcing the next AuthenticateRequest

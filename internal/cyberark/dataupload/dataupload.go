@@ -13,6 +13,7 @@ import (
 	"net/url"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 
 	arkapi "github.com/jetstack/preflight/internal/cyberark/api"
 	"github.com/jetstack/preflight/internal/cyberark/identity"
@@ -171,10 +172,8 @@ func (c *CyberArkClient) PutSnapshot(ctx context.Context, snapshot Snapshot) err
 
 	if code := res.StatusCode; code < 200 || code >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(res.Body, 500))
-		if len(body) == 0 {
-			body = []byte(`<empty body>`)
-		}
-		return fmt.Errorf("received response with status code %d: %s", code, bytes.TrimSpace(body))
+		klog.FromContext(ctx).V(2).Info("unexpected status code uploading snapshot", "statusCode", code, "body", string(bytes.TrimSpace(body)))
+		return fmt.Errorf("received response with status code %d", code)
 	}
 
 	return nil
@@ -245,10 +244,8 @@ func (c *CyberArkClient) retrievePresignedUploadURL(ctx context.Context, checksu
 
 	if code := res.StatusCode; code < 200 || code >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(res.Body, 500))
-		if len(body) == 0 {
-			body = []byte(`<empty body>`)
-		}
-		return "", "", fmt.Errorf("received response with status code %d: %s", code, bytes.TrimSpace(body))
+		klog.FromContext(ctx).V(2).Info("unexpected status code retrieving upload URL", "statusCode", code, "body", string(bytes.TrimSpace(body)))
+		return "", "", fmt.Errorf("received response with status code %d", code)
 	}
 
 	response := struct {
