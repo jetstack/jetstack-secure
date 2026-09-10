@@ -172,6 +172,10 @@ E2E tests run automatically in CI when you add specific labels to your PR:
 
 - Add the `test-e2e` label to trigger GKE-based E2E tests
 - Add the `keep-e2e-cluster` label if you need to keep the cluster for debugging (remember to delete it manually afterward to avoid costs)
+- Add `keep-e2e-cluster` **before** `test-e2e`. Applying `test-e2e` starts the run straight away, and the run only sees the labels that were set at that moment, so adding `keep-e2e-cluster` afterwards will not save the cluster.
+
+The suites live in [.github/workflows/e2e.yaml](./.github/workflows/e2e.yaml). You can also run them against any branch
+without a label, using the **Run workflow** button on the `e2e` workflow.
 
 The E2E test script is located at [hack/e2e/test.sh](./hack/e2e/test.sh).
 
