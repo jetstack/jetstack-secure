@@ -86,7 +86,7 @@ spec:
                 key: ARK_SECRET
                 optional: true
           - name: ARK_SEND_SECRET_VALUES
-            value: {{ .Values.config.sendSecretValues | default "false" | quote }}
+            value: {{ .Values.config.sendSecretValues | quote }}
           {{- with .Values.http_proxy }}
           - name: HTTP_PROXY
             value: {{ . }}

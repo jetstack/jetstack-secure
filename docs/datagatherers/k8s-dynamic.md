@@ -77,7 +77,7 @@ Secrets can be gathered using the following config:
       resource: secrets
 ```
 
-Before Secrets are sent to the Preflight backend, they are redacted so no secret data is transmitted. See [`fieldfilter.go`](./../../pkg/datagatherer/k8s/fieldfilter.go) to see the details of which fields are filtered and which ones are redacted.
+By default, Secret `data` is redacted before being sent to the backend, keeping only non-sensitive fields (`tls.crt`, `ca.crt`, `conjur-map`). If `sendSecretValues` is enabled, the full `data` is kept and encrypted before being sent instead. See [`fieldfilter.go`](./../../pkg/datagatherer/k8sdynamic/fieldfilter.go) for the field list, and `sendSecretValues` in the [disco-agent chart](./../../deploy/charts/disco-agent/README.md) for the encryption behaviour.
 
 > **All resource other than Kubernetes Secrets are sent in full, so make sure that you don't store secret information on arbitrary resources.**
 
