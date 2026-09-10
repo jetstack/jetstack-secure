@@ -200,7 +200,8 @@ config:
   clusterDescription: ""
 
   # Enable sending of Secret values to CyberArk in addition to metadata.
-  # Metadata is always sent, but the actual values of Secrets are not sent by default.
+  # Metadata is always sent, and Secret values are sent by default too.
+  # Set this to false to send metadata only.
   # When enabled, Secret data is encrypted using envelope encryption using
   # a key managed by CyberArk, fetched from the Discovery and Context service.
   sendSecretValues: true
