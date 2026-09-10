@@ -2,13 +2,30 @@ name: tests
 on:
   push:
     branches: [master]
-  pull_request: {}
+  # `labeled` is not one of the default activity types, so without it adding
+  # test-e2e, test-ark or test-ngts to an open pull request starts nothing, and
+  # re-running does not help because a re-run replays the original, unlabelled
+  # payload.
+  # Why?: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request
+  # > By default, a workflow only runs when a pull_request event's activity
+  # > type is opened, synchronize, or reopened.
+  #
+  # A label event starts only the one e2e job named by the label; see the `if:`
+  # on each job below. There is no way to filter the trigger itself by label
+  # name, so an unrelated label still starts a run, but every job skips and a
+  # skipped job never claims a runner.
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
   # Lets us run the e2e suites against master, which the label gates below
   # cannot do: they read github.event.pull_request.labels, which is empty for
   # a push. Needed before tagging a release.
   workflow_dispatch: {}
 jobs:
   verify:
+    # Adding a label says nothing about the code, so there is nothing new to
+    # verify. `github.event.action` is null on push and on workflow_dispatch,
+    # so this only ever excludes the label event.
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -39,6 +56,8 @@ jobs:
       - run: make -j verify
 
   test:
+    # See `verify`.
+    if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -84,7 +103,14 @@ jobs:
     # where the e2e fails with a 400 error relating to "conflicting tagging values"
     # The test is flaky, not broken and re-running eventually makes it pass - but that delays progress on
     # other unrelated work.
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'test-ark')
+    # Runs when the label is added, and thereafter on every push while it is
+    # still on the pull request. `github.event.label` names only the label that
+    # was just added, so adding one e2e label does not start the other suites.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event.label.name == 'test-ark'
+      || (github.event.action != 'labeled'
+      && contains(github.event.pull_request.labels.*.name, 'test-ark'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -122,7 +148,12 @@ jobs:
 
   ngts-test-e2e:
     # TEMPORARY: require an explicit label to test NGTS until we have a stable test environment
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'test-ngts')
+    # See `ark-test-e2e`.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event.label.name == 'test-ngts'
+      || (github.event.action != 'labeled'
+      && contains(github.event.pull_request.labels.*.name, 'test-ngts'))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -157,7 +188,12 @@ jobs:
           NGTS_TSG_URL: https://1806660206.ngts.qa.venafi.io
 
   test-e2e:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'test-e2e')
+    # See `ark-test-e2e`.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event.label.name == 'test-e2e'
+      || (github.event.action != 'labeled'
+      && contains(github.event.pull_request.labels.*.name, 'test-e2e'))
     runs-on: ubuntu-latest
     # A healthy run takes about 15 minutes. The backstop matters because the job
     # holds a GKE cluster for as long as it runs, and the default is 6 hours.
