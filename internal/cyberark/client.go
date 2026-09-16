@@ -1,6 +1,7 @@
 package cyberark
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -74,9 +75,7 @@ var ErrNoAuthMethod = errors.New("no CyberArk authentication method configured: 
 // ARK_SUBDOMAIN when empty. Also reads legacy ARK_USERNAME/ARK_SECRET, used
 // only when no Conjur service-id is configured.
 func LoadClientConfigFromEnvironment(subdomain string) (ClientConfig, error) {
-	if subdomain == "" {
-		subdomain = os.Getenv("ARK_SUBDOMAIN")
-	}
+	subdomain = cmp.Or(subdomain, os.Getenv("ARK_SUBDOMAIN"))
 	if subdomain == "" {
 		return ClientConfig{}, ErrMissingSubdomain
 	}
