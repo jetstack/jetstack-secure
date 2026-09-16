@@ -169,7 +169,7 @@ func TestCyberArkClient_PutSnapshot_RealAPI(t *testing.T) {
 		},
 	}
 
-	cfg, err := cyberark.LoadClientConfigFromEnvironment()
+	cfg, err := cyberark.LoadClientConfigFromEnvironment("")
 	require.NoError(t, err)
 
 	discoveryClient, err := servicediscovery.New(httpClient, cfg.Subdomain)

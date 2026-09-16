@@ -211,6 +211,10 @@ config:
   # short-lived Conjur access token, then uses that token to authenticate to the
   # Discovery & Context upload API.
   cyberark:
+    # CyberArk tenant subdomain. Not a credential. Leave empty to keep
+    # sourcing it from the authentication Secret's ARK_SUBDOMAIN key instead.
+    subdomain: ""
+
     # The Conjur authn-jwt authenticator service ID configured for this
     # cluster (one authenticator per cluster, not shared across a tenant's
     # clusters — see config.clusterName above, which falls back to this

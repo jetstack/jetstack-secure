@@ -34,16 +34,13 @@ type CyberArkClient struct {
 
 var _ Client = &CyberArkClient{}
 
-// NewCyberArk initializes a CyberArk client.
-// Subdomain, and the legacy username/password credentials, are loaded from the
-// environment (ARK_SUBDOMAIN, ARK_USERNAME, ARK_SECRET). The remaining fields
-// (serviceID, account, jwtSource, jwtFilePath) come from the agent YAML config
-// (config.cyberark.*) and select the Conjur JWT exchange when serviceID is set.
-// Sending secrets is controlled by the ARK_SEND_SECRETS environment variable
-// (defaults to "false"). If the configuration is invalid or missing, an error
-// is returned.
-func NewCyberArk(httpClient *http.Client, serviceID, account, jwtSource, jwtFilePath string) (*CyberArkClient, error) {
-	cfg, err := cyberark.LoadClientConfigFromEnvironment()
+// NewCyberArk initializes a CyberArk client. subdomain, serviceID, account,
+// jwtSource, and jwtFilePath come from the agent YAML config
+// (config.cyberark.*); subdomain falls back to ARK_SUBDOMAIN when empty.
+// Legacy username/password credentials remain env-var-only (ARK_USERNAME,
+// ARK_SECRET) since they're real credentials.
+func NewCyberArk(httpClient *http.Client, subdomain, serviceID, account, jwtSource, jwtFilePath string) (*CyberArkClient, error) {
+	cfg, err := cyberark.LoadClientConfigFromEnvironment(subdomain)
 	if err != nil {
 		return nil, err
 	}

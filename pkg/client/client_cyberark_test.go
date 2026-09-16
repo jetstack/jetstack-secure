@@ -42,7 +42,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 
 		httpClient, jwtFilePath := testutil.FakeCyberArk(t)
 
-		c, err := client.NewCyberArk(httpClient, "test-service", "", "file", jwtFilePath)
+		c, err := client.NewCyberArk(httpClient, "", "test-service", "", "file", jwtFilePath)
 		require.NoError(t, err)
 
 		readings := fakeReadings()
@@ -64,7 +64,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_UsernamePasswordMockAPI(t *t
 	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 	ctx := klog.NewContext(t.Context(), logger)
 
-	c, err := client.NewCyberArk(httpClient, "", "", "", "")
+	c, err := client.NewCyberArk(httpClient, "", "", "", "", "")
 	require.NoError(t, err)
 
 	readings := fakeReadings()
@@ -84,7 +84,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_UsernamePasswordSecondUpload
 	t.Setenv("ARK_USERNAME", username)
 	t.Setenv("ARK_SECRET", password)
 
-	c, err := client.NewCyberArk(httpClient, "", "", "", "")
+	c, err := client.NewCyberArk(httpClient, "", "", "", "", "")
 	require.NoError(t, err)
 
 	readings := fakeReadings()
@@ -113,9 +113,9 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
 
 		serviceID := os.Getenv("ARK_SERVICE_ID")
-		c, err := client.NewCyberArk(httpClient, serviceID, "", "", "")
+		c, err := client.NewCyberArk(httpClient, "", serviceID, "", "", "")
 		if err != nil {
-			if errors.Is(err, cyberark.ErrMissingEnvironmentVariables) {
+			if errors.Is(err, cyberark.ErrMissingSubdomain) {
 				t.Skipf("Skipping: %s", err)
 			}
 			require.NoError(t, err)
