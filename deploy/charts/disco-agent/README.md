@@ -28,8 +28,10 @@ If **both** are set, the Conjur `serviceId` wins (so a migrating install can add
 the service-id before removing its old credentials) and a warning is logged. If
 **neither** is set, the agent fails closed at startup.
 
-The only credential always required in the Kubernetes Secret is the CyberArk
-tenant subdomain (`ARK_SUBDOMAIN`).
+The agent also needs your CyberArk tenant subdomain, but it is **not a
+credential** — set it via `config.cyberark.subdomain` (see below) and skip the
+Secret entirely for a Conjur-JWT-only install. `ARK_SUBDOMAIN` in the Secret
+still works as a fallback for existing installs that already set it there.
 
 ```sh
 export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain, e.g. tlskp-test
@@ -37,7 +39,8 @@ export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain, e.g. tlskp-test
 export ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/
 ```
 
-Create the Secret:
+Create the Secret (only needed for the legacy username/password method, or if
+you'd rather set the subdomain here than in `config.cyberark.subdomain`):
 
 ```sh
 # Production (no ARK_DISCOVERY_API override needed):
@@ -119,11 +122,13 @@ value for `config.cyberark.serviceId` below.
 
 ```sh
 # $SERVICE_ID is this cluster's own authn-jwt service ID from onboarding above — do not reuse it across clusters.
+# No Secret needed for this Conjur-JWT install — the subdomain isn't a credential.
 helm upgrade agent "oci://${OCI_BASE}/charts/disco-agent" \
      --install \
      --create-namespace \
      --namespace "$NAMESPACE" \
      --set fullnameOverride=disco-agent \
+     --set config.cyberark.subdomain="$ARK_SUBDOMAIN" \
      --set config.cyberark.serviceId="$SERVICE_ID" \
      --set acceptTerms=true
 ```

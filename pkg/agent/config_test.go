@@ -724,6 +724,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 			withCmdLineFlags("--period", "1m", "--machine-hub"))
 		require.NoError(t, err)
 		assert.Equal(t, MachineHub, got.OutputMode)
+		assert.Equal(t, "tlspk", got.CyberArk.Subdomain)
 		assert.IsType(t, &client.CyberArkClient{}, cl)
 	})
 
