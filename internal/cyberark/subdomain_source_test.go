@@ -62,8 +62,8 @@ type capturingSink struct {
 	messages []string
 }
 
-func (s *capturingSink) Init(logr.RuntimeInfo)      {}
-func (s *capturingSink) Enabled(int) bool           { return true }
+func (s *capturingSink) Init(logr.RuntimeInfo)       {}
+func (s *capturingSink) Enabled(int) bool            { return true }
 func (s *capturingSink) Error(error, string, ...any) {}
 
 func (s *capturingSink) Info(_ int, msg string, _ ...any) {
