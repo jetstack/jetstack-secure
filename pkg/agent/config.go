@@ -1055,7 +1055,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			rootCAs *x509.CertPool
 		)
 		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
-		outputClient, err = client.NewCyberArk(httpClient, cfg.CyberArk.Subdomain, cfg.CyberArk.ServiceID, cfg.CyberArk.Account, cfg.CyberArk.JWTSource, cfg.CyberArk.JWTFilePath)
+		outputClient, err = client.NewCyberArk(log, httpClient, cfg.CyberArk.Subdomain, cfg.CyberArk.ServiceID, cfg.CyberArk.Account, cfg.CyberArk.JWTSource, cfg.CyberArk.JWTFilePath)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}

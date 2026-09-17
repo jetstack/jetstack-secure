@@ -39,8 +39,8 @@ var _ Client = &CyberArkClient{}
 // (config.cyberark.*); subdomain falls back to ARK_SUBDOMAIN when empty.
 // Legacy username/password credentials remain env-var-only (ARK_USERNAME,
 // ARK_SECRET) since they're real credentials.
-func NewCyberArk(httpClient *http.Client, subdomain, serviceID, account, jwtSource, jwtFilePath string) (*CyberArkClient, error) {
-	cfg, err := cyberark.LoadClientConfigFromEnvironment(subdomain)
+func NewCyberArk(log logr.Logger, httpClient *http.Client, subdomain, serviceID, account, jwtSource, jwtFilePath string) (*CyberArkClient, error) {
+	cfg, err := cyberark.LoadClientConfig(log, subdomain)
 	if err != nil {
 		return nil, err
 	}

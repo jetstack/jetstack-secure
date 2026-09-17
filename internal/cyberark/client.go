@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/go-logr/logr"
 	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/internal/cyberark/conjur"
@@ -70,11 +71,14 @@ var ErrMissingSubdomain = errors.New("no CyberArk subdomain configured: set conf
 // username/password credentials are configured.
 var ErrNoAuthMethod = errors.New("no CyberArk authentication method configured: set config.cyberark.service_id (Conjur JWT) or ARK_USERNAME + ARK_SECRET (legacy username/password)")
 
-// LoadClientConfigFromEnvironment loads the CyberArk client config. subdomain
+// LoadClientConfig loads the CyberArk client config. subdomain
 // (from config.cyberark.subdomain) takes precedence; falls back to
 // ARK_SUBDOMAIN when empty. Also reads legacy ARK_USERNAME/ARK_SECRET, used
 // only when no Conjur service-id is configured.
-func LoadClientConfigFromEnvironment(subdomain string) (ClientConfig, error) {
+func LoadClientConfig(log logr.Logger, subdomain string) (ClientConfig, error) {
+	if envSubdomain := os.Getenv("ARK_SUBDOMAIN"); subdomain != "" && envSubdomain != "" {
+		log.Info("both config.cyberark.subdomain and ARK_SUBDOMAIN are set; using config.cyberark.subdomain and ignoring the environment variable")
+	}
 	subdomain = cmp.Or(subdomain, os.Getenv("ARK_SUBDOMAIN"))
 	if subdomain == "" {
 		return ClientConfig{}, ErrMissingSubdomain

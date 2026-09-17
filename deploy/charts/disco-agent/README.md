@@ -14,6 +14,18 @@ export NAMESPACE=cyberark
 kubectl create ns "$NAMESPACE" || true
 ```
 
+### Set your CyberArk tenant subdomain
+
+Always required, but **not a credential**. Set it via `config.cyberark.subdomain`
+on the `helm upgrade` command below, or via `ARK_SUBDOMAIN` in the Secret if
+you're already creating one for the legacy username/password method.
+
+```sh
+export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain, e.g. tlskp-test
+# OPTIONAL: Discovery API URL for non-production environments
+export ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/
+```
+
 ### Add credentials to a Secret
 
 The agent supports **two authentication methods**, selected automatically by
@@ -28,16 +40,8 @@ If **both** are set, the Conjur `serviceId` wins (so a migrating install can add
 the service-id before removing its old credentials) and a warning is logged. If
 **neither** is set, the agent fails closed at startup.
 
-The agent also needs your CyberArk tenant subdomain, but it is **not a
-credential** — set it via `config.cyberark.subdomain` (see below) and skip the
-Secret entirely for a Conjur-JWT-only install. `ARK_SUBDOMAIN` in the Secret
-still works as a fallback for existing installs that already set it there.
-
-```sh
-export ARK_SUBDOMAIN=      # your CyberArk tenant subdomain, e.g. tlskp-test
-# OPTIONAL: Discovery API URL for non-production environments
-export ARK_DISCOVERY_API=https://platform-discovery.integration-cyberark.cloud/
-```
+Skip this section entirely for a Conjur-JWT-only install: `config.cyberark.subdomain`
+above already covers the one non-credential value this Secret would otherwise carry.
 
 Create the Secret (only needed for the legacy username/password method, or if
 you'd rather set the subdomain here than in `config.cyberark.subdomain`):
