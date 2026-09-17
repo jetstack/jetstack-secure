@@ -1,12 +1,14 @@
 package cyberark
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
 
+	"github.com/go-logr/logr"
 	"k8s.io/klog/v2"
 
 	"github.com/jetstack/preflight/internal/cyberark/conjur"
@@ -61,26 +63,25 @@ type ClientConfig struct {
 // ClientConfigLoader is a function type that loads and returns a ClientConfig.
 type ClientConfigLoader func() (ClientConfig, error)
 
-// ErrMissingEnvironmentVariables is returned when required environment variables are not set.
-var ErrMissingEnvironmentVariables = errors.New("missing environment variables: ARK_SUBDOMAIN")
+// ErrMissingSubdomain is returned when no subdomain is configured, either via
+// config.cyberark.subdomain or the ARK_SUBDOMAIN environment variable.
+var ErrMissingSubdomain = errors.New("no CyberArk subdomain configured: set config.cyberark.subdomain or the ARK_SUBDOMAIN environment variable")
 
 // ErrNoAuthMethod is returned when neither a Conjur service-id nor
 // username/password credentials are configured.
 var ErrNoAuthMethod = errors.New("no CyberArk authentication method configured: set config.cyberark.service_id (Conjur JWT) or ARK_USERNAME + ARK_SECRET (legacy username/password)")
 
-// LoadClientConfigFromEnvironment loads the CyberArk client configuration from environment variables.
-// It expects the following environment variable to be set:
-//   - ARK_SUBDOMAIN: The CyberArk subdomain to use (required).
-//
-// It also reads the optional legacy username/password credentials:
-//   - ARK_USERNAME, ARK_SECRET: used only when no Conjur service-id is configured.
-//
-// Behavioral keys (ServiceID, Account, JWTSource, JWTFilePath) are set by the
-// caller from the agent YAML config (config.cyberark.*).
-func LoadClientConfigFromEnvironment() (ClientConfig, error) {
-	subdomain := os.Getenv("ARK_SUBDOMAIN")
+// LoadClientConfig loads the CyberArk client config. subdomain
+// (from config.cyberark.subdomain) takes precedence; falls back to
+// ARK_SUBDOMAIN when empty. Also reads legacy ARK_USERNAME/ARK_SECRET, used
+// only when no Conjur service-id is configured.
+func LoadClientConfig(log logr.Logger, subdomain string) (ClientConfig, error) {
+	if envSubdomain := os.Getenv("ARK_SUBDOMAIN"); subdomain != "" && envSubdomain != "" {
+		log.Info("both config.cyberark.subdomain and ARK_SUBDOMAIN are set; using config.cyberark.subdomain and ignoring the environment variable")
+	}
+	subdomain = cmp.Or(subdomain, os.Getenv("ARK_SUBDOMAIN"))
 	if subdomain == "" {
-		return ClientConfig{}, ErrMissingEnvironmentVariables
+		return ClientConfig{}, ErrMissingSubdomain
 	}
 	cfg := ClientConfig{
 		Subdomain: subdomain,

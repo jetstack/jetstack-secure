@@ -107,6 +107,9 @@ type VenafiCloudConfig struct {
 
 // CyberArkConfig holds YAML configuration for MachineHub (CyberArk) mode (POC).
 type CyberArkConfig struct {
+	// Subdomain is the CyberArk tenant subdomain. Not a credential; falls
+	// back to the ARK_SUBDOMAIN environment variable when empty.
+	Subdomain string `yaml:"subdomain"`
 	// ServiceID is the authn-jwt service ID configured in Conjur (e.g. "dev-cluster").
 	ServiceID string `yaml:"service_id"`
 	// Account is the Conjur account name. Defaults to "conjur" when empty.
@@ -1052,7 +1055,7 @@ func validateCredsAndCreateClient(log logr.Logger, flagCredentialsPath, flagClie
 			rootCAs *x509.CertPool
 		)
 		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
-		outputClient, err = client.NewCyberArk(httpClient, cfg.CyberArk.ServiceID, cfg.CyberArk.Account, cfg.CyberArk.JWTSource, cfg.CyberArk.JWTFilePath)
+		outputClient, err = client.NewCyberArk(log, httpClient, cfg.CyberArk.Subdomain, cfg.CyberArk.ServiceID, cfg.CyberArk.Account, cfg.CyberArk.JWTSource, cfg.CyberArk.JWTFilePath)
 		if err != nil {
 			errs = multierror.Append(errs, err)
 		}

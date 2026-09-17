@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/jetstack/venafi-connection-lib/http_client"
 	"github.com/stretchr/testify/require"
 	k8sversion "k8s.io/apimachinery/pkg/version"
@@ -42,7 +43,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_MockAPI(t *testing.T) {
 
 		httpClient, jwtFilePath := testutil.FakeCyberArk(t)
 
-		c, err := client.NewCyberArk(httpClient, "test-service", "", "file", jwtFilePath)
+		c, err := client.NewCyberArk(logger, httpClient, "", "test-service", "", "file", jwtFilePath)
 		require.NoError(t, err)
 
 		readings := fakeReadings()
@@ -64,7 +65,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_UsernamePasswordMockAPI(t *t
 	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
 	ctx := klog.NewContext(t.Context(), logger)
 
-	c, err := client.NewCyberArk(httpClient, "", "", "", "")
+	c, err := client.NewCyberArk(logger, httpClient, "", "", "", "", "")
 	require.NoError(t, err)
 
 	readings := fakeReadings()
@@ -84,7 +85,7 @@ func TestCyberArkClient_PostDataReadingsWithOptions_UsernamePasswordSecondUpload
 	t.Setenv("ARK_USERNAME", username)
 	t.Setenv("ARK_SECRET", password)
 
-	c, err := client.NewCyberArk(httpClient, "", "", "", "")
+	c, err := client.NewCyberArk(logr.Discard(), httpClient, "", "", "", "", "")
 	require.NoError(t, err)
 
 	readings := fakeReadings()
@@ -113,9 +114,9 @@ func TestCyberArkClient_PostDataReadingsWithOptions_RealAPI(t *testing.T) {
 		httpClient := http_client.NewDefaultClient(version.UserAgent(), rootCAs)
 
 		serviceID := os.Getenv("ARK_SERVICE_ID")
-		c, err := client.NewCyberArk(httpClient, serviceID, "", "", "")
+		c, err := client.NewCyberArk(logger, httpClient, "", serviceID, "", "", "")
 		if err != nil {
-			if errors.Is(err, cyberark.ErrMissingEnvironmentVariables) {
+			if errors.Is(err, cyberark.ErrMissingSubdomain) {
 				t.Skipf("Skipping: %s", err)
 			}
 			require.NoError(t, err)

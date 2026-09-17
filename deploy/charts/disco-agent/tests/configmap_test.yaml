@@ -31,3 +31,9 @@ tests:
         purpose: Production workloads
     asserts:
       - matchSnapshot: {}
+
+  - it: custom-subdomain
+    set:
+      config.cyberark.subdomain: tlskp-test
+    asserts:
+      - matchSnapshot: {}

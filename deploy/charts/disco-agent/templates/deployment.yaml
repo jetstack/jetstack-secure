@@ -58,11 +58,13 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+          # Not a credential; only used when config.cyberark.subdomain is empty.
           - name: ARK_SUBDOMAIN
             valueFrom:
               secretKeyRef:
                 name: {{ .Values.authentication.secretName }}
                 key: ARK_SUBDOMAIN
+                optional: true
           - name: ARK_DISCOVERY_API
             valueFrom:
               secretKeyRef:

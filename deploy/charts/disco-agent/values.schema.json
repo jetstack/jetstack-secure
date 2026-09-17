@@ -163,6 +163,9 @@
         },
         "serviceId": {
           "$ref": "#/$defs/helm-values.config.cyberark.serviceId"
+        },
+        "subdomain": {
+          "$ref": "#/$defs/helm-values.config.cyberark.subdomain"
         }
       },
       "type": "object"
@@ -180,6 +183,11 @@
     "helm-values.config.cyberark.serviceId": {
       "default": "",
       "description": "The Conjur authn-jwt authenticator service ID configured for this cluster (one authenticator per cluster, not shared across a tenant's clusters — see config.clusterName above, which falls back to this value and depends on it being cluster-unique). Set this to use the Conjur JWT exchange (preferred). Leave empty to use the legacy CyberArk Identity username/password method (ARK_USERNAME/ARK_SECRET in the credentials Secret) for backward compatibility. If both are set, the serviceId (Conjur) wins. NOTE: bare service-id segment (e.g. a UUID chosen at onboarding), NOT the policy path \"conjur/authn-jwt/<serviceId>\" — the agent builds the URL as\n<base>/authn-jwt/<serviceId>/<account>/authenticate.",
+      "type": "string"
+    },
+    "helm-values.config.cyberark.subdomain": {
+      "default": "",
+      "description": "CyberArk tenant subdomain. Not a credential. Leave empty to keep sourcing it from the authentication Secret's ARK_SUBDOMAIN key instead.",
       "type": "string"
     },
     "helm-values.config.excludeAnnotationKeysRegex": {

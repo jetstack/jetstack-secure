@@ -711,7 +711,24 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		assert.IsType(t, &client.CyberArkClient{}, cl)
 	})
 
-	t.Run("--machine-hub without ARK_SUBDOMAIN environment variable", func(t *testing.T) {
+	t.Run("--machine-hub with config.cyberark.subdomain instead of ARK_SUBDOMAIN environment variable", func(t *testing.T) {
+		t.Setenv("POD_NAMESPACE", "venafi")
+		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
+		t.Setenv("ARK_SUBDOMAIN", "")
+		got, cl, err := ValidateAndCombineConfig(discardLogs(),
+			withConfig(testutil.Undent(`
+				cyberark:
+				  subdomain: tlspk
+				  service_id: dev-cluster
+			`)),
+			withCmdLineFlags("--period", "1m", "--machine-hub"))
+		require.NoError(t, err)
+		assert.Equal(t, MachineHub, got.OutputMode)
+		assert.Equal(t, "tlspk", got.CyberArk.Subdomain)
+		assert.IsType(t, &client.CyberArkClient{}, cl)
+	})
+
+	t.Run("--machine-hub without ARK_SUBDOMAIN environment variable or config.cyberark.subdomain", func(t *testing.T) {
 		t.Setenv("POD_NAMESPACE", "venafi")
 		t.Setenv("KUBECONFIG", withFile(t, fakeKubeconfig))
 		t.Setenv("ARK_SUBDOMAIN", "")
@@ -725,7 +742,7 @@ func Test_ValidateAndCombineConfig(t *testing.T) {
 		assert.Nil(t, cl)
 		assert.EqualError(t, err, testutil.Undent(`
 			validating creds: failed loading config using the MachineHub mode: 1 error occurred:
-				* missing environment variables: ARK_SUBDOMAIN
+				* no CyberArk subdomain configured: set config.cyberark.subdomain or the ARK_SUBDOMAIN environment variable
 
 	   `))
 	})

@@ -11,6 +11,7 @@ data:
     cluster_description: {{ .Values.config.clusterDescription | quote }}
     period: {{ .Values.config.period | quote }}
     cyberark:
+      subdomain: {{ .Values.config.cyberark.subdomain | quote }}
       service_id: {{ .Values.config.cyberark.serviceId | quote }}
       account: {{ .Values.config.cyberark.account | quote }}
       jwt_source: {{ .Values.config.cyberark.jwtSource | quote }}

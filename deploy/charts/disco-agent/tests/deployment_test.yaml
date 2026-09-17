@@ -1,0 +1,25 @@
+suite: test the deployment's credential env vars
+templates:
+  - deployment.yaml
+release:
+  name: test
+  namespace: test-ns
+set:
+  acceptTerms: true
+tests:
+  - it: ARK_SUBDOMAIN and ARK_DISCOVERY_API secretKeyRefs are optional, so a Conjur-JWT-only install needs no Secret
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "ARK_SUBDOMAIN")].valueFrom.secretKeyRef.optional
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "ARK_DISCOVERY_API")].valueFrom.secretKeyRef.optional
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "ARK_USERNAME")].valueFrom.secretKeyRef.optional
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "ARK_SECRET")].valueFrom.secretKeyRef.optional
+          value: true
