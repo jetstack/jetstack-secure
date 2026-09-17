@@ -16,6 +16,16 @@ linters:
     paths: [third_party, builtin$, examples$]
     warn-unused: true
   settings:
+    modernize:
+      # embedlit activates at language version 1.27 and rewrites every
+      # Kubernetes object literal in the repo, turning
+      #   corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "x"}}
+      # into
+      #   corev1.Pod{Name: "x"}
+      # The flattened form hides which embedded struct a field came from, and
+      # mixes TypeMeta and ObjectMeta fields into one list. Keep it off.
+      disable:
+        - embedlit
     staticcheck:
       checks: ["all", "-ST1000", "-ST1001", "-ST1003", "-ST1005", "-ST1012", "-ST1016", "-ST1020", "-ST1021", "-ST1022", "-QF1001", "-QF1003", "-QF1008"]
   enable:

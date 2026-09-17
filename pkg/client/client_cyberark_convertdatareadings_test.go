@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -1478,6 +1479,16 @@ func TestIsExcludableSecret(t *testing.T) {
 			exclude: true,
 		},
 		{
+			name:    "TLS secret with ML-DSA client cert in tls.crt",
+			secret:  newTLSSecret("tls-secret-with-mldsa-client", sampleMLDSACertificateChain(t, x509.ExtKeyUsageClientAuth)),
+			exclude: false,
+		},
+		{
+			name:    "TLS secret with ML-DSA non-client cert in tls.crt",
+			secret:  newTLSSecret("tls-secret-without-mldsa-client", sampleMLDSACertificateChain(t, x509.ExtKeyUsageServerAuth)),
+			exclude: true,
+		},
+		{
 			name: "Non-unstructured",
 			secret: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1625,6 +1636,69 @@ func sampleCertificateChain(t testing.TB, usages ...x509.ExtKeyUsage) string {
 	}
 
 	clientCertDER, err := x509.CreateCertificate(rand.Reader, &clientTemplate, &caTemplate, &clientPrivKey.PublicKey, caPrivKey)
+	require.NoError(t, err)
+
+	clientCertPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: clientCertDER,
+	})
+
+	return base64.StdEncoding.EncodeToString(append(clientCertPEM, caCertPEM...))
+}
+
+// sampleMLDSACertificateChain is sampleCertificateChain with ML-DSA-65
+// (FIPS 204) keys instead of P-256 ones.
+//
+// isExcludableTLSSecret only reads the ExtKeyUsage extension, so it is
+// algorithm-agnostic by construction and a post-quantum chain has to be
+// classified exactly like the elliptic curve one. Nothing enforced that, so
+// these cases pin it before the agent grows any code that does look at the
+// key. crypto/mldsa exists only in Go 1.27+, so this also fails to build under
+// an older toolchain, which is the requirement the go directive in go.mod
+// states.
+func sampleMLDSACertificateChain(t testing.TB, usages ...x509.ExtKeyUsage) string {
+	t.Helper()
+
+	caPrivKey, err := mldsa.GenerateKey(mldsa.MLDSA65())
+	require.NoError(t, err)
+
+	caTemplate := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Test ML-DSA CA"},
+			CommonName:   "Test ML-DSA CA",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	caCertDER, err := x509.CreateCertificate(rand.Reader, &caTemplate, &caTemplate, caPrivKey.Public(), caPrivKey)
+	require.NoError(t, err)
+
+	caCertPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: caCertDER,
+	})
+
+	clientPrivKey, err := mldsa.GenerateKey(mldsa.MLDSA65())
+	require.NoError(t, err)
+	clientTemplate := x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject: pkix.Name{
+			Organization: []string{"Test Organization"},
+			CommonName:   "mldsa.example.com",
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(24 * time.Hour),
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: usages,
+	}
+
+	clientCertDER, err := x509.CreateCertificate(rand.Reader, &clientTemplate, &caTemplate, clientPrivKey.Public(), caPrivKey)
 	require.NoError(t, err)
 
 	clientCertPEM := pem.EncodeToMemory(&pem.Block{
