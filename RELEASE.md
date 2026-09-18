@@ -42,6 +42,10 @@ The release process is semi-automated.
 3. Open the [tests GitHub Actions workflow][tests-workflow]
    and verify that it succeeds on the master branch.
 
+   The end-to-end suites are not part of that workflow and do not run on
+   master by themselves. Run them with the **Run workflow** button on the
+   [e2e workflow][e2e-workflow], select `master`, and verify they succeed.
+
 4. Create a tag for the new release:
 
    ```sh
@@ -71,6 +75,7 @@ The release process is semi-automated.
    documentation at <https://docs.cyberark.com/>.
 
 [tests-workflow]: https://github.com/jetstack/jetstack-secure/actions/workflows/tests.yaml?query=branch%3Amaster
+[e2e-workflow]: https://github.com/jetstack/jetstack-secure/actions/workflows/e2e.yaml
 
 ## Release Artifact Information
 

@@ -61,6 +61,8 @@ The following metrics are collected:
 ## End to end testing
 
 An end to end test script is available in the [./hack/e2e/test.sh](./hack/e2e/test.sh) directory. It is configured to run in CI
-in the tests.yaml GitHub Actions workflow. To run the script you will need to add the `test-e2e` label to the PR.
+in the e2e.yaml GitHub Actions workflow. To run the script you will need to add the `test-e2e` label to the PR.
 The script creates a cluster in GKE and cleanups after itself unless the `keep-e2e-cluster` label is set on the PR. Adding that
 label will leave the cluster running for further debugging but it will incur costs so manually delete the cluster when done.
+Add `keep-e2e-cluster` before `test-e2e`, because `test-e2e` starts the run immediately and the labels are read as they were
+at that moment.

@@ -1,0 +1,195 @@
+name: e2e
+# Kept separate from tests.yaml so that adding a label cannot disturb the
+# verify and test check runs. A skipped job still publishes a check run, and
+# GitHub shows the most recent one per job name, so a label event in a workflow
+# containing verify and test would replace their results with "skipped".
+on:
+  # `labeled` is not one of the default activity types, so without it adding
+  # test-e2e, test-ark or test-ngts to an open pull request starts nothing, and
+  # re-running does not help because a re-run replays the original, unlabelled
+  # payload.
+  # Why?: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request
+  # > By default, a workflow only runs when a pull_request event's activity
+  # > type is opened, synchronize, or reopened.
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  # Lets us run the suites against master, which the label gates below cannot
+  # do: they read github.event.pull_request.labels, which is empty for a push.
+  # Needed before tagging a release.
+  workflow_dispatch: {}
+jobs:
+  ark-test-e2e:
+    # TEMPORARY: require an explicit label to test disco-agent until the test environment fixes a recurring issue
+    # where the e2e fails with a 400 error relating to "conflicting tagging values"
+    # The test is flaky, not broken and re-running eventually makes it pass - but that delays progress on
+    # other unrelated work.
+    # Runs when the label is added, and thereafter on every push while it is
+    # still on the pull request. `github.event.label` names only the label that
+    # was just added, so adding one e2e label does not start the other suites.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event.label.name == 'test-ark'
+      || (github.event.action != 'labeled'
+      && contains(github.event.pull_request.labels.*.name, 'test-ark'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        # Adding `fetch-depth: 0` makes sure tags are also fetched. We need
+        # the tags so `git describe` returns a valid version.
+        # see https://github.com/actions/checkout/issues/701 for extra info about this option
+        with: { fetch-depth: 0 }
+
+      - uses: ./.github/actions/repo_access
+        with:
+          DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
+
+      - id: go-version
+        run: |
+          make print-go-version >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version: ${{ steps.go-version.outputs.result }}
+
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: _bin/downloaded
+          key: downloaded-${{ runner.os }}-${{ hashFiles('klone.yaml') }}-test-unit
+
+      - run: make -j ark-test-e2e
+        env:
+          OCI_BASE: ${{ secrets.ARK_OCI_BASE }}
+          # These environment variables are required to connect to CyberArk Disco APIs
+          ARK_DISCOVERY_API: https://platform-discovery.integration-cyberark.cloud/
+          ARK_SUBDOMAIN: ${{ secrets.ARK_SUBDOMAIN }}
+          ARK_USERNAME: ${{ secrets.ARK_USERNAME }}
+          ARK_SECRET: ${{ secrets.ARK_SECRET }}
+
+  ngts-test-e2e:
+    # TEMPORARY: require an explicit label to test NGTS until we have a stable test environment
+    # See `ark-test-e2e`.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event.label.name == 'test-ngts'
+      || (github.event.action != 'labeled'
+      && contains(github.event.pull_request.labels.*.name, 'test-ngts'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        # Adding `fetch-depth: 0` makes sure tags are also fetched. We need
+        # the tags so `git describe` returns a valid version.
+        # see https://github.com/actions/checkout/issues/701 for extra info about this option
+        with: { fetch-depth: 0 }
+
+      - uses: ./.github/actions/repo_access
+        with:
+          DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
+
+      - id: go-version
+        run: |
+          make print-go-version >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version: ${{ steps.go-version.outputs.result }}
+
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: _bin/downloaded
+          key: downloaded-${{ runner.os }}-${{ hashFiles('klone.yaml') }}-test-unit
+
+      - run: make -j ngts-test-e2e
+        env:
+          OCI_BASE: ${{ secrets.NGTS_OCI_BASE }}
+          NGTS_CLIENT_ID: e3c8bde7-5f13-11f1-99f4-5e067e231041
+          NGTS_PRIVATE_KEY: ${{ secrets.NGTS_PRIVATE_KEY }}
+          NGTS_TSG_URL: https://1806660206.ngts.qa.venafi.io
+
+  test-e2e:
+    # See `ark-test-e2e`.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event.label.name == 'test-e2e'
+      || (github.event.action != 'labeled'
+      && contains(github.event.pull_request.labels.*.name, 'test-e2e'))
+    runs-on: ubuntu-latest
+    # A healthy run takes about 15 minutes. The backstop matters because the job
+    # holds a GKE cluster for as long as it runs, and the default is 6 hours.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        # Adding `fetch-depth: 0` makes sure tags are also fetched. We need
+        # the tags so `git describe` returns a valid version.
+        # see https://github.com/actions/checkout/issues/701 for extra info about this option
+        with: { fetch-depth: 0 }
+
+      - uses: ./.github/actions/repo_access
+        with:
+          DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB: ${{ secrets.DEPLOY_KEY_READ_VENAFI_CONNECTION_LIB }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          install_components: "gke-gcloud-auth-plugin"
+          project_id: machineidentitysecurity-jsci-e
+
+      - name: Configure Docker for Google Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      - id: go-version
+        run: |
+          make print-go-version >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version: ${{ steps.go-version.outputs.result }}
+
+      - name: Generate timestamp for cluster name
+        id: timestamp # Give the step an ID to reference its output
+        run: |
+          # Generate a timestamp in the format YYMMDD-HHMMSS.
+          # Extracting from PR name would require sanitization due to GKE cluster naming constraints
+          TIMESTAMP=$(date +'%y%m%d-%H%M%S')
+          CLUSTER_NAME="test-secretless-${TIMESTAMP}"
+          echo "Generated cluster name: ${CLUSTER_NAME}"
+          echo "cluster_name=${CLUSTER_NAME}" >> $GITHUB_OUTPUT
+
+      - run: |
+          make helm-plugins
+          make -j test-e2e-gke
+        # The VEN_API_KEY_PULL secret is set to my API key (Mladen) for glow.in.the.dark tenant.
+        env:
+          VEN_API_KEY: ${{ secrets.VEN_API_KEY_PULL }}
+          VEN_API_KEY_PULL: ${{ secrets.VEN_API_KEY_PULL }}
+          OCI_BASE: europe-west1-docker.pkg.dev/machineidentitysecurity-jsci-e/js-agent-ci-repo
+          VEN_API_HOST: api.venafi.cloud
+          VEN_ZONE: k8s-agent-CI\Default
+          VEN_VCP_REGION: us
+          CLOUDSDK_CORE_PROJECT: machineidentitysecurity-jsci-e
+          CLOUDSDK_COMPUTE_ZONE: europe-west1-b
+          CLUSTER_NAME: ${{ steps.timestamp.outputs.cluster_name }}
+
+      - name: Delete GKE Cluster
+        # 'always()' - Run this step regardless of success or failure.
+        # '!contains(...)' - AND only run if the list of PR labels DOES NOT contain 'keep-e2e-cluster'.
+        # NOTE: You will have to delete the test cluster manually when finished with debugging or incur costs.
+        #
+        # Add keep-e2e-cluster BEFORE test-e2e. The labels read here are the
+        # ones in the event payload, frozen when the run started, so a
+        # keep-e2e-cluster added after that point is not seen and the cluster
+        # is deleted anyway. Adding test-e2e now starts the run immediately,
+        # so there is no window to add it afterwards.
+        if: always() && !contains(github.event.pull_request.labels.*.name, 'keep-e2e-cluster')
+        run: |
+          echo "Label 'keep-e2e-cluster' not found. Cleaning up GKE cluster ${{ steps.timestamp.outputs.cluster_name }}"
+          gcloud container clusters delete ${{ steps.timestamp.outputs.cluster_name }} \
+            --project=machineidentitysecurity-jsci-e \
+            --zone=europe-west1-b \
+            --quiet
