@@ -5,6 +5,19 @@ linters:
     generated: lax
     presets: [comments, common-false-positives, legacy, std-error-handling]
     rules:
+      # embedlit activates at language version 1.27 and rewrites every
+      # Kubernetes object literal in the repo, turning
+      #   corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "x"}}
+      # into
+      #   corev1.Pod{Name: "x"}
+      # The flattened form hides which embedded struct a field came from, and
+      # mixes TypeMeta and ObjectMeta fields into one list. Keep it off here
+      # rather than in settings.modernize.disable, which silently ignores
+      # names it does not recognise. warn-unused reports this rule if it ever
+      # stops matching.
+      - linters:
+          - modernize
+        text: '^embedlit:'
       - linters:
           - errchkjson
           - forbidigo

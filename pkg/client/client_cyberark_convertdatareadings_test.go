@@ -1,8 +1,10 @@
 package client
 
 import (
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -1478,6 +1480,16 @@ func TestIsExcludableSecret(t *testing.T) {
 			exclude: true,
 		},
 		{
+			name:    "TLS secret with ML-DSA client cert in tls.crt",
+			secret:  newTLSSecret("tls-secret-with-mldsa-client", sampleMLDSACertificateChain(t, x509.ExtKeyUsageClientAuth)),
+			exclude: false,
+		},
+		{
+			name:    "TLS secret with ML-DSA non-client cert in tls.crt",
+			secret:  newTLSSecret("tls-secret-without-mldsa-client", sampleMLDSACertificateChain(t, x509.ExtKeyUsageServerAuth)),
+			exclude: true,
+		},
+		{
 			name: "Non-unstructured",
 			secret: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1577,15 +1589,15 @@ func newOpaqueSecret(name string) *unstructured.Unstructured {
 	}
 }
 
-// sampleCertificateChain returns a PEM encoded sample certificate chain for testing purposes.
-// The leaf certificate is signed by a self-signed CA certificate.
-// Uses an elliptic curve key for the CA and leaf certificates for speed.
-// The returned string is base64 encoded to match how TLS certificates
-// are typically provided in Kubernetes secrets.
-func sampleCertificateChain(t testing.TB, usages ...x509.ExtKeyUsage) string {
+// certificateChain returns a PEM encoded sample certificate chain for testing
+// purposes. The leaf certificate is signed by a self-signed CA certificate,
+// both keyed by newKey. The returned string is base64 encoded to match how TLS
+// certificates are typically provided in Kubernetes secrets. The parsed leaf is
+// returned so that callers can assert they got the algorithm they asked for.
+func certificateChain(t testing.TB, newKey func() (crypto.Signer, error), usages ...x509.ExtKeyUsage) (string, *x509.Certificate) {
 	t.Helper()
 
-	caPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	caPrivKey, err := newKey()
 	require.NoError(t, err)
 
 	caTemplate := x509.Certificate{
@@ -1602,7 +1614,7 @@ func sampleCertificateChain(t testing.TB, usages ...x509.ExtKeyUsage) string {
 		IsCA:                  true,
 	}
 
-	caCertDER, err := x509.CreateCertificate(rand.Reader, &caTemplate, &caTemplate, &caPrivKey.PublicKey, caPrivKey)
+	caCertDER, err := x509.CreateCertificate(rand.Reader, &caTemplate, &caTemplate, caPrivKey.Public(), caPrivKey)
 	require.NoError(t, err)
 
 	caCertPEM := pem.EncodeToMemory(&pem.Block{
@@ -1610,7 +1622,7 @@ func sampleCertificateChain(t testing.TB, usages ...x509.ExtKeyUsage) string {
 		Bytes: caCertDER,
 	})
 
-	clientPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	clientPrivKey, err := newKey()
 	require.NoError(t, err)
 	clientTemplate := x509.Certificate{
 		SerialNumber: big.NewInt(2),
@@ -1624,7 +1636,7 @@ func sampleCertificateChain(t testing.TB, usages ...x509.ExtKeyUsage) string {
 		ExtKeyUsage: usages,
 	}
 
-	clientCertDER, err := x509.CreateCertificate(rand.Reader, &clientTemplate, &caTemplate, &clientPrivKey.PublicKey, caPrivKey)
+	clientCertDER, err := x509.CreateCertificate(rand.Reader, &clientTemplate, &caTemplate, clientPrivKey.Public(), caPrivKey)
 	require.NoError(t, err)
 
 	clientCertPEM := pem.EncodeToMemory(&pem.Block{
@@ -1632,5 +1644,35 @@ func sampleCertificateChain(t testing.TB, usages ...x509.ExtKeyUsage) string {
 		Bytes: clientCertDER,
 	})
 
-	return base64.StdEncoding.EncodeToString(append(clientCertPEM, caCertPEM...))
+	leaf, err := x509.ParseCertificate(clientCertDER)
+	require.NoError(t, err)
+
+	return base64.StdEncoding.EncodeToString(append(clientCertPEM, caCertPEM...)), leaf
+}
+
+// sampleCertificateChain is certificateChain with P-256 keys, for speed.
+func sampleCertificateChain(t testing.TB, usages ...x509.ExtKeyUsage) string {
+	t.Helper()
+
+	chain, leaf := certificateChain(t, func() (crypto.Signer, error) {
+		return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	}, usages...)
+	require.Equal(t, x509.ECDSA, leaf.PublicKeyAlgorithm)
+
+	return chain
+}
+
+// sampleMLDSACertificateChain is certificateChain with ML-DSA-65 keys. The
+// crypto/mldsa import holds the Go 1.27 floor: this package will not build on
+// an older toolchain.
+func sampleMLDSACertificateChain(t testing.TB, usages ...x509.ExtKeyUsage) string {
+	t.Helper()
+
+	chain, leaf := certificateChain(t, func() (crypto.Signer, error) {
+		return mldsa.GenerateKey(mldsa.MLDSA65())
+	}, usages...)
+	require.Equal(t, x509.MLDSA, leaf.PublicKeyAlgorithm)
+	require.Equal(t, x509.MLDSA65, leaf.SignatureAlgorithm)
+
+	return chain
 }
