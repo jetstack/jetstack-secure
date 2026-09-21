@@ -209,6 +209,13 @@ commonname="venafi-kubernetes-agent-e2e.$(uuidgen | tr '[:upper:]' '[:lower:]')"
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /tmp/tls.key -out /tmp/tls.crt -subj "/CN=$commonname"
 kubectl create secret tls "$commonname" --cert=/tmp/tls.crt --key=/tmp/tls.key -o yaml --dry-run=client | kubectl apply -f -
 
+# Print the SHA-1 thumbprint, the usual way to identify a certificate once it has left this script.
+# It has to be printed here: the job deletes its cluster on the way out, so after a failed run there
+# is no copy of the certificate left to compute it from.
+fingerprint="$(openssl x509 -in /tmp/tls.crt -outform DER | openssl dgst -sha1 | awk '{print toupper($NF)}')"
+echo "Certificate common name: ${commonname}"
+echo "Certificate SHA-1 fingerprint: ${fingerprint}"
+
 # --max-time bounds the poll itself. curl has no default overall limit, and the
 # deadline below is only checked between polls, so a connection that stalls
 # after being accepted would hang here and never reach it.
@@ -245,6 +252,7 @@ deadline=$((SECONDS + certificate_timeout_seconds))
 until getCertificate; do
   if ((SECONDS >= deadline)); then
     echo "Timed out after ${certificate_timeout_seconds}s waiting for certificate ${commonname} to appear in the Venafi inventory" >&2
+    echo "Search backend logs for the SHA-1 thumbprint ${fingerprint}, not the common name" >&2
     exit 1
   fi
   sleep 30
