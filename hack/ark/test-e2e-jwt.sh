@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+#
+# Build and deploy the disco-agent Helm chart using Conjur JWT auth
+# (config.cyberark.serviceId + config.cyberark.subdomain), with no
+# agent-credentials Secret at all.
+#
+# Unlike test-e2e.sh (legacy username/password), this requires the target
+# cluster to already be onboarded in Conjur Cloud: an authn-jwt authenticator
+# trusting the cluster's OIDC issuer/JWKS, a registered workload for the
+# disco-agent ServiceAccount, and upload grants for that workload. See the
+# chart README's "Per-cluster Conjur onboarding" section. This script does
+# not perform that onboarding, and a fresh `kind create cluster` will not be
+# trusted by an authenticator onboarded against a different cluster's issuer
+# -- point USE_EXISTING_CLUSTER at whichever cluster you already onboarded.
+#
+# Prerequisites:
+# * kubectl: https://kubernetes.io/docs/tasks/tools/#kubectl
+# * kind: https://kind.sigs.k8s.io/docs/user/quick-start/
+# * helm: https://helm.sh/docs/intro/install/
+# * jq: https://jqlang.github.io/jq/download/
+# * make: https://www.gnu.org/software/make/
+#
+# You can run `make ark-test-e2e-jwt` which will automatically download all
+# prerequisites and then run this script.
+
+set -o nounset
+set -o errexit
+set -o pipefail
+
+# The Conjur authn-jwt service ID onboarded for the target cluster.
+: ${ARK_SERVICE_ID?}
+
+# CyberArk tenant subdomain. Not a credential.
+: ${ARK_SUBDOMAIN?}
+
+# Discovery API URL. Leave empty to use the production default -- only set
+# this for a non-production tenant. When set, this script creates a Secret
+# holding just this one non-credential value (config.cyberark has no field
+# for it yet).
+: ${ARK_DISCOVERY_API:=}
+
+# The base URL of the OCI registry used for Docker images and Helm charts
+# E.g. ttl.sh/7e6ca67c-96dc-4dea-9437-80b0f3a69fb1
+: ${OCI_BASE?}
+
+# The Kubernetes namespace to install into
+: ${NAMESPACE:=cyberark}
+
+# Set to true to use an existing cluster, otherwise a new kind cluster will be created.
+# Note: the cluster will not be deleted after the test completes.
+: ${USE_EXISTING_CLUSTER:=false}
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+root_dir=$(cd "${script_dir}/../.." && pwd)
+export TERM=dumb
+
+tmp_dir="$(mktemp -d /tmp/jetstack-secure.XXXXX)"
+trap 'rm -rf "${tmp_dir}"' EXIT
+
+pushd "${tmp_dir}"
+> release.env
+make -C "$root_dir" ark-release \
+     GITHUB_OUTPUT="${tmp_dir}/release.env" \
+     OCI_SIGN_ON_PUSH=false \
+     oci_platforms="" \
+     ARK_OCI_BASE="${OCI_BASE}"
+cat release.env
+source release.env
+
+if [[ "$USE_EXISTING_CLUSTER" != true ]]; then
+  kind create cluster || true
+fi
+
+kubectl create ns "$NAMESPACE" || true
+
+kubectl delete secret agent-credentials --namespace "$NAMESPACE" --ignore-not-found
+if [[ -n "$ARK_DISCOVERY_API" ]]; then
+  kubectl create secret generic agent-credentials \
+          --namespace "$NAMESPACE" \
+          --from-literal=ARK_DISCOVERY_API=$ARK_DISCOVERY_API
+fi
+
+# Create a sample secret in the cluster
+#
+# TODO(wallrj): See if there's an API for checking that this secret has been
+# imported by the backend. For now we have to log into the Disco web UI and
+# search for this secret.
+kubectl create secret generic e2e-sample-secret-$(date '+%s') \
+        --namespace default \
+        --from-literal=username=${RANDOM}
+
+# Create a sample ConfigMap in the cluster that will be discovered by the agent
+#
+# This ConfigMap has the label that matches the default label-selector configured
+# in the ark/configmaps data gatherer (conjur.org/name=conjur-connect-configmap).
+kubectl apply -f "${root_dir}/hack/ark/conjur-connect-configmap.yaml"
+
+# Install External Secrets Operator CRDs and controller
+#
+# This is required for the agent to discover ExternalSecret and SecretStore resources.
+echo "Installing External Secrets Operator..."
+helm repo add external-secrets https://charts.external-secrets.io
+helm repo update
+helm upgrade --install external-secrets \
+     external-secrets/external-secrets \
+     --namespace external-secrets-system \
+     --create-namespace \
+     --wait \
+     --set installCRDs=true
+
+# Create sample External Secrets Operator resources that will be discovered by the agent
+kubectl apply -f "${root_dir}/hack/ark/secret-store.yaml"
+kubectl apply -f "${root_dir}/hack/ark/external-secret.yaml"
+kubectl apply -f "${root_dir}/hack/ark/cluster-secret-store.yaml"
+kubectl apply -f "${root_dir}/hack/ark/cluster-external-secret.yaml"
+
+# We use a non-existent tag and omit the `--version` flag, to work around a Helm
+# v4 bug. See: https://github.com/helm/helm/issues/31600
+helm upgrade agent "oci://${ARK_CHART}:NON_EXISTENT_TAG@${ARK_CHART_DIGEST}" \
+     --install \
+     --wait \
+     --create-namespace \
+     --namespace "$NAMESPACE" \
+     --set-json extraArgs='["--log-level=6"]' \
+     --set pprof.enabled=true \
+     --set fullnameOverride=disco-agent \
+     --set "imageRegistry=${OCI_BASE}" \
+     --set "imageNamespace=" \
+     --set "image.digest=${ARK_IMAGE_DIGEST}" \
+     --set config.clusterName="e2e-jwt-test-cluster" \
+     --set config.clusterDescription="A temporary cluster for E2E testing. Contact @wallrj-cyberark." \
+     --set config.period=60s \
+     --set config.cyberark.serviceId="$ARK_SERVICE_ID" \
+     --set config.cyberark.subdomain="$ARK_SUBDOMAIN" \
+     --set acceptTerms=true \
+     --set-json "podLabels={\"disco-agent.cyberark.cloud/test-id\": \"${RANDOM}\"}"
+
+kubectl rollout status deployments/disco-agent --namespace "${NAMESPACE}"
+
+# Prove the point of this script: the agent must run without an
+# agent-credentials Secret at all when ARK_DISCOVERY_API is unset.
+if [[ -z "$ARK_DISCOVERY_API" ]]; then
+  if kubectl get secret agent-credentials --namespace "$NAMESPACE" &>/dev/null; then
+    echo "agent-credentials Secret exists, but this run is meant to be Secret-free" >&2
+    exit 1
+  fi
+fi
+
+# Wait 60s for log message indicating success.
+# Parse logs as JSON using jq to ensure logs are all JSON formatted.
+timeout 60 jq -n \
+        'inputs | if .msg | test("Data sent successfully") then . | halt_error(0) else . end' \
+        <(kubectl logs deployments/disco-agent --namespace "${NAMESPACE}" --follow)
+
+# Query the Prometheus metrics endpoint to ensure it's working.
+kubectl get pod \
+        --namespace $NAMESPACE \
+        --selector app.kubernetes.io/name=disco-agent \
+        --output jsonpath={.items[*].metadata.name} \
+    | xargs -I{} kubectl get --raw /api/v1/namespaces/$NAMESPACE/pods/{}:8081/proxy/metrics \
+    | grep '^process_'
+
+# Query the pprof endpoint to ensure it's working.
+kubectl get pod \
+        --namespace $NAMESPACE \
+        --selector app.kubernetes.io/name=disco-agent \
+        --output jsonpath={.items[*].metadata.name} \
+    | xargs -I{} kubectl get --raw /api/v1/namespaces/$NAMESPACE/pods/{}:8081/proxy/debug/pprof/cmdline \
+    | xargs -0
