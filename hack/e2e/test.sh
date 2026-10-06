@@ -75,12 +75,23 @@ source release.env
 popd
 
 export USE_GKE_GCLOUD_AUTH_PLUGIN=True
-if ! gcloud container clusters get-credentials "${CLUSTER_NAME}"; then
+
+# The project's org policy forbids GKE nodes with public IPs and a public
+# control-plane IP. The nodes rely on a Cloud NAT in the default network to
+# reach the Venafi API and the image registries. The DNS endpoint is reachable
+# from the GitHub runner and is authorised with IAM.
+# Why?: https://cloud.google.com/kubernetes-engine/docs/concepts/network-isolation#dns-based_endpoint
+if ! gcloud container clusters describe "${CLUSTER_NAME}" &>/dev/null; then
   gcloud container clusters create "${CLUSTER_NAME}" \
     --preemptible \
     --machine-type e2-small \
-    --num-nodes 3
+    --num-nodes 3 \
+    --enable-ip-alias \
+    --enable-private-nodes \
+    --enable-private-endpoint \
+    --enable-dns-access
 fi
+gcloud container clusters get-credentials "${CLUSTER_NAME}" --dns-endpoint
 kubectl create ns venafi || true
 
 # Pull secret for Venafi OCI registry
