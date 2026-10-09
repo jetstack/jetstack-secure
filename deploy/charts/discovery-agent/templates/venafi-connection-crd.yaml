@@ -282,7 +282,7 @@ spec:
                             type: object
                             x-kubernetes-validations:
                               - message: at most one of the fields in [clientID clientId] may be set
-                                rule: '[has(self.clientID),has(self.clientId)].filter(x,x==true).size() <= 1'
+                                rule: (has(self.clientID)?1:0)+(has(self.clientId)?1:0) <= 1
                           vcpOAuth:
                             description: |-
                               VCPOAuth is a SecretSource step that authenticates to the
@@ -296,7 +296,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: exactly one of the fields in [secret serviceAccountToken hashicorpVaultOAuth hashicorpVaultSecret hashicorpVaultLDAP tppOAuth vcpOAuth privateKeyJWT] must be set
-                            rule: '[has(self.secret),has(self.serviceAccountToken),has(self.hashicorpVaultOAuth),has(self.hashicorpVaultSecret),has(self.hashicorpVaultLDAP),has(self.tppOAuth),has(self.vcpOAuth),has(self.privateKeyJWT)].filter(x,x==true).size() == 1'
+                            rule: (has(self.secret)?1:0)+(has(self.serviceAccountToken)?1:0)+(has(self.hashicorpVaultOAuth)?1:0)+(has(self.hashicorpVaultSecret)?1:0)+(has(self.hashicorpVaultLDAP)?1:0)+(has(self.tppOAuth)?1:0)+(has(self.vcpOAuth)?1:0)+(has(self.privateKeyJWT)?1:0) == 1
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -491,7 +491,7 @@ spec:
                             type: object
                             x-kubernetes-validations:
                               - message: at most one of the fields in [clientID clientId] may be set
-                                rule: '[has(self.clientID),has(self.clientId)].filter(x,x==true).size() <= 1'
+                                rule: (has(self.clientID)?1:0)+(has(self.clientId)?1:0) <= 1
                           vcpOAuth:
                             description: |-
                               VCPOAuth is a SecretSource step that authenticates to the
@@ -505,7 +505,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: exactly one of the fields in [secret serviceAccountToken hashicorpVaultOAuth hashicorpVaultSecret hashicorpVaultLDAP tppOAuth vcpOAuth privateKeyJWT] must be set
-                            rule: '[has(self.secret),has(self.serviceAccountToken),has(self.hashicorpVaultOAuth),has(self.hashicorpVaultSecret),has(self.hashicorpVaultLDAP),has(self.tppOAuth),has(self.vcpOAuth),has(self.privateKeyJWT)].filter(x,x==true).size() == 1'
+                            rule: (has(self.secret)?1:0)+(has(self.serviceAccountToken)?1:0)+(has(self.hashicorpVaultOAuth)?1:0)+(has(self.hashicorpVaultSecret)?1:0)+(has(self.hashicorpVaultLDAP)?1:0)+(has(self.tppOAuth)?1:0)+(has(self.vcpOAuth)?1:0)+(has(self.privateKeyJWT)?1:0) == 1
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -698,7 +698,7 @@ spec:
                             type: object
                             x-kubernetes-validations:
                               - message: at most one of the fields in [clientID clientId] may be set
-                                rule: '[has(self.clientID),has(self.clientId)].filter(x,x==true).size() <= 1'
+                                rule: (has(self.clientID)?1:0)+(has(self.clientId)?1:0) <= 1
                           vcpOAuth:
                             description: |-
                               VCPOAuth is a SecretSource step that authenticates to the
@@ -712,7 +712,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: exactly one of the fields in [secret serviceAccountToken hashicorpVaultOAuth hashicorpVaultSecret hashicorpVaultLDAP tppOAuth vcpOAuth privateKeyJWT] must be set
-                            rule: '[has(self.secret),has(self.serviceAccountToken),has(self.hashicorpVaultOAuth),has(self.hashicorpVaultSecret),has(self.hashicorpVaultLDAP),has(self.tppOAuth),has(self.vcpOAuth),has(self.privateKeyJWT)].filter(x,x==true).size() == 1'
+                            rule: (has(self.secret)?1:0)+(has(self.serviceAccountToken)?1:0)+(has(self.hashicorpVaultOAuth)?1:0)+(has(self.hashicorpVaultSecret)?1:0)+(has(self.hashicorpVaultLDAP)?1:0)+(has(self.tppOAuth)?1:0)+(has(self.vcpOAuth)?1:0)+(has(self.privateKeyJWT)?1:0) == 1
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -727,12 +727,26 @@ spec:
                         The URL to connect to the NGTS Data Plane. If not set, the default
                         value https://<tsgID>.ngts.paloaltonetworks.com is used.
                       type: string
+                    workspaceID:
+                      description: |-
+                        The ID of the NGTS workspace that the service account belongs to.
+                        Required when the service account uses OIDC (workload identity) and
+                        belongs to a workspace: without it, NGTS only looks for tenant-level
+                        service accounts, and the token request fails with "Not found". Leave it
+                        unset for a tenant-level service account. It has no effect with
+                        privateKeyJWT, because the client ID identifies the account. NGTS
+                        ignores it on API calls: they are scoped to the workspace of the service
+                        account that authenticated. NGTS does not report an unknown workspace
+                        ID: with OIDC, a wrong ID fails with the same "Not found" error as a
+                        wrong issuer, audience or subject, so check it carefully.
+                      minLength: 1
+                      type: string
                   required:
                     - jwt
                   type: object
                   x-kubernetes-validations:
                     - message: exactly one of the fields in [tsgID url] must be set
-                      rule: '[has(self.tsgID),has(self.url)].filter(x,x==true).size() == 1'
+                      rule: (has(self.tsgID)?1:0)+(has(self.url)?1:0) == 1
                 tpp:
                   properties:
                     accessToken:
@@ -916,7 +930,7 @@ spec:
                             type: object
                             x-kubernetes-validations:
                               - message: at most one of the fields in [clientID clientId] may be set
-                                rule: '[has(self.clientID),has(self.clientId)].filter(x,x==true).size() <= 1'
+                                rule: (has(self.clientID)?1:0)+(has(self.clientId)?1:0) <= 1
                           vcpOAuth:
                             description: |-
                               VCPOAuth is a SecretSource step that authenticates to the
@@ -930,7 +944,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: exactly one of the fields in [secret serviceAccountToken hashicorpVaultOAuth hashicorpVaultSecret hashicorpVaultLDAP tppOAuth vcpOAuth privateKeyJWT] must be set
-                            rule: '[has(self.secret),has(self.serviceAccountToken),has(self.hashicorpVaultOAuth),has(self.hashicorpVaultSecret),has(self.hashicorpVaultLDAP),has(self.tppOAuth),has(self.vcpOAuth),has(self.privateKeyJWT)].filter(x,x==true).size() == 1'
+                            rule: (has(self.secret)?1:0)+(has(self.serviceAccountToken)?1:0)+(has(self.hashicorpVaultOAuth)?1:0)+(has(self.hashicorpVaultSecret)?1:0)+(has(self.hashicorpVaultLDAP)?1:0)+(has(self.tppOAuth)?1:0)+(has(self.vcpOAuth)?1:0)+(has(self.privateKeyJWT)?1:0) == 1
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -1131,7 +1145,7 @@ spec:
                             type: object
                             x-kubernetes-validations:
                               - message: at most one of the fields in [clientID clientId] may be set
-                                rule: '[has(self.clientID),has(self.clientId)].filter(x,x==true).size() <= 1'
+                                rule: (has(self.clientID)?1:0)+(has(self.clientId)?1:0) <= 1
                           vcpOAuth:
                             description: |-
                               VCPOAuth is a SecretSource step that authenticates to the
@@ -1145,7 +1159,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: exactly one of the fields in [secret serviceAccountToken hashicorpVaultOAuth hashicorpVaultSecret hashicorpVaultLDAP tppOAuth vcpOAuth privateKeyJWT] must be set
-                            rule: '[has(self.secret),has(self.serviceAccountToken),has(self.hashicorpVaultOAuth),has(self.hashicorpVaultSecret),has(self.hashicorpVaultLDAP),has(self.tppOAuth),has(self.vcpOAuth),has(self.privateKeyJWT)].filter(x,x==true).size() == 1'
+                            rule: (has(self.secret)?1:0)+(has(self.serviceAccountToken)?1:0)+(has(self.hashicorpVaultOAuth)?1:0)+(has(self.hashicorpVaultSecret)?1:0)+(has(self.hashicorpVaultLDAP)?1:0)+(has(self.tppOAuth)?1:0)+(has(self.vcpOAuth)?1:0)+(has(self.privateKeyJWT)?1:0) == 1
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -1332,7 +1346,7 @@ spec:
                             type: object
                             x-kubernetes-validations:
                               - message: at most one of the fields in [clientID clientId] may be set
-                                rule: '[has(self.clientID),has(self.clientId)].filter(x,x==true).size() <= 1'
+                                rule: (has(self.clientID)?1:0)+(has(self.clientId)?1:0) <= 1
                           vcpOAuth:
                             description: |-
                               VCPOAuth is a SecretSource step that authenticates to the
@@ -1346,7 +1360,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: exactly one of the fields in [secret serviceAccountToken hashicorpVaultOAuth hashicorpVaultSecret hashicorpVaultLDAP tppOAuth vcpOAuth privateKeyJWT] must be set
-                            rule: '[has(self.secret),has(self.serviceAccountToken),has(self.hashicorpVaultOAuth),has(self.hashicorpVaultSecret),has(self.hashicorpVaultLDAP),has(self.tppOAuth),has(self.vcpOAuth),has(self.privateKeyJWT)].filter(x,x==true).size() == 1'
+                            rule: (has(self.secret)?1:0)+(has(self.serviceAccountToken)?1:0)+(has(self.hashicorpVaultOAuth)?1:0)+(has(self.hashicorpVaultSecret)?1:0)+(has(self.hashicorpVaultLDAP)?1:0)+(has(self.tppOAuth)?1:0)+(has(self.vcpOAuth)?1:0)+(has(self.privateKeyJWT)?1:0) == 1
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -1358,7 +1372,7 @@ spec:
                   type: object
                   x-kubernetes-validations:
                     - message: exactly one of the fields in [apiKey accessToken] must be set
-                      rule: '[has(self.apiKey),has(self.accessToken)].filter(x,x==true).size() == 1'
+                      rule: (has(self.apiKey)?1:0)+(has(self.accessToken)?1:0) == 1
                 vcp:
                   properties:
                     accessToken:
@@ -1544,7 +1558,7 @@ spec:
                             type: object
                             x-kubernetes-validations:
                               - message: at most one of the fields in [clientID clientId] may be set
-                                rule: '[has(self.clientID),has(self.clientId)].filter(x,x==true).size() <= 1'
+                                rule: (has(self.clientID)?1:0)+(has(self.clientId)?1:0) <= 1
                           vcpOAuth:
                             description: |-
                               VCPOAuth is a SecretSource step that authenticates to the
@@ -1558,7 +1572,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: exactly one of the fields in [secret serviceAccountToken hashicorpVaultOAuth hashicorpVaultSecret hashicorpVaultLDAP tppOAuth vcpOAuth privateKeyJWT] must be set
-                            rule: '[has(self.secret),has(self.serviceAccountToken),has(self.hashicorpVaultOAuth),has(self.hashicorpVaultSecret),has(self.hashicorpVaultLDAP),has(self.tppOAuth),has(self.vcpOAuth),has(self.privateKeyJWT)].filter(x,x==true).size() == 1'
+                            rule: (has(self.secret)?1:0)+(has(self.serviceAccountToken)?1:0)+(has(self.hashicorpVaultOAuth)?1:0)+(has(self.hashicorpVaultSecret)?1:0)+(has(self.hashicorpVaultLDAP)?1:0)+(has(self.tppOAuth)?1:0)+(has(self.vcpOAuth)?1:0)+(has(self.privateKeyJWT)?1:0) == 1
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -1745,7 +1759,7 @@ spec:
                             type: object
                             x-kubernetes-validations:
                               - message: at most one of the fields in [clientID clientId] may be set
-                                rule: '[has(self.clientID),has(self.clientId)].filter(x,x==true).size() <= 1'
+                                rule: (has(self.clientID)?1:0)+(has(self.clientId)?1:0) <= 1
                           vcpOAuth:
                             description: |-
                               VCPOAuth is a SecretSource step that authenticates to the
@@ -1759,7 +1773,7 @@ spec:
                         type: object
                         x-kubernetes-validations:
                           - message: exactly one of the fields in [secret serviceAccountToken hashicorpVaultOAuth hashicorpVaultSecret hashicorpVaultLDAP tppOAuth vcpOAuth privateKeyJWT] must be set
-                            rule: '[has(self.secret),has(self.serviceAccountToken),has(self.hashicorpVaultOAuth),has(self.hashicorpVaultSecret),has(self.hashicorpVaultLDAP),has(self.tppOAuth),has(self.vcpOAuth),has(self.privateKeyJWT)].filter(x,x==true).size() == 1'
+                            rule: (has(self.secret)?1:0)+(has(self.serviceAccountToken)?1:0)+(has(self.hashicorpVaultOAuth)?1:0)+(has(self.hashicorpVaultSecret)?1:0)+(has(self.hashicorpVaultLDAP)?1:0)+(has(self.tppOAuth)?1:0)+(has(self.vcpOAuth)?1:0)+(has(self.privateKeyJWT)?1:0) == 1
                       maxItems: 50
                       type: array
                       x-kubernetes-list-type: atomic
@@ -1771,11 +1785,11 @@ spec:
                   type: object
                   x-kubernetes-validations:
                     - message: exactly one of the fields in [apiKey accessToken] must be set
-                      rule: '[has(self.apiKey),has(self.accessToken)].filter(x,x==true).size() == 1'
+                      rule: (has(self.apiKey)?1:0)+(has(self.accessToken)?1:0) == 1
               type: object
               x-kubernetes-validations:
                 - message: exactly one of the fields in [tpp ngts vcp vaas distributedIssuer firefly] must be set
-                  rule: '[has(self.tpp),has(self.ngts),has(self.vcp),has(self.vaas),has(self.distributedIssuer),has(self.firefly)].filter(x,x==true).size() == 1'
+                  rule: (has(self.tpp)?1:0)+(has(self.ngts)?1:0)+(has(self.vcp)?1:0)+(has(self.vaas)?1:0)+(has(self.distributedIssuer)?1:0)+(has(self.firefly)?1:0) == 1
             status:
               properties:
                 conditions:

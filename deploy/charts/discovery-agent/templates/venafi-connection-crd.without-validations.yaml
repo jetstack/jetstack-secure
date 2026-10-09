@@ -709,6 +709,20 @@ spec:
                         The URL to connect to the NGTS Data Plane. If not set, the default
                         value https://<tsgID>.ngts.paloaltonetworks.com is used.
                       type: string
+                    workspaceID:
+                      description: |-
+                        The ID of the NGTS workspace that the service account belongs to.
+                        Required when the service account uses OIDC (workload identity) and
+                        belongs to a workspace: without it, NGTS only looks for tenant-level
+                        service accounts, and the token request fails with "Not found". Leave it
+                        unset for a tenant-level service account. It has no effect with
+                        privateKeyJWT, because the client ID identifies the account. NGTS
+                        ignores it on API calls: they are scoped to the workspace of the service
+                        account that authenticated. NGTS does not report an unknown workspace
+                        ID: with OIDC, a wrong ID fails with the same "Not found" error as a
+                        wrong issuer, audience or subject, so check it carefully.
+                      minLength: 1
+                      type: string
                   required:
                     - jwt
                   type: object

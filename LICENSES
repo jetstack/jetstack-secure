@@ -58,11 +58,11 @@ github.com/go-openapi/swag,Apache-2.0
 github.com/go-openapi/swag/cmdutils,Apache-2.0
 github.com/go-openapi/swag/conv,Apache-2.0
 github.com/go-openapi/swag/fileutils,Apache-2.0
-github.com/go-openapi/swag/jsonname,Apache-2.0
 github.com/go-openapi/swag/jsonutils,Apache-2.0
 github.com/go-openapi/swag/loading,Apache-2.0
 github.com/go-openapi/swag/mangling,Apache-2.0
 github.com/go-openapi/swag/netutils,Apache-2.0
+github.com/go-openapi/swag/pools,Apache-2.0
 github.com/go-openapi/swag/stringutils,Apache-2.0
 github.com/go-openapi/swag/typeutils,Apache-2.0
 github.com/go-openapi/swag/yamlutils,Apache-2.0
@@ -100,6 +100,8 @@ github.com/sosodev/duration,MIT
 github.com/spf13/cobra,Apache-2.0
 github.com/spf13/pflag,BSD-3-Clause
 github.com/stretchr/testify,MIT
+github.com/stretchr/testify/internal/difflib,BSD-3-Clause
+github.com/stretchr/testify/internal/spew,ISC
 github.com/valyala/fastjson,MIT
 github.com/x448/float16,MIT
 go.opentelemetry.io/otel,Apache-2.0

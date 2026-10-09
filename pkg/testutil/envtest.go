@@ -198,7 +198,7 @@ func FakeVenafiCloud(t *testing.T) (_ *httptest.Server, _ *x509.Certificate, set
 		if r.URL.Path == "/v1/oauth2/v2.0/756db001-280e-11ee-84fb-991f3177e2d0/token" {
 			_, _ = w.Write([]byte(`{"access_token":"VALID_ACCESS_TOKEN","expires_in":900,"token_type":"bearer"}`))
 			return
-		} else if r.URL.Path == "/v1/oauth/token/serviceaccount" {
+		} else if r.URL.Path == "/v1/oauth/token/serviceaccount" || r.URL.Path == "/v1/oauth/v2.0/token" {
 			_, _ = w.Write([]byte(`{"access_token":"VALID_ACCESS_TOKEN","expires_in":900,"token_type":"bearer"}`))
 			return
 		}
