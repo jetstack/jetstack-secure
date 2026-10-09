@@ -99,6 +99,61 @@ func TestVenConnClient_PostDataReadingsWithOptions(t *testing.T) {
 		`),
 		expectReadyCondMsg: "Generated a new token",
 	}))
+	t.Run("ngts with workspaceID", run_TestVenConnClient_PostDataReadingsWithOptions(ctx, restconf, kclient, testcase{
+		given: testutil.Undent(`
+			apiVersion: jetstack.io/v1alpha1
+			kind: VenafiConnection
+			metadata:
+			  name: venafi-components
+			  namespace: TEST_NAMESPACE
+			spec:
+			  ngts:
+			    url: FAKE_VENAFI_CLOUD_URL
+			    workspaceID: "1000"
+			    jwt:
+			      - secret:
+			          name: jwt
+			          fields: [jwt]
+			  allowReferencesFrom:
+			    matchExpressions:
+			      - {key: kubernetes.io/metadata.name, operator: In, values: [venafi]}
+			---
+			apiVersion: v1
+			kind: Secret
+			metadata:
+			  name: jwt
+			  namespace: TEST_NAMESPACE
+			stringData:
+			  jwt: FAKE_JWT
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: Role
+			metadata:
+			  name: venafi-connection-jwt-reader
+			  namespace: TEST_NAMESPACE
+			rules:
+			- apiGroups: [""]
+			  resources: ["secrets"]
+			  verbs: ["get"]
+			  resourceNames: ["jwt"]
+			---
+			apiVersion: rbac.authorization.k8s.io/v1
+			kind: RoleBinding
+			metadata:
+			  name: venafi-connection-jwt-reader
+			  namespace: TEST_NAMESPACE
+			roleRef:
+			  apiGroup: rbac.authorization.k8s.io
+			  kind: Role
+			  name: venafi-connection-jwt-reader
+			subjects:
+			- kind: ServiceAccount
+			  name: venafi-connection
+			  namespace: venafi
+		`),
+		expectReadyCondMsg: "Generated a new token",
+		expectWorkspaceID:  "1000",
+	}))
 	t.Run("error when the apiKey field is used", run_TestVenConnClient_PostDataReadingsWithOptions(ctx, restconf, kclient, testcase{
 		// Why isn't it possible to use the 'apiKey' field? Although the
 		// Kubernetes Discovery endpoint works with an API key, we have decided
@@ -279,6 +334,7 @@ type testcase struct {
 	given              string
 	expectErr          string
 	expectReadyCondMsg string
+	expectWorkspaceID  string // On the NGTS token request.
 }
 
 // All tests share the same envtest (i.e., the same apiserver and etcd process),
@@ -291,6 +347,10 @@ func run_TestVenConnClient_PostDataReadingsWithOptions(ctx context.Context, rest
 		fakeVenafiCloud, certCloud, fakeVenafiAssert := testutil.FakeVenafiCloud(t)
 		fakeTPP, certTPP := testutil.FakeTPP(t)
 		fakeVenafiAssert(func(t testing.TB, r *http.Request) {
+			if r.URL.Path == "/v1/oauth/v2.0/token" {
+				assert.Equal(t, test.expectWorkspaceID, r.URL.Query().Get("workspace_id"), "workspace_id query parameter on the NGTS token request")
+				return
+			}
 			if r.URL.Path == "/v1/useraccounts" {
 				return // We only care about /v1/tlspk/upload/clusterdata.
 			}
