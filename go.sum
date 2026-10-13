@@ -125,8 +125,8 @@ github.com/hashicorp/go-multierror v1.1.1 h1:H5DkEtf6CXdFp0N0Em5UCwQpXMWke8IA0+l
 github.com/hashicorp/go-multierror v1.1.1/go.mod h1:iw975J/qwKPdAO1clOe2L8331t/9/fmwbPZ6JB6eMoM=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/jetstack/venafi-connection-lib v0.6.1-0.20261009082524-62e2d3779277 h1:gaMouBUblTABlfKxDRpH6i7ztyIjq+pCSFF1/9AvXgU=
-github.com/jetstack/venafi-connection-lib v0.6.1-0.20261009082524-62e2d3779277/go.mod h1:0kPO8MXLZ15aYaSijCBCzx36FBZyNYrw4W23RVWf6v0=
+github.com/jetstack/venafi-connection-lib v0.7.0 h1:Z5KZEwAi4qQXcMkb2DE/eGBfXomnxA2YwC+VYewDSHs=
+github.com/jetstack/venafi-connection-lib v0.7.0/go.mod h1:SuLXPQ0uQ+sfbojbHGSu5rwzed3Mba7vSj6nAQ4brmY=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/klauspost/compress v1.19.1 h1:VsB4HPswih7mmZ8WleSFQ75c/Ui1M4trX5oAsJnhSlk=
