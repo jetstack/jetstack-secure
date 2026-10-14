@@ -10,7 +10,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/jetstack/venafi-connection-lib v0.6.1-0.20261009082524-62e2d3779277
+	github.com/jetstack/venafi-connection-lib v0.7.0
 	github.com/lestrrat-go/jwx/v3 v3.1.1
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/pmylund/go-cache v2.1.0+incompatible
