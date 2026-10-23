@@ -76,11 +76,12 @@ popd
 
 export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 
-# The project's org policy forbids GKE nodes with public IPs and a public
-# control-plane IP. The nodes rely on a Cloud NAT in the default network to
-# reach the Venafi API and the image registries. The DNS endpoint is reachable
-# from the GitHub runner and is authorised with IAM.
-# Why?: https://cloud.google.com/kubernetes-engine/docs/concepts/network-isolation#dns-based_endpoint
+# The project's org policy forbids GKE nodes with public IPs, a public
+# control-plane IP and the DNS-based control-plane endpoint. The nodes rely on a
+# Cloud NAT in the default network to reach the Venafi API and the image
+# registries. The GitHub runner reaches the API server through the Connect
+# gateway, which needs the cluster to be registered to the project's fleet.
+# Why?: https://cloud.google.com/kubernetes-engine/enterprise/multicluster-management/gateway
 if ! gcloud container clusters describe "${CLUSTER_NAME}" &>/dev/null; then
   gcloud container clusters create "${CLUSTER_NAME}" \
     --preemptible \
@@ -89,9 +90,13 @@ if ! gcloud container clusters describe "${CLUSTER_NAME}" &>/dev/null; then
     --enable-ip-alias \
     --enable-private-nodes \
     --enable-private-endpoint \
-    --enable-dns-access
+    --enable-fleet
 fi
-gcloud container clusters get-credentials "${CLUSTER_NAME}" --dns-endpoint
+# The membership is named after the cluster, but its location is not the
+# cluster's zone, so read it back from the cluster.
+membership="$(gcloud container clusters describe "${CLUSTER_NAME}" --format='value(fleet.membership)')"
+membership_location="$(sed -E 's|.*/locations/([^/]+)/.*|\1|' <<<"${membership}")"
+gcloud container fleet memberships get-credentials "${CLUSTER_NAME}" --location "${membership_location}"
 kubectl create ns venafi || true
 
 # Pull secret for Venafi OCI registry
