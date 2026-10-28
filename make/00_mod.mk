@@ -34,7 +34,7 @@ oci_preflight_image_name_development := jetstack.local/venafi-agent
 # Annotations are the standardised set of annotations we set on every component we publish
 oci_preflight_build_args := \
 	--image-annotation="org.opencontainers.image.vendor"="CyberArk Software Ltd." \
-	--image-annotation="org.opencontainers.image.licenses"="EULA - https://www.cyberark.com/contract-terms/" \
+	--image-annotation="org.opencontainers.image.licenses"="EULA - https://www.paloaltonetworks.com/content/dam/pan/en_US/assets/pdf/legal/palo-alto-networks-end-user-license-agreement-eula.pdf" \
 	--image-annotation="org.opencontainers.image.authors"="support@cyberark.com" \
 	--image-annotation="org.opencontainers.image.title"="Discovery Agent for CyberArk Certificate Manager in Kubernetes and OpenShift Environments" \
 	--image-annotation="org.opencontainers.image.description"="Gathers machine identity data from Kubernetes clusters." \
