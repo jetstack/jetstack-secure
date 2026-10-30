@@ -95,7 +95,7 @@
     },
     "helm-values.acceptTerms": {
       "default": false,
-      "description": "Must be set to indicate that you have read and accepted the CyberArk Terms of Service. If false, the helm chart will fail to install and will print a message with instructions on how to accept the TOS.",
+      "description": "Must be set to indicate that you have read and accepted the Palo Alto Networks End User License Agreement (https://www.paloaltonetworks.com/content/dam/pan/en_US/assets/pdf/legal/palo-alto-networks-end-user-license-agreement-eula.pdf). If false, the helm chart will fail to install and will print a message with instructions on how to accept the EULA.",
       "type": "boolean"
     },
     "helm-values.affinity": {

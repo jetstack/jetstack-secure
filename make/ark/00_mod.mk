@@ -15,7 +15,7 @@ oci_ark_image_name_development := jetstack.local/disco-agent
 oci_ark_build_args := \
 	--image-annotation="org.opencontainers.image.source"="https://github.com/jetstack/jetstack-secure" \
 	--image-annotation="org.opencontainers.image.vendor"="CyberArk Software Ltd." \
-	--image-annotation="org.opencontainers.image.licenses"="EULA - https://www.cyberark.com/contract-terms/" \
+	--image-annotation="org.opencontainers.image.licenses"="EULA - https://www.paloaltonetworks.com/content/dam/pan/en_US/assets/pdf/legal/palo-alto-networks-end-user-license-agreement-eula.pdf" \
 	--image-annotation="org.opencontainers.image.authors"="CyberArk Software Ltd." \
 	--image-annotation="org.opencontainers.image.title"="CyberArk Discovery and Context Agent" \
 	--image-annotation="org.opencontainers.image.description"="Gathers machine identity data from Kubernetes clusters." \
