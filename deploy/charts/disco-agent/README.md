@@ -174,7 +174,7 @@ This will set the replicaset count more information can be found here: https://k
 > false
 > ```
 
-Must be set to indicate that you have read and accepted the CyberArk Terms of Service. If false, the helm chart will fail to install and will print a message with instructions on how to accept the TOS.
+Must be set to indicate that you have read and accepted the Palo Alto Networks End User License Agreement (https://www.paloaltonetworks.com/content/dam/pan/en_US/assets/pdf/legal/palo-alto-networks-end-user-license-agreement-eula.pdf). If false, the helm chart will fail to install and will print a message with instructions on how to accept the EULA.
 #### **imageRegistry** ~ `string`
 > Default value:
 > ```yaml
