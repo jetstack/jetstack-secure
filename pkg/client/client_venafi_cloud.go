@@ -215,6 +215,11 @@ func (c *VenafiCloudClient) PostDataReadingsWithOptions(ctx context.Context, rea
 	defer res.Body.Close()
 
 	if code := res.StatusCode; code < 200 || code >= 300 {
+		if code == http.StatusUnauthorized {
+			// The token may be stale, for example after the cluster moved to another sub-TSG.
+			// Drop it so that the next attempt fetches a new token instead of reusing this one.
+			c.invalidateAccessToken()
+		}
 		errorContent := ""
 		body, err := io.ReadAll(res.Body)
 		if err == nil {
@@ -269,6 +274,14 @@ func (c *VenafiCloudClient) getValidAccessToken(ctx context.Context) (*venafiClo
 	c.lock.RUnlock()
 
 	return token, nil
+}
+
+// invalidateAccessToken discards the cached access token so that the next
+// request fetches a new one.
+func (c *VenafiCloudClient) invalidateAccessToken() {
+	c.lock.Lock()
+	c.accessToken = &venafiCloudAccessToken{}
+	c.lock.Unlock()
 }
 
 func (c *VenafiCloudClient) updateAccessToken(ctx context.Context) error {
