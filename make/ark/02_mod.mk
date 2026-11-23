@@ -43,6 +43,15 @@ ark-release:
 ark-test-e2e: $(NEEDS_KIND) $(NEEDS_KUBECTL) $(NEEDS_HELM)
 	PATH="$(bin_dir)/tools:${PATH}" ./hack/ark/test-e2e.sh
 
+.PHONY: ark-test-e2e-jwt
+## Run a basic E2E test on a Kind cluster using Conjur JWT auth, no
+## agent-credentials Secret. Requires the target cluster to already be
+## onboarded in Conjur Cloud -- see hack/ark/test-e2e-jwt.sh for details.
+## Not wired into CI: no CI-side onboarding automation exists yet.
+## @category CyberArk Discovery and Context
+ark-test-e2e-jwt: $(NEEDS_KIND) $(NEEDS_KUBECTL) $(NEEDS_HELM)
+	PATH="$(bin_dir)/tools:${PATH}" ./hack/ark/test-e2e-jwt.sh
+
 .PHONY: ark-verify
 ## Verify the Helm chart
 ## @category CyberArk Discovery and Context
