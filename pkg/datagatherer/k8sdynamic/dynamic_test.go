@@ -922,13 +922,13 @@ func TestDynamicGatherer_Fetch(t *testing.T) {
 			// deletes all the objects set to be deleted, to trigger
 			// a delete event in the informers. Add 1 to wg making "sure" (https://github.com/kubernetes/kubernetes/issues/95372)
 			// the informers cache are sync
-			for ns, delete := range tc.deleteObjects {
+			for ns, name := range tc.deleteObjects {
 				wg.Add(1)
 				deletePolicy := metav1.DeletePropagationForeground
 				deleteOptions := metav1.DeleteOptions{
 					PropagationPolicy: &deletePolicy,
 				}
-				err := cl.Resource(tc.config.GroupVersionResource).Namespace(ns).Delete(ctx, delete, deleteOptions)
+				err := cl.Resource(tc.config.GroupVersionResource).Namespace(ns).Delete(ctx, name, deleteOptions)
 				if err != nil {
 					t.Fatalf("unexpected client delete error: %+v", err)
 				}
@@ -1361,13 +1361,13 @@ func TestDynamicGathererNativeResources_Fetch(t *testing.T) {
 
 			// deletes all the objects set to be deleted, to trigger
 			// a delete event in the informers. Add 1 to wg
-			for ns, delete := range tc.deleteObjects {
+			for ns, name := range tc.deleteObjects {
 				wg.Add(1)
 				deletePolicy := metav1.DeletePropagationForeground
 				deleteOptions := metav1.DeleteOptions{
 					PropagationPolicy: &deletePolicy,
 				}
-				err := clientset.CoreV1().Pods(ns).Delete(ctx, delete, deleteOptions)
+				err := clientset.CoreV1().Pods(ns).Delete(ctx, name, deleteOptions)
 				if err != nil {
 					t.Fatalf("unexpected client delete error: %+v", err)
 				}
